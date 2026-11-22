@@ -82,11 +82,17 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 14. **The app stops at start-up, with one line,** when a setting, a file or the built shell is
     missing or wrong. A stopped agent, the orchestrator included, does not stop it.
 15. **A problem report never carries a person's work.** It holds what the person typed, the
-    build, and the page's path. The run and conversation they came from are attached only if they
+    build, the page's path, the browser's user agent, language, viewport and colour scheme (shown
+    beside the form before it is sent), and what the server knows of the deployment: the time,
+    the Python version, the profile's id, version and digest, the orchestrator's name, and the
+    names of agents it cannot reach, never their addresses. The environment sits in a folded
+    section after the description. The run and conversation they came from are attached only if they
     tick a box, and then only as identifiers, agents, versions and outcomes read from the run
     store: never an input, a payload or evidence (`app/tests/test_feedback.py`).
-16. **The server names the build in a report.** It adds the app version, harness version and
-    commit to the issue itself; the page shows them but is not trusted for them.
+16. **The server names the build and the deployment in a report.** It adds the app version,
+    harness version, commit and deployment details to the issue itself; the page shows the build
+    but is not trusted for it. Browser details come from the page and are bounded and limited to
+    four named fields.
 17. **Problem reports are bounded.** Lengths are capped, unknown fields refused, and the number
     filed in a window limited (`app/src/dd_app/feedback.py`, `app/tests/test_feedback.py`).
     Without a credential for GitHub the feature is off, the page says so and links to GitHub, and

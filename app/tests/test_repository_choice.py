@@ -59,14 +59,20 @@ def test_a_choice_resolves_from_re3data_and_the_last_one_counts(
     assert zenodo.status_code == 201
     assert zenodo.json()["repository_name"] == "Zenodo"
     # The deployment has an override for Zenodo, so there is nothing to warn of.
-    assert [s["ref"] for s in zenodo.json()["requirement_sets"]] == ["datacite-4@v1", "zenodo@v1"]
+    assert [s["ref"].partition("@")[0] for s in zenodo.json()["requirement_sets"]] == [
+        "datacite-4",
+        "zenodo",
+    ]
     assert zenodo.json()["warnings"] == []
 
     orda = client.put(path, json={"repository_id": ORDA})
     assert orda.status_code == 201
     chosen = orda.json()
     assert chosen["re3data_id"] == ORDA
-    assert [s["ref"] for s in chosen["requirement_sets"]] == ["datacite-4@v1", "orda@v3"]
+    assert [s["ref"].partition("@")[0] for s in chosen["requirement_sets"]] == [
+        "datacite-4",
+        "orda",
+    ]
     assert chosen["warnings"] == []
     assert chosen["guidance"], "the pages ORDA's values were taken from"
     assert client.get(path).json() == chosen

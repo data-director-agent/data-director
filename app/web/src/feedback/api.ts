@@ -15,6 +15,14 @@ export type { About, FiledIssue } from "../api/generated/responses";
 
 export type FeedbackKind = "bug" | "feature" | "other";
 
+/** What the browser says about itself; shown to the reporter before it is sent. */
+export interface ClientDetails {
+  user_agent?: string;
+  language?: string;
+  viewport?: string;
+  color_scheme?: string;
+}
+
 export interface Report {
   kind: FeedbackKind;
   title: string;
@@ -23,6 +31,25 @@ export interface Report {
   run?: string;
   conversation?: string;
   include_context: boolean;
+  client?: ClientDetails;
+}
+
+/** The browser's user agent, language, viewport and colour scheme, where it can tell them. */
+export function clientDetails(): ClientDetails {
+  const found: ClientDetails = {};
+  if (typeof navigator !== "undefined") {
+    if (navigator.userAgent) found.user_agent = navigator.userAgent.slice(0, 300);
+    if (navigator.language) found.language = navigator.language;
+  }
+  if (typeof window !== "undefined") {
+    found.viewport = `${window.innerWidth}x${window.innerHeight}`;
+    if (typeof window.matchMedia === "function") {
+      found.color_scheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+        ? "dark"
+        : "light";
+    }
+  }
+  return found;
 }
 
 export interface FeedbackApi {

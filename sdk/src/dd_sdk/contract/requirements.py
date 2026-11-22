@@ -16,7 +16,7 @@ from dd_sdk.contract.base import (
     Frozen,
     backfill_repository_id,
 )
-from dd_sdk.contract.deposit import DepositConnector, Obligation
+from dd_sdk.contract.deposit import DepositConnector, Obligation, SuppliedOn
 from dd_sdk.contract.facts import DocumentKind
 
 
@@ -26,6 +26,7 @@ class RequirementField(Frozen):
     schema_org: str
     obligation: Obligation
     form_label: str | None = None
+    supplied_on: SuppliedOn | None = None
 
 
 class _Requirements(Frozen):
@@ -35,6 +36,7 @@ class _Requirements(Frozen):
     fields: list[RequirementField] = Field(default_factory=list)
     required_documents: list[DocumentKind] = Field(default_factory=list)
     recommended_documents: list[DocumentKind] = Field(default_factory=list)
+    filled_by_repository: list[str] = Field(default_factory=list)
     media_types: list[str] = Field(default_factory=list)
     max_file_size: int | None = None
     max_item_size: int | None = None

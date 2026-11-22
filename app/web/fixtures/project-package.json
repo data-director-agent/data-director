@@ -1,5 +1,15 @@
 {
   "conforms": true,
+  "infos": [
+    {
+      "component": "https://w3id.org/data-director/FilledByRepositoryConstraintComponent",
+      "field": null,
+      "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
+      "message": "Zenodo fills in the publisher and publication year when it registers the record, so you need not supply them.",
+      "path": null,
+      "supplied_on": null
+    }
+  ],
   "package": {
     "digest": "0000000000000000000000000000000000000000000000000000000000000003",
     "href": "/api/projects/01900000-0000-7000-8000-000000000001/packages/0000000000000000000000000000000000000000000000000000000000000003",
@@ -34,6 +44,8 @@
     "sh:result": [
       {
         "@type": "sh:ValidationResult",
+        "dd:field": "README",
+        "dd:supplied_on": "documents",
         "sh:focusNode": {
           "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
         },
@@ -47,6 +59,23 @@
       },
       {
         "@type": "sh:ValidationResult",
+        "dd:field": "data dictionary",
+        "dd:supplied_on": "documents",
+        "sh:focusNode": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
+        },
+        "sh:resultMessage": "No data dictionary has been approved. A dictionary that says what each column of the data's tables means helps others reuse them, though Zenodo does not ask for one.",
+        "sh:resultSeverity": {
+          "@id": "sh:Warning"
+        },
+        "sh:sourceConstraintComponent": {
+          "@id": "https://w3id.org/data-director/RequiredDocumentConstraintComponent"
+        }
+      },
+      {
+        "@type": "sh:ValidationResult",
+        "dd:field": "contributors",
+        "dd:supplied_on": "researchers",
         "sh:focusNode": {
           "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#v2"
         },
@@ -63,6 +92,8 @@
       },
       {
         "@type": "sh:ValidationResult",
+        "dd:field": "dates",
+        "dd:supplied_on": "documents",
         "sh:focusNode": {
           "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#v2"
         },
@@ -79,6 +110,8 @@
       },
       {
         "@type": "sh:ValidationResult",
+        "dd:field": "Related works",
+        "dd:supplied_on": "documents",
         "sh:focusNode": {
           "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#v2"
         },
@@ -95,6 +128,8 @@
       },
       {
         "@type": "sh:ValidationResult",
+        "dd:field": "geoLocations",
+        "dd:supplied_on": "documents",
         "sh:focusNode": {
           "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#v2"
         },
@@ -111,6 +146,8 @@
       },
       {
         "@type": "sh:ValidationResult",
+        "dd:field": "Funding",
+        "dd:supplied_on": "researchers",
         "sh:focusNode": {
           "@id": "urn:uuid:01900000-0000-7000-8000-000000000002#v2"
         },
@@ -123,6 +160,19 @@
         },
         "sh:sourceConstraintComponent": {
           "@id": "http://www.w3.org/ns/shacl#MinCountConstraintComponent"
+        }
+      },
+      {
+        "@type": "sh:ValidationResult",
+        "sh:focusNode": {
+          "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
+        },
+        "sh:resultMessage": "Zenodo fills in the publisher and publication year when it registers the record, so you need not supply them.",
+        "sh:resultSeverity": {
+          "@id": "sh:Info"
+        },
+        "sh:sourceConstraintComponent": {
+          "@id": "https://w3id.org/data-director/FilledByRepositoryConstraintComponent"
         }
       }
     ]
@@ -179,39 +229,59 @@
   "warnings": [
     {
       "component": "https://w3id.org/data-director/RequiredDocumentConstraintComponent",
+      "field": "README",
       "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
       "message": "Zenodo recommends a README, and none has been approved.",
-      "path": null
+      "path": null,
+      "supplied_on": "documents"
+    },
+    {
+      "component": "https://w3id.org/data-director/RequiredDocumentConstraintComponent",
+      "field": "data dictionary",
+      "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
+      "message": "No data dictionary has been approved. A dictionary that says what each column of the data's tables means helps others reuse them, though Zenodo does not ask for one.",
+      "path": null,
+      "supplied_on": "documents"
     },
     {
       "component": "http://www.w3.org/ns/shacl#MinCountConstraintComponent",
+      "field": "contributors",
       "focus": "urn:uuid:01900000-0000-7000-8000-000000000002#v2",
       "message": "The metadata record has no contributors, which Zenodo recommends.",
-      "path": "http://schema.org/contributor"
+      "path": "http://schema.org/contributor",
+      "supplied_on": "researchers"
     },
     {
       "component": "http://www.w3.org/ns/shacl#MinCountConstraintComponent",
+      "field": "dates",
       "focus": "urn:uuid:01900000-0000-7000-8000-000000000002#v2",
       "message": "The metadata record has no dates, dateType Created, which Zenodo recommends.",
-      "path": "http://schema.org/dateCreated"
+      "path": "http://schema.org/dateCreated",
+      "supplied_on": "documents"
     },
     {
       "component": "http://www.w3.org/ns/shacl#MinCountConstraintComponent",
+      "field": "Related works",
       "focus": "urn:uuid:01900000-0000-7000-8000-000000000002#v2",
       "message": "The metadata record has no Related works (relatedIdentifiers), which Zenodo recommends.",
-      "path": "http://schema.org/citation"
+      "path": "http://schema.org/citation",
+      "supplied_on": "documents"
     },
     {
       "component": "http://www.w3.org/ns/shacl#MinCountConstraintComponent",
+      "field": "geoLocations",
       "focus": "urn:uuid:01900000-0000-7000-8000-000000000002#v2",
       "message": "The metadata record has no geoLocations, which Zenodo recommends.",
-      "path": "http://schema.org/spatialCoverage"
+      "path": "http://schema.org/spatialCoverage",
+      "supplied_on": "documents"
     },
     {
       "component": "http://www.w3.org/ns/shacl#MinCountConstraintComponent",
+      "field": "Funding",
       "focus": "urn:uuid:01900000-0000-7000-8000-000000000002#v2",
       "message": "The metadata record has no Funding (fundingReferences), which Zenodo recommends.",
-      "path": "http://schema.org/funding"
+      "path": "http://schema.org/funding",
+      "supplied_on": "researchers"
     }
   ]
 }

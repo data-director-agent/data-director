@@ -5,6 +5,16 @@
   "type": "https://w3id.org/data-director/problems/package-refused",
   "validation": {
     "conforms": false,
+    "infos": [
+      {
+        "component": "https://w3id.org/data-director/FilledByRepositoryConstraintComponent",
+        "field": null,
+        "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
+        "message": "Zenodo fills in the publisher and publication year when it registers the record, so you need not supply them.",
+        "path": null,
+        "supplied_on": null
+      }
+    ],
     "project_id": "01900000-0000-7000-8000-000000000001",
     "ready": false,
     "report": {
@@ -34,6 +44,8 @@
       "sh:result": [
         {
           "@type": "sh:ValidationResult",
+          "dd:field": "metadata record",
+          "dd:supplied_on": "documents",
           "sh:focusNode": {
             "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
           },
@@ -47,6 +59,8 @@
         },
         {
           "@type": "sh:ValidationResult",
+          "dd:field": "README",
+          "dd:supplied_on": "documents",
           "sh:focusNode": {
             "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
           },
@@ -56,6 +70,34 @@
           },
           "sh:sourceConstraintComponent": {
             "@id": "https://w3id.org/data-director/RequiredDocumentConstraintComponent"
+          }
+        },
+        {
+          "@type": "sh:ValidationResult",
+          "dd:field": "data dictionary",
+          "dd:supplied_on": "documents",
+          "sh:focusNode": {
+            "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
+          },
+          "sh:resultMessage": "No data dictionary has been approved. A dictionary that says what each column of the data's tables means helps others reuse them, though Zenodo does not ask for one.",
+          "sh:resultSeverity": {
+            "@id": "sh:Warning"
+          },
+          "sh:sourceConstraintComponent": {
+            "@id": "https://w3id.org/data-director/RequiredDocumentConstraintComponent"
+          }
+        },
+        {
+          "@type": "sh:ValidationResult",
+          "sh:focusNode": {
+            "@id": "urn:uuid:01900000-0000-7000-8000-000000000001"
+          },
+          "sh:resultMessage": "Zenodo fills in the publisher and publication year when it registers the record, so you need not supply them.",
+          "sh:resultSeverity": {
+            "@id": "sh:Info"
+          },
+          "sh:sourceConstraintComponent": {
+            "@id": "https://w3id.org/data-director/FilledByRepositoryConstraintComponent"
           }
         },
         {
@@ -102,17 +144,29 @@
     "violations": [
       {
         "component": "https://w3id.org/data-director/RequiredDocumentConstraintComponent",
+        "field": "metadata record",
         "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
         "message": "Zenodo requires a metadata record, and none has been approved.",
-        "path": null
+        "path": null,
+        "supplied_on": "documents"
       }
     ],
     "warnings": [
       {
         "component": "https://w3id.org/data-director/RequiredDocumentConstraintComponent",
+        "field": "README",
         "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
         "message": "Zenodo recommends a README, and none has been approved.",
-        "path": null
+        "path": null,
+        "supplied_on": "documents"
+      },
+      {
+        "component": "https://w3id.org/data-director/RequiredDocumentConstraintComponent",
+        "field": "data dictionary",
+        "focus": "urn:uuid:01900000-0000-7000-8000-000000000001",
+        "message": "No data dictionary has been approved. A dictionary that says what each column of the data's tables means helps others reuse them, though Zenodo does not ask for one.",
+        "path": null,
+        "supplied_on": "documents"
       }
     ]
   }

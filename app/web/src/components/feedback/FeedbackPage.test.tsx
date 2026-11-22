@@ -50,6 +50,13 @@ describe("FeedbackPage", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("shows the browser details that will be sent", async () => {
+    renderPage(fakeApi());
+    await screen.findByText(/This is Data Director/);
+    expect(screen.getByText("Browser")).toBeVisible();
+    expect(screen.getByText(navigator.userAgent)).toBeVisible();
+  });
+
   it("sends the report with the page, and the run only if the reporter agrees", async () => {
     const send = vi.fn(fakeApi().send);
     const user = userEvent.setup();
@@ -66,6 +73,7 @@ describe("FeedbackPage", () => {
       title: "It hangs",
       description: "Never ends.",
       include_context: true,
+      client: expect.objectContaining({ user_agent: expect.any(String) }),
       page: "/agents",
       run: "r1",
     });

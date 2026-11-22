@@ -3,7 +3,9 @@
  *
  * The page says that the issue is public, and shows exactly what will be sent beside the form:
  * the words typed, the build's version and commit, and, if the reporter agrees, the identifiers
- * of the run and conversation they came from. A run's inputs and results are never sent.
+ * of the run and conversation they came from. The browser's user agent, language, viewport and
+ * colour scheme go too, and the server adds the deployment's profile and when it was filed. A
+ * run's inputs and results are never sent.
  */
 
 import "./FeedbackPage.css";
@@ -15,6 +17,7 @@ import {
   type FeedbackKind,
   type FiledIssue,
   type Report,
+  clientDetails,
   describeBuild,
   useFeedbackApi,
 } from "../../feedback/api";
@@ -54,6 +57,7 @@ export function FeedbackPage({ query }: { query: string }) {
   const [description, setDescription] = useState("");
   const [includeContext, setIncludeContext] = useState(false);
   const outcome = useRef<HTMLDivElement>(null);
+  const [client] = useState(clientDetails);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -75,6 +79,7 @@ export function FeedbackPage({ query }: { query: string }) {
     title,
     description,
     include_context: includeContext && hasContext,
+    ...(Object.keys(client).length > 0 ? { client } : {}),
     ...(page ? { page } : {}),
     ...(run ? { run } : {}),
     ...(conversation ? { conversation } : {}),
@@ -240,6 +245,21 @@ export function FeedbackPage({ query }: { query: string }) {
                 </dd>
               </>
             )}
+            {client.user_agent && (
+              <>
+                <dt>Browser</dt>
+                <dd>{client.user_agent}</dd>
+              </>
+            )}
+            {client.viewport && (
+              <>
+                <dt>Viewport</dt>
+                <dd>
+                  {client.viewport}
+                  {client.color_scheme ? `, ${client.color_scheme} theme` : ""}
+                </dd>
+              </>
+            )}
             {report.include_context && run && (
               <>
                 <dt>Run</dt>
@@ -257,6 +277,10 @@ export function FeedbackPage({ query }: { query: string }) {
               </>
             )}
           </dl>
+          <p className="hint">
+            When it is filed, the server adds the time, the deployment&rsquo;s profile and the agents
+            it cannot reach.
+          </p>
         </aside>
       </div>
     </>

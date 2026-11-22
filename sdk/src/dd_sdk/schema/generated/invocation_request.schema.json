@@ -3235,6 +3235,16 @@
                   "null"
                ]
             },
+            "filled_by_repository": {
+               "description": "The properties the schema makes mandatory that the repository fills in itself when it registers the record, such as DataCite's publisher and publicationYear, so the researcher is not asked for them. Validation says so as information, never as a violation; in a merged set, the standard's first, then the override's.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
             "media_types": {
                "description": "An override only: the media types the repository accepts. Empty means any.",
                "items": {
@@ -3349,6 +3359,17 @@
                   "string",
                   "null"
                ]
+            },
+            "supplied_on": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/SuppliedOn"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "Where in the app a researcher supplies the field's value, which validation names beside a missing one. Absent means documents, the metadata record's questions."
             }
          },
          "required": [
@@ -3446,6 +3467,16 @@
                "description": "The document kinds whose absence is a warning.",
                "items": {
                   "$ref": "#/$defs/DocumentKind"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "filled_by_repository": {
+               "description": "The properties the schema makes mandatory that the repository fills in itself when it registers the record, such as DataCite's publisher and publicationYear, so the researcher is not asked for them. Validation says so as information, never as a violation; in a merged set, the standard's first, then the override's.",
+               "items": {
+                  "type": "string"
                },
                "type": [
                   "array",
@@ -3920,6 +3951,17 @@
          "title": "StepState",
          "type": "string"
       },
+      "SuppliedOn": {
+         "description": "The page of a project where a researcher supplies a value a deposit needs (docs/specs/deposit.md, Validation).",
+         "enum": [
+            "documents",
+            "researchers",
+            "facts",
+            "repository"
+         ],
+         "title": "SuppliedOn",
+         "type": "string"
+      },
       "TableField": {
          "additionalProperties": false,
          "description": "One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor. Frictionless publishes no RDF namespace, so these slots carry see_also rather than a slot_uri (TODO(#20): revisit if Frictionless publishes term IRIs).",
@@ -4155,5 +4197,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.22.0"
+   "version": "0.24.0"
 }

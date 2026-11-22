@@ -10,7 +10,7 @@
       "agent_id": "advisor.fairness",
       "agent_version": "0.3.0a1",
       "completed_at": "2026-01-01T00:00:00Z",
-      "contract_version": "0.22.0",
+      "contract_version": "0.24.0",
       "conversation_id": "01900000-0000-7000-8000-000000000001",
       "evidence": [
         {
@@ -160,7 +160,7 @@
       "agent_id": "advisor.fairness",
       "agent_version": "0.3.0a1",
       "completed_at": "2026-01-01T00:00:00Z",
-      "contract_version": "0.22.0",
+      "contract_version": "0.24.0",
       "conversation_id": "01900000-0000-7000-8000-000000000001",
       "evidence": [
         {

@@ -6,10 +6,13 @@
  * points on to the deposit checks.
  */
 
+import { ClipboardCheck } from "lucide-react";
+
 import { useProjectApi } from "../../project/api";
 import { ASK_FOR_FEEDBACK, readyForDeposit } from "../../project/fairness";
-import { Link, projectTabPath } from "../../route";
+import { Link, homePath, navigate, projectTabPath } from "../../route";
 import { useResource } from "../../useResource";
+import { Button } from "../ui/Button";
 import { FairnessHistory } from "./FairnessHistory";
 import { FairnessStanding } from "./FairnessStanding";
 import { useFairnessHistory } from "./useFairnessHistory";
@@ -39,10 +42,17 @@ export function FairnessPanel({ projectId }: { projectId: string }) {
           documents.state === "loaded" ? documents.value.documents : []
         }
       />
-      <p>
-        To check again, ask in{" "}
-        <Link to="/">this project&apos;s conversations</Link>: “
-        {ASK_FOR_FEEDBACK}”
+      <p className="pane-actions">
+        <Button
+          icon={ClipboardCheck}
+          onPress={() => navigate(homePath({ fair: true }))}
+        >
+          {latest ? "Check again" : "Run FAIR check"}
+        </Button>
+      </p>
+      <p className="hint">
+        This opens the project&apos;s conversation with the question ready to
+        send: “{ASK_FOR_FEEDBACK}”
       </p>
       {latest && readyForDeposit(latest.report) && (
         <p>

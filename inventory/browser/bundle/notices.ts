@@ -2,7 +2,7 @@
  * The browser bundle's licence notices (`NOTICES.md`, written by `build.ts`). Serving the bundle
  * redistributes everything in it, so the notices name every component with its licence and where
  * its source is: Pyodide and every wheel in `MPL-2.0` say so (section 3.2), and the PRONOM
- * signatures fido carries need The National Archives' attribution statement (Open Government
+ * signatures the inventory package and fido carry need The National Archives' attribution statement (Open Government
  * Licence). Pure: the build reads each wheel's metadata and hands it in.
  */
 
@@ -65,7 +65,7 @@ export interface NoticesInput {
   pyodide: string;
   python: string;
   wheels: WheelLicence[];
-  /** fido's PRONOM signature release, such as `v109`, when fido is in the bundle. */
+  /** The PRONOM release the inventory package pins, such as `v125`. */
   pronom: string | undefined;
 }
 
@@ -94,7 +94,8 @@ export function renderNotices({ pyodide, python, wheels, pronom }: NoticesInput)
     "## PRONOM signatures",
     "",
     `fido identifies formats with The National Archives' PRONOM signatures${pronom ? ` (${pronom})` : ""},`,
-    "which it carries under `fido/conf/`.",
+    "which the inventory package carries under `dd_inventory/pronom/`; fido's wheel carries an",
+    "older release under `fido/conf/`.",
     "",
     `${OGL_STATEMENT} <${OGL_URL}>`,
     "",

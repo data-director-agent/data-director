@@ -62,7 +62,7 @@ import { ContextPanel } from "../workspace/ContextPanel";
 import { FAIRNESS_CLASS } from "../../project/fairness";
 import { PhaseTracker } from "../workspace/PhaseTracker";
 import { useFlowLoad } from "../workspace/useFlowLoad";
-import { useAskAbout, useAskAboutQuestion } from "./useAskAbout";
+import { useAskAbout, useAskAboutQuestion, useAskForFairFeedback } from "./useAskAbout";
 import { Workspace } from "../workspace/Workspace";
 import { ProjectSwitcher } from "../project/ProjectSwitcher";
 import { useAnnounce } from "../ui/Announcer";
@@ -155,6 +155,10 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     run: runId,
   });
   useAskAboutQuestion(documents, setText, box, {
+    conversation: urlConversation,
+    run: runId,
+  });
+  useAskForFairFeedback(setText, box, {
     conversation: urlConversation,
     run: runId,
   });

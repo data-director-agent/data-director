@@ -3,7 +3,9 @@
  * from it (docs/specs/deposit.md).
  *
  * The harness validates and builds; the panel asks it to and draws what it found. Each problem
- * that stops the package and each warning is the harness's message, as it wrote it. The package
+ * that stops the package, each warning and each piece of information is the harness's message, as
+ * it wrote it, with a link to the project's page where the person supplies what is missing, when
+ * the harness names one (`supplied_on`). The package
  * can be built only after a check the project passed, and is downloaded by its digest from the
  * project log. That a build is running, and what a check or a build did, is said once, in a live
  * region that is in the panel from the start, so that a screen reader announces it. A check leaves
@@ -37,6 +39,8 @@ import {
 } from "../../project/api";
 import { Button } from "../ui/Button";
 import { formatNumber } from "../../format";
+import { Link, projectTabOf, projectTabPath } from "../../route";
+import { tabLabel } from "./ProjectNav";
 import { BeforePackaging } from "./BeforePackaging";
 import { PackageBuilt } from "./PackageBuilt";
 
@@ -68,11 +72,13 @@ export function sizeInWords(bytes: number): string {
 function waiting(validation: Validation): string {
   const open = validation.review?.items.filter((i) => !i.decision).length ?? 0;
   const parts: string[] = [];
-  if (open > 0) parts.push(`${count(open, "file waits", "files wait")} for your decision`);
+  if (open > 0)
+    parts.push(`${count(open, "file waits", "files wait")} for your decision`);
   if (!validation.review?.confirmation) {
     parts.push("the checks before deposit wait for your confirmation");
   }
-  const what = parts.length > 0 ? parts.join(", and ") : "a decision waits for you";
+  const what =
+    parts.length > 0 ? parts.join(", and ") : "a decision waits for you";
   return `Nothing must be fixed, but ${what} before the package can be built.`;
 }
 
@@ -89,13 +95,36 @@ export function outcome(validation: Validation): string {
   return `${problems} must be fixed before the package can be built.`;
 }
 
+/** The link to the page where a person supplies what a result says is missing, if it names one. */
+function SuppliedOn({
+  projectId,
+  result,
+}: {
+  projectId: string;
+  result: ValidationResult;
+}) {
+  const tab = result.supplied_on ? projectTabOf(result.supplied_on) : null;
+  if (!tab) return null;
+  const what = result.field ? `the ${result.field} on ` : "it on ";
+  return (
+    <>
+      {" "}
+      <Link to={projectTabPath(projectId, tab)}>
+        Supply {what}the {tabLabel(tab)} page
+      </Link>
+    </>
+  );
+}
+
 function Results({
   id,
   heading,
+  projectId,
   results,
 }: {
   id: string;
   heading: string;
+  projectId: string;
   results: ValidationResult[];
 }) {
   if (results.length === 0) return null;
@@ -106,7 +135,10 @@ function Results({
       </h3>
       <ul>
         {results.map((result, index) => (
-          <li key={`${result.component}-${result.focus}-${index}`}>{result.message}</li>
+          <li key={`${result.component}-${result.focus}-${index}`}>
+            <span>{result.message}</span>
+            <SuppliedOn projectId={projectId} result={result} />
+          </li>
         ))}
       </ul>
     </section>
@@ -126,17 +158,30 @@ function FocusedCallout({
   const callout = useRef<HTMLDivElement>(null);
   useEffect(() => callout.current?.focus(), []);
   return (
-    <div role={role} className={`callout ${className}`} ref={callout} tabIndex={-1}>
+    <div
+      role={role}
+      className={`callout ${className}`}
+      ref={callout}
+      tabIndex={-1}
+    >
       {children}
     </div>
   );
 }
 
 // eslint-disable-next-line complexity -- recorded debt: split it, do not add to it (docs/architecture-review.md)
-export function DepositPanel({ projectId, revision }: { projectId: string; revision: number }) {
+export function DepositPanel({
+  projectId,
+  revision,
+}: {
+  projectId: string;
+  revision: number;
+}) {
   const api = useProjectApi();
   const [busy, setBusy] = useState<"checking" | "building" | null>(null);
-  const [result, setResult] = useState<(Result & { revision: number }) | null>(null);
+  const [result, setResult] = useState<(Result & { revision: number }) | null>(
+    null,
+  );
   const [failed, setFailed] = useState<string | null>(null);
   const [said, setSaid] = useState("");
   const [choice, setChoice] = useState<RepositoryRequirements | null>(null);
@@ -156,7 +201,11 @@ export function DepositPanel({ projectId, revision }: { projectId: string; revis
 
   const stale = result !== null && result.revision !== revision;
   const shown = stale ? null : result;
-  const validation = shown ? (shown.state === "built" ? shown.built : shown.validation) : null;
+  const validation = shown
+    ? shown.state === "built"
+      ? shown.built
+      : shown.validation
+    : null;
 
   const run = async (kind: "checking" | "building") => {
     setBusy(kind);
@@ -198,10 +247,11 @@ export function DepositPanel({ projectId, revision }: { projectId: string; revis
     <section className="deposit" aria-labelledby={HEADING_ID}>
       <h2 id={HEADING_ID}>Deposit package</h2>
       <p className="hint">
-        Data Director checks the project against what the repository you chose asks for. Once
-        nothing stops it, it builds a package: the approved documents, the record of who decided
-        what, and how generative AI was used. Your data files are listed in it but not included; you
-        upload them to the repository yourself, as the panel says once the package is built.
+        Data Director checks the project against what the repository you chose
+        asks for. Once nothing stops it, it builds a package: the approved
+        documents, the record of who decided what, and how generative AI was
+        used. Your data files are listed in it but not included; you upload them
+        to the repository yourself, as the panel says once the package is built.
       </p>
       <p className="document-actions">
         <Button
@@ -213,7 +263,10 @@ export function DepositPanel({ projectId, revision }: { projectId: string; revis
           {busy === "checking" ? "Checking the project…" : "Check the project"}
         </Button>
       </p>
-      <div role="status" className={said && shown ? "callout status-ok" : undefined}>
+      <div
+        role="status"
+        className={said && shown ? "callout status-ok" : undefined}
+      >
         {said && shown && <p>{said}</p>}
       </div>
       {failed && (
@@ -223,7 +276,10 @@ export function DepositPanel({ projectId, revision }: { projectId: string; revis
       )}
       {stale && (
         <div className="callout status-warn">
-          <p>The project has changed since it was checked. Check it again before packaging.</p>
+          <p>
+            The project has changed since it was checked. Check it again before
+            packaging.
+          </p>
         </div>
       )}
       {shown?.state === "refused" && (
@@ -236,9 +292,21 @@ export function DepositPanel({ projectId, revision }: { projectId: string; revis
           <Results
             id="deposit-violations"
             heading="Must be fixed before packaging"
+            projectId={projectId}
             results={validation.violations}
           />
-          <Results id="deposit-warnings" heading="Worth fixing" results={validation.warnings} />
+          <Results
+            id="deposit-warnings"
+            heading="Worth fixing"
+            projectId={projectId}
+            results={validation.warnings}
+          />
+          <Results
+            id="deposit-infos"
+            heading="For your information"
+            projectId={projectId}
+            results={validation.infos}
+          />
           {validation.review && shown?.state !== "built" && (
             <BeforePackaging
               projectId={projectId}
@@ -257,7 +325,9 @@ export function DepositPanel({ projectId, revision }: { projectId: string; revis
             isDisabled={busy === "checking"}
             onPress={() => void run("building")}
           >
-            {busy === "building" ? "Building the package…" : "Build the package"}
+            {busy === "building"
+              ? "Building the package…"
+              : "Build the package"}
           </Button>
         </p>
       )}

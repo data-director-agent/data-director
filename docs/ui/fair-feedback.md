@@ -62,8 +62,9 @@ and the shell does not route (App spec, invariant 3).
   which the shell reads from the agents' payload classes.
 - With no metadata record yet, the section says feedback comes once there is a draft, and offers
   no question.
-- The project's **FAIR feedback** tab has no message box, so it quotes the question to ask. One
-  step from the tab is TODO(#1418).
+- The project's **FAIR feedback** tab has no message box, so its **Run FAIR check** (or **Check
+  again**) button opens the conversation with the same question in the message box, unsent
+  (`?fair=check`, dropped from the address once read).
 - Reassessing on its own when the record changes is TODO(#1416).
 
 ### Where the record stands

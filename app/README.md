@@ -276,8 +276,9 @@ under systemd; `DD_FEEDBACK_GITHUB_APP_INSTALLATION_ID` is optional), or a fine-
 **token** (`DD_FEEDBACK_GITHUB_TOKEN`, or `_FILE`). The App is preferred, since it belongs to the
 organisation and its tokens expire by themselves; [Problem reports](../deploy/README.md#problem-reports)
 says how to create it. `DD_FEEDBACK_REPO` names the repository. A report carries what the person typed, the
-build, the page, and, if they agree, the identifiers of the run and conversation, never their
-inputs or results.
+build, the page, the browser's user agent, language, viewport and colour scheme, the deployment's
+profile and unreachable agents, and, if they agree, the identifiers of the run and conversation,
+never their inputs or results.
 
 A delegation grant is a bearer token: whoever holds it may run agents for the operator while
 the run that issued it lasts. Until callers are authenticated (#17), keep the app's port, like

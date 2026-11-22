@@ -116,7 +116,7 @@ describe("RepositoryShortlist", () => {
       `${ORDA_CHOSEN.repository_name} is the project's repository.`,
     );
     expect(status).toHaveTextContent(
-      "Checked against datacite-4@v1 and orda@v3.",
+      `Checked against ${ORDA_CHOSEN.requirement_sets.map((s) => s.ref).join(" and ")}.`,
     );
     expect(status).toHaveTextContent("A deposit needs a metadata record.");
     expect(status).toHaveTextContent(

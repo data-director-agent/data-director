@@ -15,6 +15,7 @@ import {
   type RepositoryRequirements,
   type Validation,
 } from "../../project/api";
+import { type ProjectTab, projectTabPath } from "../../route";
 import type { Problem } from "../../run/types";
 import { DepositPanel, outcome, sizeInWords } from "./DepositPanel";
 import { DEPOSIT_GUIDE } from "./PackageBuilt";
@@ -97,6 +98,32 @@ describe("DepositPanel", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("links each result to the page where it is supplied, and shows information apart", async () => {
+    const user = userEvent.setup();
+    const { container } = renderPanel({ validate: () => Promise.resolve(INVALID) });
+    await user.click(within(region()).getByRole("button", { name: "Check the project" }));
+
+    const violations = await within(region()).findByRole("region", { name: /Must be fixed/ });
+    const located = INVALID.violations.filter((r) => r.supplied_on);
+    expect(located.length).toBeGreaterThan(0);
+    for (const result of located) {
+      const item = within(violations).getByText(result.message).closest("li");
+      expect(item).not.toBeNull();
+      const link = within(item as HTMLElement).getByRole("link");
+      expect(link).toHaveAttribute(
+        "href",
+        projectTabPath(PROJECT_ID, result.supplied_on as ProjectTab),
+      );
+      expect(link).toHaveTextContent(result.field ?? "");
+    }
+    expect(INVALID.infos.length).toBeGreaterThan(0);
+    const infos = within(region()).getByRole("region", { name: /For your information/ });
+    for (const result of INVALID.infos) {
+      expect(within(infos).getByText(result.message)).toBeVisible();
+    }
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it("builds the package of a valid project and offers it to download, by keyboard", async () => {
     const buildPackage = vi.fn(() => Promise.resolve(BUILT));
     const user = userEvent.setup();
@@ -107,6 +134,11 @@ describe("DepositPanel", () => {
     await user.keyboard("{Enter}");
     const build = await within(region()).findByRole("button", { name: "Build the package" });
     expect(within(region()).queryByRole("region", { name: /Must be fixed/ })).not.toBeInTheDocument();
+    // Each warning's link to the page where it is supplied comes first.
+    for (const link of within(region()).queryAllByRole("link")) {
+      await user.tab();
+      expect(link).toHaveFocus();
+    }
     await user.tab();
     expect(build).toHaveFocus();
     await user.keyboard("{Enter}");
