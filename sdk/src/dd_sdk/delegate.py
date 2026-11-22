@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import copy
 import json
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -115,6 +116,19 @@ async def a2a_client(url: str, hc: httpx.AsyncClient, card: AgentCard | None = N
     return A2AClientFactory(config).create(card)
 
 
+@dataclass(frozen=True)
+class _CachedCard:
+    etag: str
+    document: dict[str, Any]
+    a2a_card: AgentCard
+
+
+# The last card read from each harness URL, kept across grants (a grant covers one invocation) and
+# revalidated with `If-None-Match`, so an unchanged card of about a megabyte costs a `304` (#1423).
+_CARDS: dict[str, _CachedCard] = {}
+_CARDS_LOCK = threading.Lock()
+
+
 @dataclass
 class HarnessDelegate:
     """The `Delegate` `dd_sdk.serve` hands a delegation agent, bound to one grant."""
@@ -132,25 +146,37 @@ class HarnessDelegate:
         return _manifest_from_card(self._harness_card())
 
     def _harness_card(self) -> dict[str, Any]:
-        """The harness's card, read once per grant and used for every call under it."""
+        """The harness's card, read once per grant and used for every call under it. Across grants
+        the last copy is revalidated, not downloaded again, while the harness's ETag matches."""
         if self._card_document is None:
             try:
-                card = asyncio.run(self._card())
-                self._a2a_card = parse_card(card)
+                cached = asyncio.run(self._card())
             except (httpx.HTTPError, TimeoutError, ValueError, ParseError) as exc:
                 raise DelegationRefused(
                     f"cannot read the harness card at {self.grant.url}: {exc!r}"
                 ) from exc
-            self._card_document = card
+            self._a2a_card = cached.a2a_card
+            self._card_document = cached.document
         return self._card_document
 
-    async def _card(self) -> dict[str, Any]:
+    async def _card(self) -> _CachedCard:
+        with _CARDS_LOCK:
+            known = _CARDS.get(self.grant.url)
+        headers = {"If-None-Match": known.etag} if known else {}
         async with asyncio.timeout(self.timeout_s):
             async with self.client_factory(self.grant.url, self.timeout_s) as hc:
-                response = await hc.get(CARD_PATH)
+                response = await hc.get(CARD_PATH, headers=headers)
+                if known is not None and response.status_code == httpx.codes.NOT_MODIFIED:
+                    return known
                 response.raise_for_status()
                 card: dict[str, Any] = response.json()
-                return card
+        fresh = _CachedCard(
+            etag=response.headers.get("etag", ""), document=card, a2a_card=parse_card(card)
+        )
+        if fresh.etag:
+            with _CARDS_LOCK:
+                _CARDS[self.grant.url] = fresh
+        return fresh
 
     def __call__(self, agent_id: str, input: Frozen) -> Delegated:
         request = InvocationRequest(
