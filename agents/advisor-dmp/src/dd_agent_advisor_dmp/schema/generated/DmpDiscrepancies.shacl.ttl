@@ -264,7 +264,7 @@ dmp:Discrepancy a sh:NodeShape ;
             sh:order 1 ;
             sh:path dmp:aspect ],
         [ sh:description "How the discrepancy was found: lexical, by the agent's rule matching names and comparing text, or model, by a model pairing a renamed output." ;
-            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 5 ;

@@ -1,5 +1,6 @@
 """The README template's sections (`readme.yaml`, docs/specs/drafting.md): what each asks, the
-project facts it is drafted from, its parts, and whether a model may suggest an answer to it."""
+project facts it is drafted from, its parts, whether a model may suggest an answer to it, and the
+shared field it asks for, if any."""
 
 from __future__ import annotations
 
@@ -8,6 +9,8 @@ from pathlib import Path
 from typing import Any, Literal, NamedTuple
 
 import yaml
+
+from dd_sdk.contract.questions import SharedField
 
 README = Path(__file__).with_name("readme.yaml")
 # The project facts a README section may be drafted from (readme.yaml explains each).
@@ -42,6 +45,8 @@ class Part(NamedTuple):
     ask: str
     # The record's general value that, when the record gives it, says all the part asks.
     given_by: str | None = None
+    # The value it asks for that every kind of document gives the same way (`SharedField`).
+    shares: SharedField | None = None
 
 
 class Section(NamedTuple):
@@ -57,6 +62,8 @@ class Section(NamedTuple):
     # Whether a model may suggest an answer to its question, offered beside it: always (True),
     # or only from the documents the researcher attached (FROM_DOCUMENTS).
     suggest: bool | Literal["documents"] = False
+    # The value its question asks for that every kind of document gives the same way.
+    shares: SharedField | None = None
 
     def suggestable(self, *, has_documents: bool) -> bool:
         """Whether a model may suggest an answer to this section's question, in a draft that
@@ -105,7 +112,17 @@ def load_sections(path: Path = README) -> list[Section]:
             if not parts
             else "; ".join(f"{p.label.lower()}: {p.ask.rstrip('.')}" for p in parts) + "."
         )
-        sections.append(Section(str(entry["heading"]), ask, sources, complete_from, parts, suggest))
+        sections.append(
+            Section(
+                str(entry["heading"]),
+                ask,
+                sources,
+                complete_from,
+                parts,
+                suggest,
+                _shares(path, entry["heading"], entry),
+            )
+        )
     if not sections:
         raise ValueError(f"{path}: no sections")
     return sections
@@ -115,4 +132,19 @@ def _part(path: Path, heading: str, entry: Mapping[str, Any]) -> Part:
     given_by = entry.get("given_by")
     if given_by is not None and given_by not in RECORD_GENERAL:
         raise ValueError(f"{path}: section {heading!r} has a part given by unknown {given_by!r}")
-    return Part(str(entry["label"]), " ".join(str(entry["ask"]).split()), given_by)
+    return Part(
+        str(entry["label"]),
+        " ".join(str(entry["ask"]).split()),
+        given_by,
+        _shares(path, heading, entry),
+    )
+
+
+def _shares(path: Path, heading: str, entry: Mapping[str, Any]) -> SharedField | None:
+    shares = entry.get("shares")
+    if shares is None:
+        return None
+    try:
+        return SharedField(shares)
+    except ValueError:
+        raise ValueError(f"{path}: section {heading!r} shares unknown {shares!r}") from None

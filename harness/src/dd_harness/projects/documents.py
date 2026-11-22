@@ -269,6 +269,40 @@ class Documents(ProjectRules):
         given = [{"answered_question": q, "answer_text": text} for q, text in latest.items()]
         return given or None
 
+    def shared_answers(
+        self, project_id: str, document_kind: DocumentKind
+    ) -> list[dict[str, Any]] | None:
+        """The answers a drafter of `document_kind` may offer as suggestions, as `SharedAnswer`s:
+        for each `shared_field`, the latest answer a person recorded to a question on it of a
+        document of another kind (docs/specs/drafting.md, invariant 7). None if there are none.
+
+        A question's `shared_field` is read from the version that asked it, so an answer counts
+        only once a drafter said what the question asks for."""
+        kinds: dict[str, str] = {}
+        fields: dict[tuple[str, str], str] = {}
+        latest: dict[str, dict[str, Any]] = {}
+        for event in self.events(project_id):
+            if event["event"] == DOCUMENT_VERSION_ADDED:
+                kinds[event["document_id"]] = event["document_kind"]
+                for q in event.get("questions") or []:
+                    if q.get("shared_field"):
+                        fields[(event["document_id"], q["question_id"])] = q["shared_field"]
+            elif event["event"] == DOCUMENT_QUESTION_ANSWERED:
+                kind = kinds.get(event["document_id"])
+                field = fields.get((event["document_id"], event["question_id"]))
+                if kind is None or kind == document_kind.value or field is None:
+                    continue
+                if not event["answer_text"].strip():
+                    continue
+                latest.pop(field, None)
+                latest[field] = {
+                    "shared_field": field,
+                    "answer_text": event["answer_text"],
+                    "answered_question": event["question_id"],
+                    "answered_in": kind,
+                }
+        return list(latest.values()) or None
+
     def documents(self, project_id: str) -> list[dict[str, Any]]:
         """Each document of the project, in the order first drafted, with every version oldest
         first: its text, who or what produced it, and its state as the log records it. Raises

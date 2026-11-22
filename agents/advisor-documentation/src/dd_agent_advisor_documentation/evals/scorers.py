@@ -19,7 +19,7 @@ from typing import Any
 from inspect_ai.scorer import CORRECT, INCORRECT, NOANSWER, Score, Scorer, Target, scorer
 from inspect_ai.solver import TaskState
 
-from dd_agent_advisor_documentation.agent import GAP_MARKER, _facts
+from dd_agent_advisor_documentation.agent import _facts
 from dd_agent_advisor_documentation.checks import NAMED, NOT_PROSE
 from dd_agent_advisor_documentation.dictionary import (
     SOURCE_SUFFIX,
@@ -29,6 +29,7 @@ from dd_agent_advisor_documentation.dictionary import (
     worked_out_unit_code,
 )
 from dd_agent_advisor_documentation.drafted import drafted
+from dd_agent_advisor_documentation.outline import GAP_MARKER
 from dd_agent_advisor_documentation.record import _record
 from dd_agent_advisor_documentation.sections import SOURCES as FACT_SOURCES
 from dd_agent_advisor_documentation.sections import load_sections

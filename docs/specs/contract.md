@@ -236,6 +236,13 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     properties the repository fills itself, such as DataCite's publisher and publication year,
     which the check before packaging reports as information, never as missing
     ([Deposit](deposit.md), #1322). Adding them raised the contract version to 0.23.0.
+35. A `DocumentQuestion` may name the value it asks for that every kind of project document gives
+    the same way (`shared_field`, `SharedField`), and a suggestion copied from a person's own
+    answer to another document's question, or from a fact people decided, is derived as `answer`
+    (a new `Derivation` value) and names where it came from (`suggested_from`). A `DraftRequest`'s
+    `shared_answers` (`SharedAnswer`) are filled only by the conductor in a project
+    ([Drafting documents](drafting.md), invariant 11; #1284). Adding them raised the contract
+    version to 0.24.0.
 
 ## Boundaries and contracts
 

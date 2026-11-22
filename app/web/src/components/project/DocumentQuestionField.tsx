@@ -10,6 +10,7 @@ import { MessageCircle, Undo2 } from "lucide-react";
 
 import { charactersIn } from "../../conversation/question";
 import { type DocumentQuestion, questionTarget } from "../../project/api";
+import { suggestionSource } from "../../project/suggestion";
 import { Link, homePath } from "../../route";
 import { Button } from "../ui/Button";
 import { suggestion } from "./useAnswerDrafts";
@@ -63,8 +64,8 @@ export function DocumentQuestionField({
         <p className="hint">
           <span id={`${id}-suggestion`}>
             {value === offered
-              ? "Suggested by a model; check it before you accept."
-              : <>You changed a model&apos;s suggestion: <q>{offered}</q>.</>}
+              ? `Suggested ${suggestionSource(q)}; check it before you accept.`
+              : <>You changed the suggestion {suggestionSource(q)}: <q>{offered}</q>.</>}
           </span>
           {value !== offered && (
             <>

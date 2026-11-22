@@ -151,6 +151,14 @@ the gaps and questions of the template draft.
 
 ## Suggested answers
 
+Before any model, the editor offers the researcher's own words (#1284, docs/specs/drafting.md,
+invariant 11). The parts of General information and the Description and Access and licence
+sections that `readme.yaml` marks `shares` carry a `shared_field`, and the answer the researcher
+recorded to the same field of the metadata record, or the funder or licence people decided, is
+offered as the question's suggestion (`suggestion_derivation: answer`, `suggested_from`), never
+written into the README (`dd_sdk.shared_answers`, `tests/test_readme_shared_answers.py`). The model
+is not asked about a question that already offers one.
+
 When a model is configured, it suggests answers to some of a draft's questions, replying against a
 schema (`SuggestionReply` in `suggestions.py`). For a README, it suggests an answer to the question of
 each section `readme.yaml` marks `suggest`: **Files** (how the files relate, from their paths,

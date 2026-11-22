@@ -9,7 +9,7 @@ files:FormatAssessment a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:description "How the summary came about: template, the rules' own summary, or model, where a model wrote it from the findings." ;
-            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
             sh:maxCount 1 ;
             sh:order 4 ;
             sh:path files:summary_derivation ],

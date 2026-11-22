@@ -107,7 +107,7 @@ repository:RepositoryCandidate a sh:NodeShape ;
             sh:minCount 1 ;
             sh:order 4 ;
             sh:path repository:fee_required ],
-        [ sh:in ( "template" "model" "lexical" "registry" ) ;
+        [ sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 10 ;

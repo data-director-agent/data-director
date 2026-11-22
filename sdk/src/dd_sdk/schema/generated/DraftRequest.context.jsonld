@@ -76,6 +76,9 @@
       "ResearcherWork": {
          "@id": "https://w3id.org/data-director/ResearcherWork"
       },
+      "SharedAnswer": {
+         "@id": "https://w3id.org/data-director/SharedAnswer"
+      },
       "TableField": {
          "@id": "https://w3id.org/data-director/TableField"
       },
@@ -88,6 +91,9 @@
       },
       "answer_text": {
          "@id": "https://w3id.org/data-director/answer_text"
+      },
+      "answered_in": {
+         "@id": "https://w3id.org/data-director/answered_in"
       },
       "answered_question": {
          "@id": "https://w3id.org/data-director/answered_question"
@@ -566,6 +572,13 @@
       },
       "sha256": {
          "@id": "https://w3id.org/data-director/sha256"
+      },
+      "shared_answers": {
+         "@id": "https://w3id.org/data-director/shared_answers",
+         "@type": "@id"
+      },
+      "shared_field": {
+         "@id": "https://w3id.org/data-director/shared_field"
       },
       "shex": "http://www.w3.org/ns/shex#",
       "spdx": "http://spdx.org/rdf/terms#",

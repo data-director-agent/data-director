@@ -155,6 +155,7 @@ suggests some of those values beside their questions
    description a person wrote, the researchers' records or an earlier version, and a suggestion
    is offered only if it is one line of plain text that names no link, DOI, email address or
    ORCID iD its input does not give (`agents/advisor-metadata/tests/test_suggestions.py`).
+   A suggestion may instead copy the person's own words: see invariant 11.
 8. **A drafter rests on its input alone.** The grounding mode of the Documentation Editor and of
    the Metadata Librarian is `input_only`, whichever way a particular version was drafted. The metadata record and the answers reach it in its input, never by retrieval, so it
    cites only its input. `document_derivation` records how each version came about: `model`, or
@@ -183,6 +184,30 @@ suggests some of those values beside their questions
     of the gaps still open, under the same identifiers
     (`agents/advisor-documentation/tests/test_documentation_agent.py`). A data dictionary and a
     metadata record are drafted at once, as before.
+11. **A person's answer is offered wherever it is asked again, never placed there.** Some values
+    every kind of document gives the same way: the dataset's title, its creators, its abstract,
+    when and where the data were collected, its funder and its licence (`SharedField`, #1284). A
+    drafter names the one a question asks for in its `shared_field`, from its own template: the
+    Metadata Librarian's rule table marks the first entry of `titles`, `creators`,
+    `descriptions` (Abstract), `dates` (Collected), `geoLocations`, `fundingReferences` and
+    `rightsList` with `shares`
+    (`agents/advisor-metadata/src/dd_agent_advisor_metadata/datacite.yaml`), and the Documentation
+    Editor's README template marks the parts of General information and the Description and
+    Access and licence sections (`readme.yaml`). In a project the conductor gives a drafter
+    `shared_answers`: for each shared field, the latest answer a person recorded to a question on
+    it of a document of another kind, with the question and the kind it was answered for
+    (`harness/tests/test_shared_answers_in_a_project.py`). The drafter offers it as the open
+    question's `suggested_answer`, with `suggestion_derivation` `answer` and `suggested_from`
+    naming the kind; where nobody answered, it offers a decided funder or licence
+    (`project_decisions`, invariant 9) with `suggested_from` `decision`
+    (`dd_sdk.shared_answers`). Such a suggestion copies the person's own words, so it may fill a
+    field no model may suggest, a creator, date, place, funder or licence; but it is still only
+    offered, kept out of the document's text, and recorded for that document only when the person
+    accepts or saves it there, as any suggestion is (invariant 7). A person's words come before a
+    model's: a drafter asks its model only about the questions left without a suggestion. The app
+    says where a copied suggestion came from, never that a model made it
+    (`agents/advisor-metadata/tests/test_metadata_shared.py`,
+    `agents/advisor-documentation/tests/test_readme_shared_answers.py`).
 
 ## Boundaries and contracts
 
@@ -202,7 +227,9 @@ record value named by its path in the record's JSON form (`gap_property`, such a
 comments. An answer (`DraftAnswer`) names the question it answers and gives the text. The
 classes are in the core contract because the conductor, the app and an orchestrator all read them
 without knowing the drafter. A question may carry a suggested answer (`suggested_answer`) with
-how it was derived (`suggestion_derivation`); the one is present exactly when the other is. A set
+how it was derived (`suggestion_derivation`); the one is present exactly when the other is. A
+question may name the shared value it asks for (`shared_field`), and a suggestion derived as
+`answer` names where it came from (`suggested_from`, invariant 11). A set
 of choices, as a reply's choice `Question` has, is added with the first drafter that
 sets one, TODO(#529).
 
@@ -212,7 +239,8 @@ and says that the draft came from a mock when it did; it never accepts a suggest
 researcher. The app shows the latest version's open questions on the draft's card in the
 conversation and in the Questions section of the project's documents page, each as a text box
 labelled by the question and described by what it fills. Those a model suggested an answer for come
-first, all at once, each box starting with the suggestion and saying it came from a model; the
+first, all at once, each box starting with the suggestion and saying where it came from, a model
+or the researcher's own answer for another document or a decision (invariant 11); the
 researcher checks them, changes or clears any, and records them with one "Accept" button. Those
 with no suggestion follow three at a time, or more to keep one section's parts together, in blank
 boxes. Each question links to a new conversation to talk it through, but its answer is recorded
@@ -227,7 +255,9 @@ answers into the next `DraftRequest`. No agent writes an answer.
 document it redrafts, so a redraft is that document's next version. A drafter is given the answers
 recorded for every document of the kind it drafts, not only the latest version's: a project drafted
 before redrafts kept their document may hold two of one kind, and a question's identifier,
-derived from its target, finds its answer in whichever draft asked it.
+derived from its target, finds its answer in whichever draft asked it. Answers recorded for
+documents of other kinds reach it only as `shared_answers`, to offer, never to place (invariant
+11).
 
 **Model access.** A metadata record and a person's answers are `documentation`-class project
 content, so they go to a drafter with a hosted model only where the institutional profile allows

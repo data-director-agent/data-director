@@ -14,13 +14,19 @@
 # properties a model may suggest a value for, beside the question and never in the record
 # (docs/specs/drafting.md, invariant 7): what the dataset's files can make likely. Never who made it, when, under what rights or with whose money,
 # which only the researcher can say, and never an entry from a named vocabulary (TODO(#703)).
+#
+# `shares` names the value a property's first entry gives the same way as a README does
+# (`SharedField`, docs/specs/drafting.md): an answer the researcher gave there is offered as a
+# suggestion here. A mapping names it by the entry's qualifier, such as a date's dateType.
 titles:
   value: title
   ask: What is the dataset's title?
   suggest: true
+  shares: title
 creators:
   value: name
   ask: Who created the dataset? Give one creator's name, family name first.
+  shares: creators
 contributors:
   value: name
   ask: Who else contributed to the dataset? Give one contributor's name, family name first.
@@ -32,15 +38,21 @@ descriptions:
   value: description
   ask: Describe the dataset.
   suggest: true
+  shares:
+    Abstract: description
 dates:
   value: date
   ask: Give the date, as YYYY-MM-DD.
+  shares:
+    Collected: dates_collected
 rightsList:
   value: rights
   ask: Under what licence or rights statement is the dataset shared?
+  shares: licence
 fundingReferences:
   value: funderName
   ask: Which organisation funded the work that produced the dataset?
+  shares: funder
 relatedIdentifiers:
   value: relatedIdentifier
   ask: Give the identifier, such as a DOI, of a related publication or dataset.
@@ -52,6 +64,7 @@ geoLocations:
     people may need to be generalised or withheld: the landowner, the principal investigator or
     an ecologist decides. Give the precision agreed, or answer "withhold".
   ask: Where were the data collected? Name the place, at the precision agreed.
+  shares: place
 publisher:
   ask: Who publishes the dataset? This is usually the repository.
 publicationYear:

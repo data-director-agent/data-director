@@ -11,7 +11,7 @@ dd:Document a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:description "How document_text came about." ;
-            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 6 ;
@@ -78,7 +78,7 @@ dd:Document a sh:NodeShape ;
     sh:targetClass dd:Document .
 
 dd:DocumentQuestion a sh:NodeShape ;
-    rdfs:comment "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, a data dictionary cell it could not fill, or a metadata record property it left null. The target is either gap_section, with gap_part when the section is asked part by part, or gap_file, gap_field and gap_column together, or gap_property alone. A cell question about a column that several files share, by name, type and format, also lists in gap_files every file whose cell the answer fills. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied only when a person records it as their answer." ;
+    rdfs:comment "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, a data dictionary cell it could not fill, or a metadata record property it left null. The target is either gap_section, with gap_part when the section is asked part by part, or gap_file, gap_field and gap_column together, or gap_property alone. A cell question about a column that several files share, by name, type and format, also lists in gap_files every file whose cell the answer fills. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied only when a person records it as their answer. A question that asks for a value every kind of document gives the same way names it in shared_field; a suggestion copied from a person's own answer or decision elsewhere in the project says where, in suggested_from." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
@@ -105,10 +105,17 @@ dd:DocumentQuestion a sh:NodeShape ;
             sh:order 8 ;
             sh:path dd:gap_property ],
         [ sh:description "How suggested_answer came about. Present exactly when suggested_answer is." ;
-            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
             sh:maxCount 1 ;
             sh:order 10 ;
             sh:path dd:suggestion_derivation ],
+        [ sh:datatype xsd:string ;
+            sh:description "Where a suggestion copied from the person's own words came from: the kind of document whose question they answered, or `decision` for a fact people in the project decided. Present exactly when suggestion_derivation is `answer`." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 12 ;
+            sh:path dd:suggested_from ;
+            sh:pattern "^(metadata_record|readme|data_dictionary|dmp|other|decision)$" ],
         [ sh:datatype xsd:string ;
             sh:description "The question, as a short line a person reads before the options." ;
             sh:maxCount 1 ;
@@ -128,6 +135,11 @@ dd:DocumentQuestion a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
             sh:path dd:gap_part ],
+        [ sh:description "The value a question asks for, or an answer gives, when every kind of document gives it the same way, so that an answer given for one document may be offered as a suggestion in another (docs/specs/drafting.md)." ;
+            sh:in ( "title" "creators" "description" "dates_collected" "place" "funder" "licence" ) ;
+            sh:maxCount 1 ;
+            sh:order 11 ;
+            sh:path dd:shared_field ],
         [ sh:datatype xsd:string ;
             sh:description "The question's identifier within its document: q- and 16 lower-case hexadecimal digits, derived from the gap it targets." ;
             sh:maxCount 1 ;
@@ -154,21 +166,21 @@ dd:DocumentVersionRef a sh:NodeShape ;
     rdfs:comment "One version of a project document: the document the conductor minted an identifier for, and the version's number within it, counted from 1." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:integer ;
-            sh:description "The number of a version within its document, counted from 1." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dd:version ],
-        [ sh:datatype xsd:string ;
+    sh:property [ sh:datatype xsd:string ;
             sh:description "The identifier the conductor minted for the document, a UUIDv7." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path dd:document_id ;
-            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ] ;
+            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ],
+        [ sh:datatype xsd:integer ;
+            sh:description "The number of a version within its document, counted from 1." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:version ] ;
     sh:targetClass dd:DocumentVersionRef .
 
 dd:GroundingRef a sh:NodeShape ;

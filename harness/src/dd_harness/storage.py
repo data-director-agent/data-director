@@ -325,6 +325,13 @@ class ProjectDocuments(ProjectRecord, Protocol):
         `DraftAnswer`s, or None."""
         ...
 
+    def shared_answers(
+        self, project_id: str, document_kind: DocumentKind
+    ) -> list[dict[str, Any]] | None:
+        """The latest answer to each shared field, recorded for documents of other kinds than
+        `document_kind`, as `SharedAnswer`s, or None."""
+        ...
+
     def current_version(
         self, project_id: str, document_kind: DocumentKind, document_id: str | None = None
     ) -> dict[str, Any] | None:

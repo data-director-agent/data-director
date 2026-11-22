@@ -1,7 +1,8 @@
 """The questions a drafter asks about the gaps in its draft, and a person's answers to them
-(`DocumentQuestion`, `DraftAnswer`), with `Derivation`, how a value came about
-(docs/specs/drafting.md). `models` re-exports each name, so that it stays within its size limit;
-the field names and enum values are the LinkML schema's.
+(`DocumentQuestion`, `DraftAnswer`), an answer given for a document of another kind
+(`SharedAnswer`), with `Derivation`, how a value came about (docs/specs/drafting.md). `models`
+re-exports each name, so that it stays within its size limit; the field names and enum values are
+the LinkML schema's.
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ from enum import StrEnum
 from pydantic import Field, model_validator
 
 from dd_sdk.contract.base import Frozen
+from dd_sdk.contract.facts import DocumentKind
 
 # A drafter's question about a gap, derived from the gap (docs/specs/drafting.md).
 QUESTION_ID_PATTERN = r"^q-[0-9a-f]{16}$"
@@ -21,6 +23,23 @@ class Derivation(StrEnum):
     MODEL = "model"
     LEXICAL = "lexical"
     REGISTRY = "registry"
+    ANSWER = "answer"
+
+
+class SharedField(StrEnum):
+    """A value every kind of project document gives the same way (docs/specs/drafting.md)."""
+
+    TITLE = "title"
+    CREATORS = "creators"
+    DESCRIPTION = "description"
+    DATES_COLLECTED = "dates_collected"
+    PLACE = "place"
+    FUNDER = "funder"
+    LICENCE = "licence"
+
+
+# Where a suggestion copied from a person's own words came from: a document kind, or a decision.
+SUGGESTED_FROM_DECISION = "decision"
 
 
 class DocumentQuestion(Frozen):
@@ -43,11 +62,19 @@ class DocumentQuestion(Frozen):
     # Offered with the question, never placed in the document (docs/specs/drafting.md).
     suggested_answer: str | None = None
     suggestion_derivation: Derivation | None = None
+    # The value the question asks for, when every kind of document gives it the same way.
+    shared_field: SharedField | None = None
+    # A document kind's value, or "decision": where a suggestion derived as `answer` came from.
+    suggested_from: str | None = Field(
+        default=None, pattern=r"^(metadata_record|readme|data_dictionary|dmp|other|decision)$"
+    )
 
     @model_validator(mode="after")
     def _one_target(self) -> DocumentQuestion:
         if (self.suggested_answer is None) != (self.suggestion_derivation is None):
             raise ValueError("a suggested answer says how it was derived, and only then")
+        if (self.suggestion_derivation == Derivation.ANSWER) != (self.suggested_from is not None):
+            raise ValueError("a suggestion copied from a person's words says where, and only then")
         cell = (self.gap_file, self.gap_field, self.gap_column)
         if self.gap_part is not None and self.gap_section is None:
             raise ValueError("a question targets a part only within a README section")
@@ -67,3 +94,13 @@ class DraftAnswer(Frozen):
 
     answered_question: str = Field(pattern=QUESTION_ID_PATTERN)
     answer_text: str
+
+
+class SharedAnswer(Frozen):
+    """A person's answer, recorded for a document of another kind, to a question on a value every
+    kind gives the same way: offered as a suggestion, never placed (docs/specs/drafting.md)."""
+
+    shared_field: SharedField
+    answer_text: str
+    answered_question: str = Field(pattern=QUESTION_ID_PATTERN)
+    answered_in: DocumentKind

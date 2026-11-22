@@ -388,7 +388,8 @@
             "template",
             "model",
             "lexical",
-            "registry"
+            "registry",
+            "answer"
          ],
          "title": "Derivation",
          "type": "string"
@@ -543,7 +544,7 @@
       },
       "DocumentQuestion": {
          "additionalProperties": false,
-         "description": "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, a data dictionary cell it could not fill, or a metadata record property it left null. The target is either gap_section, with gap_part when the section is asked part by part, or gap_file, gap_field and gap_column together, or gap_property alone. A cell question about a column that several files share, by name, type and format, also lists in gap_files every file whose cell the answer fills. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied only when a person records it as their answer.",
+         "description": "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, a data dictionary cell it could not fill, or a metadata record property it left null. The target is either gap_section, with gap_part when the section is asked part by part, or gap_file, gap_field and gap_column together, or gap_property alone. A cell question about a column that several files share, by name, type and format, also lists in gap_files every file whose cell the answer fills. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied only when a person records it as their answer. A question that asks for a value every kind of document gives the same way names it in shared_field; a suggestion copied from a person's own answer or decision elsewhere in the project says where, in suggested_from.",
          "properties": {
             "question_id": {
                "description": "The question's identifier within its document: q- and 16 lower-case hexadecimal digits, derived from the gap it targets.",
@@ -623,6 +624,25 @@
                   }
                ],
                "description": "How suggested_answer came about. Present exactly when suggested_answer is."
+            },
+            "shared_field": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/SharedField"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The value a question asks for, or an answer gives, when every kind of document gives it the same way, so that an answer given for one document may be offered as a suggestion in another (docs/specs/drafting.md)."
+            },
+            "suggested_from": {
+               "description": "Where a suggestion copied from the person's own words came from: the kind of document whose question they answered, or `decision` for a fact people in the project decided. Present exactly when suggestion_derivation is `answer`.",
+               "pattern": "^(metadata_record|readme|data_dictionary|dmp|other|decision)$",
+               "type": [
+                  "string",
+                  "null"
+               ]
             }
          },
          "required": [
@@ -729,7 +749,7 @@
       },
       "DraftRequest": {
          "additionalProperties": false,
-         "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md), and so are the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md), and the text of the documents a researcher attached to the project, from which a drafter's model may suggest answers but never fill a gap.",
+         "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md), and so are the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md), and the text of the documents a researcher attached to the project, from which a drafter's model may suggest answers but never fill a gap. The conductor also fills shared_answers: the latest answer a person recorded, for a document of another kind, to a question that asks for the same thing as one of this draft's (shared_field), which a drafter may offer as a suggestion but never place.",
          "properties": {
             "schema_class": {
                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -790,6 +810,16 @@
                "description": "The answers a person recorded to the current version's questions. In a project the conductor fills them; a caller leaves them out.",
                "items": {
                   "$ref": "#/$defs/DraftAnswer"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            },
+            "shared_answers": {
+               "description": "The latest answer a person recorded, for each shared_field, to a question of a document of another kind than the one asked for. In a project the conductor fills them; a caller leaves them out.",
+               "items": {
+                  "$ref": "#/$defs/SharedAnswer"
                },
                "type": [
                   "array",
@@ -3833,6 +3863,51 @@
          "title": "SensitivityDecision",
          "type": "string"
       },
+      "SharedAnswer": {
+         "additionalProperties": false,
+         "description": "A person's answer, recorded for a document of another kind, to a question that asks for a value every kind of document gives the same way (shared_field), such as the dataset's title (docs/specs/drafting.md). A drafter may offer it as the suggested answer to its own question on that field, never place it.",
+         "properties": {
+            "shared_field": {
+               "$ref": "#/$defs/SharedField",
+               "description": "The value a question asks for, or an answer gives, when every kind of document gives it the same way, so that an answer given for one document may be offered as a suggestion in another (docs/specs/drafting.md)."
+            },
+            "answer_text": {
+               "description": "The answer as the person gave it.",
+               "type": "string"
+            },
+            "answered_question": {
+               "description": "The question_id of the question answered.",
+               "pattern": "^q-[0-9a-f]{16}$",
+               "type": "string"
+            },
+            "answered_in": {
+               "$ref": "#/$defs/DocumentKind",
+               "description": "The kind of document whose question the answer was recorded to."
+            }
+         },
+         "required": [
+            "shared_field",
+            "answer_text",
+            "answered_question",
+            "answered_in"
+         ],
+         "title": "SharedAnswer",
+         "type": "object"
+      },
+      "SharedField": {
+         "description": "A value every kind of project document gives the same way, so that an answer given for one may be offered in another (docs/specs/drafting.md).",
+         "enum": [
+            "title",
+            "creators",
+            "description",
+            "dates_collected",
+            "place",
+            "funder",
+            "licence"
+         ],
+         "title": "SharedField",
+         "type": "string"
+      },
       "StandardKind": {
          "description": "What kind of standard a standard fact names.",
          "enum": [
@@ -4122,5 +4197,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.23.0"
+   "version": "0.24.0"
 }

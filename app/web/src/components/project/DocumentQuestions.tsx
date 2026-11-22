@@ -43,6 +43,7 @@ import {
   type DocumentVersion,
   useProjectApi,
 } from "../../project/api";
+import { fromAPerson } from "../../project/suggestion";
 import { errorMessage } from "../../run/api";
 import { Button } from "../ui/Button";
 import { DocumentQuestionField, overLimit } from "./DocumentQuestionField";
@@ -229,8 +230,11 @@ export function DocumentQuestions({
           <fieldset className="field" disabled={saving}>
             <legend>Suggested answers to check ({suggested.length})</legend>
             <p className="hint">
-              A model suggested these from the project&apos;s files and documents. Check each one;
-              change it, or clear the box if it is wrong. Nothing is recorded until you accept.
+              {suggested.some(fromAPerson)
+                ? "Some of these are what you gave for another document, or what was decided in the project; the rest a model suggested from the project's files and documents."
+                : "A model suggested these from the project's files and documents."}{" "}
+              Check each one; change it, or clear the box if it is wrong. Nothing is recorded until
+              you accept.
             </p>
             {suggested.map(field)}
             <p>

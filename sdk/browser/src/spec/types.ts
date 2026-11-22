@@ -7,7 +7,7 @@
  */
 
 export type GroundingMode = "retrieval" | "input_only" | "none" | "delegation";
-export type DerivationHow = "template" | "model" | "lexical" | "registry";
+export type DerivationHow = "template" | "model" | "lexical" | "registry" | "answer";
 
 export interface RawDerived {
   how: DerivationHow;

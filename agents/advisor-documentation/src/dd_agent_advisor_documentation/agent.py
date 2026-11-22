@@ -48,7 +48,6 @@ in every version. An answer in the request's `draft_answers` goes, as given, in 
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
 from typing import Any, Literal
 
 from dd_agent_advisor_documentation.checks import count
@@ -59,15 +58,14 @@ from dd_agent_advisor_documentation.dictionary import (
     draft_dictionary,
     unit_codes_statement,
 )
-from dd_agent_advisor_documentation.dictionary import question_id as _question_id
 from dd_agent_advisor_documentation.drafted import drafted, file_format
+from dd_agent_advisor_documentation.outline import Outlined, outlined
 from dd_agent_advisor_documentation.prose import Prose, TemplateWriter, Writer
 from dd_agent_advisor_documentation.record import (
     _collected,
     _creators,
     _from_record,
     _record,
-    _record_general,
     _title,
     _values,
 )
@@ -79,6 +77,7 @@ from dd_agent_advisor_documentation.suggestions import (
     with_documents,
 )
 from dd_agent_advisor_documentation.values import field_facts
+from dd_sdk import shared_answers
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
@@ -113,10 +112,6 @@ RECORD_FACTS = "approved_metadata_record"
 # and the project's decisions, once the researcher has answered a section.
 RESEARCHER_ANSWERS = "researcher_answers"
 PROJECT_DECISIONS = "project_decisions"
-# How the draft marks what the researcher writes. A person's edit replaces it.
-PLACEHOLDER = "_Still needed: {ask}_"
-# What follows a placeholder: the question that asks for it. Not shown in the rendered README.
-GAP_MARKER = "<!-- dd:gap {question_id} -->"
 TITLES = {DocumentKind.README: "README", DocumentKind.DATA_DICTIONARY: "Data dictionary"}
 MEDIA_TYPES = {DocumentKind.README: "text/markdown", DocumentKind.DATA_DICTIONARY: "text/csv"}
 
@@ -187,6 +182,10 @@ class DocumentationEditor:
         if kind == DocumentKind.README:
             record, unread = _record(asked.metadata_record)
             text, questions, statement, prose, stage = self._readme(asked, record, ctx)
+            # A person's own words, from another document or a decision, come before a model's.
+            questions = shared_answers.offer(
+                questions, asked.shared_answers, asked.project_decisions
+            )
             # The README is drafted first, so nothing the model suggests can reach its text.
             suggestable = {
                 s.heading: s.ask
@@ -198,12 +197,16 @@ class DocumentationEditor:
                 [
                     Ask(q.question_id, section=q.gap_section, asks=suggestable[q.gap_section])
                     for q in questions
-                    if q.gap_section in suggestable and q.gap_part is None
+                    if q.gap_section in suggestable
+                    and q.gap_part is None
+                    and q.suggested_answer is None
                 ],
                 questions,
                 ctx,
             )
-            statement += f" {how_suggested(suggested, TITLES[kind])}"
+            statement += (
+                f" {how_suggested(suggested, TITLES[kind])}{shared_answers.how_offered(questions)}"
+            )
             if asked.metadata_record is None:
                 statement += (
                     " It was given no approved metadata record, so it drafts from the inventory "
@@ -321,7 +324,7 @@ class DocumentationEditor:
             for section in self.sections
         ]
         outline = [
-            _outline(section, bodies, record, answers)
+            outlined(section, bodies, record, answers)
             for section, bodies in zip(self.sections, drafted_from, strict=True)
         ]
         questions = [q for planned in outline for q in planned.questions]
@@ -372,74 +375,6 @@ class DocumentationEditor:
             "fill, each marked and asked as a question."
         )
         return "\n\n".join(parts) + "\n", questions, statement, prose, "draft"
-
-
-@dataclass(frozen=True)
-class Outlined:
-    """One README section as the rules draft it, before any prose: its bodies from the facts,
-    the researcher's answer to it as a whole, its part lines and gap, and the questions asked."""
-
-    section: Section
-    bodies: Mapping[str, str]
-    answer: str | None = None
-    lines: tuple[str, ...] = ()
-    questions: tuple[DocumentQuestion, ...] = ()
-    answered_parts: int = 0
-    complete: bool = False
-
-
-def _outline(
-    section: Section,
-    bodies: Mapping[str, str],
-    record: Mapping[str, Any] | None,
-    answers: Mapping[str, str],
-) -> Outlined:
-    """A section's gaps and questions, decided by rule (docs/specs/drafting.md, invariant 5)."""
-    question_id = _question_id({"section": section.heading})
-    answer = answers.get(question_id)
-    if answer is not None:
-        return Outlined(section, bodies, answer=answer)
-    if section.parts:
-        # Each part is its own gap and question. An answer to the section as a whole, recorded
-        # before it was asked part by part, is placed above and asks nothing.
-        given = _record_general(record)
-        lines: list[str] = []
-        questions: list[DocumentQuestion] = []
-        answered = 0
-        for part in section.parts:
-            if part.given_by and given[part.given_by]:
-                continue
-            part_id = _question_id({"section": section.heading, "part": part.label})
-            part_answer = answers.get(part_id)
-            if part_answer is not None:
-                lines.append(f"- **{part.label}:** {part_answer}")
-                answered += 1
-                continue
-            marker = GAP_MARKER.format(question_id=part_id)
-            lines.append(f"- **{part.label}:** {PLACEHOLDER.format(ask=part.ask)}\n{marker}")
-            questions.append(
-                DocumentQuestion(
-                    question_id=part_id,
-                    question_prompt=f"{part.label}: {part.ask}",
-                    gap_section=section.heading,
-                    gap_part=part.label,
-                )
-            )
-        return Outlined(section, bodies, None, tuple(lines), tuple(questions), answered)
-    if section.complete_from in bodies:
-        return Outlined(section, bodies, complete=True)
-    marker = GAP_MARKER.format(question_id=question_id)
-    question = DocumentQuestion(
-        question_id=question_id,
-        question_prompt=f"For the README's {section.heading} section: {section.ask}",
-        gap_section=section.heading,
-    )
-    return Outlined(
-        section,
-        bodies,
-        lines=(f"{PLACEHOLDER.format(ask=section.ask)}\n{marker}",),
-        questions=(question,),
-    )
 
 
 def _questions_note(

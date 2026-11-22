@@ -49,7 +49,8 @@
             {
               "gap_section": "Description",
               "question_id": "q-0000000000000000",
-              "question_prompt": "What does the dataset describe?"
+              "question_prompt": "What does the dataset describe?",
+              "shared_field": "description"
             }
           ],
           "revises": null,

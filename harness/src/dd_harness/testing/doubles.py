@@ -45,6 +45,7 @@ from dd_sdk.contract.models import (
     ReasonCode,
     Reply,
 )
+from dd_sdk.contract.questions import SharedField
 from dd_sdk.evidence import (
     DOCUMENT_CANONICALISATION,
     HASH_ALGORITHM,
@@ -63,6 +64,7 @@ STUB_QUESTION = DocumentQuestion(
     question_id="q-" + "0" * 16,
     question_prompt="What does the dataset describe?",
     gap_section="Description",
+    shared_field=SharedField.DESCRIPTION,
 )
 
 Behaviour = AgentResult | Exception | Callable[[InvocationRequest, RunContext], AgentResult]
