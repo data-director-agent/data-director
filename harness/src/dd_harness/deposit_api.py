@@ -45,6 +45,7 @@ from dd_harness.projects import (
     RO_CRATE,
     package_format,
 )
+from dd_harness.projects.stewarding import pause_of
 from dd_harness.requirements import Requirements
 from dd_harness.storage import DepositSource
 from dd_sdk.contract.models import DepositConnector, Principal
@@ -76,6 +77,8 @@ class Refusal(StrEnum):
     NOT_LATEST = "not-latest-package"
     STALE = "package-stale"
     NO_RECORD = "no-metadata-record"
+    # A data steward paused the project (docs/specs/stewardship.md, invariant 8).
+    PAUSED = "project-paused"
 
 
 class DepositRefusedError(Exception):
@@ -173,9 +176,14 @@ def approve_and_deposit(
     """Approve the deposit of the package `digest` in the project's repository, as `acted_for`,
     and make the draft. Returns the outcome event, `deposit_recorded` or `deposit_failed`.
 
-    Raises `DepositRefusedError` when nothing may be approved, `DepositInProgressError` when the
+    Raises `DepositRefusedError` when nothing may be approved (a project a data steward paused
+    included), `DepositInProgressError` when the
     package was already deposited in the repository or is being deposited, and `ProjectError`
     for an unknown or deleted project."""
+    if (held := pause_of(projects.events(project_id))) is not None:
+        raise DepositRefusedError(
+            Refusal.PAUSED, f"A data steward paused this project: {held['reason']}"
+        )
     broker, transports = setup.broker, setup.transports
     found = connection(
         projects,

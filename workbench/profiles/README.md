@@ -94,7 +94,7 @@ administrators:              # optional: who administers the deployment, by prin
                              # people in admits them and no one else. No access to any project
 
 stewardship:                 # optional: the deployment's data steward teams
-  visibility: escalated      # the only value until stewards can open projects (#374)
+  visibility: escalated      # or scope: also the projects that chose the team (read-only)
   deposit_co_approval: false # false until co-approval is built (#1306)
   teams:
     - id: library-rdm        # lower-case words joined by hyphens

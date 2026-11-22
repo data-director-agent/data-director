@@ -16,6 +16,10 @@ class Lifecycle(Area):
     def keeps_projects(self) -> bool:
         return self.governance.projects is not None
 
+    def summary(self, project_id: str) -> dict[str, Any]:
+        """The project as its log gives it."""
+        return self._store.summary(project_id)
+
     def create(self, title: str | None, *, acted_for: Principal) -> dict[str, Any]:
         """A project of its own, with no conversation, as `GET /api/projects` lists it."""
         store: ProjectLifecycle = self._store

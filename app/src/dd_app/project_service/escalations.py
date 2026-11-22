@@ -8,24 +8,16 @@ recorded, never against what the request says of it.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from typing import Any
 
 from dd_app.project_service._area import Area
 from dd_harness import escalation_api
 from dd_harness.escalation_api import Confirmed, Requested
-from dd_harness.policy import Profile
 from dd_sdk.contract.models import Principal
 
 
 class Escalations(Area):
-    @property
-    def _profile(self) -> Profile:
-        return self.governance.conductor.profile
-
-    def _envelope(self, invocation_id: str) -> Mapping[str, Any] | None:
-        return self.governance.conductor.store.get(invocation_id)
-
     def of_project(self, project_id: str) -> dict[str, Any]:
         """The project's escalations, the teams it may send to, and where one would go."""
         return escalation_api.for_project(self._store, self._profile, project_id)

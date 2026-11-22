@@ -242,11 +242,13 @@ intended design, and each part says where it is not built yet.
     `remove_member`, `members`; `harness/tests/test_project_membership.py`). The project's support
     team (`support_team_chosen`) and its escalations to a data steward (`escalation_opened` and
     the moves after it) are events of the log too, which give no one a role
-    ([Data stewards](stewardship.md), invariant 4).
+    ([Data stewards](stewardship.md), invariant 4), as are what a steward does in the project:
+    `steward_viewed`, `steward_message`, `project_paused`, `project_resumed`, `gate_cleared`,
+    `gate_refused`, and a proposed version marked `acting_as: steward` (invariants 3 and 6).
 17. **Access follows the project.** Whatever carries a `project_id` (conversations, runs,
     inventories, documents, decisions) is visible to the project's members and to no one else
-    except a data steward whose visibility allows it ([Data stewards](stewardship.md), invariants 2 and 3),
-    TODO(#374). A non-member is refused with status 404,
+    except a data steward whose visibility allows it ([Data stewards](stewardship.md), invariants 2
+    and 3; `dd_harness.steward_access`). A non-member is refused with status 404,
     so that a refusal does not reveal whether the project exists; a member attempting an owner's
     action with 403. Enforced by `dd_harness.project_access` (`harness/tests/test_project_access.py`,
     `harness/tests/test_project_runs.py`) and the app's `in_project` route guard
@@ -673,7 +675,7 @@ TODO(#156).
 them (whose grounding, evidence and trace are in the run store) or the person who edited them;
 decisions name the decider, the digest and the reason; membership events are the record of who
 could see the project. Reading by a member is not recorded separately; reading by a steward is, as
-`steward_viewed` ([Data stewards](stewardship.md), invariant 3), TODO(#374). The grounding linter checks agent-drafted versions only; a person's edit carries no
+`steward_viewed` ([Data stewards](stewardship.md), invariant 3). The grounding linter checks agent-drafted versions only; a person's edit carries no
 grounding, and the record names the person instead ([Evidence and grounding](grounding.md)). The
 disclosure of generative AI in a project's approved documents is read from this log and the run
 store, and writes to neither ([Disclosure](disclosure.md)).

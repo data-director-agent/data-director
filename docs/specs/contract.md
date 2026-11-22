@@ -250,6 +250,11 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     for the document that fact names; only the conductor fills it, from the project's decisions,
     and no agent class is named for it ([Projects](projects.md), invariant 32; #1447;
     `sdk/tests/test_fact_kinds.py`). Adding them raised the contract version to 0.25.0.
+37. A run in a project a data steward has paused, whose action class is not `advise`, ends
+    `referred` with the reason code `project_paused` and `referred_to: data_steward`, and its
+    agent is not run ([Data stewards](stewardship.md), invariant 8;
+    `harness/tests/test_steward_interventions.py`). Adding it raised the contract version to
+    0.26.0.
 
 ## Boundaries and contracts
 

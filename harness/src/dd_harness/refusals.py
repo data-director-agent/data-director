@@ -1,6 +1,6 @@
 """What decides a run before its agent runs (docs/specs/system.md): the first of `REFUSALS`
-that applies. In order: the policy gate, the model broker, approval, cancellation, the input
-check, the project's facts and the profile's `hosted_models`.
+that applies. In order: the policy gate, the model broker, a data steward's pause of the project,
+approval, cancellation, the input check, the project's facts and the profile's `hosted_models`.
 
 `dd_harness.pipeline`'s `refuse` step runs them, over the run's `RunState`; only the conductor
 calls the steps.
@@ -24,6 +24,8 @@ from dd_sdk.contract.models import (
 from dd_sdk.security_log import SecurityEvent, emit
 
 DATA_STEWARD = "data_steward"
+# The action class a pause leaves running: conversing with advisers (invariant 8).
+ADVISE = "advise"
 
 type Decided = tuple[AgentResult, ProblemDetails | None]
 
@@ -79,6 +81,27 @@ def _broker_bypassed(conductor: RunHost, run: RunState) -> Decided | None:
         "run."
     )
     return failed_result(statement), problems.model_broker_bypassed(agent_id, profile_id)
+
+
+def stopped_by_pause(run: RunState) -> bool:
+    """Whether a pause on the run's project stops it: every action class but `advise`."""
+    return run.paused is not None and run.spec.action_class != ADVISE
+
+
+def _paused(conductor: RunHost, run: RunState) -> Decided | None:
+    """A data steward's pause stops every run in the project whose action class is not `advise`
+    until a steward of the team that holds it lifts it (docs/specs/stewardship.md, invariant 8).
+    The researcher can still converse with advisers."""
+    held = run.paused
+    if held is None or not stopped_by_pause(run):
+        return None
+    outcome = Outcome(
+        status=OutcomeStatus.REFERRED,
+        reason_code=ReasonCode.PROJECT_PAUSED,
+        referred_to=DATA_STEWARD,
+        statement=f"A data steward paused this project: {held['reason']} The agent was not run.",
+    )
+    return AgentResult(outcome=outcome), None
 
 
 def _needs_approval(conductor: RunHost, run: RunState) -> Decided | None:
@@ -145,6 +168,7 @@ def _kept_back(conductor: RunHost, run: RunState) -> Decided | None:
 REFUSALS: tuple[Callable[[RunHost, RunState], Decided | None], ...] = (
     _not_allowed,
     _broker_bypassed,
+    _paused,
     _needs_approval,
     _cancelled,
     _input_refused,

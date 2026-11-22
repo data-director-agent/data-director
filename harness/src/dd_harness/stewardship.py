@@ -27,7 +27,6 @@ from typing import Any
 # default: only while the project has an escalation routed to the steward's team, or a pause the
 # team holds. `scope` adds the projects whose owners chose the team as their support team.
 VISIBILITIES = ("escalated", "scope")
-# TODO(#374): `scope` is refused at load until a steward can open a project at all.
 TEAM_KEYS = frozenset({"id", "name", "members", "supports", "contact", "response_time"})
 STEWARDSHIP_KEYS = frozenset({"visibility", "deposit_co_approval", "teams"})
 # A team's identifier: lower-case words joined by hyphens, as it appears in a project's log.
@@ -189,11 +188,6 @@ def parse(value: Any) -> Stewardship:
     if visibility not in VISIBILITIES:
         raise ValueError(
             f"stewardship.visibility is {visibility!r}; it is one of {', '.join(VISIBILITIES)}"
-        )
-    if visibility != "escalated":
-        raise ValueError(
-            f"stewardship.visibility {visibility!r} is not enforced yet (#374), so it may not be "
-            "set: a steward could not open the projects it promises"
         )
     co_approval = value.get("deposit_co_approval", False)
     if not isinstance(co_approval, bool):

@@ -3,9 +3,12 @@ its rules raise."""
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Any
 
 from dd_app.governance import Governance
+from dd_harness.policy import Profile
 from dd_harness.projects import ProjectError, UnknownProjectError
 from dd_harness.storage import ProjectStorage
 
@@ -29,3 +32,12 @@ class Area:
         if self.governance.projects is None:
             raise UnknownProjectError("this server keeps no projects")
         return self.governance.projects
+
+    @property
+    def _profile(self) -> Profile:
+        """The deployment's profile, which the harness's checks are made against."""
+        return self.governance.conductor.profile
+
+    def _envelope(self, invocation_id: str) -> Mapping[str, Any] | None:
+        """A stored run's envelope, from the run store, never from what a request says of it."""
+        return self.governance.conductor.store.get(invocation_id)
