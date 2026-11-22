@@ -1,0 +1,53 @@
+{
+  "escalations": [
+    {
+      "escalation_id": "019a0000-0000-7000-8000-0000000000e1",
+      "history": [
+        {
+          "at": "2026-01-01T00:00:00+00:00",
+          "by": {
+            "assurance": "asserted",
+            "name": "Josiah Carberry",
+            "principal_id": "https://orcid.org/0000-0002-1825-0097",
+            "principal_kind": "person"
+          },
+          "move": "open",
+          "note": "Can I share this?"
+        }
+      ],
+      "note": "Can I share this?",
+      "opened_at": "2026-01-01T00:00:00+00:00",
+      "opened_by": {
+        "assurance": "asserted",
+        "name": "Josiah Carberry",
+        "principal_id": "https://orcid.org/0000-0002-1825-0097",
+        "principal_kind": "person"
+      },
+      "origin": {
+        "kind": "researcher"
+      },
+      "scope_shared": [
+        "The project's title"
+      ],
+      "state": "open",
+      "taken_by": null,
+      "team_id": "library-rdm",
+      "team_name": "Library Research Data Team",
+      "updated_at": "2026-01-01T00:00:00+00:00"
+    }
+  ],
+  "routes_to": "library-rdm",
+  "support_team": null,
+  "teams": [
+    {
+      "contact": "https://example.ac.uk/rdm",
+      "name": "Library Research Data Team",
+      "response_time": "3 working days",
+      "supports": [
+        "faculty-of-science"
+      ],
+      "team_id": "library-rdm"
+    }
+  ],
+  "unrouted": null
+}

@@ -53,6 +53,7 @@ from dd_harness.projects.deposits import (
     package_format,
 )
 from dd_harness.projects.documents import Documents
+from dd_harness.projects.escalations import Escalations
 from dd_harness.projects.extract import SOURCE_MAX_BYTES, SOURCE_MEDIA_TYPES
 from dd_harness.projects.facts import FACT_REASON_MAX_LENGTH, Facts, FactVerdict
 from dd_harness.projects.flow import Flow
@@ -101,6 +102,7 @@ from dd_harness.projects.rules import (
     DOCUMENT_VERSION_ADDED,
     DOCUMENT_VERSION_DECIDED,
     DOCUMENTATION_ADDED,
+    ESCALATION_OPENED,
     FACT_DECIDED,
     FACT_PROPOSED,
     INVENTORY_ADDED,
@@ -117,8 +119,11 @@ from dd_harness.projects.rules import (
     REPOSITORY_CHOSEN,
     RESEARCHER_ADDED,
     RESEARCHER_WITHDRAWN,
+    SUPPORT_TEAM_CHOSEN,
     ChangeRefusedError,
     ConversationDeletedError,
+    EscalationRefusal,
+    EscalationRefusedError,
     MembershipRefusal,
     MembershipRefusedError,
     ProjectDeletedError,
@@ -154,6 +159,7 @@ __all__ = [
     "DOCUMENT_QUESTION_ANSWERED",
     "DOCUMENT_VERSION_ADDED",
     "DOCUMENT_VERSION_DECIDED",
+    "ESCALATION_OPENED",
     "FACT_DECIDED",
     "FACT_PROPOSED",
     "FACT_REASON_MAX_LENGTH",
@@ -182,6 +188,7 @@ __all__ = [
     "RO_CRATE",
     "SOURCE_MAX_BYTES",
     "SOURCE_MEDIA_TYPES",
+    "SUPPORT_TEAM_CHOSEN",
     "TITLE_BY_MODEL",
     "TITLE_BY_RESEARCHER",
     "TITLE_MAX_LENGTH",
@@ -192,6 +199,9 @@ __all__ = [
     "DepositInProgressError",
     "DepositRecords",
     "Documents",
+    "EscalationRefusal",
+    "EscalationRefusedError",
+    "Escalations",
     "FactVerdict",
     "Facts",
     "Flow",
@@ -244,6 +254,7 @@ class Projects(
     Revisions,
     Facts,
     DepositRecords,
+    Escalations,
     RunEffects,
 ):
     """The project rules, every area together over one `ProjectLog` (`dd_harness.storage`,

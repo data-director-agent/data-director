@@ -20,6 +20,7 @@ from datetime import timedelta
 from typing import Any, Protocol
 
 from dd_harness.conversation_storage import ProjectConversations as ProjectConversations
+from dd_harness.escalation_storage import ProjectEscalations as ProjectEscalations
 from dd_harness.fact_storage import ProjectFacts as ProjectFacts
 from dd_harness.holding_storage import ProjectHoldings as ProjectHoldings
 from dd_harness.listing import Page, Readable
@@ -438,6 +439,7 @@ class ProjectStorage(
     ProjectDocuments,
     ProjectFacts,
     ProjectDeposits,
+    ProjectEscalations,
     ProjectEffects,
     Protocol,
 ):

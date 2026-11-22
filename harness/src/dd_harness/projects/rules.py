@@ -21,6 +21,8 @@ from typing import TYPE_CHECKING, Any, Final
 
 from dd_harness.project_errors import ChangeRefusedError as ChangeRefusedError
 from dd_harness.project_errors import ConversationDeletedError as ConversationDeletedError
+from dd_harness.project_errors import EscalationRefusal as EscalationRefusal
+from dd_harness.project_errors import EscalationRefusedError as EscalationRefusedError
 from dd_harness.project_errors import MembershipRefusal as MembershipRefusal
 from dd_harness.project_errors import MembershipRefusedError as MembershipRefusedError
 from dd_harness.project_errors import ProjectDeletedError as ProjectDeletedError
@@ -64,6 +66,18 @@ DEPOSIT_CHECKS_CONFIRMED = "deposit_checks_confirmed"
 DEPOSIT_APPROVED = "deposit_approved"
 DEPOSIT_RECORDED = "deposit_recorded"
 DEPOSIT_FAILED = "deposit_failed"
+# A project's support team, and its escalations to a data steward (docs/specs/stewardship.md,
+# invariant 4; dd_harness.projects.escalations).
+SUPPORT_TEAM_CHOSEN = "support_team_chosen"
+ESCALATION_OPENED = "escalation_opened"
+ESCALATION_TAKEN = "escalation_taken"
+ESCALATION_RELEASED = "escalation_released"
+ESCALATION_WAITING = "escalation_waiting"
+ESCALATION_REPLIED = "escalation_replied"
+ESCALATION_RESOLVED = "escalation_resolved"
+ESCALATION_HANDED_BACK = "escalation_handed_back"
+ESCALATION_WITHDRAWN = "escalation_withdrawn"
+ESCALATION_REOPENED = "escalation_reopened"
 PROJECT_ID = re.compile(UUID7_PATTERN)
 # Members every event has, which what an event carries never replaces.
 ENVELOPE_KEYS = frozenset({"event", "event_id", "project_id", "at", "acted_for", "caused_by"})

@@ -239,7 +239,10 @@ intended design, and each part says where it is not built yet.
     member. Membership is events of the log: `member_added` and `member_role_changed` name the
     member (`member_id`, their principal identifier) and the role, and `member_removed` the member;
     `membership.member_roles` is the one fold of them (`Membership.add_member`, `change_role`,
-    `remove_member`, `members`; `harness/tests/test_project_membership.py`).
+    `remove_member`, `members`; `harness/tests/test_project_membership.py`). The project's support
+    team (`support_team_chosen`) and its escalations to a data steward (`escalation_opened` and
+    the moves after it) are events of the log too, which give no one a role
+    ([Data stewards](stewardship.md), invariant 4).
 17. **Access follows the project.** Whatever carries a `project_id` (conversations, runs,
     inventories, documents, decisions) is visible to the project's members and to no one else
     except a data steward whose visibility allows it ([Data stewards](stewardship.md), invariants 2 and 3),

@@ -3,10 +3,11 @@
 An **escalation** hands a matter from a researcher to your team. It is a record in the
 researcher's project. Everything that happens to it is kept there and shown to the researcher.
 
-!!! note "Not built yet"
-    Escalations, the queue and the controls below are specified in
-    [Data stewards](../../specs/stewardship.md) and not yet built ([#373](https://github.com/data-director-agent/data-director/issues/373),
-    [#375](https://github.com/data-director-agent/data-director/issues/375), [#376](https://github.com/data-director-agent/data-director/issues/376)).
+!!! note "Partly built"
+    The escalation record, its routing and your queue are built and reached through the app's
+    API (`/api/steward/escalations`). The screens described below are not built yet: the
+    researcher's side is [#375](https://github.com/data-director-agent/data-director/issues/375),
+    and the queue and the controls are [#376](https://github.com/data-director-agent/data-director/issues/376).
 
 ## Where escalations come from
 
@@ -17,6 +18,14 @@ researcher's project. Everything that happens to it is kept there and shown to t
 
 Each escalation tells you its **origin** (the researcher, the policy gate, an agent or the
 orchestrator), the researcher's note, and the run that led to it, if any.
+
+## Which team receives it
+
+An escalation goes to the project's **support team**, the team its owners chose. If they have
+chosen none, it goes to your instance's only team or, where the profile names several, to the team
+the researcher picks when sending; an owner's pick then becomes the project's support team. If you
+are a member of the project yourself, you act there as a member: the queue shows the escalation,
+and you cannot take it.
 
 ## The queue
 

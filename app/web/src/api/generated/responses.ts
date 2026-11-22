@@ -51,6 +51,10 @@ export type AppResponse =
   | DocumentDraftedBy
   | DocumentFinding
   | DocumentVersion
+  | Escalation
+  | EscalationMove
+  | EscalationOrigin
+  | EscalationState
   | Example
   | ExtractedDocument
   | FactProposal
@@ -63,6 +67,8 @@ export type AppResponse =
   | IntakeQuestion
   | IntakeState
   | ItemDecisionMade
+  | MoveName
+  | OriginKind
   | OutcomeStatus
   | PackageLink
   | PackageRefusedProblem
@@ -78,6 +84,7 @@ export type AppResponse =
   | ProjectDetails
   | ProjectDocument
   | ProjectDocuments
+  | ProjectEscalations
   | ProjectFacts
   | ProjectIntake
   | ProjectMember
@@ -85,6 +92,7 @@ export type AppResponse =
   | ProjectProgress
   | ProjectRuns
   | ProjectSummary
+  | QueuedEscalation
   | RawAgentsResponse
   | RawManifestEntry
   | RawModelAccountProvider
@@ -108,7 +116,9 @@ export type AppResponse =
   | Started
   | StepReason
   | StepState
+  | StewardQueue
   | StoredRun
+  | SupportTeamOption
   | Ticket
   | Validation
   | ValidationResult
@@ -116,6 +126,9 @@ export type AppResponse =
   | VersionDecision;
 export type StepState = "started" | "done" | "skipped";
 export type OutcomeStatus = "succeeded" | "abstained" | "referred" | "failed" | "suspended";
+export type MoveName = "open" | "take" | "release" | "wait" | "reply" | "resolve" | "hand_back" | "withdraw" | "reopen";
+export type OriginKind = "researcher" | "policy_gate" | "agent" | "orchestrator";
+export type EscalationState = "open" | "taken" | "waiting_for_researcher" | "resolved" | "handed_back" | "withdrawn";
 export type IntakeState = "pending" | "complete" | "dismissed";
 export type Role = "owner" | "member";
 
@@ -839,6 +852,54 @@ export interface RevisionRequested {
   requested_by: Principal;
 }
 /**
+ * A matter handed to a data steward team (docs/specs/stewardship.md, invariant 4).
+ */
+export interface Escalation {
+  escalation_id: string;
+  history: EscalationMove[];
+  /**
+   * The researcher's note when they sent it.
+   */
+  note: string;
+  opened_at: string;
+  opened_by: Principal;
+  origin: EscalationOrigin;
+  /**
+   * What the researcher was told would be shared, as they saw it when they confirmed it.
+   */
+  scope_shared: string[];
+  state: EscalationState;
+  taken_by: Principal | null;
+  team_id: string;
+  team_name: string;
+  updated_at: string;
+}
+/**
+ * One move in an escalation's history, the opening first.
+ */
+export interface EscalationMove {
+  /**
+   * Set for a move a steward made as a steward.
+   */
+  acting_as?: "steward";
+  at: string;
+  by: Principal;
+  move: MoveName;
+  note?: string;
+}
+/**
+ * Where an escalation came from: the researcher, or a run of the project that ended in a
+ * referral or an abstention, or the orchestrator's offer.
+ */
+export interface EscalationOrigin {
+  agent_id?: string;
+  /**
+   * The run it came from; absent for one the researcher raised.
+   */
+  invocation_id?: string;
+  kind: OriginKind;
+}
+/**
  * An example input the shell offers (`GET /api/examples`).
  */
 export interface Example {
@@ -1259,6 +1320,35 @@ export interface RevisionRun {
   version: DocumentVersionRef | null;
 }
 /**
+ * A project's escalations, the teams it may send to, and where a new one would go.
+ */
+export interface ProjectEscalations {
+  escalations: Escalation[];
+  /**
+   * The team a new escalation would go to without a pick, or null with `unrouted` saying why.
+   */
+  routes_to: string | null;
+  /**
+   * The team the project's owners chose, or null.
+   */
+  support_team: string | null;
+  teams: SupportTeamOption[];
+  unrouted: ("no-steward-team" | "team-required") | null;
+}
+/**
+ * A steward team the deployment names, which a project may choose as its support team.
+ */
+export interface SupportTeamOption {
+  contact?: string;
+  name: string;
+  response_time?: string;
+  /**
+   * The labels of the projects the team supports.
+   */
+  supports: string[];
+  team_id: string;
+}
+/**
  * What a project holds: proposals to decide, and the facts that stand.
  */
 export interface ProjectFacts {
@@ -1387,6 +1477,35 @@ export interface ProjectSummary {
    * Who gave the name. A person's name is never replaced by the model's.
    */
   title_source: ("researcher" | "model") | null;
+}
+/**
+ * An escalation routed to one of the steward's teams, with its project.
+ */
+export interface QueuedEscalation {
+  escalation_id: string;
+  history: EscalationMove[];
+  /**
+   * Whether the steward is a member of the project, and so may not act in it as its steward.
+   */
+  member_of_project: boolean;
+  /**
+   * The researcher's note when they sent it.
+   */
+  note: string;
+  opened_at: string;
+  opened_by: Principal;
+  origin: EscalationOrigin;
+  project_id: string;
+  project_title: string | null;
+  /**
+   * What the researcher was told would be shared, as they saw it when they confirmed it.
+   */
+  scope_shared: string[];
+  state: EscalationState;
+  taken_by: Principal | null;
+  team_id: string;
+  team_name: string;
+  updated_at: string;
 }
 /**
  * The agents the shell's capabilities panel is drawn from (`GET /api/agents`).
@@ -1601,6 +1720,12 @@ export interface Started {
    * Null where the server keeps no projects.
    */
   project_id: string | null;
+}
+/**
+ * The escalations routed to the signed-in steward's teams, the oldest first.
+ */
+export interface StewardQueue {
+  escalations: QueuedEscalation[];
 }
 /**
  * A stored run with its request (`GET /api/runs/{id}`).

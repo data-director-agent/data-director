@@ -62,6 +62,33 @@ class MembershipRefusedError(ProjectError):
         self.detail = detail
 
 
+class EscalationRefusal(StrEnum):
+    """Why an escalation to a data steward, or a move of one, was refused
+    (docs/specs/stewardship.md, invariant 4). Each value is a Problem Details slug."""
+
+    NO_STEWARD_TEAM = "no-steward-team"
+    UNKNOWN_TEAM = "unknown-team"
+    TEAM_REQUIRED = "team-required"
+    UNKNOWN_ESCALATION = "unknown-escalation"
+    MOVE_NOT_ALLOWED = "move-not-allowed"
+    NOT_YOUR_MOVE = "not-your-move"
+    NOTE_REQUIRED = "note-required"
+    NOTE_TOO_LONG = "note-too-long"
+    ORIGIN_MISMATCH = "origin-mismatch"
+    ALREADY_ESCALATED = "already-escalated"
+    MEMBER_OF_PROJECT = "member-of-project"
+
+
+class EscalationRefusedError(ProjectError):
+    """An escalation that cannot be routed or does not match the run it names, or a move its
+    state, or the side of whoever asked, does not allow. Nothing is recorded."""
+
+    def __init__(self, refusal: EscalationRefusal, detail: str) -> None:
+        super().__init__(detail)
+        self.refusal = refusal
+        self.detail = detail
+
+
 class Refusal(StrEnum):
     """Why a decision, an edit or an answer was refused as not naming what it must
     (docs/specs/projects.md, invariant 12). Each value is a Problem Details slug."""

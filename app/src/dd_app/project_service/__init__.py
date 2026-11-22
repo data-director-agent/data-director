@@ -21,6 +21,7 @@ from dd_app.governance import Governance
 from dd_app.project_service._area import RepositoriesUnavailableError, TitleMismatchError
 from dd_app.project_service.deposit import REPOSITORY_SEARCH_LIMIT, Deposit
 from dd_app.project_service.drafts import Documents, Facts
+from dd_app.project_service.escalations import Escalations
 from dd_app.project_service.lifecycle import Lifecycle
 from dd_app.project_service.materials import Materials
 from dd_app.project_service.members import Members
@@ -39,6 +40,7 @@ class ProjectService:
     documents: Documents
     facts: Facts
     deposit: Deposit
+    escalations: Escalations
 
     @classmethod
     def over(cls, governance: Governance) -> ProjectService:
@@ -50,6 +52,7 @@ class ProjectService:
             documents=Documents(governance),
             facts=Facts(governance),
             deposit=Deposit(governance),
+            escalations=Escalations(governance),
         )
 
 

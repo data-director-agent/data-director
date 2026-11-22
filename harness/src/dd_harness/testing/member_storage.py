@@ -9,6 +9,7 @@ from collections.abc import Callable
 
 from dd_harness.project_access import readable_projects
 from dd_harness.storage import ProjectStorage
+from dd_harness.testing.escalation_storage import ESCALATION_STORAGE_CHECKS
 from dd_harness.testing.fixtures import TEST_PRINCIPAL
 from dd_sdk.contract.models import Principal
 
@@ -42,8 +43,10 @@ def check_a_person_reads_the_projects_they_have_a_role_in(make: MakeProjectStora
     assert readable_projects(store, nobody) == []
 
 
+# With the checks of the same index naming a steward team (`dd_harness.role_events.team_key`).
 MEMBERSHIP_STORAGE_CHECKS: dict[str, Callable[[MakeProjectStorage], None]] = {
     "a person reads the projects they have a role in": (
         check_a_person_reads_the_projects_they_have_a_role_in
     ),
+    **ESCALATION_STORAGE_CHECKS,
 }

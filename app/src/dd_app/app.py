@@ -62,6 +62,7 @@ from dd_app.routes import (
     deposit,
     documents,
     drafts,
+    escalations,
     facts,
     folders,
     materials,
@@ -117,6 +118,7 @@ AREAS = (
     project_runs,
     deposit,
     drafts,
+    escalations,
 )
 
 
