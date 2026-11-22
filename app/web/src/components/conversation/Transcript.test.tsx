@@ -343,6 +343,17 @@ describe("Transcript, as a conversation", () => {
     expect(icon).toHaveAttribute("aria-hidden", "true");
   });
 
+  it("shows the icon the person chose in Settings beside \"You\"", () => {
+    localStorage.setItem("dd-person-icon", "owl");
+    try {
+      render(<Transcript conversation={conversation} agents={agents} onToggleRun={() => {}} />);
+      const personPart = turns()[0]?.querySelector(".turn-person") as HTMLElement;
+      expect(personPart.querySelector(".turn-speaker-name .person-icon")).toHaveTextContent("🦉");
+    } finally {
+      localStorage.removeItem("dd-person-icon");
+    }
+  });
+
   it("names an agent the directory does not list by its id, once", () => {
     render(<Transcript conversation={conversation} agents={[]} onToggleRun={() => {}} />);
     const agentPart = turns()[0]?.querySelector(".turn-agent") as HTMLElement;

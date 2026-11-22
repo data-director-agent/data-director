@@ -6,6 +6,7 @@
 import { CircleUserRound } from "lucide-react";
 
 import { AgentIcon, type AgentView, agentName } from "../../manifest/normalise";
+import { PERSON_ICONS, usePreferences } from "../../preferences";
 
 /** The agent's name as a researcher sees it: its card's title, or its id when the directory does
  * not list it or its card names none. */
@@ -39,7 +40,7 @@ export function senderOf(
 }
 
 /**
- * Who a turn's part is from, by name alone. With no agent it is a person: "You" for the one
+ * Who a turn's part is from, by name alone (the reader's own icon is the one they chose in Settings). With no agent it is a person: "You" for the one
  * reading, or one who sent nothing yet named; another member of the project by their name (#391). An agent is its
  * card's icon and title, or its id when the directory does not list it or its card names none. Its
  * version and what powers it are on the agent page, not in the conversation (docs/specs/app.md).
@@ -53,15 +54,21 @@ export function Speaker({
   agentId?: string;
   person?: Sender | null;
 }) {
+  const { personIcon } = usePreferences();
   if (agentId === undefined) {
+    const you = !person || person.you;
     return (
       <p className="turn-speaker">
         <strong className="turn-speaker-name">
           {/* A neutral silhouette, as the account menu uses, in the place an agent's icon takes. */}
           <span className="person-icon" aria-hidden="true">
-            <CircleUserRound size="1.125em" />
+            {you && personIcon !== "person" ? (
+              PERSON_ICONS[personIcon].icon
+            ) : (
+              <CircleUserRound size="1.125em" />
+            )}
           </span>
-          {!person || person.you ? "You" : person.name}
+          {you ? "You" : person.name}
         </strong>
       </p>
     );
