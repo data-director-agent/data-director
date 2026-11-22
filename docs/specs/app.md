@@ -712,6 +712,18 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   documents with their latest versions' states, the conversation's own first, and a proposed
   version waits on the researcher there with a link to its review. A decision is made only on the
   documents page.
+- **FAIR feedback is read from the project's `FairnessReport` runs.** The shell recognises the
+  class, not the agent. `GET /api/projects/{id}/runs?payload=<class>` lists the succeeded runs
+  in the project whose payload is of the class the shell names, newest first, turns and
+  delegated children alike, from the conversations the person may read; the server names no
+  class (`app/tests/test_project_runs_by_class.py`). The project pane shows how many checks of
+  each of F, A, I and R the latest report meets, what is new since the report before, the next
+  steps and whether the metadata record has changed since; a question goes in the message box,
+  unsent. The pane draws it only where an agent's manifest names `FairnessReport` as its
+  payload. The project's FAIR feedback tab (`/projects/{id}/fair`) shows every check and each
+  report stored in the project, and a run card lays a report out the same way. No score is
+  shown: every view names the run that gave the report and says it is not a FAIRness evaluation
+  (R4, [FAIR feedback](../ui/fair-feedback.md)).
 - **A repository is chosen from the shortlist on the turn that made it.** A run whose payload is a
   `RepositoryOptions`, on the turn or among its delegated children, is a card on that turn listing
   each candidate by the re3data record it rests on: the `grounded_on` entry that is a re3data

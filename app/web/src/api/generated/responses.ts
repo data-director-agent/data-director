@@ -83,6 +83,7 @@ export type AppResponse =
   | ProjectMember
   | ProjectMembers
   | ProjectProgress
+  | ProjectRuns
   | ProjectSummary
   | RawAgentsResponse
   | RawManifestEntry
@@ -1294,6 +1295,12 @@ export interface ProjectMembers {
   may_manage: boolean;
   members: ProjectMember[];
   your_role: Role | null;
+}
+/**
+ * The succeeded runs in a project whose payload is of one class, newest first.
+ */
+export interface ProjectRuns {
+  runs: Envelope[];
 }
 /**
  * One project the person may read, as `GET /api/projects` lists it and
