@@ -33,7 +33,7 @@ import { FooterBuild } from "./FooterBuild";
 // looks for; `/journey` opens the current project's map. The conversation stays the page a
 // person lands on, so nobody must make a project first.
 const PAGES: readonly { to: string; label: string; icon: LucideIcon }[] = [
-  { to: "/project", label: "Projects", icon: FolderOpen },
+  { to: "/project", label: "Project", icon: FolderOpen },
   { to: "/journey", label: "Journey map", icon: MapIcon },
   { to: "/", label: "Conversation", icon: MessagesSquare },
   { to: "/activity", label: "Activity log", icon: Activity },
