@@ -34,9 +34,16 @@ attached.
 
 You can also attach a document without starting a conversation. On the project's **Documents**
 page, select **Attach a document** and choose the file. It goes through the same check, and
-selecting **Attach this document** keeps it in the project straight away. The documents the
-project holds are listed under **Attached documents**. Where your institution does not allow
+selecting **Attach this document** keeps it in the project straight away. **Attach a file**
+beside a new project's setup questions does the same. Where your institution does not allow
 attached documents, the button is not offered.
+
+The **Documents** page lists every document you have attached under **Attached documents**, below
+the drafts agents have made, whether you attached it there or in a conversation. Select one to read
+it. **Preview** lays it out with its headings, lists and tables; for a Word document these are
+taken from the document's own styles, so use Word's heading and list styles rather than bold text
+to keep them. **Text** shows exactly what agents read. For a Word document or PDF, **Download the
+original** gives you back the file you attached. A PDF is read as plain text, without its layout.
 
 The document then shows as a chip under the message box. Select its **Remove** button if you
 change your mind. You can type a message as well, or send it on its own. A message can carry one
@@ -62,6 +69,20 @@ documents the model was given, and says if one was too long to give in full.
 
 The Data Management Plan Checker reads an attached data management plan to find its commitments
 to share your data, which you then confirm or correct.
+
+## Marking your Data Management Plan
+
+If one of the documents you attached is your project's data management plan, mark it as such.
+On the project's **Documents** page, under **Attached documents**, select **Mark as the Data
+Management Plan** beside it. It is then labelled **Data Management Plan**, and every agent that is
+given your documents is told which one is the plan: the Data Management Plan Checker reads that
+document alone, rather than every document you attached. A project has one plan at a time. If you
+attach a revised plan, mark it, and it replaces the earlier one. Select **Not the plan** to
+remove the mark.
+
+If you have not marked one, the Data Management Plan Checker may suggest which document is your
+plan when it reads them. Its suggestion waits under **Project facts** until you confirm or reject
+it; nothing is marked until you do.
 
 The Policy Adviser reads an attached policy or award letter as the text of the policy of the
 funder, journal or institution it names, beside the published policies it finds. Each obligation

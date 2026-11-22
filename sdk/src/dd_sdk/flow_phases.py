@@ -16,7 +16,9 @@ about it that the app offers to edit and send.
 
 The steps are taken from the figure captions in §8.2, with two boxes the captions leave out:
 Figure 2's check of ethical, legal and institutional constraints, and Figure 4's finalising of
-controlled vocabularies and ontologies, which settles the first choice made in Phase 1. TODO(#245):
+controlled vocabularies and ontologies, which settles the first choice made in Phase 1. One step
+is ours and in no figure: `deposit.fairness`, a FAIR check of the draft before submission.
+TODO(#245):
 check the rest against Figures 1 to 6 themselves, which may show other steps or decisions the
 captions leave out.
 """
@@ -286,6 +288,17 @@ PHASES: tuple[Phase, ...] = (
                     "Help me link my data to my paper, my ORCID iD, my institution and my grant."
                 ),
             ),
+            # Not in Figure 5: our addition, so that FAIR feedback on the draft comes while the
+            # researcher can still act on it. Figure 6's check of the published object stays in
+            # Phase 6 (`post.fairness`). It is advice, never a gate: `deposit.validate` decides
+            # completeness and the deposit check decides whether a package may be built.
+            Step(
+                "deposit.fairness",
+                "Check how FAIR the draft metadata record is before submitting",
+                optional=True,
+                label="Check how FAIR your description is before you submit",
+                prompt="Help me check how FAIR my dataset's description is before I submit it.",
+            ),
             Step(
                 "deposit.access",
                 "Set access restrictions",
@@ -348,8 +361,8 @@ PHASES: tuple[Phase, ...] = (
                 "post.fairness",
                 "Evaluate the FAIRness of the published objects and discover related datasets",
                 ("R12",),
-                label="Check how FAIR your published data are",
-                prompt="Help me check how FAIR my published data are.",
+                label="Re-check how FAIR your published record is",
+                prompt="Help me check how FAIR the record of my published data is.",
             ),
             Step(
                 "post.retrofit",

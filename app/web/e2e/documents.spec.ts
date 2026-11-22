@@ -1,0 +1,65 @@
+/**
+ * Reading a document a researcher attached, on the project's Documents tab (docs/specs/app.md):
+ * listed after the drafts, opened laid out from the Markdown a Word document is read as, with the
+ * original to download, and no conversations beside it. The shell's API is answered here.
+ */
+
+import { expect, test } from "@playwright/test";
+
+import project from "../fixtures/project-documents.json" with { type: "json" };
+import development from "../fixtures/session-development.json" with { type: "json" };
+import { axeViolations, overflow, serveSession } from "./support";
+
+const DMP = {
+  documentation_name: "dmp.docx",
+  documentation_digest: "a".repeat(64),
+  documentation_media_type: "text/markdown",
+  documentation_size: 230,
+  documentation_added_at: "2026-11-10T10:00:00Z",
+  documentation_source_media_type:
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+};
+const MARKDOWN = [
+  "# Data management plan",
+  "## Data collection",
+  "Soil cores were taken weekly at 10 cm depth.",
+  "- Soil moisture\n- Soil temperature",
+  "| Output | Repository |\n| --- | --- |\n| Cores | Zenodo |",
+].join("\n\n");
+
+test.beforeEach(async ({ page }) => {
+  await serveSession(page, development);
+  const base = `/api/projects/${project.project_id}`;
+  await page.route(`${base}/documents`, (route) => route.fulfill({ json: project }));
+  await page.route(`${base}/documentation`, (route) => route.fulfill({ json: [DMP] }));
+  await page.route(`${base}/documentation/${DMP.documentation_digest}*`, (route) =>
+    route.fulfill({ body: MARKDOWN, contentType: "text/markdown; charset=utf-8" }),
+  );
+});
+
+for (const width of [1280, 320]) {
+  test(`an attached Word document is read laid out, at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`/projects/${project.project_id}?attached=${DMP.documentation_digest}`);
+
+    const article = page.getByRole("article", { name: DMP.documentation_name });
+    await expect(article.getByRole("heading", { name: "Data collection" })).toBeVisible();
+    await expect(article.getByRole("table")).toBeVisible();
+    await expect(article.getByRole("link", { name: /Download/ })).toHaveAttribute(
+      "href",
+      /\?original$/,
+    );
+    await expect(page.getByRole("navigation", { name: /Conversations/ })).toHaveCount(0);
+    expect(await axeViolations(page)).toEqual([]);
+    expect(await overflow(page)).toBeLessThanOrEqual(0);
+    await page.screenshot({ path: `test-results/attached-${width}.png`, fullPage: true });
+
+    if (width > 320) {
+      const list = page.getByRole("navigation", { name: "Documents" });
+      await expect(list.getByRole("link", { name: /dmp\.docx/ })).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+    }
+  });
+}

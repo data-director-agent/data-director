@@ -4,7 +4,10 @@ import { axe } from "jest-axe";
 
 import fixture from "../../../fixtures/projects.json";
 import deletedFixture from "../../../fixtures/projects-deleted.json";
-import { type ActiveProject, ActiveProjectTestContext } from "../../project/active";
+import {
+  type ActiveProject,
+  ActiveProjectTestContext,
+} from "../../project/active";
 import {
   type DeletedProject,
   type ProjectApi,
@@ -25,14 +28,16 @@ const DELETED = deletedFixture as DeletedProject[];
 function renderPage(
   projects: ProjectApi["projects"],
   active: Partial<ActiveProject> = {},
-  create: ProjectApi["create"] = () => Promise.reject(new Error("no project created in this test")),
+  create: ProjectApi["create"] = () =>
+    Promise.reject(new Error("no project created in this test")),
   deleted: Partial<Pick<ProjectApi, "deletedProjects" | "restore">> = {},
 ) {
   const api = {
     projects,
     create,
     deletedProjects: () => Promise.resolve([]),
-    restore: () => Promise.reject(new Error("no project restored in this test")),
+    restore: () =>
+      Promise.reject(new Error("no project restored in this test")),
     ...deleted,
     documents: vi.fn(),
     disclosure: vi.fn(),
@@ -62,7 +67,9 @@ describe("ProjectsPage", () => {
     const card = link.closest("li") as HTMLElement;
     expect(within(card).getByText(/Inventory of 1 file/)).toBeInTheDocument();
     expect(within(card).getByText(/1 conversation\b/)).toBeInTheDocument();
-    expect(within(card).getByText("No document drafted yet.")).toBeInTheDocument();
+    expect(
+      within(card).getByText("No document drafted yet."),
+    ).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -71,11 +78,17 @@ describe("ProjectsPage", () => {
     const link = await screen.findByRole("link", {
       name: `Open the journey map of ${projectName(FIRST)}`,
     });
-    expect(link).toHaveAttribute("href", `/projects/${FIRST.project_id}/journey`);
+    expect(link).toHaveAttribute(
+      "href",
+      `/projects/${FIRST.project_id}/journey`,
+    );
   });
 
   it("counts a project's documents by state", async () => {
-    const counted = { ...FIRST, documents: { proposed: 2, approved: 1, rejected: 0 } };
+    const counted = {
+      ...FIRST,
+      documents: { proposed: 2, approved: 1, rejected: 0 },
+    };
     renderPage(() => Promise.resolve([counted]));
     expect(await screen.findByText("2 to review")).toHaveClass("status-warn");
     expect(screen.getByText("1 approved")).toHaveClass("status-ok");
@@ -86,18 +99,26 @@ describe("ProjectsPage", () => {
     history.pushState(null, "", "/projects");
     const setProjectId = vi.fn();
     const reloadProjects = vi.fn();
-    const create = vi.fn<ProjectApi["create"]>(() => Promise.resolve({ ...FIRST, project_id: "p-new" }));
+    const create = vi.fn<ProjectApi["create"]>(() =>
+      Promise.resolve({ ...FIRST, project_id: "p-new" }),
+    );
     const { baseElement } = renderPage(
       () => Promise.resolve([]),
       { projectId: "p1", setProjectId, reloadProjects },
       create,
     );
-    expect(await screen.findByText(/You have no project yet/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Start a new project" }));
+    expect(
+      await screen.findByText(/You have no project yet/),
+    ).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Start a new project" }),
+    );
     const dialog = await screen.findByRole("dialog", { name: "New project" });
     expect(await axe(baseElement)).toHaveNoViolations();
     await userEvent.type(within(dialog).getByRole("textbox"), "  Soil cores  ");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Create project" }));
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Create project" }),
+    );
     expect(create).toHaveBeenCalledWith("Soil cores");
     expect(setProjectId).toHaveBeenCalledWith("p-new");
     expect(reloadProjects).toHaveBeenCalled();
@@ -106,23 +127,35 @@ describe("ProjectsPage", () => {
   });
 
   it("creates an unnamed project when the name is left blank", async () => {
-    const create = vi.fn<ProjectApi["create"]>(() => Promise.resolve({ ...FIRST, project_id: "p-new" }));
+    const create = vi.fn<ProjectApi["create"]>(() =>
+      Promise.resolve({ ...FIRST, project_id: "p-new" }),
+    );
     renderPage(() => Promise.resolve([]), {}, create);
-    await userEvent.click(await screen.findByRole("button", { name: "Start a new project" }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Start a new project" }),
+    );
     const dialog = await screen.findByRole("dialog", { name: "New project" });
-    await userEvent.click(within(dialog).getByRole("button", { name: "Create project" }));
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Create project" }),
+    );
     expect(create).toHaveBeenCalledWith(undefined);
   });
 
   it("says why a project was not created, and keeps what was typed", async () => {
     history.pushState(null, "", "/projects");
     const setProjectId = vi.fn();
-    const create = vi.fn<ProjectApi["create"]>(() => Promise.reject(new Error("the title is too long")));
+    const create = vi.fn<ProjectApi["create"]>(() =>
+      Promise.reject(new Error("the title is too long")),
+    );
     renderPage(() => Promise.resolve([]), { setProjectId }, create);
-    await userEvent.click(await screen.findByRole("button", { name: "Start a new project" }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Start a new project" }),
+    );
     const dialog = await screen.findByRole("dialog", { name: "New project" });
     await userEvent.type(within(dialog).getByRole("textbox"), "Soil cores");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Create project" }));
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Create project" }),
+    );
     expect(await within(dialog).findByRole("alert")).toBeVisible();
     expect(within(dialog).getByRole("textbox")).toHaveValue("Soil cores");
     expect(setProjectId).not.toHaveBeenCalled();
@@ -137,13 +170,21 @@ describe("ProjectsPage", () => {
       projectId: FIRST.project_id,
       setProjectId,
     });
-    const current = (await screen.findByRole("link", { name: "My logger data" })).closest("li");
+    const current = (
+      await screen.findByRole("link", { name: "My logger data" })
+    ).closest("li");
     expect(current).toHaveAttribute("aria-current", "true");
-    expect(within(current as HTMLElement).getByText("Current project")).toBeVisible();
-    const river = screen.getByRole("link", { name: "River loggers" }).closest("li") as HTMLElement;
+    expect(
+      within(current as HTMLElement).getByText("Current project"),
+    ).toBeVisible();
+    const river = screen
+      .getByRole("link", { name: "River loggers" })
+      .closest("li") as HTMLElement;
     expect(river).not.toHaveAttribute("aria-current");
     await userEvent.click(
-      within(river).getByRole("button", { name: "Open the conversations of River loggers" }),
+      within(river).getByRole("button", {
+        name: "Open the conversations of River loggers",
+      }),
     );
     expect(setProjectId).toHaveBeenCalledWith("p2");
     expect(location.pathname).toBe("/");
@@ -160,23 +201,31 @@ describe("ProjectsPage", () => {
 
 describe("projectName", () => {
   it("prefers a title the project was given", () => {
-    expect(projectName({ ...FIRST, title: "River loggers" })).toBe("River loggers");
+    expect(projectName({ ...FIRST, title: "River loggers" })).toBe(
+      "River loggers",
+    );
   });
 
   it("falls back to when the project was started when it has no conversation", () => {
-    expect(projectName({ ...FIRST, conversations: [] })).toMatch(/^Project started /);
+    expect(projectName({ ...FIRST, conversations: [] })).toMatch(
+      /^Project started /,
+    );
   });
 
   it("shows no deleted projects while there are none", async () => {
     renderPage(() => Promise.resolve(PROJECTS));
     await screen.findByRole("link", { name: "My logger data" });
-    expect(screen.queryByRole("heading", { name: "Recently deleted" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Recently deleted" }),
+    ).not.toBeInTheDocument();
   });
 
   it("lists a deleted project under Recently deleted and restores it", async () => {
     const user = userEvent.setup();
     const reloadProjects = vi.fn();
-    const restore = vi.fn<ProjectApi["restore"]>(() => Promise.resolve(projectDetails()));
+    const restore = vi.fn<ProjectApi["restore"]>(() =>
+      Promise.resolve(projectDetails()),
+    );
     const listed = vi
       .fn<ProjectApi["deletedProjects"]>()
       .mockResolvedValueOnce(DELETED)
@@ -187,18 +236,26 @@ describe("projectName", () => {
       undefined,
       { deletedProjects: listed, restore },
     );
-    const section = (await screen.findByRole("heading", { name: "Recently deleted" })).closest(
-      "section",
-    ) as HTMLElement;
+    const section = (
+      await screen.findByRole("heading", { name: "Recently deleted" })
+    ).closest("section") as HTMLElement;
     const project = DELETED[0] as DeletedProject;
-    expect(within(section).getByText(project.title as string)).toBeInTheDocument();
+    expect(
+      within(section).getByText(project.title as string),
+    ).toBeInTheDocument();
     expect(within(section).getByText(/Restorable until/)).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
 
-    await user.click(within(section).getByRole("button", { name: `Restore ${project.title}` }));
+    await user.click(
+      within(section).getByRole("button", { name: `Restore ${project.title}` }),
+    );
     expect(restore).toHaveBeenCalledWith(project.project_id);
-    expect(await screen.findByText(/You have no project yet/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/You have no project yet/),
+    ).toBeInTheDocument();
     expect(reloadProjects).toHaveBeenCalled();
-    expect(screen.queryByRole("heading", { name: "Recently deleted" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Recently deleted" }),
+    ).not.toBeInTheDocument();
   });
 });

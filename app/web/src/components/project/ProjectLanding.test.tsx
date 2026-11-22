@@ -1,8 +1,15 @@
 import { render } from "@testing-library/react";
 
 import fixture from "../../../fixtures/projects.json";
-import { type ActiveProject, ActiveProjectTestContext } from "../../project/active";
-import { type ProjectApi, type ProjectSummary, ProjectApiContext } from "../../project/api";
+import {
+  type ActiveProject,
+  ActiveProjectTestContext,
+} from "../../project/active";
+import {
+  type ProjectApi,
+  type ProjectSummary,
+  ProjectApiContext,
+} from "../../project/api";
 import { ProjectLanding } from "./ProjectLanding";
 
 const PROJECTS = fixture as ProjectSummary[];
@@ -33,7 +40,9 @@ describe("ProjectLanding", () => {
 
   it("opens the current project's page in its place", async () => {
     renderLanding(() => Promise.resolve(PROJECTS), FIRST.project_id);
-    await vi.waitFor(() => expect(location.pathname).toBe(`/projects/${FIRST.project_id}`));
+    await vi.waitFor(() =>
+      expect(location.pathname).toBe(`/projects/${FIRST.project_id}`),
+    );
   });
 
   it("opens the list of projects when none is current", async () => {

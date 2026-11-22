@@ -48,7 +48,7 @@ doubles:ProbeFindings a sh:NodeShape ;
     sh:targetClass <https://w3id.org/data-director/GroundingRef> .
 
 <https://w3id.org/data-director/ProjectFact> a sh:NodeShape ;
-    rdfs:comment "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, an output a data management plan committed to share, or a standard, vocabulary or format the researcher chose for the dataset (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because." ;
+    rdfs:comment "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, an output a data management plan committed to share, a standard, vocabulary or format the researcher chose for the dataset, or which attached document is the project's data management plan (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
@@ -77,12 +77,6 @@ doubles:ProbeFindings a sh:NodeShape ;
             sh:order 1 ;
             sh:path <https://w3id.org/data-director/fact_subject> ;
             sh:pattern "\\S" ],
-        [ sh:datatype xsd:string ;
-            sh:description "Why the agent proposes the fact, in a sentence for the person deciding. Kept with the proposal and shown to the person, never given to an agent." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 24 ;
-            sh:path <https://w3id.org/data-director/proposed_because> ],
         [ sh:datatype xsd:string ;
             sh:description "The funders, journals or institutions that require the repository." ;
             sh:nodeKind sh:Literal ;
@@ -124,6 +118,12 @@ doubles:ProbeFindings a sh:NodeShape ;
             sh:path <https://w3id.org/data-director/commitment_document> ;
             sh:pattern "^[0-9a-f]{64}$" ],
         [ sh:datatype xsd:string ;
+            sh:description "Why the agent proposes the fact, in a sentence for the person deciding. Kept with the proposal and shown to the person, never given to an agent." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 25 ;
+            sh:path <https://w3id.org/data-director/proposed_because> ],
+        [ sh:datatype xsd:string ;
             sh:description "The funder's name, as its policy record or the researcher gives it." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -155,7 +155,7 @@ doubles:ProbeFindings a sh:NodeShape ;
             sh:path <https://w3id.org/data-director/standard_target> ;
             sh:pattern "^(dataset|field:\\S.*)$" ],
         [ sh:description "What the fact is about, which says which value slots apply." ;
-            sh:in ( "funder" "required_repository" "file_inclusion" "sensitivity" "licence" "sharing_commitment" "standard" ) ;
+            sh:in ( "funder" "required_repository" "file_inclusion" "sensitivity" "licence" "sharing_commitment" "standard" "data_management_plan" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 0 ;
@@ -177,6 +177,13 @@ doubles:ProbeFindings a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 20 ;
             sh:path <https://w3id.org/data-director/standard_name> ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a data management plan fact, the digest of the attached document's text (its documentation_digest) that is the project's plan." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 24 ;
+            sh:path <https://w3id.org/data-director/plan_document> ;
+            sh:pattern "^[0-9a-f]{64}$" ],
         [ sh:datatype xsd:string ;
             sh:description "The field name, or the file path, judged sensitive, such as a lat or lon field, or a file of site coordinates." ;
             sh:maxCount 1 ;

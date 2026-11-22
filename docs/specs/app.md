@@ -186,12 +186,23 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     refusal is said and the check stays open, and cancelling stores nothing
     (`app/web/src/components/inventory/AddInventory.test.tsx`).
     A supporting document may be attached the same way: the project's Documents page offers
-    **Attach a document** (not offered where the profile sets `attached_documents: refused`) and
-    lists the documents the project holds. The file goes through the check a message's attachment
-    goes through (`DocumentReviewDialog`), and only **Attach this document** sends it, to
-    `POST /api/projects/{id}/documentation`; a refusal closes the check and is said on the page,
-    and cancelling stores nothing (`app/web/src/components/project/AttachDocument.test.tsx`,
-    `app/tests/test_project_materials.py`).
+    **Attach a document** (not offered where the profile sets `attached_documents: refused`). The
+    file goes through the check a message's attachment goes through (`DocumentReviewDialog`), and
+    only **Attach this document** sends it, to `POST /api/projects/{id}/documentation`; a refusal
+    closes the check and is said on the page, and cancelling stores nothing. A document kept is
+    listed and opened. The Documents page lists the documents the project holds under **Attached
+    documents**, after the drafts, each with the kind of file it came as, its size and when it was
+    attached; one opens at `?attached=<digest>` in a reader with a **Preview** laid out by its
+    media type (`GET …/documentation/{digest}?preview`, which reads a Word document's file again as
+    Markdown), the **Text** agents read, and, for one read from a Word document or PDF, the
+    original to download (`?original`). Nobody decides on an attached document, but a person may
+    mark one as the project's Data Management Plan: the reader offers **Mark as the Data Management
+    Plan** and, on the one marked, **Not the plan**; both are a person's decision on the project's
+    `data_management_plan` fact, sent to `POST /api/projects/{id}/facts/decisions`, after which the
+    documents are read again ([Projects](projects.md), invariant 32; `PlanMark.test.tsx`). The page lists no
+    conversations: they are on the Conversations tab
+    (`app/web/src/components/project/AttachDocument.test.tsx`, `AttachedReader.tsx`,
+    `ProjectPage.test.tsx`, `app/tests/test_project_materials.py`).
     A chip whose whole inventory the page can read, the one attached and the one the project holds
     now (`GET /api/projects/{id}/inventory`), has a **View inventory** button. It opens a dialog
     that says this is everything Data Director keeps and agents are shown, then what the inventory
@@ -275,7 +286,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     message box's place, so that one way of replying shows at a time: beneath them, **Reply in my
     own words instead** shows the message box, and **Answer the questions instead** under the box
     shows them again with what was entered kept; text put in the box for the researcher, as by a
-    step's prompt, shows the box. **Attach a file** leads the questions' action row, and a file
+    step's prompt, shows the box. The open intake (rule 25) is a third way, after these questions:
+    each way offers each other one open. **Attach a file** leads the questions' action row, and a file
     may be dropped on their form; it is checked as one attached to a message is (rule 19), and
     sent with the answers in one turn. On the latest turn each question is a fieldset
     whose legend is the question and whose description is its help: a choice question as radio
@@ -376,8 +388,14 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     by.** While a project's intake is pending ([Orchestration](orchestration.md), invariant 20),
     its workspace (`/projects/{id}/conversation`) opens with Data Director's card before any turn.
     The new-project workflow (rule 27) opens that workspace, so a new project's card is the first
-    thing in it. The card holds a greeting and the next question, drawn as in rule 21. It is announced in the polite live region and has a
-    "Skip these questions" button.
+    thing in it. The card holds a greeting and the next question, drawn as in rule 21. It takes
+    the message box's place as the latest reply's questions do (rule 21), after them where the
+    latest reply asks: **Reply in my own words instead** beneath it shows the box, and **Answer the
+    setup questions instead** beneath the box shows it again with what was entered kept. It is
+    announced in the polite live region, unless hidden behind another way of replying, and has a
+    "Skip these questions" button. Where the profile allows attached documents, **Attach a file**
+    leads its actions: a document is checked as one attached to a message is (rule 19) and kept
+    to the project at once, as from the project's Documents page, since the card is not a turn.
     - `GET /api/projects/{id}/intake` reads the next question, or says the intake is complete or
       dismissed. It carries `state`, `next` (the next question's id, or null), every question
       asked from the project's entry point with its current `answer_values` and, for a question one
@@ -398,8 +416,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 
     Neither body names who answered: the server records the answer for the person signed in. A
     malformed body is refused with a 400, and an answer the harness rejects with a 409; nothing is
-    recorded in either case. The message box stays usable throughout. A turn sent while the
-    intake is pending leaves it pending, and does not count as an answer. A question with only a model's
+    recorded in either case. The message box stays a press away throughout. A turn sent while the
+    intake is pending leaves it pending, does not count as an answer, and leaves the box shown,
+    the card a press away; a reply's questions answered, the box shows. Closing the card moves
+    the focus to the way of replying shown next. A question with only a model's
     suggestion (`suggested_values`), and the entry question while its entry point is a model's, are asked with that answer chosen and a note that Data Director
     took it from what the researcher wrote; Next records it as the researcher's own answer, and
     Skip leaves the suggestion unrecorded as an answer. A question with neither is asked with
@@ -515,7 +535,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     the project's `restore_days`; **Delete conversation** deletes it
     (`DELETE /api/conversations/{id}`) and, if it was open, the workspace starts afresh. The
     project's page lists the project's deleted conversations under **Recently deleted**, beneath
-    its conversations (`GET /api/conversations/deleted`), with when each was deleted, until when
+    its documents (`GET /api/conversations/deleted`), with when each was deleted, until when
     it can be restored, and **Restore** (`POST /api/conversations/{id}/restore`); the section is
     not shown while there is nothing in it. Only whoever started the conversation, or the
     project's owner, may do either ([Projects](projects.md), invariants 29 to 31;
@@ -808,7 +828,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   the step is, its state and why, a link to the document or page that produced it, the marks the
   researcher may make, and **Ask Data Director about this**, which opens the conversation with a
   question about the step in the message box, unsent (`/?ask={step_id}`), so the researcher's
-  own word starts the turn. **Waiting on you** picks out the steps whose document awaits the
+  own word starts the turn. A key at the foot of the page, **How to read the map**, says each
+  mark in words: a stop's state, optional, not in this version, suggested next, waiting on you, a
+  decision point and where the project started. **Waiting on you** picks out the steps whose document awaits the
   researcher's decision and the decision points not yet answered; the strip shows the same count
   and leads with a button-styled link to the map, and names the suggested step's phase. Each card
   on the projects page shows the journey at a glance, linking to the map, and a **Journey map**

@@ -23,7 +23,8 @@ export type FactKind =
   | "sensitivity"
   | "licence"
   | "sharing_commitment"
-  | "standard";
+  | "standard"
+  | "data_management_plan";
 export type FileDecision = "include" | "exclude" | "undecided";
 export type SensitivityDecision = "publish" | "generalise" | "withhold" | "undecided";
 export type LocationPrecision = "exact" | "site" | "region" | "country";
@@ -37,8 +38,9 @@ export type StandardKind =
 export type FactVerdict = "confirmed" | "changed" | "rejected";
 
 /**
- * The kinds a person may state with no proposal. A sharing commitment is not one: it quotes the
- * attached plan it was read from, so only the DMP check proposes it (#962).
+ * The kinds a person may state with no proposal on the facts panel. A sharing commitment is not
+ * one: it quotes the attached plan it was read from, so only the DMP check proposes it (#962).
+ * Nor is the project's Data Management Plan: a person marks it on the Documents page (#1447).
  */
 export const FACT_KINDS: readonly FactKind[] = [
   "file_inclusion",
@@ -95,6 +97,8 @@ export interface ProjectFact {
   standard_id?: string;
   standard_kind?: StandardKind;
   standard_target?: string;
+  /** Which attached document is the project's Data Management Plan, by its text's SHA-256. */
+  plan_document?: string;
   /** Why an agent proposed it, for the person deciding; never given to an agent. */
   proposed_because?: string;
 }
@@ -148,6 +152,7 @@ export const FACT_NEEDS: Record<FactKind, readonly (keyof ProjectFact)[]> = {
   licence: ["licence_id"],
   sharing_commitment: ["commitment_quote", "commitment_document"],
   standard: ["standard_name"],
+  data_management_plan: ["plan_document"],
 };
 
 /** The slot a fact's subject is copied from, so a person names the subject once. */
@@ -159,7 +164,16 @@ export const SUBJECT_OF: Record<FactKind, keyof ProjectFact | null> = {
   licence: null,
   sharing_commitment: null,
   standard: "standard_name",
+  data_management_plan: null,
 };
+
+/** The one subject a Data Management Plan fact has, so a project has at most one current plan. */
+export const PLAN_SUBJECT = "project";
+
+/** The fact that marks the attached document whose text has `digest` as the project's plan. */
+export function planFact(digest: string): ProjectFact {
+  return { fact_kind: "data_management_plan", fact_subject: PLAN_SUBJECT, plan_document: digest };
+}
 
 /** The slots `fact` is missing for its kind; empty when it may be sent. */
 export function missingSlots(fact: ProjectFact): (keyof ProjectFact)[] {

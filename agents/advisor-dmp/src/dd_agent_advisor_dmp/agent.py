@@ -21,8 +21,10 @@ In a project it is also given the documents the researcher attached and the fact
 (`sharing_commitment` facts) are compared with the planned outputs as typed ones are. Where none
 is confirmed or typed but a plan is attached, a model reads the plan (`read_plan.py`) and the
 checker proposes each commitment it finds, with the quoted passage, as a project fact for the
-researcher to confirm or correct; it compares nothing until they have (#962). It reads only its
-input, so its grounding mode is `input_only` and it cites only its input. Reading a
+researcher to confirm or correct; it compares nothing until they have (#962). When a person has
+marked a document as the project's plan, only that document is read; when none is marked, the
+checker also proposes the document it read the commitments from as the plan (#1447). It reads
+only its input, so its grounding mode is `input_only` and it cites only its input. Reading a
 machine-actionable plan (the RDA DMP Common Standard, #284) is TODO(#701).
 """
 
@@ -45,7 +47,14 @@ from dd_agent_advisor_dmp.match import (
     model_use,
     residue_of,
 )
-from dd_agent_advisor_dmp.read_plan import PlanReader, Reading, TemplateReader, confirmed
+from dd_agent_advisor_dmp.read_plan import (
+    PlanReader,
+    Reading,
+    TemplateReader,
+    confirmed,
+    plan_documents,
+    plan_proposal,
+)
 from dd_agent_advisor_dmp.review import counted, plan_of, review
 from dd_agent_advisor_dmp.review_model import ModelReview, Reviewer, TemplateReviewer
 from dd_sdk.agent import (
@@ -74,8 +83,8 @@ REVIEW_LIMITATIONS = (
     "whether or not the text under it answers the requirement's questions.",
     "A model's reading, where one is configured, may only raise a finding, never lower it; read "
     "each one, with its quote, before you act on it.",
-    "It reviews the latest document attached, as the plan; it reads a free-text plan only, not a "
-    "machine-actionable one (#701).",
+    "It reviews the document marked as the project's plan, or, while none is marked, the latest "
+    "document attached; it reads a free-text plan only, not a machine-actionable one (#701).",
 )
 LIMITATIONS = (
     "It reads a plan the researcher attached only to propose its commitments, which count once "
@@ -199,8 +208,9 @@ class DmpChecker:
 
     def _read(self, commitments: DmpCommitments, ctx: RunContext) -> AgentResult:
         """A plan's commitments, proposed as facts for the researcher to confirm; nothing is
-        compared until they have."""
-        reading = self.reader.read(commitments.project_documents, ctx)
+        compared until they have. Only the document a person marked as the plan is read, when one
+        is; otherwise the document the commitments were read from is proposed as the plan."""
+        reading = self.reader.read(plan_documents(commitments.project_documents), ctx)
         if reading.model_id is None:
             return abstain(
                 ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
@@ -212,7 +222,10 @@ class DmpChecker:
             payload=DmpDiscrepancies(
                 dropped=list(reading.dropped),
                 limitations=list(LIMITATIONS),
-                proposed_facts=list(reading.proposals),
+                proposed_facts=[
+                    *reading.proposals,
+                    *plan_proposal(reading.proposals, commitments.project_documents),
+                ],
                 grounded_on=[input_ref(ctx)],
             ),
             evidence=[input_evidence(ctx)],
@@ -236,8 +249,10 @@ class DmpChecker:
             if conflicts
             else "it names every decision made in the project that it was checked against"
         )
+        which = "the project's plan" if plan.documentation_is_plan else "the latest attached"
         statement = (
-            f"It reviewed '{plan.documentation_name}'. {counted(read.findings)}; {reflected}. "
+            f"It reviewed '{plan.documentation_name}', {which}. {counted(read.findings)}; "
+            f"{reflected}. "
             f"{_how_reviewed(read)} Each finding is advice for you to judge: the plan is not "
             "changed."
         )

@@ -128,6 +128,9 @@
       "output": {
          "@id": "https://w3id.org/data-director/agents/dmp/output"
       },
+      "plan_document": {
+         "@id": "https://w3id.org/data-director/plan_document"
+      },
       "plan_heading": {
          "@id": "https://w3id.org/data-director/agents/dmp/plan_heading"
       },

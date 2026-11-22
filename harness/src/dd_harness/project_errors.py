@@ -75,6 +75,7 @@ class Refusal(StrEnum):
     NO_PROPOSAL = "proposal-not-found"
     NOT_PROPOSED = "fact-not-proposed"
     SUPERSEDED = "proposal-superseded"
+    NOT_ATTACHED = "documentation-not-found"  # a plan that is no document the project holds
 
 
 class ChangeRefusedError(ProjectError):

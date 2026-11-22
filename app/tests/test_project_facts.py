@@ -198,3 +198,32 @@ def test_the_shells_fixtures_are_what_the_server_answers(
     check_fixture("project-facts.json", offered, model=ProjectFacts)
     check_fixture("project-facts-decided.json", decided, model=ProjectFacts)
     check_fixture("project-facts-forbidden.json", refused, model=ProblemDetails)
+
+
+def test_a_member_marks_an_attached_document_as_the_plan_and_the_list_shows_it(
+    client: TestClient, store: ProjectStorage
+) -> None:
+    """Which attached document is the project's Data Management Plan is a fact a person states;
+    the documents list then marks it, and a document the project does not hold is refused
+    (invariant 32)."""
+    project_id = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    digest = store.add_documentation(
+        project_id,
+        "dmp.txt",
+        "text/plain",
+        "We will share in ORDA.",
+        acted_for=TEST_PRINCIPAL,
+        caused_by="t",
+    )
+    plan = {"fact_kind": "data_management_plan", "fact_subject": "project", "plan_document": digest}
+
+    marked = decide(client, project_id, {"verdict": "changed", "fact": plan})
+    assert marked.status_code == 201, marked.text
+    (listed,) = client.get(f"/api/projects/{project_id}/documentation").json()
+    assert listed["documentation_is_plan"] is True
+
+    elsewhere = decide(
+        client, project_id, {"verdict": "changed", "fact": {**plan, "plan_document": "f" * 64}}
+    )
+    assert elsewhere.status_code == 404
+    assert store.events(project_id)[-1]["event"] == DOCUMENT_CHANGE_REFUSED

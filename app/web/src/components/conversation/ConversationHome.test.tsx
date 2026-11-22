@@ -1766,7 +1766,11 @@ describe("ConversationHome", () => {
       expect(screen.queryByRole("listbox")).toBeNull();
     });
 
-    it("opens a pending project with the intake card and keeps the message box usable", async () => {
+    // A conversation started in the active project stays in it.
+    const inLoggers: ConversationApi["create"] = () =>
+      Promise.resolve({ conversation_id: "c1", project_id: LOGGERS.project_id });
+
+    it("opens a pending project with the intake card in the message box's place", async () => {
       localStorage.setItem("dd-project", LOGGERS.project_id);
       const pending = intakePendingFixture as ProjectIntake;
       const complete = intakeCompleteFixture as ProjectIntake;
@@ -1781,7 +1785,8 @@ describe("ConversationHome", () => {
         withProgress({ intake: () => Promise.resolve(pending), answerIntake }),
       );
       const group = await screen.findByRole("group", { name: entry.question.question_prompt });
-      expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toBeEnabled();
+      // One way of replying shows at a time: the intake takes the message box's place.
+      expect(screen.queryByRole("textbox", { name: "What would you like to do?" })).toBeNull();
 
       await userEvent.click(within(group).getByRole("radio", { name: option.option_label }));
       await userEvent.click(screen.getByRole("button", { name: "Next" }));
@@ -1795,7 +1800,102 @@ describe("ConversationHome", () => {
       await waitFor(() =>
         expect(within(phases).getByRole("status")).toHaveTextContent(label(suggested)),
       );
-      expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toBeEnabled();
+      // Closing the card hands over to the message box.
+      await userEvent.click(screen.getByRole("button", { name: "Not now" }));
+      await waitFor(() =>
+        expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toHaveFocus(),
+      );
+    });
+
+    it("keeps the message box usable past a pending intake, which stays pending", async () => {
+      localStorage.setItem("dd-project", LOGGERS.project_id);
+      const pending = intakePendingFixture as ProjectIntake;
+      const entry = pending.questions[0];
+      const option = entry?.question.question_options?.[0];
+      if (!entry || !option) throw new Error("the intake fixture asks nothing");
+      const answerIntake = vi.fn<ProjectApi["answerIntake"]>();
+      const sendTurn = vi.fn<TurnSent>(() => Promise.resolve());
+      await renderHome(
+        withOrchestrator(),
+        fakeApi({ sendTurn, create: inLoggers }),
+        FLOW,
+        withProgress({ intake: () => Promise.resolve(pending), answerIntake }),
+      );
+      const group = await screen.findByRole("group", { name: entry.question.question_prompt });
+      await userEvent.click(within(group).getByRole("radio", { name: option.option_label }));
+      await userEvent.click(screen.getByRole("button", { name: "Reply in my own words instead" }));
+      const box = await screen.findByRole("textbox", { name: "What would you like to do?" });
+      await waitFor(() => expect(box).toHaveFocus());
+      expect(screen.queryByRole("group", { name: entry.question.question_prompt })).toBeNull();
+
+      await userEvent.type(box, "hi");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      await waitFor(() => expect(sendTurn).toHaveBeenCalledTimes(1));
+      // The researcher chose to type: the box stays, with the intake a press away, as it was left.
+      await screen.findByRole("list", { name: "Conversation" });
+      expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: "Answer the setup questions instead" }));
+      const again = await screen.findByRole("group", { name: entry.question.question_prompt });
+      expect(within(again).getByRole("radio", { name: option.option_label })).toBeChecked();
+      expect(answerIntake).not.toHaveBeenCalled();
+    });
+
+    it("asks a reply's questions before the pending intake, which stays a press away", async () => {
+      localStorage.setItem("dd-project", LOGGERS.project_id);
+      const pending = intakePendingFixture as ProjectIntake;
+      const entry = pending.questions[0];
+      if (!entry) throw new Error("the intake fixture asks nothing");
+      await renderHome(
+        withOrchestrator(),
+        fakeApi({ get: () => Promise.resolve(QUESTION), create: inLoggers }),
+        FLOW,
+        withProgress({ intake: () => Promise.resolve(pending) }),
+      );
+      await screen.findByRole("group", { name: entry.question.question_prompt });
+      await userEvent.click(screen.getByRole("button", { name: "Reply in my own words instead" }));
+      await userEvent.type(
+        await screen.findByRole("textbox", { name: "What would you like to do?" }),
+        "hi",
+      );
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      // The reply's question is sent as an answer; the intake's moves on with Next.
+      expect(await screen.findByRole("button", { name: "Send answer" })).toBeVisible();
+      expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
+      await userEvent.click(screen.getByRole("button", { name: "Answer the setup questions instead" }));
+      expect(await screen.findByRole("button", { name: "Next" })).toBeVisible();
+      expect(screen.queryByRole("button", { name: "Send answer" })).toBeNull();
+      expect(screen.getByRole("group", { name: entry.question.question_prompt })).toBeVisible();
+    });
+
+    it("keeps a file attached from the intake card in the project at once", async () => {
+      localStorage.setItem("dd-project", LOGGERS.project_id);
+      const pending = intakePendingFixture as ProjectIntake;
+      const entry = pending.questions[0];
+      if (!entry) throw new Error("the intake fixture asks nothing");
+      const attachDocument = vi.fn<ProjectApi["attachDocument"]>(() => Promise.resolve([]));
+      const sendTurn = vi.fn<TurnSent>(() => Promise.resolve());
+      await renderHome(
+        withOrchestrator(),
+        fakeApi({ sendTurn }),
+        FLOW,
+        withProgress({ intake: () => Promise.resolve(pending), attachDocument }),
+      );
+      const group = await screen.findByRole("group", { name: entry.question.question_prompt });
+      const form = group.closest("form");
+      if (!form) throw new Error("no form");
+      expect(within(form).getByRole("button", { name: "Attach a file" })).toBeVisible();
+      const input = form.querySelector<HTMLInputElement>('input[type="file"]');
+      if (!input) throw new Error("no file input");
+      await userEvent.upload(input, new File(["# Plan"], "plan.md", { type: "text/markdown" }));
+      const review = await screen.findByRole("dialog", { name: "Check the document before attaching it" });
+      expect(attachDocument).not.toHaveBeenCalled();
+      await userEvent.click(within(review).getByRole("button", { name: "Attach this document" }));
+      await waitFor(() => expect(attachDocument).toHaveBeenCalledTimes(1));
+      expect(attachDocument).toHaveBeenCalledWith(
+        LOGGERS.project_id,
+        expect.objectContaining({ name: "plan.md", text: "# Plan" }),
+      );
+      expect(sendTurn).not.toHaveBeenCalled();
     });
 
     it("hands a finished intake over to the conversation when the researcher starts", async () => {

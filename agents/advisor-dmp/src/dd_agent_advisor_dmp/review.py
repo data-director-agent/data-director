@@ -3,7 +3,8 @@ core requirements it covers, and where it disagrees with what people in the proj
 
 Rules first, and they stand on their own, so a review needs no model:
 
-- The plan is the latest document attached. `dd_dmp_template.coverage` reads its headings: a core
+- The plan is the document a person marked as the project's plan (#1447), or, while none is
+  marked, the latest document attached. `dd_dmp_template.coverage` reads its headings: a core
   requirement a heading names, with text under it, is `covered`; one whose heading has nothing
   under it is `vague`; one no heading names is `missing`.
 - A decision people made that the plan does not name is a `DecisionConflict`: a funder, a required
@@ -68,8 +69,10 @@ class Reviewed:
 
 
 def plan_of(documents: Sequence[ProjectDocument]) -> ProjectDocument | None:
-    """The plan reviewed: the latest document attached, or None if none is."""
-    return documents[-1] if documents else None
+    """The plan reviewed: the document marked as the project's plan, or, while none is, the
+    latest document attached; None if none is attached."""
+    candidates = [d for d in documents if d.documentation_is_plan] or list(documents)
+    return candidates[-1] if candidates else None
 
 
 def review(plan: ProjectDocument, decisions: Sequence[ProjectFact]) -> Reviewed:

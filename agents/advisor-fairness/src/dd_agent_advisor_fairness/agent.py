@@ -5,8 +5,9 @@ published dataset, as the researcher gives it (`PublishedRecord`), against a sho
 FAIR-related presence checks, and recommends a retrofit for each check not met.
 
 It also gives feedback on the project's metadata record while it is drafted
-(`ProjectMetadataDraft`, #430, #432), at any point in the work and for no step of its own: the
-conductor gives it the record's latest version and the version a person approved last
+(`ProjectMetadataDraft`, #430, #432), at any point in the work, and serves `deposit.fairness`
+with it, the check before submission: the conductor gives it the record's latest version and the
+version a person approved last
 (`GivenProjectMetadataRecord`). The feedback puts what is met first, tallies the checks for each
 of F, A, I and R, names the next steps most worth taking, and says which checks are newly met since
 the approved version. A check the repository fills at deposit, such as the DOI, is not expected of
@@ -129,7 +130,7 @@ class FairAssessor:
             "next_steps": Derived(Derivation.LEXICAL),
             "limitations": Derived(Derivation.TEMPLATE),
         },
-        serves=("post.fairness", "post.retrofit"),
+        serves=("deposit.fairness", "post.fairness", "post.retrofit"),
     )
 
     def __init__(self, writer: Writer | None = None, rules: list[Rule] | None = None) -> None:

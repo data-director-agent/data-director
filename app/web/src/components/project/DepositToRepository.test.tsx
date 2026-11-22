@@ -38,35 +38,47 @@ describe("DepositToRepository", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Practice deposit/)).toBeInTheDocument();
     expect(screen.getByText(/does not publish the draft/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Create a draft in Zenodo" })).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Create a draft in Zenodo" }),
+    ).toBeEnabled();
     expect(await axe(container)).toHaveNoViolations();
   });
 
   it("creates the draft on the person's approval and links to it", async () => {
     const deposit = vi.fn(() => Promise.resolve(RECORDED));
     renderDraft({ deposit });
-    await userEvent.click(await screen.findByRole("button", { name: "Create a draft in Zenodo" }));
-    expect(deposit).toHaveBeenCalledWith("p", DIGEST);
-    expect(await screen.findByRole("link", { name: /Open the draft in Zenodo/ })).toHaveAttribute(
-      "href",
-      RECORDED.draft_url,
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Create a draft in Zenodo" }),
     );
-    expect(screen.getByRole("status")).toHaveTextContent("A draft was made in Zenodo");
-    expect(screen.getByRole("status")).toHaveTextContent("Sandbox: not a real deposit");
-    expect(screen.getAllByText(/Sandbox: not a real deposit/).length).toBeGreaterThan(1);
-    expect(screen.queryByRole("button", { name: /Create a draft/ })).not.toBeInTheDocument();
+    expect(deposit).toHaveBeenCalledWith("p", DIGEST);
+    expect(
+      await screen.findByRole("link", { name: /Open the draft in Zenodo/ }),
+    ).toHaveAttribute("href", RECORDED.draft_url);
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "A draft was made in Zenodo",
+    );
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Sandbox: not a real deposit",
+    );
+    expect(
+      screen.getAllByText(/Sandbox: not a real deposit/).length,
+    ).toBeGreaterThan(1);
+    expect(
+      screen.queryByRole("button", { name: /Create a draft/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("says why no draft was made, and where to connect an account", async () => {
     renderDraft({ deposit: () => Promise.resolve(FAILED) });
-    await userEvent.click(await screen.findByRole("button", { name: "Create a draft in Zenodo" }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Create a draft in Zenodo" }),
+    );
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "You have not connected your repository account yet",
     );
-    expect(screen.getByRole("link", { name: /Connect your Zenodo account/ })).toHaveAttribute(
-      "href",
-      "/settings",
-    );
+    expect(
+      screen.getByRole("link", { name: /Connect your Zenodo account/ }),
+    ).toHaveAttribute("href", "/settings");
   });
 
   it("names the earlier draft when the package was already deposited", async () => {
@@ -78,13 +90,21 @@ describe("DepositToRepository", () => {
       refusal: "already-deposited",
     });
     renderDraft({ deposit: () => Promise.reject(refused) });
-    await userEvent.click(await screen.findByRole("button", { name: "Create a draft in Zenodo" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("already been deposited");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Create a draft in Zenodo" }),
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "already been deposited",
+    );
   });
 
   it("shows a draft already made for this package", async () => {
-    renderDraft({ deposits: () => Promise.resolve({ ...NONE, deposits: [RECORDED] }) });
-    expect(await screen.findByRole("link", { name: /Open the draft/ })).toBeInTheDocument();
+    renderDraft({
+      deposits: () => Promise.resolve({ ...NONE, deposits: [RECORDED] }),
+    });
+    expect(
+      await screen.findByRole("link", { name: /Open the draft/ }),
+    ).toBeInTheDocument();
   });
 
   it("shows nothing where the repository is deposited to by hand", async () => {

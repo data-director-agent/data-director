@@ -21,13 +21,18 @@ function renderPage(api: ProjectApi, tab: PanelTab) {
 }
 
 function tab(name: string) {
-  return within(screen.getByRole("navigation", { name: "Project" })).getByRole("link", { name });
+  return within(screen.getByRole("navigation", { name: "Project" })).getByRole(
+    "link",
+    { name },
+  );
 }
 
 describe("ProjectPanelPage", () => {
   it("shows how generative AI was used, on its own tab", async () => {
     const { container } = renderPage(fakeApi(), "ai-use");
-    expect(await screen.findByRole("heading", { name: "Use of generative AI" })).toBeVisible();
+    expect(
+      await screen.findByRole("heading", { name: "Use of generative AI" }),
+    ).toBeVisible();
     expect(tab("Use of generative AI")).toHaveAttribute("aria-current", "page");
     expect(screen.queryByRole("article")).not.toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
@@ -35,11 +40,18 @@ describe("ProjectPanelPage", () => {
 
   it("opens the project's facts, for a person to decide what agents proposed", async () => {
     const offered = { proposals: [], decisions: [] };
-    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(JSON.stringify(offered)))));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(new Response(JSON.stringify(offered)))),
+    );
     try {
       renderPage(fakeApi(), "facts");
-      const panel = await screen.findByRole("region", { name: "Project facts" });
-      expect(await within(panel).findByText(/No agent has proposed anything/)).toBeVisible();
+      const panel = await screen.findByRole("region", {
+        name: "Project facts",
+      });
+      expect(
+        await within(panel).findByText(/No agent has proposed anything/),
+      ).toBeVisible();
       expect(tab("Project facts")).toHaveAttribute("aria-current", "page");
     } finally {
       vi.unstubAllGlobals();
@@ -49,23 +61,38 @@ describe("ProjectPanelPage", () => {
   it("shows the repository chosen, what it asks for and what Data Director assumes", async () => {
     const { container } = renderPage(fakeApi(), "repository");
     const panel = await screen.findByRole("region", { name: "Repository" });
-    expect(await within(panel).findByRole("link", { name: /^ORDA/ })).toHaveAttribute(
+    expect(
+      await within(panel).findByRole("link", { name: /^ORDA/ }),
+    ).toHaveAttribute(
       "href",
       "https://www.re3data.org/repository/r3d100012124",
     );
     const site = REPOSITORY.repository_url ?? "";
-    expect(within(panel).getByRole("link", { name: site })).toHaveAttribute("href", site);
+    expect(within(panel).getByRole("link", { name: site })).toHaveAttribute(
+      "href",
+      site,
+    );
     expect(within(panel).getByText("orda@v3")).toBeVisible();
-    expect(within(panel).getByRole("heading", { name: "What it accepts" })).toBeVisible();
-    expect(within(panel).getByRole("heading", { name: "What Data Director assumes" })).toBeVisible();
+    expect(
+      within(panel).getByRole("heading", { name: "What it accepts" }),
+    ).toBeVisible();
+    expect(
+      within(panel).getByRole("heading", {
+        name: "What Data Director assumes",
+      }),
+    ).toBeVisible();
     for (const item of REPOSITORY.unconfirmed ?? []) {
       expect(within(panel).getByText(item)).toBeVisible();
     }
     expect(
-      within(panel).getByRole("heading", { name: "Metadata the record must have" }),
+      within(panel).getByRole("heading", {
+        name: "Metadata the record must have",
+      }),
     ).toBeVisible();
     expect(within(panel).getByText("Title")).toBeVisible();
-    const sources = within(panel).getByRole("heading", { name: "Where this comes from" });
+    const sources = within(panel).getByRole("heading", {
+      name: "Where this comes from",
+    });
     const list = sources.nextElementSibling as HTMLElement;
     expect(
       within(list)
@@ -86,40 +113,70 @@ describe("ProjectPanelPage", () => {
       warnings: ["Checked against the standard alone."],
     };
     delete (bare as Partial<typeof bare>).repository_url;
-    renderPage(fakeApi({ repository: () => Promise.resolve(bare) }), "repository");
+    renderPage(
+      fakeApi({ repository: () => Promise.resolve(bare) }),
+      "repository",
+    );
     const panel = await screen.findByRole("region", { name: "Repository" });
-    expect(await within(panel).findByText("Checked against the standard alone.")).toBeVisible();
-    expect(within(panel).queryByRole("heading", { name: "What it accepts" })).toBeNull();
-    expect(within(panel).queryByRole("heading", { name: "Where this comes from" })).toBeNull();
+    expect(
+      await within(panel).findByText("Checked against the standard alone."),
+    ).toBeVisible();
+    expect(
+      within(panel).queryByRole("heading", { name: "What it accepts" }),
+    ).toBeNull();
+    expect(
+      within(panel).queryByRole("heading", { name: "Where this comes from" }),
+    ).toBeNull();
     expect(within(panel).queryByText("Where to deposit")).toBeNull();
   });
 
   it("says how to choose a repository when none has been", async () => {
-    renderPage(fakeApi({ repository: () => Promise.resolve(null) }), "repository");
-    expect(await screen.findByText(/No repository has been chosen yet/)).toBeVisible();
+    renderPage(
+      fakeApi({ repository: () => Promise.resolve(null) }),
+      "repository",
+    );
+    expect(
+      await screen.findByText(/No repository has been chosen yet/),
+    ).toBeVisible();
   });
 
   it("chooses a suggested repository on the tab and shows what it asks for", async () => {
     const user = userEvent.setup();
-    const choose = vi.fn<ProjectApi["chooseRepository"]>().mockResolvedValue(REPOSITORY);
+    const choose = vi
+      .fn<ProjectApi["chooseRepository"]>()
+      .mockResolvedValue(REPOSITORY);
     const { container } = renderPage(
-      fakeApi({ repository: () => Promise.resolve(null), chooseRepository: choose }),
+      fakeApi({
+        repository: () => Promise.resolve(null),
+        chooseRepository: choose,
+      }),
       "repository",
     );
-    const box = await screen.findByRole("combobox", { name: "Find a repository" });
-    expect(screen.getByRole("button", { name: "Choose repository" })).toBeDisabled();
+    const box = await screen.findByRole("combobox", {
+      name: "Find a repository",
+    });
+    expect(
+      screen.getByRole("button", { name: "Choose repository" }),
+    ).toBeDisabled();
     await user.click(box);
     const options = await screen.findAllByRole("option");
     expect(options.map((o) => o.textContent)).toEqual(
-      SUGGESTED.repositories.map((r) => expect.stringContaining(r.name) as unknown),
+      SUGGESTED.repositories.map(
+        (r) => expect.stringContaining(r.name) as unknown,
+      ),
     );
     expect(await axe(container)).toHaveNoViolations();
     await user.click(at(options, 0));
     await user.click(screen.getByRole("button", { name: "Choose repository" }));
-    expect(choose).toHaveBeenCalledWith(PROJECT.project_id, at(SUGGESTED.repositories, 0).repository_id);
+    expect(choose).toHaveBeenCalledWith(
+      PROJECT.project_id,
+      at(SUGGESTED.repositories, 0).repository_id,
+    );
     const panel = screen.getByRole("region", { name: "Repository" });
     expect(await within(panel).findByText("orda@v3")).toBeVisible();
-    expect(within(panel).getByRole("button", { name: "Change repository" })).toBeVisible();
+    expect(
+      within(panel).getByRole("button", { name: "Change repository" }),
+    ).toBeVisible();
   });
 
   it("searches re3data with what is typed", async () => {
@@ -129,23 +186,38 @@ describe("ProjectPanelPage", () => {
         ...SUGGESTED,
         query,
         suggested: !query,
-        repositories: query ? SUGGESTED.repositories.slice(1) : SUGGESTED.repositories,
+        repositories: query
+          ? SUGGESTED.repositories.slice(1)
+          : SUGGESTED.repositories,
       }),
     );
     renderPage(fakeApi({ searchRepositories: search }), "repository");
-    await user.click(await screen.findByRole("button", { name: "Change repository" }));
-    await user.type(screen.getByRole("combobox", { name: "Find a repository" }), "zen");
-    await vi.waitFor(() => expect(search).toHaveBeenLastCalledWith("zen", expect.anything()));
+    await user.click(
+      await screen.findByRole("button", { name: "Change repository" }),
+    );
+    await user.type(
+      screen.getByRole("combobox", { name: "Find a repository" }),
+      "zen",
+    );
+    await vi.waitFor(() =>
+      expect(search).toHaveBeenLastCalledWith("zen", expect.anything()),
+    );
     const options = await screen.findAllByRole("option");
     expect(options).toHaveLength(1);
-    expect(at(options, 0)).toHaveTextContent(at(SUGGESTED.repositories, 1).name);
+    expect(at(options, 0)).toHaveTextContent(
+      at(SUGGESTED.repositories, 1).name,
+    );
   });
 
   it("offers the deposit package on its own tab", async () => {
     const { container } = renderPage(fakeApi(), "deposit");
-    expect(await screen.findByRole("heading", { name: "Deposit package" })).toBeVisible();
+    expect(
+      await screen.findByRole("heading", { name: "Deposit package" }),
+    ).toBeVisible();
     expect(tab("Deposit package")).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("button", { name: "Check the project" })).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Check the project" }),
+    ).toBeVisible();
     expect(await axe(container)).toHaveNoViolations();
   });
 });

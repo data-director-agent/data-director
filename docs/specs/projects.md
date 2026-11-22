@@ -367,7 +367,8 @@ intended design, and each part says where it is not built yet.
     a commitment for each, its subject carrying the repository, with the plan's own words in `commitment_quote` and the digest of the attached
     document's text that holds them in `commitment_document`, both required), or a standard,
     vocabulary, ontology or format chosen for the dataset or one field of its tables (`standard`:
-    its name, required, its identifier, its kind and what it is for, #1391). A succeeded run's proposals are
+    its name, required, its identifier, its kind and what it is for, #1391), or which attached
+    document is the project's Data Management Plan (`data_management_plan`, invariant 32). A succeeded run's proposals are
     `fact_proposed` events, one each, caused by the run and naming its agent, from a payload of
     any class (`dd_harness.project_effects`); they are checked before anything is written and
     recorded only once the run's draft is kept, so a run that fails leaves none. A person decides each as a `fact_decided` event:
@@ -419,6 +420,39 @@ intended design, and each part says where it is not built yet.
     deployment's restore period (invariant 25), from the conversation's deletion. Within it,
     restoring appends one event and changes nothing else, so the conversation is as it was; after
     it, the app neither restores nor removes it, TODO(#156).
+32. **A project has at most one Data Management Plan, and which document it is is a person's
+    decision.** A plan is a document with its own class, not one more attachment: the plan the
+    rest of the process answers to (R8, `governance.dmp`; the repository shortlist; the
+    documentation drafts). It is identified as a project fact (invariant 28) of kind
+    `data_management_plan`, which names the attached document by the digest of its text
+    (`plan_document`). Its subject is always `project`, so the last decision on it is the
+    project's one current plan; an earlier plan stays in the log (invariant 2). A person marks a
+    document as the plan by stating the fact, on the project's Documents page (**Mark as the Data
+    Management Plan**, `PlanMark.tsx`), and removes the mark by rejecting it (**Not the
+    plan**); a member may do either (`CONTRIBUTE`). An agent may only propose which document is
+    the plan: the DMP Checker, given no marked plan, proposes the document it read the plan's
+    commitments from, for a person to confirm on the **Project facts** panel. A decision naming a
+    document the project does not hold is refused and the refusal recorded
+    (`documentation-not-found`), and a proposal naming one is left out
+    (`dd_harness.projects.facts`). Attached documents have no versions of their own: a revised
+    plan is a new attachment, marked as the plan in place of the earlier one. The conductor marks
+    the plan where it gives the documents: the project's `DocumentationSummary` of it, and so a
+    `Message`'s `project_documentation` and the `project_documents` of a `DraftRequest` or an
+    agent's own class, carries `documentation_is_plan`, filled only from the project's decisions
+    and never from what a caller sent, and no agent class is named for it
+    ([Contract](contract.md), invariant 36; `dd_harness.projects.holdings`). Which agents read the
+    plan's text is which read attached documents (invariant 6, an agent card's `reads_attached`),
+    under the same `hosted_models` and `attached_documents` rules (invariant 8), so a profile that
+    refuses attached documents has no plan to mark. The DMP Checker reads the marked plan alone,
+    and every document while none is marked. A plan does not change the phase tracker: no step is
+    marked by it, and `setup.dmp-review` and `post.dmp-update` stay out of scope. When the
+    researcher answered "Yes" to `intake.dmp` and no plan is marked, the orchestrator invites them
+    to attach their plan, or to mark which attached document it is ([Orchestration](orchestration.md),
+    invariant 20). A plan given by its DMP ID, a link or a machine-actionable plan (RDA DMP Common
+    Standard) is to become the same fact, TODO(#960); reading a machine-actionable plan is
+    TODO(#701). (`dd_harness.testing.plan_storage`, `harness/tests/test_project_agent_inputs.py`,
+    `sdk/tests/test_fact_kinds.py`, `agents/advisor-dmp/tests/test_reads_plan.py`,
+    `app/web/src/components/project/PlanMark.test.tsx`.)
 
 ## Boundaries and contracts
 
@@ -528,11 +562,20 @@ media type, size and the SHA-256 of its UTF-8 text, under which the text is kept
 (`ProjectStore.add_documentation`). A turn may instead attach a Word document (`.docx`) or a
 PDF with a text layer, of at most 1 MB (`SOURCE_MAX_BYTES`, what a request through the
 deployment's proxy carries once encoded): the store reads its text inside the deployment
-(`dd_harness.projects.extract`, with `pypdf` and `python-docx`) and keeps it as a plain-text
-document, under the same limits, with the file as a blob beside it; the event names the file's
+(`dd_harness.projects.extract`, with `pypdf` and `python-docx`) and keeps it as a document under
+the same limits, with the file as a blob beside it. A Word document's text is Markdown, which keeps
+its title, headings, bulleted and numbered lists and tables in the document's own words, with no
+emphasis added, so that a quotation from it is found in it; a PDF's is plain text
+(`extracted_media_type`). The event names the file's
 media type, size and SHA-256 too, the document's `DocumentationSummary` gives
 `documentation_source_media_type`, and `ProjectStore.documentation_source` returns the file
-(`ProjectStore.add_document_file`, `harness/tests/test_document_files.py`). An encrypted or
+(`ProjectStore.add_document_file`, `harness/tests/test_document_files.py`). A document's stored
+text, and so its digest, never changes: one kept before Word documents were read as Markdown stays
+plain text, and `GET /api/projects/{id}/documentation/{digest}?preview` reads its file again as
+Markdown for a person to read, keeping nothing. The project page's **Documents** tab lists the
+documents attached to the project beside those agents drafted, and opens each in a reader with
+that preview, the stored text agents read, and the original file to download
+(`AttachedReader.tsx`). An encrypted or
 damaged file, a scanned PDF with no text layer (no text is recognised in images) and one whose
 text is blank or too long are refused. The text read from a file is `documentation`, so
 `hosted_models` decides whether it reaches a hosted model, as for one attached as text. The
@@ -542,7 +585,9 @@ action TODO(#1182). A document the store refuses leaves no trace, and a turn
 that attaches an inventory too adds neither when either is refused. A `Message`'s
 `project_documentation` lists each document the project holds by name, digest, media type, size
 and when it was added, without its text, so that an orchestrator knows it is there; outside a
-project, or in one that holds none, it is removed, so a caller can never claim one. The list
+project, or in one that holds none, it is removed, so a caller can never claim one. The
+document a person marked as the project's Data Management Plan carries `documentation_is_plan`
+there and wherever documents are given (invariant 32). The list
 holds no text, so it is neither `inventory` nor `documentation`, and a hosted orchestrator is
 given it under the default `hosted_models`. A `DraftRequest`'s `project_documents` give each
 document with its text, so that a drafter's model may suggest answers to the draft's questions

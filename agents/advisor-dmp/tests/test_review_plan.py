@@ -116,6 +116,17 @@ def test_a_decision_the_plan_does_not_name_is_a_conflict(runs_dir: Path) -> None
     assert all(c.message for c in conflicts)
 
 
+def test_the_document_marked_as_the_plan_is_reviewed_rather_than_the_latest(
+    runs_dir: Path,
+) -> None:
+    marked = attached("partial.md").model_copy(update={"documentation_is_plan": True})
+    asked = DmpReviewRequest(project_documents=[marked, attached("complete.md")])
+    found = by_section(run(runs_dir, asked))
+    # partial.md has an ethics section and no storage section; complete.md the reverse.
+    assert found[LEGAL.heading].finding == "covered"
+    assert found[STORAGE.heading].finding == "missing"
+
+
 def test_no_plan_attached_abstains(runs_dir: Path) -> None:
     env = run(runs_dir, DmpReviewRequest())
     assert env.outcome.status == OutcomeStatus.ABSTAINED

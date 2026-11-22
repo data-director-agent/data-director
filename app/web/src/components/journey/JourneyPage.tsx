@@ -20,6 +20,7 @@ import { homePath, journeyPath, navigate } from "../../route";
 import { PageHeader } from "../frame/PageHeader";
 import { ProjectNav } from "../project/ProjectNav";
 import { ToggleButton } from "../ui/Button";
+import { JourneyLegend } from "./JourneyLegend";
 import { JourneyMap, stopId } from "./JourneyMap";
 import { StationPanel } from "./StationPanel";
 
@@ -172,6 +173,7 @@ export function JourneyPage({ projectId, query = "" }: { projectId: string; quer
               />
             )}
           </div>
+          <JourneyLegend />
         </>
       )}
     </>

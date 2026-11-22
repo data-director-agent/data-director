@@ -109,6 +109,21 @@ def test_the_constraints_check_sits_between_sensitive_data_and_the_embargo() -> 
     )
 
 
+def test_a_fair_check_of_the_draft_comes_before_submission_and_never_gates_it() -> None:
+    # Our addition to Figure 5: FAIR feedback while the researcher can still act on it. Figure 6's
+    # check of the published object stays in Phase 6.
+    order = [s.id for p in PHASES for s in p.steps]
+    assert (
+        order.index("deposit.links")
+        < order.index("deposit.fairness")
+        < order.index("deposit.finalise")
+        < order.index("post.fairness")
+    )
+    step = next(s for p in PHASES for s in p.steps if s.id == "deposit.fairness")
+    assert step.optional and not (step.out_of_scope or step.person_decides)
+    assert step.requirements == ()
+
+
 def test_a_skip_before_the_entry_point_does_not_bring_its_phase_back() -> None:
     states = {"setup.dmp-create": "skipped"}
     assert {s.phase.number for s in progress(entry(2), states, [])} == {2, 3, 4, 5, 6}

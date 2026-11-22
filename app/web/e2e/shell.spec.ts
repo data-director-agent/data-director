@@ -15,6 +15,7 @@ import answered from "../fixtures/conversation-answered.json" with { type: "json
 import question from "../fixtures/conversation-question.json" with { type: "json" };
 import flow from "../fixtures/process-flow.json" with { type: "json" };
 import intakeComplete from "../fixtures/intake-complete.json" with { type: "json" };
+import intakePending from "../fixtures/intake-pending.json" with { type: "json" };
 import answeredProject from "../fixtures/project-answers.json" with { type: "json" };
 import project from "../fixtures/project-documents.json" with { type: "json" };
 import projects from "../fixtures/projects.json" with { type: "json" };
@@ -829,6 +830,35 @@ test("a step of the journey starts a conversation with its prompt, sent only whe
   await page.getByRole("button", { name: "Send" }).click();
   await expect(page.getByRole("list", { name: "Conversation" })).toBeVisible();
   expect(JSON.stringify(sent)).toContain(suggested.prompt);
+});
+
+test("a pending intake takes the message box's place, which is a press away", async ({ page }) => {
+  const [active] = projects;
+  const [entry] = intakePending.questions;
+  if (!active || !entry) throw new Error("the fixtures list no project or no intake question");
+  await serveConversation(page);
+  await page.route("/api/projects", (route) => route.fulfill({ json: projects }));
+  await page.route(`/api/projects/${active.project_id}/progress`, (route) =>
+    route.fulfill({ json: intakePending.progress }),
+  );
+  await page.route(`/api/projects/${active.project_id}/intake`, (route) =>
+    route.fulfill({ json: intakePending }),
+  );
+  await page.addInitScript((id) => localStorage.setItem("dd-project", id), active.project_id);
+  await page.goto("/");
+
+  const group = page.getByRole("group", { name: entry.question.question_prompt });
+  await expect(group).toBeVisible();
+  const box = page.getByRole("textbox", { name: "What would you like to do?" });
+  await expect(box).toBeHidden();
+  expect(await axeViolations(page)).toEqual([]);
+
+  await page.getByRole("button", { name: "Reply in my own words instead" }).click();
+  await expect(box).toBeFocused();
+  await expect(group).toBeHidden();
+  await page.getByRole("button", { name: "Answer the setup questions instead" }).click();
+  await expect(group).toBeVisible();
+  await expect(box).toBeHidden();
 });
 
 test("the journey map is one press from the main navigation, and a tab away from the documents", async ({

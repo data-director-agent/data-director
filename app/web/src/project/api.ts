@@ -29,6 +29,7 @@ import type {
   Validation,
 } from "../api/generated/responses";
 import type { AttachedDocument, DocumentationSummary } from "../conversation/documentation";
+import { type DocumentationText, readDocumentationText } from "./documentation";
 import type { ProjectProgress, StepMark } from "../flow/types";
 import { json } from "../http";
 import type { Problem } from "../run/types";
@@ -136,6 +137,14 @@ export interface ProjectApi {
    * the project then holds. Refused, with nothing kept, if the profile or the project refuses it
    * or what the check found is not in `document.confirmed`. */
   attachDocument(projectId: string, document: AttachedDocument): Promise<DocumentationSummary[]>;
+  /** An attached document's text and its media type: as stored, which is what agents read, or,
+   * with `preview`, a copy to read (a Word document's file read again as Markdown). */
+  documentationText(
+    projectId: string,
+    digest: string,
+    preview: boolean,
+    signal?: AbortSignal,
+  ): Promise<DocumentationText>;
   /** The repository chosen for the project, or null if none has been. */
   repository(projectId: string, signal?: AbortSignal): Promise<RepositoryRequirements | null>;
   /** Where the project is in the process flow, derived anew by the harness. */
@@ -274,6 +283,7 @@ export const httpProjectApi: ProjectApi = {
     const body = data === undefined ? { name, media_type, text, confirmed } : { name, media_type, data, confirmed };
     return parse(await fetch(`${projectPath(projectId)}/documentation`, post(body)));
   },
+  documentationText: readDocumentationText,
   async repository(projectId, signal) {
     const response = await fetch(`${projectPath(projectId)}/repository`, signal ? { signal } : {});
     if (response.status === 404) {

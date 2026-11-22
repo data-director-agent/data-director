@@ -36,6 +36,9 @@
       "documentation_digest": {
          "@id": "https://w3id.org/data-director/documentation_digest"
       },
+      "documentation_is_plan": {
+         "@id": "https://w3id.org/data-director/documentation_is_plan"
+      },
       "documentation_media_type": {
          "@id": "https://w3id.org/data-director/documentation_media_type"
       },
@@ -92,6 +95,9 @@
       "linkml": "https://w3id.org/linkml/",
       "location_precision": {
          "@id": "https://w3id.org/data-director/location_precision"
+      },
+      "plan_document": {
+         "@id": "https://w3id.org/data-director/plan_document"
       },
       "project_decisions": {
          "@id": "https://w3id.org/data-director/project_decisions",
