@@ -36,6 +36,7 @@ from dd_app.routes.common import (
 from dd_harness.identity import RefusalReason, Unauthenticated
 from dd_harness.sessions import PENDING_S, SESSION_COOKIE, SIGN_IN_COOKIE, cookie
 from dd_harness.signin import CALLBACK_PATH, NotAdmitted, SignIn
+from dd_harness.stewardship import DeploymentRole
 from dd_sdk.contract.models import Principal
 from dd_sdk.security_log import SecurityEvent, emit
 
@@ -62,10 +63,22 @@ class PrincipalSummary(ResponseBody):
     """The issuer that vouched for an authenticated person; absent for an asserted one."""
 
 
+class RawStewardTeam(ResponseBody):
+    """A steward team the person is in, as the profile names it (docs/specs/stewardship.md)."""
+
+    team_id: str
+    name: str
+
+
 class RawSessionPrincipal(PrincipalSummary):
     """The person a session is open for."""
 
     principal_id: str
+    roles: list[Literal["researcher", "steward", "administrator"]]
+    """The person's deployment roles, from the profile (docs/specs/stewardship.md, invariant 1).
+    Everyone is a researcher. No deployment role makes anyone a member of a project."""
+    teams: list[RawStewardTeam]
+    """The steward teams the person is in; empty unless they are a steward."""
 
 
 class RawModelAccountProvider(ResponseBody):
@@ -134,8 +147,14 @@ def routes(deps: Deps) -> list[Route]:
     ]
 
 
-def _principal(principal: Principal) -> dict[str, Any]:
-    return {"principal_id": principal.principal_id, **principal_summary(principal)}
+def _principal(principal: Principal, deps: Deps) -> dict[str, Any]:
+    found = deps.governance.conductor.profile.roles_of(principal.principal_id)
+    return {
+        "principal_id": principal.principal_id,
+        **principal_summary(principal),
+        "roles": sorted(found.roles, key=list(DeploymentRole).index),
+        "teams": [{"team_id": t.team_id, "name": t.name} for t in found.teams],
+    }
 
 
 def _timestamp(seconds: float) -> str:
@@ -160,7 +179,7 @@ async def get_session(request: Request, deps: Deps) -> Response:
             {
                 "signs_in": False,
                 "issuer": None,
-                "principal": _principal(operator),
+                "principal": _principal(operator, deps),
                 "expires_at": None,
                 **accounts,
             },
@@ -173,7 +192,7 @@ async def get_session(request: Request, deps: Deps) -> Response:
         RawSession,
         {
             **body,
-            "principal": _principal(session.principal),
+            "principal": _principal(session.principal, deps),
             "expires_at": _timestamp(sign_in.store.expires_at(session)),
         },
     )

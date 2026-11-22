@@ -3,10 +3,11 @@
 You are a data steward in a Data Director instance because its institutional profile names you.
 No one is a steward by signing in. A person the profile does not name is a researcher.
 
-!!! note "Not built yet"
-    The `stewardship` key described here is specified but not yet enforced. Until it is, a
-    profile that contains it is refused when the instance starts
-    ([#154](https://github.com/data-director-agent/data-director/issues/154)).
+!!! note "Partly built"
+    The profile names the teams, and the app knows who is a steward. Opening a project as a
+    steward is not built yet ([#374](https://github.com/data-director-agent/data-director/issues/374)),
+    so until it is, `visibility` may only be `escalated` and `deposit_co_approval` only `false`;
+    a profile that sets either otherwise is refused when the instance starts.
 
 ## Teams
 
@@ -19,9 +20,9 @@ stewardship:
   visibility: escalated          # or "scope"; see below
   deposit_co_approval: false     # true: a steward also approves each deposit (Deposit readiness)
   teams:
-    - id: library-rdm
+    - id: library-rdm                        # lower-case words joined by hyphens
       name: Library Research Data Team       # what researchers see
-      members:                               # ORCID iDs of the people in the team
+      members:                               # ORCID iDs of the people in the team, as URLs
         - https://orcid.org/0000-0002-1825-0097
       supports: [faculty-of-science, faculty-of-engineering]
       contact: https://example.ac.uk/research-data/contact   # shown when no one can help
@@ -55,5 +56,13 @@ or while the project is in the team's scope. Your institution's privacy notice s
 
 ## Administrators
 
-The profile's `administrators` key names the people who manage the instance. Being an
+The profile's `administrators` key names the people who manage the instance, each by ORCID iD as
+a URL:
+
+```yaml
+administrators:
+  - https://orcid.org/0000-0002-1825-0097
+```
+
+Administrators are the only people a deployed workbench admits. Being an
 administrator does not make you a steward, and it gives you no access to anyone's project.

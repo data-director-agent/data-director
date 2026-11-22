@@ -23,6 +23,8 @@ from dd_harness.content_classes import tool_servers as granted_servers
 from dd_harness.footprint import FootprintTable
 from dd_harness.institution_repositories import parse as institution_repositories
 from dd_harness.profile_model_accounts import ModelAccounts
+from dd_harness.stewardship import DeploymentRoles, Stewardship, deployment_roles, principals
+from dd_harness.stewardship import parse as stewardship
 from dd_sdk.agent import Setting
 from dd_sdk.contract.models import InstitutionRepository
 
@@ -45,6 +47,8 @@ PROFILE_KEYS = frozenset(
         "attached_documents",
         "deposit_transports",
         "institution_repositories",
+        "stewardship",
+        "administrators",
     }
 )
 # Whether people may attach documents to a project (docs/specs/projects.md, Documentation).
@@ -107,11 +111,19 @@ class Profile:
     # The repositories the deployment names as its institution's, by a registry's identifier,
     # with what it vouches for of each (dd_harness.institution_repositories). None unless written.
     institution_repositories: tuple[InstitutionRepository, ...] = ()
+    # The deployment's steward teams, and who administers it: deployment roles
+    # (docs/specs/stewardship.md, invariant 1; dd_harness.stewardship). None unless written.
+    stewardship: Stewardship = field(default_factory=Stewardship)
+    administrators: frozenset[str] = frozenset()
 
     @property
     def refuses_documents(self) -> bool:
         """Whether the profile refuses attached documents altogether."""
         return self.attached_documents == "refused"
+
+    def roles_of(self, principal_id: str) -> DeploymentRoles:
+        """The deployment roles this profile gives `principal_id` (dd_harness.stewardship)."""
+        return deployment_roles(self.stewardship, self.administrators, principal_id)
 
     @property
     def ref(self) -> str:
@@ -164,6 +176,8 @@ class Profile:
                     data.get("institution_repositories"),
                     f"profile:{data['profile_id']}@v{int(data.get('version', 1))}",
                 ),
+                stewardship=stewardship(data.get("stewardship")),
+                administrators=principals(data.get("administrators"), "administrators"),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise PolicyError(f"profile {source!r} is malformed: {exc}") from exc

@@ -5,9 +5,10 @@
 # data-director-workbench.service.d/agents.conf. NGINX serves it on port 8443
 # (deploy/nginx/data-director.conf).
 #
-# install.sh enables it only once DD_WORKBENCH_ADMINS is set in /etc/data-director/workbench.env:
-# a workbench that signs people in admits only the ORCID iDs listed there, and does not start
-# without them.
+# It runs under the instance's own profile, which `data-director apply` writes from
+# deployment.yaml. install.sh enables it only once that profile names an administrator: a workbench
+# that signs people in admits only the administrators the profile names, and does not start
+# without one.
 [Unit]
 Description=Data Director Workbench
 Documentation=https://github.com/data-director-agent/data-director/blob/main/deploy/README.md
@@ -22,13 +23,15 @@ Group=datadirector
 WorkingDirectory=/opt/data-director/current
 # The workbench's own run store, apart from the app's.
 Environment=DD_RUNS_DIR=/var/lib/data-director/workbench-runs
+# The instance's profile, as the app's: its agents, its policy and its administrators.
+Environment=DD_PROFILE=/etc/data-director/profile.yaml
 # Who is signed in to the workbench, apart from the app's, kept across a restart (#900).
 Environment=DD_SESSIONS_FILE=/var/lib/data-director/workbench-sessions/sessions.db
 # The ORCID client's secret. The workbench uses the app's client, registered with a second redirect
 # URI; systemd hands each unit its own copy of the credential.
 LoadCredential=orcid-client-secret:/etc/data-director/credentials/app/orcid-client-secret
 Environment=DD_OIDC_CLIENT_SECRET_FILE=orcid-client-secret
-# DD_OIDC_ISSUER, DD_OIDC_CLIENT_ID, DD_WORKBENCH_PUBLIC_URL and DD_WORKBENCH_ADMINS (required).
+# DD_OIDC_ISSUER, DD_OIDC_CLIENT_ID and DD_WORKBENCH_PUBLIC_URL.
 EnvironmentFile=/etc/data-director/workbench.env
 ExecStartPre=/opt/data-director/current/deploy/wait-for-ports.sh 60 $DD_WAIT_PORTS
 ExecStart=/opt/data-director/current/.venv/bin/workbench serve --host 127.0.0.1 --port 8000

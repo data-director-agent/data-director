@@ -112,7 +112,9 @@ def lay_out(host: Host, app_env: str = "", *, broker: bool = True) -> None:
     """A deployment as install.sh leaves it, with something in each store."""
     (host.etc / "credentials" / "app").mkdir(parents=True)
     (host.etc / "app.env").write_text(f"DD_APP_PUBLIC_URL=https://dd.example.ac.uk\n{app_env}")
-    (host.etc / "workbench.env").write_text("DD_WORKBENCH_ADMINS=0000-0002-1825-0097\n")
+    (host.etc / "workbench.env").write_text(
+        "DD_WORKBENCH_PUBLIC_URL=https://dd.example.ac.uk:8443\n"
+    )
     secret = host.etc / "credentials" / "app" / "orcid-client-secret"
     secret.write_text("s3cret")
     secret.chmod(0o600)

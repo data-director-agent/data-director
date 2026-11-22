@@ -2,9 +2,10 @@
 
 A workbench serves no one but the people who build and test agents. With `DD_OIDC_ISSUER` set it
 signs people in through the harness's OpenID Connect flow (`dd_harness.signin`) and admits only
-the ORCID iDs in `DD_WORKBENCH_ADMINS`: anyone else is refused at the callback, and no session is
-opened for them. Every route but the sign-in routes then needs an admin's session, and a run acts
-for the admin who started it, recorded `authenticated`.
+the administrators its institutional profile names (`administrators`, docs/specs/stewardship.md,
+invariant 1): anyone else is refused at the callback, and no session is opened for them. Every
+route but the sign-in routes then needs an admin's session, and a run acts for the admin who
+started it, recorded `authenticated`.
 
 Without an issuer the workbench is a development server, as before: every run acts for the
 operator's principal, recorded `asserted`, and nothing is gated.
@@ -17,7 +18,6 @@ from __future__ import annotations
 
 import html
 import logging
-import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -29,6 +29,7 @@ from starlette.routing import Route
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from dd_harness.identity import Unauthenticated
+from dd_harness.policy import Profile, load_profile
 from dd_harness.sessions import PENDING_S, cookie
 from dd_harness.settings import Settings
 from dd_harness.signin import CALLBACK_PATH, NotAdmitted, SignIn, SignInSettings
@@ -39,14 +40,11 @@ from dd_sdk.credentials import ConfigError
 log = logging.getLogger(__name__)
 
 PUBLIC_URL_VARIABLE = "DD_WORKBENCH_PUBLIC_URL"
-ADMINS_VARIABLE = "DD_WORKBENCH_ADMINS"
 SESSION_COOKIE = "dd_workbench_session"
 SIGN_IN_COOKIE = "dd_workbench_sign_in"
 SIGN_IN_PATH = "/api/sign-in"
 SIGN_OUT_PATH = "/api/sign-out"
 SESSION_PATH = "/api/session"
-# An ORCID iD: four groups of four, the last character a digit or the checksum `X`.
-ORCID_ID = re.compile(r"\d{4}-\d{4}-\d{4}-\d{3}[\dX]")
 # Paths the gate leaves open: signing in and out, and what a browser asks for unprompted. `/a2a`
 # takes delegation callbacks only (`build_app`) and `/mcp` tool calls, each carrying a grant the
 # conductor issued, and NGINX closes them and the agent card to callers outside the VM.
@@ -69,41 +67,27 @@ _SESSION: dict[str, Any] = {"path": "/", "secure": True, "httponly": True, "same
 _SIGN_IN: dict[str, Any] = {**_SESSION, "path": SIGN_IN_PATH}
 
 
-def admins_from_env(env: Mapping[str, str]) -> frozenset[str]:
-    """The ORCID iDs `DD_WORKBENCH_ADMINS` lists, separated by commas or spaces. Each may be bare
-    or an iD URL. Raises `ConfigError` for an empty list or an entry that is not an iD: a
-    workbench that signs people in must admit someone, and a mistyped iD must not pass silently."""
-    value = env.get(ADMINS_VARIABLE, "")
-    entries = [e for e in re.split(r"[\s,]+", value) if e]
-    if not entries:
+def administrators(profile: Profile) -> frozenset[str]:
+    """The principal identifiers the profile's `administrators` lists. Raises `ConfigError` for a
+    profile that lists none: a workbench that signs people in must admit someone."""
+    if not profile.administrators:
         raise ConfigError(
-            f"{ADMINS_VARIABLE} unset: a workbench that signs people in admits only the ORCID iDs "
-            "it lists"
+            f"the profile {profile.ref} names no administrators: a workbench that signs people in "
+            "admits only the people its `administrators` key lists"
         )
-    admins = set()
-    for entry in entries:
-        orcid = entry.rstrip("/").rsplit("/", 1)[-1]
-        if not ORCID_ID.fullmatch(orcid):
-            raise ConfigError(f"{ADMINS_VARIABLE}: {entry!r} is not an ORCID iD")
-        admins.add(orcid)
-    return frozenset(admins)
+    return profile.administrators
 
 
 @dataclass(frozen=True)
 class Admins:
-    """Whom the workbench admits: a person the deployment's issuer vouched for, whose iD is
-    listed. TODO(#154): an interim list until people have roles."""
+    """Whom the workbench admits: a person the deployment's issuer vouched for, whom the profile
+    names as an administrator."""
 
     issuer: str
-    orcids: frozenset[str]
+    principal_ids: frozenset[str]
 
     def __call__(self, principal: Principal) -> bool:
-        prefix = self.issuer.rstrip("/") + "/"
-        return (
-            principal.vouched_by == self.issuer
-            and principal.principal_id.startswith(prefix)
-            and principal.principal_id.removeprefix(prefix) in self.orcids
-        )
+        return principal.vouched_by == self.issuer and principal.principal_id in self.principal_ids
 
 
 def _problem(status: int, document: Any) -> JSONResponse:
@@ -249,15 +233,15 @@ def sign_in_routes(sign_in: SignIn) -> list[Route]:
 
 
 def admin_sign_in(env: Mapping[str, str], settings: Settings, base_url: str) -> SignIn | None:
-    """The sign-in the environment configures, admitting only its admins, or None for a
-    development server. Raises `IdentityError` or `ConfigError` for a configuration that cannot be
-    served, before anything is."""
+    """The sign-in the environment configures, admitting only the profile's administrators, or
+    None for a development server. Raises `IdentityError` or `ConfigError` for a configuration
+    that cannot be served, before anything is."""
     configured = SignInSettings.from_env(
         env, settings, base_url, public_url_variable=PUBLIC_URL_VARIABLE
     )
     if configured is None:
         return None
-    admins = Admins(configured.provider.issuer, admins_from_env(env))
+    admins = Admins(configured.provider.issuer, administrators(load_profile(settings.profile)))
     return SignIn(configured, session_cookie=SESSION_COOKIE, admit=admins)
 
 

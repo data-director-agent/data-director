@@ -38,7 +38,7 @@ now; anything not built carries a note linking to its issue.
 |---|---|---|
 | Reading and reviewing the policy on the Policy page | Works | — |
 | Steps referred to a data steward stop, with the reason shown | Works | — |
-| Being named as a steward in the profile | Not built yet | [#154](https://github.com/data-director-agent/data-director/issues/154) |
+| Being named as a steward in the profile | Works | [#154](https://github.com/data-director-agent/data-director/issues/154) |
 | Escalations and the queue | Not built yet | [#373](https://github.com/data-director-agent/data-director/issues/373), [#376](https://github.com/data-director-agent/data-director/issues/376) |
 | Opening a project as a steward, and acting in it | Not built yet | [#374](https://github.com/data-director-agent/data-director/issues/374), [#376](https://github.com/data-director-agent/data-director/issues/376) |
 | Clearing a referred step | Not built yet | [#16](https://github.com/data-director-agent/data-director/issues/16), [#374](https://github.com/data-director-agent/data-director/issues/374) |

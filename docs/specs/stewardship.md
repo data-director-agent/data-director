@@ -31,11 +31,11 @@ outside a project, such as managing access in a repository, which no agent perfo
 The experience is designed in [Steward escalation flows](../ui/steward-escalation-flows.md), and
 the people who do this work have a [Data Steward's Guide](../guide/steward-guide/index.md).
 
-**What is built.** Only the referral: the policy gate's `referred(policy_requires_approval)` names
+**What is built.** The referral: the policy gate's `referred(policy_requires_approval)` names
 `referred_to: data_steward` and does not run the agent ([Policy and identity](policy-and-identity.md),
 `dd_harness.refusals`), and the Policy page shows each step a steward must approve
-([The app](app.md)). Everything else in this spec is the intended design; each invariant names the
-issue that builds it.
+([The app](app.md)). Deployment roles (invariant 1). Everything else in this spec is the intended
+design; each invariant names the issue that builds it.
 
 ## Invariants
 
@@ -44,11 +44,19 @@ issue that builds it.
    an identifier, a name shown to researchers, its members as principal identifiers (an ORCID iD
    for ORCID sign-in), the labels of the projects it supports, an optional contact for when no
    steward can help (an address or a page, shown as given), and an expected response time. A
-   person named in neither is a researcher. A role never comes from an environment variable: the
-   stand-in `DD_WORKBENCH_ADMINS` list is replaced by `administrators`. Group or entitlement
-   claims from an institutional identity provider may later map to a team, in the same key,
-   TODO(#936). Like every profile key, `stewardship` is refused at load unless something enforces
-   it, and is recorded with every run through `policy_bundle_ref`. Not built yet, TODO(#154).
+   principal identifier is written as recorded: for ORCID sign-in, the iD as a URL, and a bare iD
+   is refused at load because it would name nobody. Everyone who signs in is a researcher, who may
+   hold projects of their own; a person a team lists is also a steward, and a person
+   `administrators` lists is also an administrator, who administers the workbench and has no
+   access to anyone's project by it. The session response names each person's roles and teams. A
+   role never comes from an environment variable: `administrators` replaced the workbench's
+   former `DD_WORKBENCH_ADMINS` list, and a deployed workbench runs under the instance's profile.
+   Group or entitlement claims from an institutional identity provider may later map to a team,
+   in the same key, TODO(#936). Like every profile key, `stewardship` is refused at load unless
+   something enforces it, and is recorded with every run through `policy_bundle_ref`; until
+   steward access to a project is built, a profile that sets `visibility: scope` or
+   `deposit_co_approval: true` is refused, TODO(#374, #1306). Built:
+   `dd_harness.stewardship`.
 
 2. **A deployment role never makes anyone a member of a project** ([Projects](projects.md),
    invariant 16). A steward reaches a project by a separate path beside
@@ -56,7 +64,7 @@ issue that builds it.
    check that `role_of` answers today also asks the steward path: the app's `in_project`,
    `Governance.role` and the conductor's check before a run. A person who is both a member of a
    project and a steward acts as a member there, and may not act as its steward (invariant 7).
-   Not built yet, TODO(#154).
+   Not built yet, TODO(#374).
 
 3. **A steward sees a project only while the profile's visibility allows it, and every look is
    recorded.** `stewardship.visibility` is one of:
@@ -71,7 +79,7 @@ issue that builds it.
    reveal that it exists. Each time a steward opens a project, or reads any of its content, the
    harness appends a `steward_viewed` event naming the steward; repeated reads by the same steward
    on the same day append one. The researcher sees each one in the project's log (invariant 10).
-   Not built yet, TODO(#154, #374).
+   Not built yet, TODO(#374).
 
 4. **An escalation is a record in the project's log, not a store of its own.** Its events are
    `escalation_opened`, `escalation_taken`, `escalation_released`, `escalation_waiting`,
@@ -176,8 +184,8 @@ issue that builds it.
 - **The harness decides; the shell renders.** Every check above is in `dd_harness`; the app's
   shell holds no policy ([The app](app.md)). Each project response gains `permitted_actions`, the
   actions the signed-in person may take there and why any is refused, so the shell shows only
-  what is permitted and explains the rest, instead of learning its limits from a 403. The session
-  response names the person's deployment roles and teams. TODO(#154).
+  what is permitted and explains the rest, instead of learning its limits from a 403,
+  TODO(#374). The session response names the person's deployment roles and teams (built).
 - **Routes.** A steward's routes are under `/api/steward/` (the queue, the overviews) and the
   existing `/api/projects/{project_id}` routes, which serve a steward through the steward path of
   invariant 2. There is no separate copy of a project for stewards.
@@ -216,7 +224,7 @@ issue that builds it.
 
 ## Rejected alternatives
 
-- **Roles from an environment variable**, as `DD_WORKBENCH_ADMINS` does. A role is a policy
+- **Roles from an environment variable**, as the workbench's `DD_WORKBENCH_ADMINS` once did. A role is a policy
   choice, which belongs in the profile and is recorded with every run.
 - **Making a steward a project member.** A member decides facts and an owner approves; giving a
   steward either would blur whose decision a record shows, and membership is the researchers' to

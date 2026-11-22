@@ -22,13 +22,14 @@ from urllib.parse import parse_qs, urlsplit
 import httpx
 import pytest
 import uvicorn
+import yaml
 from starlette.routing import Route
 from starlette.testclient import TestClient
 from support import JSON_HEADERS, check_fixture, configure_env, dist_dir, with_standards
 
 from dd_app import app as dd_app
 from dd_app.app import build_app
-from dd_app.config import settings_from_env
+from dd_app.config import EXAMPLE_PROFILE, settings_from_env
 from dd_app.governance import Governance
 from dd_app.routes.session import RawSession
 from dd_harness.identity import IdentityError, OperatorAssertion, RefusalReason
@@ -146,6 +147,8 @@ def test_a_person_signs_in_and_their_runs_act_for_them(deployment: Deployment):
         "name": "Josiah Carberry",
         "assurance": "authenticated",
         "vouched_by": "https://sandbox.orcid.org",
+        "roles": ["researcher"],
+        "teams": [],
     }
     assert session["expires_at"].endswith("Z")
 
@@ -425,6 +428,36 @@ def test_a_development_server_acts_for_the_operator_and_says_so(env: Path, tmp_p
     assert browser.get("/api/sign-in", follow_redirects=False).status_code == 404
     assert browser.post("/api/sign-out", headers=JSON_HEADERS).status_code == 204
     assert browser.get("/api/agents").status_code == 200
+
+
+def test_the_session_names_the_roles_and_teams_the_profile_gives_the_person(
+    env: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    # docs/specs/stewardship.md, invariant 1: roles come from the profile, never from signing in.
+    body = yaml.safe_load(EXAMPLE_PROFILE.read_text())
+    body["administrators"] = [TEST_PRINCIPAL.principal_id]
+    body["stewardship"] = {
+        "teams": [
+            {
+                "id": "library-rdm",
+                "name": "Library Research Data Team",
+                "members": [TEST_PRINCIPAL.principal_id],
+            },
+            {
+                "id": "elsewhere",
+                "name": "Elsewhere",
+                "members": ["https://orcid.org/0000-0001-5000-0007"],
+            },
+        ]
+    }
+    profile = tmp_path / "profile.yaml"
+    profile.write_text(yaml.safe_dump(body))
+    monkeypatch.setenv("DD_PROFILE", str(profile))
+    governance = Governance.create(settings_from_env(), PUBLIC_URL)
+    browser = TestClient(build_app(governance, dist_dir(tmp_path)), base_url=PUBLIC_URL)
+    principal = browser.get("/api/session").json()["principal"]
+    assert principal["roles"] == ["researcher", "steward", "administrator"]
+    assert principal["teams"] == [{"team_id": "library-rdm", "name": "Library Research Data Team"}]
 
 
 def test_a_provider_needs_the_sign_in(env: Path, monkeypatch: pytest.MonkeyPatch):

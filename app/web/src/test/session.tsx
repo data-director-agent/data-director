@@ -2,7 +2,11 @@
 
 import type { ReactNode } from "react";
 
-import { type Session, type SessionApi, SessionApiContext } from "../session/api";
+import {
+  type Session,
+  type SessionApi,
+  SessionApiContext,
+} from "../session/api";
 
 export const DEVELOPMENT: Session = {
   signsIn: false,
@@ -11,6 +15,8 @@ export const DEVELOPMENT: Session = {
     principalId: "https://orcid.org/0000-0002-1825-0097",
     name: "Josiah Carberry",
     assurance: "asserted",
+    roles: ["researcher"],
+    teams: [],
   },
   expiresAt: null,
   modelAccounts: false,
@@ -28,7 +34,9 @@ export const SIGNED_OUT: Session = {
   repositoryAccounts: false,
 };
 
-export function signedIn(expiresAt = new Date(Date.now() + 8 * 3600_000).toISOString()): Session {
+export function signedIn(
+  expiresAt = new Date(Date.now() + 8 * 3600_000).toISOString(),
+): Session {
   return {
     signsIn: true,
     issuer: "https://sandbox.orcid.org",
@@ -37,6 +45,8 @@ export function signedIn(expiresAt = new Date(Date.now() + 8 * 3600_000).toISOSt
       name: "Josiah Carberry",
       assurance: "authenticated",
       vouchedBy: "https://sandbox.orcid.org",
+      roles: ["researcher"],
+      teams: [],
     },
     expiresAt,
     modelAccounts: false,
@@ -45,7 +55,10 @@ export function signedIn(expiresAt = new Date(Date.now() + 8 * 3600_000).toISOSt
   };
 }
 
-export function fakeSessionApi(session: Session, overrides: Partial<SessionApi> = {}): SessionApi {
+export function fakeSessionApi(
+  session: Session,
+  overrides: Partial<SessionApi> = {},
+): SessionApi {
   return {
     get: () => Promise.resolve(session),
     stay: () => Promise.resolve(session),
@@ -54,6 +67,16 @@ export function fakeSessionApi(session: Session, overrides: Partial<SessionApi> 
   };
 }
 
-export function WithSession({ api, children }: { api: SessionApi; children: ReactNode }) {
-  return <SessionApiContext.Provider value={api}>{children}</SessionApiContext.Provider>;
+export function WithSession({
+  api,
+  children,
+}: {
+  api: SessionApi;
+  children: ReactNode;
+}) {
+  return (
+    <SessionApiContext.Provider value={api}>
+      {children}
+    </SessionApiContext.Provider>
+  );
 }

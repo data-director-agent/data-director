@@ -15,11 +15,22 @@ import { serverAnswered } from "../status";
 
 export type { RawSession } from "../api/generated/responses";
 
+/** A steward team the person is in, as the deployment's profile names it (docs/specs/stewardship.md). */
+export interface StewardTeam {
+  teamId: string;
+  name: string;
+}
+
 export interface SessionPrincipal {
   principalId: string;
   name: string;
   assurance: string;
   vouchedBy?: string;
+  /** The person's deployment roles, from the profile. Everyone is a researcher; the shell only
+   * shows them, and the harness decides what each may do. */
+  roles: ("researcher" | "steward" | "administrator")[];
+  /** The steward teams the person is in; empty unless they are a steward. */
+  teams: StewardTeam[];
 }
 
 /** A provider a person's own model account may be with, and the base URL origins it may name. */
@@ -63,6 +74,8 @@ export function fromRaw(raw: RawSession): Session {
           name: p.name,
           assurance: p.assurance,
           ...(p.vouched_by ? { vouchedBy: p.vouched_by } : {}),
+          roles: p.roles,
+          teams: p.teams.map((t) => ({ teamId: t.team_id, name: t.name })),
         }
       : null,
     expiresAt: raw.expires_at,
@@ -88,10 +101,15 @@ export const httpSessionApi: SessionApi = {
     return session(await fetch("/api/session", signal ? { signal } : {}));
   },
   async stay() {
-    return session(await fetch("/api/session", { method: "POST", headers: JSON_HEADERS }));
+    return session(
+      await fetch("/api/session", { method: "POST", headers: JSON_HEADERS }),
+    );
   },
   async signOut() {
-    const response = await fetch("/api/sign-out", { method: "POST", headers: JSON_HEADERS });
+    const response = await fetch("/api/sign-out", {
+      method: "POST",
+      headers: JSON_HEADERS,
+    });
     if (!response.ok) throw new Error(serverAnswered(response.status));
   },
 };
@@ -128,8 +146,12 @@ export function signInHref(returnTo: string): string {
  * How sure the record is of whom it acts for, in words: who vouched for an authenticated person,
  * or that the operator asserted it.
  */
-export function assuranceText({ assurance, vouchedBy }: Pick<SessionPrincipal, "assurance" | "vouchedBy">): string {
-  if (assurance === "asserted") return "asserted by the operator, not authenticated";
+export function assuranceText({
+  assurance,
+  vouchedBy,
+}: Pick<SessionPrincipal, "assurance" | "vouchedBy">): string {
+  if (assurance === "asserted")
+    return "asserted by the operator, not authenticated";
   if (assurance === "authenticated" && vouchedBy) {
     return `authenticated by ${hostOf(vouchedBy)}`;
   }

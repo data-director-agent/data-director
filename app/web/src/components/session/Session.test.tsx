@@ -15,7 +15,13 @@ import {
   providerName,
   signInHref,
 } from "../../session/api";
-import { DEVELOPMENT, SIGNED_OUT, WithSession, fakeSessionApi, signedIn } from "../../test/session";
+import {
+  DEVELOPMENT,
+  SIGNED_OUT,
+  WithSession,
+  fakeSessionApi,
+  signedIn,
+} from "../../test/session";
 import { SessionTimeout } from "./SessionTimeout";
 import { SignInPage } from "./SignInPage";
 
@@ -41,9 +47,17 @@ describe("signing in", () => {
         <App load={load} />
       </WithSession>,
     );
-    expect(await screen.findByRole("heading", { level: 1, name: "Sign in to Data Director" })).toBeVisible();
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Sign in to Data Director",
+      }),
+    ).toBeVisible();
     const link = screen.getByRole("link", { name: "Sign in with ORCID" });
-    expect(link).toHaveAttribute("href", signInHref("/agents?agent=advisor.standards"));
+    expect(link).toHaveAttribute(
+      "href",
+      signInHref("/agents?agent=advisor.standards"),
+    );
     expect(screen.getByText(/not for your email address/)).toBeVisible();
     expect(load).not.toHaveBeenCalled();
     expect(within(banner()).queryByText("Sign out")).toBeNull();
@@ -51,12 +65,16 @@ describe("signing in", () => {
   });
 
   it("draws the ORCID iD icon on the button for ORCID, and a generic icon for any other provider", () => {
-    const { rerender } = render(<SignInPage issuer="https://orcid.org" returnTo="/" />);
+    const { rerender } = render(
+      <SignInPage issuer="https://orcid.org" returnTo="/" />,
+    );
     const orcid = screen.getByRole("link", { name: "Sign in with ORCID" });
     expect(orcid.querySelector('svg[viewBox="0 0 72 72"]')).not.toBeNull();
 
     rerender(<SignInPage issuer="https://idp.example.org" returnTo="/" />);
-    const other = screen.getByRole("link", { name: "Sign in with idp.example.org" });
+    const other = screen.getByRole("link", {
+      name: "Sign in with idp.example.org",
+    });
     expect(other.querySelector("svg")).not.toBeNull();
     expect(other.querySelector('svg[viewBox="0 0 72 72"]')).toBeNull();
   });
@@ -68,8 +86,11 @@ describe("signing in", () => {
         <App load={() => Promise.resolve(directory)} />
       </WithSession>,
     );
-    const link = await screen.findByRole("link", { name: "Sign in with ORCID" });
-    for (let i = 0; i < 20 && document.activeElement !== link; i++) await userEvent.tab();
+    const link = await screen.findByRole("link", {
+      name: "Sign in with ORCID",
+    });
+    for (let i = 0; i < 20 && document.activeElement !== link; i++)
+      await userEvent.tab();
     expect(link).toHaveFocus();
   });
 
@@ -77,19 +98,21 @@ describe("signing in", () => {
     ["declined", "You did not sign in"],
     ["failed", "Signing in did not work"],
     ["anything", "Signing in did not work"],
-  ])("says why a sign-in that came back with %s opened no session", async (problem, text) => {
-    at(`/sign-in?problem=${problem}`);
-    render(
-      <WithSession api={fakeSessionApi(SIGNED_OUT)}>
-        <App load={() => Promise.resolve(directory)} />
-      </WithSession>,
-    );
-    expect(await screen.findByRole("alert")).toHaveTextContent(text);
-    expect(screen.getByRole("link", { name: "Sign in with ORCID" })).toHaveAttribute(
-      "href",
-      signInHref("/"),
-    );
-  });
+  ])(
+    "says why a sign-in that came back with %s opened no session",
+    async (problem, text) => {
+      at(`/sign-in?problem=${problem}`);
+      render(
+        <WithSession api={fakeSessionApi(SIGNED_OUT)}>
+          <App load={() => Promise.resolve(directory)} />
+        </WithSession>,
+      );
+      expect(await screen.findByRole("alert")).toHaveTextContent(text);
+      expect(
+        screen.getByRole("link", { name: "Sign in with ORCID" }),
+      ).toHaveAttribute("href", signInHref("/"));
+    },
+  );
 
   it("names the signed-in person in the banner", async () => {
     at("/agents");
@@ -109,7 +132,9 @@ describe("signing in", () => {
     );
     const header = banner();
     expect(await within(header).findByText("Josiah Carberry")).toBeVisible();
-    expect(within(header).getByRole("button", { name: "Sign out" })).toBeVisible();
+    expect(
+      within(header).getByRole("button", { name: "Sign out" }),
+    ).toBeVisible();
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -121,9 +146,16 @@ describe("signing in", () => {
         <App load={() => Promise.resolve(directory)} />
       </WithSession>,
     );
-    await userEvent.click(await screen.findByRole("button", { name: "Sign out" }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Sign out" }),
+    );
     expect(signOut).toHaveBeenCalledTimes(1);
-    expect(await screen.findByRole("heading", { level: 1, name: "You have signed out" })).toBeVisible();
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "You have signed out",
+      }),
+    ).toBeVisible();
     expect(screen.getByText(/still be signed in at ORCID/)).toBeVisible();
     expect(location.pathname).toBe("/signed-out");
     expect(within(banner()).queryByText("Josiah Carberry")).toBeNull();
@@ -132,12 +164,21 @@ describe("signing in", () => {
   it("says when signing out did not work", async () => {
     at("/");
     render(
-      <WithSession api={fakeSessionApi(signedIn(), { signOut: () => Promise.reject(new Error("down")) })}>
+      <WithSession
+        api={fakeSessionApi(signedIn(), {
+          signOut: () => Promise.reject(new Error("down")),
+        })}
+      >
         <App load={() => Promise.resolve(directory)} />
       </WithSession>,
     );
-    await userEvent.click(await screen.findByRole("button", { name: "Sign out" }));
-    expect(await screen.findByText(/Signing out did not work/)).toHaveAttribute("role", "alert");
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Sign out" }),
+    );
+    expect(await screen.findByText(/Signing out did not work/)).toHaveAttribute(
+      "role",
+      "alert",
+    );
   });
 
   it("brings the sign-in page back when the server says the session has ended", async () => {
@@ -151,10 +192,9 @@ describe("signing in", () => {
         <App load={async () => load()} />
       </WithSession>,
     );
-    expect(await screen.findByRole("link", { name: "Sign in with ORCID" })).toHaveAttribute(
-      "href",
-      signInHref("/agents"),
-    );
+    expect(
+      await screen.findByRole("link", { name: "Sign in with ORCID" }),
+    ).toHaveAttribute("href", signInHref("/agents"));
   });
 
   it("says on every page of a development server that it signs nobody in", async () => {
@@ -165,18 +205,28 @@ describe("signing in", () => {
       </WithSession>,
     );
     const header = banner();
-    expect(await within(header).findByText("Not signing anyone in")).toBeVisible();
-    expect(within(header).queryByRole("button", { name: "Sign out" })).toBeNull();
+    expect(
+      await within(header).findByText("Not signing anyone in"),
+    ).toBeVisible();
+    expect(
+      within(header).queryByRole("button", { name: "Sign out" }),
+    ).toBeNull();
   });
 
   it("reports a failure to learn who is signed in as an alert", async () => {
     at("/");
     render(
-      <WithSession api={fakeSessionApi(SIGNED_OUT, { get: () => Promise.reject(new Error("down")) })}>
+      <WithSession
+        api={fakeSessionApi(SIGNED_OUT, {
+          get: () => Promise.reject(new Error("down")),
+        })}
+      >
         <App load={() => Promise.resolve(directory)} />
       </WithSession>,
     );
-    expect(await screen.findByRole("alert")).toHaveTextContent("could not say who is signed in");
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "could not say who is signed in",
+    );
   });
 });
 
@@ -192,9 +242,13 @@ describe("SessionTimeout", () => {
       </WithSession>,
     );
     expect(await screen.findByText(/You will be signed out at/)).toBeVisible();
-    expect(screen.getByRole("status")).toHaveTextContent("nothing has been done here");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "nothing has been done here",
+    );
     expect(await axe(container)).toHaveNoViolations();
-    await userEvent.click(screen.getByRole("button", { name: "Stay signed in" }));
+    await userEvent.click(
+      screen.getByRole("button", { name: "Stay signed in" }),
+    );
     expect(stay).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenCalledWith(later);
   });
@@ -246,6 +300,10 @@ describe("the session API", () => {
           name: "Josiah Carberry",
           assurance: "authenticated",
           vouched_by: "https://orcid.org",
+          roles: ["researcher", "steward"],
+          teams: [
+            { team_id: "library-rdm", name: "Library Research Data Team" },
+          ],
         },
         expires_at: "2026-10-29T18:00:00Z",
         model_accounts: false,
@@ -260,6 +318,8 @@ describe("the session API", () => {
         name: "Josiah Carberry",
         assurance: "authenticated",
         vouchedBy: "https://orcid.org",
+        roles: ["researcher", "steward"],
+        teams: [{ teamId: "library-rdm", name: "Library Research Data Team" }],
       },
       expiresAt: "2026-10-29T18:00:00Z",
       modelAccounts: false,
@@ -271,26 +331,39 @@ describe("the session API", () => {
   it("treats a 401 as signed out, and nothing else", () => {
     const ended = vi.fn();
     window.addEventListener(SIGNED_OUT_EVENT, ended);
-    expect(() => checkSignedIn(new Response(null, { status: 200 }))).not.toThrow();
-    expect(() => checkSignedIn(new Response(null, { status: 403 }))).not.toThrow();
+    expect(() =>
+      checkSignedIn(new Response(null, { status: 200 })),
+    ).not.toThrow();
+    expect(() =>
+      checkSignedIn(new Response(null, { status: 403 })),
+    ).not.toThrow();
     expect(ended).not.toHaveBeenCalled();
-    expect(() => checkSignedIn(new Response(null, { status: 401 }))).toThrow(SignedOut);
+    expect(() => checkSignedIn(new Response(null, { status: 401 }))).toThrow(
+      SignedOut,
+    );
     expect(ended).toHaveBeenCalledTimes(1);
     window.removeEventListener(SIGNED_OUT_EVENT, ended);
   });
 
   it("says who vouched, in words", () => {
-    expect(assuranceText({ assurance: "asserted" })).toMatch(/operator.*not authenticated/);
-    expect(assuranceText({ assurance: "authenticated", vouchedBy: "https://orcid.org" })).toMatch(
-      /authenticated by orcid\.org/,
+    expect(assuranceText({ assurance: "asserted" })).toMatch(
+      /operator.*not authenticated/,
     );
+    expect(
+      assuranceText({
+        assurance: "authenticated",
+        vouchedBy: "https://orcid.org",
+      }),
+    ).toMatch(/authenticated by orcid\.org/);
     expect(assuranceText({ assurance: "authenticated" })).toBe("authenticated");
   });
 
   it("names ORCID and its sandbox as ORCID, and any other provider by its host", () => {
     expect(providerName("https://orcid.org")).toBe("ORCID");
     expect(providerName("https://sandbox.orcid.org")).toBe("ORCID");
-    expect(providerName("https://login.example.ac.uk/realms/x")).toBe("login.example.ac.uk");
+    expect(providerName("https://login.example.ac.uk/realms/x")).toBe(
+      "login.example.ac.uk",
+    );
     expect(providerName(null)).toBe("your identity provider");
   });
 });
