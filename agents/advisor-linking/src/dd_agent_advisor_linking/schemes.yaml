@@ -2,7 +2,7 @@
 # the first whose pattern matches wins. Each pattern is matched against the whole string, case
 # ignored, and its first group is the identifier itself. `prefix` turns that into the canonical
 # https form; `relation` is the DataCite relationType suggested by default, or null where the adviser
-# cannot tell; `advice` says how the researcher might record it. `grant` has no canonical form and
+# cannot tell, and a resolved DOI's record can replace it (relations.yaml); `advice` says how the researcher might record it. `grant` has no canonical form and
 # is tried last: a string is taken for a grant number only when it matches no other scheme, has no
 # spaces or colons, and contains a digit. The table decides form only; DOIs, ORCID iDs and ROR ids
 # are resolved through the tool gateway (resolve.py), and grant numbers are TODO(#953).
