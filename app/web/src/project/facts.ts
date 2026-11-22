@@ -22,10 +22,18 @@ export type FactKind =
   | "file_inclusion"
   | "sensitivity"
   | "licence"
-  | "sharing_commitment";
+  | "sharing_commitment"
+  | "standard";
 export type FileDecision = "include" | "exclude" | "undecided";
 export type SensitivityDecision = "publish" | "generalise" | "withhold" | "undecided";
 export type LocationPrecision = "exact" | "site" | "region" | "country";
+export type StandardKind =
+  | "metadata_standard"
+  | "controlled_vocabulary"
+  | "ontology"
+  | "terminology"
+  | "data_format"
+  | "field_format";
 export type FactVerdict = "confirmed" | "changed" | "rejected";
 
 /**
@@ -38,6 +46,7 @@ export const FACT_KINDS: readonly FactKind[] = [
   "funder",
   "required_repository",
   "licence",
+  "standard",
 ];
 export const FILE_DECISIONS: readonly FileDecision[] = ["include", "exclude", "undecided"];
 export const SENSITIVITY_DECISIONS: readonly SensitivityDecision[] = [
@@ -47,6 +56,14 @@ export const SENSITIVITY_DECISIONS: readonly SensitivityDecision[] = [
   "undecided",
 ];
 export const PRECISIONS: readonly LocationPrecision[] = ["exact", "site", "region", "country"];
+export const STANDARD_KINDS: readonly StandardKind[] = [
+  "metadata_standard",
+  "controlled_vocabulary",
+  "ontology",
+  "terminology",
+  "data_format",
+  "field_format",
+];
 
 /** One fact about a project, as the core contract's `ProjectFact` holds it. */
 export interface ProjectFact {
@@ -73,6 +90,11 @@ export interface ProjectFact {
   /** The plan's own words, and the SHA-256 of the attached document's text they are in. */
   commitment_quote?: string;
   commitment_document?: string;
+  /** A standard, vocabulary or format chosen, and what for: `dataset` or `field:<name>`. */
+  standard_name?: string;
+  standard_id?: string;
+  standard_kind?: StandardKind;
+  standard_target?: string;
   /** Why an agent proposed it, for the person deciding; never given to an agent. */
   proposed_because?: string;
 }
@@ -105,6 +127,7 @@ export const FACT_NEEDS: Record<FactKind, readonly (keyof ProjectFact)[]> = {
   sensitivity: ["sensitive_subject", "sensitivity_decision"],
   licence: ["licence_id"],
   sharing_commitment: ["commitment_quote", "commitment_document"],
+  standard: ["standard_name"],
 };
 
 /** The slot a fact's subject is copied from, so a person names the subject once. */
@@ -115,6 +138,7 @@ export const SUBJECT_OF: Record<FactKind, keyof ProjectFact | null> = {
   sensitivity: "sensitive_subject",
   licence: null,
   sharing_commitment: null,
+  standard: "standard_name",
 };
 
 /** The slots `fact` is missing for its kind; empty when it may be sent. */

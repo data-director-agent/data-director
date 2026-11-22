@@ -88,16 +88,16 @@ dd:DocumentQuestion a sh:NodeShape ;
             sh:order 2 ;
             sh:path dd:gap_section ],
         [ sh:datatype xsd:string ;
+            sh:description "Every file whose data dictionary cell the answer fills, gap_file among them, when the question asks once about a column that several files share by name, type and format. Absent when the question fills one cell." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path dd:gap_files ],
+        [ sh:datatype xsd:string ;
             sh:description "The data dictionary column the question would fill, such as unit." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 6 ;
             sh:path dd:gap_column ],
-        [ sh:datatype xsd:string ;
-            sh:description "Every file whose data dictionary cell the answer fills, gap_file among them, when the question asks once about a column that several files share by name, type and format. Absent when the question fills one cell." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 7 ;
-            sh:path dd:gap_files ],
         [ sh:datatype xsd:string ;
             sh:description "The metadata record value the question would fill, as a path into the record's JSON form: property names joined by dots, with a list entry's position in brackets, such as titles[0].title." ;
             sh:maxCount 1 ;

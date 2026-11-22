@@ -63,6 +63,13 @@ FACTS = [
         "commitment_quote": "XRD patterns will be shared on Zenodo.",
         "commitment_document": "c" * 64,
     },
+    {
+        "fact_kind": "standard",
+        "fact_subject": "CIF",
+        "standard_name": "Crystallographic Information Framework",
+        "standard_id": "https://doi.org/10.25504/FAIRsharing.example",
+        "standard_target": "dataset",
+    },
 ]
 
 
@@ -94,6 +101,7 @@ def test_the_chosen_repository_and_each_decision_open_the_message() -> None:
         "data/Thumbs.db",
         "site_gps",
         "XRD patterns",
+        "Crystallographic Information Framework",
     ):
         assert value in text, value
     # Only structured values: never anyone's words about why.

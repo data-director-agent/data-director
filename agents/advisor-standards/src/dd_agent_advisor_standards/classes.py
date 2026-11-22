@@ -11,6 +11,7 @@ from typing import Literal
 
 from pydantic import Field
 
+from dd_sdk.contract.facts import ProjectFact
 from dd_sdk.contract.models import Derivation, Frozen, Grounded, TableField
 
 
@@ -59,3 +60,4 @@ class Recommendations(Grounded):
     items: list[Recommendation] = Field(default_factory=list)
     searched: SearchedSummary | None = None
     limitations: list[str] = Field(default_factory=list)
+    proposed_facts: list[ProjectFact] = Field(default_factory=list)

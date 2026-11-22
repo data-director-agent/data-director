@@ -17,9 +17,9 @@
       "principal_kind": "person"
     },
     "agent_id": "advisor.standards",
-    "agent_version": "0.3.0",
+    "agent_version": "0.4.0",
     "completed_at": "2026-01-01T00:00:00Z",
-    "contract_version": "0.20.0",
+    "contract_version": "0.21.0",
     "evidence": [
       {
         "canonicalisation": "json-sorted-utf8-v1",
@@ -761,6 +761,168 @@
         "The ranking is lexical. A model, when one is configured, may add what it misses but its choices have not yet been evaluated.",
         "A model's searches reach FAIRsharing from this agent, not through the harness's tool gateway."
       ],
+      "proposed_facts": [
+        {
+          "fact_kind": "standard",
+          "fact_required_by": [],
+          "fact_subject": "Chemistry vocabulary",
+          "proposed_because": "The Standards Librarian recommended it from FAIRsharing (snapshot:2026-09-04). Confirm it if you will use it for the dataset, or reject it if you will not.",
+          "standard_id": "https://doi.org/10.25504/FAIRsharing.TrcBD2",
+          "standard_kind": "ontology",
+          "standard_name": "Chemistry vocabulary",
+          "standard_target": "dataset"
+        },
+        {
+          "fact_kind": "standard",
+          "fact_required_by": [],
+          "fact_subject": "IUPAC Compendium of Chemical Terminology",
+          "proposed_because": "The Standards Librarian recommended it from FAIRsharing (snapshot:2026-09-04). Confirm it if you will use it for the dataset, or reject it if you will not.",
+          "standard_id": "https://doi.org/10.25504/FAIRsharing.OsiqlF",
+          "standard_kind": "terminology",
+          "standard_name": "IUPAC Compendium of Chemical Terminology",
+          "standard_target": "dataset"
+        },
+        {
+          "fact_kind": "standard",
+          "fact_required_by": [],
+          "fact_subject": "National Agricultural Library Thesaurus",
+          "proposed_because": "The Standards Librarian recommended it from FAIRsharing (snapshot:2026-09-04). Confirm it if you will use it for the dataset, or reject it if you will not.",
+          "standard_id": "https://doi.org/10.25504/FAIRsharing.95n1ns",
+          "standard_kind": "controlled_vocabulary",
+          "standard_name": "National Agricultural Library Thesaurus",
+          "standard_target": "dataset"
+        },
+        {
+          "fact_kind": "standard",
+          "fact_required_by": [],
+          "fact_subject": "Domain Resource Application Ontology",
+          "proposed_because": "The Standards Librarian recommended it from FAIRsharing (snapshot:2026-09-04). Confirm it if you will use it for the dataset, or reject it if you will not.",
+          "standard_id": "https://doi.org/10.25504/FAIRsharing.FSIfv8",
+          "standard_kind": "ontology",
+          "standard_name": "Domain Resource Application Ontology",
+          "standard_target": "dataset"
+        },
+        {
+          "fact_kind": "standard",
+          "fact_required_by": [],
+          "fact_subject": "EuroVoc",
+          "proposed_because": "The Standards Librarian recommended it from FAIRsharing (snapshot:2026-09-04). Confirm it if you will use it for the dataset, or reject it if you will not.",
+          "standard_id": "https://doi.org/10.25504/FAIRsharing.d0a681",
+          "standard_kind": "controlled_vocabulary",
+          "standard_name": "EuroVoc",
+          "standard_target": "dataset"
+        },
+        {
+          "fact_kind": "standard",
+          "fact_required_by": [],
+          "fact_subject": "United States Geological Survey Thesaurus",
+          "proposed_because": "The Standards Librarian recommended it from FAIRsharing (snapshot:2026-09-04). Confirm it if you will use it for the dataset, or reject it if you will not.",
+          "standard_id": "https://doi.org/10.25504/FAIRsharing.5bd3ef",
+          "standard_kind": "controlled_vocabulary",
+          "standard_name": "United States Geological Survey Thesaurus",
+          "standard_target": "dataset"
+        },
+        {
+          "fact_kind": "standard",
+          "fact_required_by": [],
+          "fact_subject": "Food Ontology",
+          "proposed_because": "The Standards Librarian recommended it from FAIRsharing (snapshot:2026-09-04). Confirm it if you will use it for the dataset, or reject it if you will not.",
+          "standard_id": "https://doi.org/10.25504/FAIRsharing.dzxae",
+          "standard_kind": "ontology",
+          "standard_name": "Food Ontology",
+          "standard_target": "dataset"
+        },
+        {
+          "fact_kind": "standard",
+          "fact_required_by": [],
+          "fact_subject": "Infrastructure for Spatial Information in Europe Data Specifications",
+          "proposed_because": "The Standards Librarian recommended it from FAIRsharing (snapshot:2026-09-04). Confirm it if you will use it for the dataset, or reject it if you will not.",
+          "standard_id": "https://doi.org/10.25504/FAIRsharing.nrx5kk",
+          "standard_kind": "data_format",
+          "standard_name": "Infrastructure for Spatial Information in Europe Data Specifications",
+          "standard_target": "dataset"
+        },
+        {
+          "fact_kind": "standard",
+          "fact_required_by": [],
+          "fact_subject": "Access to Biological Collection Databases Extended for Geosciences",
+          "proposed_because": "The Standards Librarian recommended it from FAIRsharing (snapshot:2026-09-04). Confirm it if you will use it for the dataset, or reject it if you will not.",
+          "standard_id": "https://doi.org/10.25504/FAIRsharing.edfd85",
+          "standard_kind": "data_format",
+          "standard_name": "Access to Biological Collection Databases Extended for Geosciences",
+          "standard_target": "dataset"
+        },
+        {
+          "fact_kind": "standard",
+          "fact_required_by": [],
+          "fact_subject": "Observations Data Model 2",
+          "proposed_because": "The Standards Librarian recommended it from FAIRsharing (snapshot:2026-09-04). Confirm it if you will use it for the dataset, or reject it if you will not.",
+          "standard_id": "https://doi.org/10.25504/FAIRsharing.de40c7",
+          "standard_kind": "data_format",
+          "standard_name": "Observations Data Model 2",
+          "standard_target": "dataset"
+        },
+        {
+          "fact_kind": "standard",
+          "fact_required_by": [],
+          "fact_subject": "CSV Dialect Description Format",
+          "proposed_because": "The Standards Librarian recommended it from FAIRsharing (snapshot:2026-09-04). Confirm it if you will use it for the dataset, or reject it if you will not.",
+          "standard_id": "https://doi.org/10.25504/FAIRsharing.10bab4",
+          "standard_kind": "data_format",
+          "standard_name": "CSV Dialect Description Format",
+          "standard_target": "dataset"
+        },
+        {
+          "fact_kind": "standard",
+          "fact_required_by": [],
+          "fact_subject": "Comma-separated Values",
+          "proposed_because": "The Standards Librarian recommended it from FAIRsharing (snapshot:2026-09-04). Confirm it if you will use it for the dataset, or reject it if you will not.",
+          "standard_id": "https://doi.org/10.25504/FAIRsharing.1943d4",
+          "standard_kind": "data_format",
+          "standard_name": "Comma-separated Values",
+          "standard_target": "dataset"
+        },
+        {
+          "fact_kind": "standard",
+          "fact_required_by": [],
+          "fact_subject": "Tabular Data Package",
+          "proposed_because": "The Standards Librarian recommended it from FAIRsharing (snapshot:2026-09-04). Confirm it if you will use it for the dataset, or reject it if you will not.",
+          "standard_id": "https://doi.org/10.25504/FAIRsharing.082881",
+          "standard_kind": "data_format",
+          "standard_name": "Tabular Data Package",
+          "standard_target": "dataset"
+        },
+        {
+          "fact_kind": "standard",
+          "fact_required_by": [],
+          "fact_subject": "ISO 8601 Date and time format (field:collection_date)",
+          "proposed_because": "The Standards Librarian recommended it from FAIRsharing (snapshot:2026-09-04). Confirm it if you will use it for the field:collection_date, or reject it if you will not.",
+          "standard_id": "https://doi.org/10.25504/FAIRsharing.987d5a",
+          "standard_kind": "field_format",
+          "standard_name": "ISO 8601 Date and time format",
+          "standard_target": "field:collection_date"
+        },
+        {
+          "fact_kind": "standard",
+          "fact_required_by": [],
+          "fact_subject": "ISO 8601 Date and time format (field:sampled_at)",
+          "proposed_because": "The Standards Librarian recommended it from FAIRsharing (snapshot:2026-09-04). Confirm it if you will use it for the field:sampled_at, or reject it if you will not.",
+          "standard_id": "https://doi.org/10.25504/FAIRsharing.987d5a",
+          "standard_kind": "field_format",
+          "standard_name": "ISO 8601 Date and time format",
+          "standard_target": "field:sampled_at"
+        },
+        {
+          "fact_kind": "standard",
+          "fact_required_by": [],
+          "fact_subject": "ISO 8601 Date and time format (field:survey_date_uk)",
+          "proposed_because": "The Standards Librarian recommended it from FAIRsharing (snapshot:2026-09-04). Confirm it if you will use it for the field:survey_date_uk, or reject it if you will not.",
+          "standard_id": "https://doi.org/10.25504/FAIRsharing.987d5a",
+          "standard_kind": "field_format",
+          "standard_name": "ISO 8601 Date and time format",
+          "standard_target": "field:survey_date_uk"
+        }
+      ],
       "schema_class": "Recommendations",
       "searched": {
         "candidates_qualifying": 14.0,
@@ -774,7 +936,7 @@
         "snapshot_ref": "snapshot:2026-09-04"
       }
     },
-    "payload_schema": "0f9cced156f645d29ca09aa1525f07b9b66ac9f20d1ca9d4620e963020e0b60a",
+    "payload_schema": "2b30dd6b6e9fe84a792948845ed471ec9ed38ef6450dfa6fe42a7015b520a817",
     "policy_bundle_ref": "profile:data-director-app@v10",
     "policy_digest": "ab725374b8da40037bf07df8be63675aafa873559965f2c5ac95d8c3cc988be7",
     "requires_human_review": true,

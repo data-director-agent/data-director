@@ -58,6 +58,7 @@ from dd_agent_advisor_documentation.dictionary import (
     unit_codes_statement,
 )
 from dd_agent_advisor_documentation.dictionary import question_id as _question_id
+from dd_agent_advisor_documentation.drafted import drafted, file_format
 from dd_agent_advisor_documentation.prose import (
     Ask,
     Prose,
@@ -133,7 +134,7 @@ LIMITATIONS = (
 class DocumentationEditor:
     spec = AgentSpec(
         agent_id="advisor.documentation",
-        version="0.8.0a1",
+        version="0.8.0a2",
         title="Documentation Editor",
         icon="✍️",
         description=(
@@ -316,7 +317,7 @@ class DocumentationEditor:
             {
                 source: body
                 for source in section.sources
-                if (body := _drafted(source, inventory, requirements, record)) is not None
+                if (body := drafted(source, asked, record)) is not None
             }
             for section in self.sections
         ]
@@ -544,7 +545,7 @@ def _facts(
     files = [
         {
             "path": f.file_path,
-            "format": _format(f.file_media_type, f.file_pronom_ids),
+            "format": file_format(f.file_media_type, f.file_pronom_ids),
             "size_bytes": f.file_size,
             **({"fields": [field_facts(c) for c in f.file_fields]} if f.file_fields else {}),
         }
@@ -573,41 +574,6 @@ def _facts(
             "licences_offered": list(requirements.licences),
         }
     return facts
-
-
-def _drafted(
-    source: str,
-    inventory: FileInventory,
-    requirements: RepositoryRequirements | None,
-    record: Mapping[str, Any] | None,
-) -> str | None:
-    """A section's text drafted from one project fact, or None if there is nothing to draft."""
-    if source.startswith("record_"):
-        return _from_record(source, record) if record is not None else None
-    if source == "files":
-        rows = [
-            (f"`{f.file_path}`", _format(f.file_media_type, f.file_pronom_ids), str(f.file_size))
-            for f in inventory.inventory_files
-        ]
-        return _table(("File", "Format", "Size (bytes)"), rows)
-    if source == "licences":
-        if requirements is None or not requirements.licences:
-            return None
-        offered = ", ".join(f"`{licence}`" for licence in requirements.licences)
-        return f"{requirements.repository_name} offers these licences: {offered}."
-    return None
-
-
-def _format(media_type: str | None, pronom_ids: list[str]) -> str:
-    known = media_type or "unknown"
-    return f"{known} ({', '.join(pronom_ids)})" if pronom_ids else known
-
-
-def _table(header: tuple[str, ...], rows: Sequence[tuple[str, ...]]) -> str:
-    def line(cells: tuple[str, ...]) -> str:
-        return "| " + " | ".join(c.replace("|", "\\|") for c in cells) + " |"
-
-    return "\n".join([line(header), line(tuple("---" for _ in header)), *map(line, rows)])
 
 
 def build() -> DocumentationEditor:

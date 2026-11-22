@@ -352,6 +352,12 @@ def _commitment(fact: ProjectFact) -> str:
     return said + (f" ({', '.join(terms)})" if terms else "")
 
 
+def _standard(fact: ProjectFact) -> str:
+    target = fact.standard_target or "dataset"
+    said = f"standard chosen for the {target.replace(':', ' ')}: {json.dumps(fact.standard_name)}"
+    return said + (f" ({fact.standard_id})" if fact.standard_id else "")
+
+
 _SAYS: dict[FactKind, Callable[[ProjectFact], str]] = {
     FactKind.FUNDER: _funder,
     FactKind.REQUIRED_REPOSITORY: _required,
@@ -359,6 +365,7 @@ _SAYS: dict[FactKind, Callable[[ProjectFact], str]] = {
     FactKind.SENSITIVITY: _sensitivity,
     FactKind.LICENCE: _licence,
     FactKind.SHARING_COMMITMENT: _commitment,
+    FactKind.STANDARD: _standard,
 }
 
 
