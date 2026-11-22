@@ -44,7 +44,8 @@ Answer in your own words. Where the Data Director asks a question with a few kno
 which [entry point](workflow.md#choose-an-entry-point) you mean, the choices appear beneath its
 reply as buttons, or as tick boxes where more than one may apply. You never have to use them: if
 you type a message instead, that is sent as your reply. A series of questions lists your answers
-for you to check after the last one.
+for you to check after the last one. In a text box for a longer answer, Enter starts a new line;
+press Ctrl+Enter (Cmd+Enter on a Mac) to submit the answer, as in the message box.
 
 ### Attaching a file
 

@@ -119,6 +119,16 @@ describe("QuestionSeries, one question", () => {
     );
   });
 
+  it("submits a long text answer on Ctrl+Enter, keeping Enter as a new line", async () => {
+    const { onAnswer } = renderSeries([METHOD]);
+    const area = screen.getByRole("textbox", { name: "Your answer" });
+    await userEvent.type(area, "By survey.{Enter}Twice a year.");
+    expect(onAnswer).not.toHaveBeenCalled();
+    await userEvent.keyboard("{Control>}{Enter}{/Control}");
+    expect(onAnswer).toHaveBeenCalledTimes(1);
+    expect(onAnswer.mock.calls[0]?.[0].given_answers[0].answer_words).toBe("By survey.\nTwice a year.");
+  });
+
   it.each([
     ["a short text question", TITLE, false],
     ["Something else", { ...CHOICE, question_other: true }, true],
