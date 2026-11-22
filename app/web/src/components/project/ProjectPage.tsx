@@ -26,8 +26,7 @@
  * are still shown. Attaching one (`AttachDocumentOffer`) lists it and opens it.
  *
  * A project the page could read becomes the one the app is working in (docs/specs/app.md), so a
- * link to it lands in that project. Its conversations are on the Conversations tab; beneath the
- * documents are only its recently deleted ones, to restore (`DeletedConversations`).
+ * link to it lands in that project. Its conversations are on the Conversations tab.
  */
 
 import "./ProjectPage.css";
@@ -57,7 +56,6 @@ import { AttachedReader } from "./AttachedReader";
 import { DocumentList, FORMER_PANELS, stateOf } from "./DocumentList";
 import { DeleteProject } from "./DeleteProject";
 import { DocumentReader } from "./DocumentReader";
-import { DeletedConversations } from "./DeletedConversations";
 import { ProjectNav } from "./ProjectNav";
 import { ProjectRename } from "./ProjectRename";
 
@@ -307,7 +305,6 @@ export function ProjectPage({
             hrefFor={(id) => hrefFor(id)}
             attachedHrefFor={attachedHref}
           />
-          <DeletedConversations key={projectId} projectId={projectId} onRestored={() => undefined} />
         </div>
         <div className="document-browser-reader">
           <p className="document-browser-back">
