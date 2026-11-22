@@ -8,10 +8,10 @@ for the researcher to review; registering the links stays with the researcher an
 The adviser matches each identifier against `schemes.yaml` and checks an ORCID iD's checksum. Where
 the harness grants it lookup tools, it also looks each well-formed DOI, ORCID iD and ROR id up
 through the tool gateway (`resolve.py`: DataCite then Crossref, ORCID, ROR) and cites the record it
-found. Grant numbers are checked by form only; resolving them is TODO(#953). Each link is decided
-by rule; a summariser
-(`dd_sdk.summary`) then writes a short summary beside them: a model's by default, the rules' own
-with `DD_LINKING_SUMMARISER=template` (`factory.py`).
+found, suggesting a DOI's relation from the type of work its record names
+(`relations.yaml`). Grant numbers are checked by form only; resolving them is TODO(#953). Each
+link is decided by rule; a summariser (`dd_sdk.summary`) then writes a short summary beside them:
+a model's by default, the rules' own with `DD_LINKING_SUMMARISER=template` (`factory.py`).
 """
 
 from __future__ import annotations
@@ -54,7 +54,9 @@ LIMITATIONS = (
     "exist or may belong to another funder.",
     "It does not look up funders, grants or the relations between works; a resolved record says "
     "what an identifier names, not how it relates to the dataset.",
-    "Its relation suggestions are defaults by scheme, not read from what the identifier names.",
+    "A DOI's relation is suggested from the type of work its record names; one not resolved, or "
+    "of a type the adviser does not know, is given IsSupplementTo by default. Either way it is a "
+    "suggestion for the researcher to confirm.",
     "It recognises DOIs, ORCID iDs, ROR ids and grant numbers only; other identifiers, such as "
     "arXiv ids, software heritage ids or accession numbers, are reported as unknown.",
     "Its summary is written by a model from the findings alone unless the template is chosen; "

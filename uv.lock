@@ -37,6 +37,7 @@ members = [
     "data-director-mcp-fairsharing",
     "data-director-mcp-pid",
     "data-director-model-broker",
+    "data-director-registry-cache",
     "data-director-sdk",
     "data-director-subjects",
     "data-director-units",
@@ -1173,6 +1174,7 @@ dependencies = [
     { name = "data-director-mcp-fairsharing" },
     { name = "data-director-mcp-pid" },
     { name = "data-director-model-broker" },
+    { name = "data-director-registry-cache" },
     { name = "data-director-sdk" },
     { name = "data-director-subjects" },
     { name = "data-director-units" },
@@ -1243,6 +1245,7 @@ requires-dist = [
     { name = "data-director-mcp-fairsharing", editable = "mcp-fairsharing" },
     { name = "data-director-mcp-pid", editable = "mcp-pid" },
     { name = "data-director-model-broker", editable = "broker" },
+    { name = "data-director-registry-cache", editable = "registry-cache" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "data-director-subjects", editable = "subjects" },
     { name = "data-director-units", editable = "units" },
@@ -2092,11 +2095,17 @@ dev = [
 ]
 
 [[package]]
+name = "data-director-registry-cache"
+version = "0.1.0a0"
+source = { editable = "registry-cache" }
+
+[[package]]
 name = "data-director-sdk"
 version = "0.2.0a5"
 source = { editable = "sdk" }
 dependencies = [
     { name = "a2a-sdk", extra = ["http-server"] },
+    { name = "data-director-registry-cache" },
     { name = "httpx" },
     { name = "jsonschema" },
     { name = "opentelemetry-sdk" },
@@ -2127,6 +2136,7 @@ tools = [
 requires-dist = [
     { name = "a2a-sdk", extras = ["http-server"], specifier = ">=1.2.2,<2" },
     { name = "anthropic", marker = "extra == 'anthropic'", specifier = ">=1.15.0,<2.9" },
+    { name = "data-director-registry-cache", editable = "registry-cache" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "httpx2", marker = "extra == 'tools'", specifier = ">=2.13" },
     { name = "joserfc", marker = "extra == 'brokers'", specifier = ">=1.0" },

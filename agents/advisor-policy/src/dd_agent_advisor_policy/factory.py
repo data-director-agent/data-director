@@ -13,6 +13,9 @@
   Finder key. Without one, Open Policy Finder is not searched and each run's statement says so.
 - `DD_POLICY_CROSSREF`: `live` (default) asks Crossref which publisher a journal belongs to;
   `off` does not.
+- `DD_REGISTRY_CONTACT`: the operators' contact address (never a person's own), sent to Crossref
+  as `mailto:` in the User-Agent so that it serves the agent from its faster "polite" pool.
+  Unset, no address is sent.
 - `DD_POLICY_RETRIEVAL`: `snapshot` (default) reads the committed copy of FAIRsharing's policy
   records. `live` searches FAIRsharing, which needs an account (`FAIRSHARING_LOGIN`, and
   `FAIRSHARING_PASSWORD` or `FAIRSHARING_PASSWORD_FILE`), and falls back to the snapshot,
@@ -43,7 +46,7 @@ from dataclasses import replace
 
 from dd_agent_advisor_policy.advise import DEFAULT_MAX_LOOKUPS, DEFAULT_MODEL, ModelAdvisor
 from dd_agent_advisor_policy.agent import PolicyAgent
-from dd_agent_advisor_policy.crossref import CrossrefJournals
+from dd_agent_advisor_policy.crossref import CrossrefJournals, contact_from
 from dd_agent_advisor_policy.explain import Explainer, TemplateExplainer
 from dd_agent_advisor_policy.extract import Extractor, ModelExtractor, NoExtractor
 from dd_agent_advisor_policy.live import PolicyLive
@@ -57,6 +60,7 @@ from dd_sdk import serve
 from dd_sdk.credentials import ConfigError, api_key
 from dd_sdk.model import Model, declared
 from dd_sdk.model_provider import configured_model, optional_model
+from dd_sdk.registry.fairsharing import FairsharingClient
 
 SWITCH = "DD_POLICY_ADVISOR"
 OLD_SWITCH = "DD_POLICY_EXPLAINER"
@@ -119,7 +123,8 @@ def build_crossref(env: Mapping[str, str]) -> CrossrefJournals | None:
     choice = (env.get("DD_POLICY_CROSSREF") or "live").strip()
     if choice not in ("live", "off"):
         raise ConfigError(f"DD_POLICY_CROSSREF={choice!r}: expected live or off")
-    return CrossrefJournals() if choice == "live" else None
+    contact = contact_from(env)
+    return CrossrefJournals(contact=contact) if choice == "live" else None
 
 
 def build_policies(env: Mapping[str, str]) -> tuple[Policies, Policies | None]:
@@ -138,7 +143,8 @@ def build_policies(env: Mapping[str, str]) -> tuple[Policies, Policies | None]:
         )
     # Read as a credential, so the password may be a file under $CREDENTIALS_DIRECTORY.
     password = api_key(env, "FAIRSHARING_PASSWORD")
-    return PolicyLive(login=login, password=password), PolicySnapshot()
+    api = FairsharingClient.from_env(env, login=login, password=password, follow_redirects=True)
+    return PolicyLive(api=api), PolicySnapshot()
 
 
 def ror_choice(env: Mapping[str, str]) -> str:

@@ -10,6 +10,9 @@ tool each offers:
 - an ORCID iD: `orcid.get_orcid`;
 - a ROR id: `ror.get_organisation`.
 
+A DOI once found is given the relation that suits the type of work its record names
+(`relations.yaml`); one not found keeps the scheme's default.
+
 Of those the gateway lists for the invocation, each is called with the identifier and answers
 `{"records": [...]}`: one record when found, none when not. The conductor records each record, and
 the link cites exactly the one it was resolved against. A lookup that fails, errors or finds
@@ -22,6 +25,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from dd_agent_advisor_linking import relations
 from dd_agent_advisor_linking.classes import RelatedLink
 from dd_sdk.tools import ToolGatewayError, ToolRecord, Tools, ToolUse, split_name
 
@@ -34,6 +38,10 @@ FORM_ONLY = "Recognised by form only, not resolved."
 NOT_FOUND = "Not found by {servers}: check it for a typing error."
 FAILED = "Could not be looked up through {servers}, so it is recorded by form only."
 RESOLVED = "Found through {server}: check {what}."
+FUNDER = (
+    "Its Crossref Funder ID is {id}: where a repository asks for one, record "
+    "https://doi.org/10.13039/{id} as the funderIdentifier, of type Crossref Funder ID."
+)
 
 
 @dataclass(frozen=True)
@@ -112,20 +120,33 @@ def lookup(tools: Tools, servers: tuple[str, ...], link: RelatedLink) -> Lookup:
             continue
         if outcome.records:
             record = outcome.records[0]
-            title, resource_type = _described(route.scheme, record.content)
-            update = {
-                "resolved": True,
-                "title": title,
-                "resource_type": resource_type,
-                "message": (
-                    f"{RESOLVED.format(server=NAMES.get(server, server), what=route.check)} "
-                    f"{_advice(link)}"
-                ),
-            }
-            return Lookup(link.model_copy(update=update), record)
+            return Lookup(_found(link, route, server, record.content), record)
     if failed and len(failed) == len(servers):
         return Lookup(_noted(link, FAILED.format(servers=_names(failed, "and"))))
     return Lookup(_noted(link, NOT_FOUND.format(servers=_names(servers, "or"))))
+
+
+def _found(link: RelatedLink, route: Route, server: str, content: Mapping[str, Any]) -> RelatedLink:
+    """`link` as the record `server` found describes it. A DOI's relation is suggested from the
+    type of work the record names, where the relation table knows it (relations.py); a ROR id's
+    Crossref Funder ID, where it has one, is added to the advice."""
+    title, resource_type = _described(route.scheme, content)
+    update: dict[str, Any] = {"resolved": True, "title": title, "resource_type": resource_type}
+    advice = _advice(link)
+    if route.scheme == "doi" and (row := relations.for_type(resource_type)) is not None:
+        update["relation"] = row.relation
+        advice = row.advice
+    elif route.scheme == "ror" and (funder := _funder_id(content)):
+        advice = f"{advice} {FUNDER.format(id=funder)}"
+    found = RESOLVED.format(server=NAMES.get(server, server), what=route.check)
+    update["message"] = f"{found} {advice}"
+    return link.model_copy(update=update)
+
+
+def _funder_id(content: Mapping[str, Any]) -> str | None:
+    return _text(content.get("crossref_funder_preferred")) or _text(
+        content.get("crossref_funder_ids")
+    )
 
 
 def _described(scheme: str, content: Mapping[str, Any]) -> tuple[str | None, str | None]:

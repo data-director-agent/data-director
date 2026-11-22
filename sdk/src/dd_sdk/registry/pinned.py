@@ -95,13 +95,16 @@ def problem(registry: Path, snapshot_sha256: str, name: str, pinned: str) -> str
     return None
 
 
-def user_agent(distribution: str, product: str) -> str:
-    """A `User-Agent` that names the project and where to find it, never a person."""
+def user_agent(distribution: str, product: str, contact: str | None = None) -> str:
+    """A `User-Agent` that names the project and where to find it, never a person. `contact`, a
+    deployment's operators' address, is added as `mailto:` for registries that serve identified
+    clients faster; the caller checks it is one plain address."""
     try:
         ours = version(distribution)
     except PackageNotFoundError:
         ours = "unknown"
-    return f"{product}/{ours} (+{PROJECT_URL})"
+    mailto = f"; mailto:{contact}" if contact else ""
+    return f"{product}/{ours} (+{PROJECT_URL}{mailto})"
 
 
 @dataclass(frozen=True)

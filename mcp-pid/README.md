@@ -47,7 +47,12 @@ by one field.
 Only identifiers, and organisation names for `search_organisations`, ever leave the server. It
 never sends research data, the person's details or the project's.
 
-Requests carry a User-Agent naming this server and its source repository, and no e-mail address.
+Requests carry a User-Agent naming this server and its source repository. A deployment may add its
+operators' contact address (`DD_REGISTRY_CONTACT`): the DataCite and Crossref clients then send it
+as `mailto:` in the User-Agent, which moves the server into each one's identified pool (Crossref's
+"polite" pool: 10 lookups a second rather than 5; DataCite: 1,000 requests in 5 minutes per IP
+rather than 500). Use a shared operators' mailbox, never a person's own address and never the
+signed-in researcher's. ORCID and ROR are not sent it. Without it, no e-mail address is sent.
 
 ## Running it
 
@@ -62,6 +67,7 @@ Settings, all from the environment:
 | `DD_PID_ROR` | `dump` (the default): read ROR from the built registry, and ask the API only when the registry cannot be read. `live`: ask the API only. |
 | `DD_PID_ROR_REGISTRY` | The built registry, one ROR organisation per line. In the Data Director this is `agents/advisor-policy/data/ror/registry.jsonl`, built by `uv run dd-sources prepare`. |
 | `DD_PID_ROR_SNAPSHOT` | Which dump the registry was built from, as answers name it (such as `ROR dump v2.15`). |
+| `DD_REGISTRY_CONTACT` | The operators' contact address sent to DataCite and Crossref as `mailto:` (above). Unset or blank: none. Anything but one plain address stops start-up. |
 | `DD_PID_HOSTS` | Comma-separated host names that clients reach the server by, beyond loopback, such as a container's service name. Any other `Host` header is refused (DNS-rebinding protection). |
 
 `GET /healthz` answers when the server is up.

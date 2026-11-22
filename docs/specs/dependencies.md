@@ -97,7 +97,7 @@ no runtime dependency.
 
 | Source | Read by | Route | What a query sends | Licence of what is kept | When it cannot answer |
 |---|---|---|---|---|---|
-| FAIRsharing | Standards, repository and policy advisers; `mcp-fairsharing` | Committed snapshots; the live REST API | A search term or a record identifier | CC BY-SA 4.0, kept with each snapshot (`LICENCE.md`) | The snapshot answers |
+| FAIRsharing | Standards, repository and policy advisers; `mcp-fairsharing` | Committed snapshots; the live REST API, behind a local cache in each adviser (`dd_registry_cache`, [Grounding](grounding.md) invariant 16) | A search term or a record identifier | CC BY-SA 4.0, kept with each snapshot (`LICENCE.md`); the cache keeps records for the adviser's own runs | An expired cached copy, then the snapshot |
 | re3data | Repository adviser (`registry`) | The monthly export, pinned and built locally | Nothing at run time | CC0 | — |
 | DataCite repositories | Repository adviser | Committed snapshot | Nothing at run time | CC0 | — |
 | ROR | Policy adviser (`ror`); `mcp-pid` | The pinned dump; the live API if chosen | An identifier or an organisation name | CC0 | The dump answers |

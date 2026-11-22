@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import httpx
 import pytest
 
 from dd_agent_advisor_standards import rank
@@ -25,7 +26,9 @@ from dd_agent_advisor_standards.fairsharing.snapshot import (
 from dd_agent_advisor_standards.testing import make_conductor, request
 from dd_harness.testing import TEST_PRINCIPAL
 from dd_sdk.contract.models import OutcomeStatus
-from dd_sdk.registry import Query, RegistryUnavailable
+from dd_sdk.registry import Query, RegistryUnavailable, provenance
+from dd_sdk.registry.caching import memory_cache
+from dd_sdk.registry.fairsharing import FairsharingClient
 
 PUBLIC_SHAPE = {
     "fairsharing_data_licence": "https://creativecommons.org/licenses/by-sa/4.0/ ...",
@@ -48,6 +51,20 @@ PUBLIC_SHAPE = {
 }
 
 
+API_SHAPE = {
+    "id": "399",
+    "type": "fairsharing_records",
+    "attributes": {
+        "metadata": PUBLIC_SHAPE["metadata"],
+        "abbreviation": "AGROVOC",
+        "record_type": "terminology_artefact",
+        "fairsharing_registry": "Standard",
+        "subjects": ["Agriculture"],
+        "domains": ["Food"],
+    },
+}
+
+
 def test_public_record_projection_drops_personal_data_and_uses_doi_suffix_as_id() -> None:
     rec = from_public_json(PUBLIC_SHAPE, source_uri="https://fairsharing.org/399")
     assert rec.fairsharing_id == "FAIRsharing.anpj91"
@@ -55,20 +72,43 @@ def test_public_record_projection_drops_personal_data_and_uses_doi_suffix_as_id(
     assert rec.record_type == TERMINOLOGY
     assert rec.subjects == ["Agriculture"] and rec.domains == ["Food"]
     assert "contact" not in json.dumps(rec.model_dump())
-    api_shape = {
-        "id": "399",
-        "type": "fairsharing_records",
-        "attributes": {
-            "metadata": PUBLIC_SHAPE["metadata"],
-            "abbreviation": "AGROVOC",
-            "record_type": "terminology_artefact",
-            "fairsharing_registry": "Standard",
-            "subjects": ["Agriculture"],
-            "domains": ["Food"],
-        },
-    }
     # Both routes hash identically: the evidence hash is route-independent.
-    assert from_api_json(api_shape).content_hash() == rec.content_hash()
+    assert from_api_json(API_SHAPE).content_hash() == rec.content_hash()
+
+
+def test_a_repeated_search_is_answered_from_the_cache_and_an_outage_from_it_stale() -> None:
+    clock, down = [1_000_000.0], [False]
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        if down[0]:
+            raise httpx.ConnectError("no route", request=request)
+        if request.url.path == "/users/sign_in":
+            return httpx.Response(200, json={"jwt": "t"})
+        return httpx.Response(200, json={"data": [API_SHAPE]})
+
+    api = FairsharingClient(
+        httpx.Client(transport=httpx.MockTransport(handle)),
+        login="l",
+        password="p",
+        cache=memory_cache(lambda: clock[0]),
+        now=lambda: clock[0],
+    )
+    backend = LiveBackend(api=api)
+    live = backend.snapshot_ref()
+    refs = []
+    for step in ("live", "cached", "stale"):
+        if step == "stale":
+            clock[0] += 10**7
+            down[0] = True
+        with provenance.observed() as origins:
+            [hit] = backend.search(Query("agriculture"))
+        refs.append(origins.ref(hit.record.fairsharing_id, live))
+    assert [(r.label, r.stale) for r in refs] == [
+        (live.label, False),
+        (provenance.cache_label(live.label), False),
+        (provenance.cache_label(live.label), True),
+    ]
+    assert refs[0].retrieved_at == refs[1].retrieved_at == refs[2].retrieved_at
 
 
 @pytest.mark.vcr

@@ -82,9 +82,7 @@ deployment sets another period, you can bring it back as it was: on **Projects**
 Each conversation in the list beside the open one has a delete button. Confirm in the dialog, and
 the conversation leaves the lists, yours and those of everyone working on its project, and takes
 no new message. You can delete a conversation you started, and the project's owner can delete any
-of its conversations. As with a project, nothing is erased: its turns and runs are kept. Until the
-day the dialog names, you can bring it back as it was: on the project's page, beneath its
-conversations, under **Recently deleted**, select **Restore**.
+of its conversations. As with a project, nothing is erased: its turns and runs are kept.
 
 ## Where you can see it
 

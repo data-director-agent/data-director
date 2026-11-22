@@ -17,10 +17,16 @@ It is read live only. Jisc licenses the data under CC BY-NC-ND 4.0, and the API 
 non-commercial use. No-derivatives rules out the projected registry a snapshot would be built
 into, and Jisc states no rate limit, so there is no snapshot to fall back to: when the route
 fails, the agent says so and carries on with FAIRsharing (docs/specs/dependencies.md).
-TODO(#302): confirm with a key that `funder` is an item type of the new platform, the filter
-fields (`name`, `title`, `issn`) and operators used below, and the answer's shape; the parser
-reads the shape of the Sherpa v2 API, which Jisc says the platform replicates, and keeps any
-field it does not know as it came.
+
+The requests follow Jisc's developer documentation
+(https://openpolicyfinder.jisc.ac.uk/help/developers/api-types/object-retrieval-api): the item
+types, the filter fields (`name` and `acronym` for funders and publishers, `title` and `acronym`
+for journals), the operators (`equals`, `contains word`, `gte`, `lte`), at most three conditions,
+all of which must hold, and the answer's `items`. The table of parameters still lists `format`
+as required while another note says it is ignored, so it is sent. TODO(#302): confirm with a key
+where a funder's record keeps its policies (`POLICY_KEYS`) and record the test fixtures; the
+parser reads the shape of the Sherpa v2 API, which Jisc says the platform replicates, and keeps
+any field it does not know as it came.
 
 Each record is projected to `OpfRecord`, hashed whole under `dd-json-document-v1` like a
 FAIRsharing record. Numbers are kept as strings, since the A2A transport would turn them into
@@ -36,6 +42,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from collections.abc import Sequence
 from datetime import UTC, datetime
@@ -63,6 +70,33 @@ type ItemType = Literal["publication", "publisher", "funder"]
 ITEM_TYPES: tuple[ItemType, ...] = ("publication", "publisher", "funder")
 # Where a record keeps its policies: a journal's publisher policies, or a funder's own.
 POLICY_KEYS = ("publisher_policy", "policies", "policy", "funder_policy")
+# The documented filter field that holds a record's name, and the one that holds its acronym.
+NAME_FIELD: dict[ItemType, str] = {"publication": "title", "publisher": "name", "funder": "name"}
+ACRONYM_FIELD = "acronym"
+# The documented operator that matches a whole word, and the most conditions one filter holds.
+OPERATOR = "contains word"
+MAX_CONDITIONS = 3
+# Words left out of a filter: they say little about which record is meant.
+CONNECTING_WORDS = frozenset(
+    {"a", "an", "and", "at", "de", "der", "des", "du", "et", "for", "für", "in", "of", "on"}
+    | {"the", "to", "und"}
+)
+_WORD = re.compile(r"\w+")
+_ACRONYM = re.compile(r"[A-Z][A-Z0-9]{1,9}")
+
+
+def filter_for(item_type: ItemType, text: str) -> str:
+    """The `filter` of a search for records of `item_type` named `text`: a single word in
+    capitals, such as "NERC", is looked for among acronyms; otherwise up to three of the name's
+    longest words, leaving out connecting words, must each be a whole word of the name. The
+    caller keeps only the records whose names match exactly."""
+    words = _WORD.findall(text)
+    if len(words) == 1 and _ACRONYM.fullmatch(words[0]):
+        return json.dumps([[ACRONYM_FIELD, OPERATOR, words[0]]])
+    telling = [w for w in words if w.casefold() not in CONNECTING_WORDS] or words[:1]
+    longest = sorted(range(len(telling)), key=lambda i: -len(telling[i]))[:MAX_CONDITIONS]
+    field = NAME_FIELD[item_type]
+    return json.dumps([[field, OPERATOR, telling[i]] for i in sorted(longest)], ensure_ascii=False)
 
 
 def _stringified(value: Any) -> Any:
@@ -281,9 +315,9 @@ class OpenPolicyFinder:
         return list(unique.values())
 
     def search(self, item_type: ItemType, text: str, limit: int = SEARCH_LIMIT) -> list[OpfRecord]:
-        """Records of `item_type` whose name (a journal's title) contains every word of `text`."""
-        field = "title" if item_type == "publication" else "name"
-        query = json.dumps([[field, "contains all words", text.strip()]])
+        """Records of `item_type` whose name (a journal's title) has the telling words of `text`
+        (`filter_for`)."""
+        query = filter_for(item_type, text)
         items = self._items(
             RETRIEVE, {"item-type": item_type, "limit": str(limit), "filter": query}
         )
@@ -301,7 +335,7 @@ class OpenPolicyFinder:
         return self.fetch("publication", issn)
 
 
-# --- the route check (TODO(#302)) ------------------------------------------------------------
+# --- the route check, to be run with a key ------------------------------------------------
 
 # Records that should be found, chosen from the pilot workshop's cases (#750, #905).
 CHECKS: tuple[tuple[str, ItemType, str], ...] = (

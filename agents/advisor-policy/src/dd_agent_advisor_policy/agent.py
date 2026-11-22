@@ -39,6 +39,7 @@ from dd_agent_advisor_policy.tools import Lookups
 from dd_sdk.agent import AgentResult, AgentSpec, Derived, RunContext, Setting, abstain, setting
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import Derivation, GroundingMode, InvocationRequest, ReasonCode
+from dd_sdk.registry import provenance
 
 # The setting that decides whether each policy's own text is read.
 POLICY_TEXT = "policy_text"
@@ -118,6 +119,14 @@ class PolicyAgent:
         self.extractor = extractor or NoExtractor()
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
+        # Which copy answered for each FAIRsharing record the live route returned: FAIRsharing
+        # itself or the local cache (docs/specs/grounding.md).
+        with provenance.observed() as origins:
+            return self._run(request, ctx, origins)
+
+    def _run(
+        self, request: InvocationRequest, ctx: RunContext, origins: provenance.Provenance
+    ) -> AgentResult:
         assert isinstance(request.input, PolicyContext)  # the conductor checked spec.accepts
         # What people in the project decided takes precedence over what the caller wrote.
         context = given.with_project(request.input)
@@ -131,6 +140,7 @@ class PolicyAgent:
         found = search.first_search(list(context.actors), self.sources)
         if isinstance(found, AgentResult):
             return found
+        found.origins = origins
         found.emit_spans(ctx)
         texts = reading.read_texts(
             found.matched,

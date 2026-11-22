@@ -25,7 +25,7 @@ package.
 | `dd_sdk.testing` | `FakeModel`, a `Model` for tests that needs no key. |
 | `dd_sdk.credentials` | `api_key(env)`: a model key, read once at start-up, and `ConfigError` ([Policy and identity](../docs/specs/policy-and-identity.md)). |
 | `dd_sdk.sources` | `BuiltSource`, how an agent declares a source copy it builds outside git, and `dd-sources`, which prepares them all ([Evidence and grounding](../docs/specs/grounding.md)). |
-| `dd_sdk.registry` | What agents that read a registry share: `Query`, `Hit`, `SnapshotRef` and `RegistryUnavailable`; the snapshot tokeniser (`registry.tokenise`); the pinned-archive pipeline (`registry.pinned`); and FAIRsharing's sign-in, search and record reads (`registry.fairsharing`). |
+| `dd_sdk.registry` | What agents that read a registry share: `Query`, `Hit`, `SnapshotRef` and `RegistryUnavailable`; the snapshot tokeniser (`registry.tokenise`); the pinned-archive pipeline (`registry.pinned`); FAIRsharing's sign-in, search and record reads (`registry.fairsharing`), through a local cache configured from the agent's environment (`registry.caching`, on [`dd-registry-cache`](../registry-cache/README.md)); and which copy answered for each record a run read (`registry.provenance`). |
 | `dd_sdk.explain` | `Rationale`, `Explanation`, `TemplateExplainer` and `ModelExplainer`, and the check that a model's rationale names only identifiers it was given ([Agents](../docs/specs/agents.md)). |
 | `dd_sdk.summary` | `TemplateSummariser`, `ModelSummariser`, `summarise` and `configured`: the barebones model path of an advisor whose work is otherwise exact, a model's summary beside the rules' findings that changes none of them ([Agents](../docs/specs/agents.md#model-backed-personas)). |
 

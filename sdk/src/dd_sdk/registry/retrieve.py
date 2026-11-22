@@ -9,6 +9,7 @@ answers from a snapshot marked stale. It is not the same as an empty result (R3.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 
@@ -43,12 +44,15 @@ class Hit[R = Any]:
 @dataclass(frozen=True)
 class SnapshotRef:
     """Which copy of a registry answered. It is the evidence's `snapshot_ref`, by which the
-    harness's source check finds its own copy (docs/specs/grounding.md)."""
+    harness's source check finds its own copy (docs/specs/grounding.md). `retrieved_at` is set
+    for an answer from the live route or its local cache: when the registry last sent or
+    confirmed the record, which is the evidence's `retrieved_at`."""
 
     label: str
     stale: bool = False
     fetched_at: str | None = None
     notes: list[str] = field(default_factory=list)
+    retrieved_at: datetime | None = None
 
     def as_string(self) -> str:
         return self.label + (" (stale)" if self.stale else "")

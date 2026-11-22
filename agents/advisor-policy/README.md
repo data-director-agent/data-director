@@ -145,6 +145,11 @@ never taken alone:
   account: `FAIRSHARING_LOGIN`, and `FAIRSHARING_PASSWORD` or `FAIRSHARING_PASSWORD_FILE`.
   `uv run scripts/dd.py setup` writes them when it is given a login. With `live`, the agent
   falls back to the snapshot, marked stale, when the route fails.
+- `DD_REGISTRY_CACHE_DIR`: where the live route keeps its local cache of FAIRsharing's answers
+  (in memory when unset); `DD_REGISTRY_CACHE_TTL_RECORD`, `_SEARCH` and `_MISSING` set how many
+  seconds an answer is used without asking again
+  ([example](../../config/examples/agents.env)). A record from the cache is cited as
+  `fairsharing-policy:cache`, and as stale when FAIRsharing could not be asked.
 - `DD_POLICY_ROR`: `snapshot` (the default) reads the ROR registry built from its pinned dump;
   `live` asks `api.ror.org`, which needs no account, and falls back to that registry, marked
   stale, when the route fails.
@@ -176,8 +181,8 @@ the new file.
 
 Open Policy Finder (`api.openpolicyfinder.jisc.ac.uk`, key in the `x-api-key` header) and
 Crossref's journals API are read live only, labelled `open-policy-finder:live:<date>` and
-`crossref-journals:live:<date>`. Jisc states no licence for the records that would let a copy be
-committed, nor a rate limit (#952). To check the route with a key, run
+`crossref-journals:live:<date>`. Jisc licenses the data under CC BY-NC-ND 4.0 and the API is for
+non-commercial use, so no copy is kept to fall back to; Jisc states no rate limit (#952). To check the route with a key, run
 `uv run python -m dd_agent_advisor_policy.opf check`; `--record <folder>` writes what came back,
 for the test fixtures.
 
@@ -190,9 +195,11 @@ its label is `ror:dump:<version>`. `uv run dd-ror fetch --update-pin` pins the n
 - FAIRsharing's policy records are coarse, and many institutions have none. They have no field
   for embargoes or for when data must be shared; a model can read these from a record's text
   only where the record states them, or from the policy's own page (below).
-- Open Policy Finder's client was written from Jisc's documentation and the Sherpa v2 API's shape,
-  without a key: the `funder` item type, the filter fields and the answer's shape are still to be
-  confirmed, and the test fixtures are hand-written. TODO(#302)
+- Open Policy Finder's client was written without a key. Its endpoints, item types, filter
+  fields and operators follow Jisc's developer documentation: a name is searched by up to three
+  of its words, each a whole word, or a single word in capitals as an acronym, and the agent then
+  keeps only exact matches. Where a funder's record keeps its policies is read in the Sherpa v2
+  API's shape and still to be confirmed, and the test fixtures are hand-written. TODO(#302)
 - Open Policy Finder mostly states open access policy for articles, not data policy. Its
   obligations are marked `scope: publication` unless the text is about data.
 - A quote shows that the record says it; it does not show that the model read it rightly. Each

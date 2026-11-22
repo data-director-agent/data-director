@@ -54,6 +54,19 @@ Docker Compose, with `docker/tools.yaml`) runs the PID resolver, an MCP server t
 DOIs, ORCID iDs and ROR identifiers ([`mcp-pid/README.md`](../../../mcp-pid/README.md)). A VM
 refuses the setting until the server has a unit there.
 
+`DD_REGISTRY_CONTACT` gives Crossref and DataCite an address where they can reach your operators.
+The PID resolver and the policy adviser add it to their User-Agent as `mailto:`, which moves their
+requests into each registry's identified pool: Crossref's "polite" pool allows 10 lookups a
+second rather than 5 ([access and authentication](https://www.crossref.org/documentation/retrieve-metadata/rest-api/access-and-authentication/)),
+and DataCite 1,000 requests in 5 minutes per IP rather than 500 ([rate limit](https://support.datacite.org/docs/rate-limit)).
+Use a shared mailbox for the people who run the deployment, never a person's own address and never
+the signed-in researcher's. It says where the operators are, not what the deployment allows, so it
+is an environment variable rather than a profile key: set it in the PID resolver's environment
+(Docker Compose passes `DD_REGISTRY_CONTACT` from yours) and in the agents' settings file
+(`config/local/agents.env`, or `/etc/data-director/agents.env` on a VM; see
+[`config/examples/agents.env`](../../../config/examples/agents.env)). Unset, no address is sent; a value that is not one plain address
+stops the service at start-up.
+
 The harness needs its `gateway` extra (`data-director-harness[gateway]`) for this file, and an
 agent that calls tools needs the SDK's `tools` extra. A server whose tools have changed is
 unavailable until you review them and pin the new digest: `dd-harness tools pins` prints each
@@ -211,6 +224,7 @@ operator, as before.
 | Each workbench run | `/var/lib/data-director/workbench-runs/` | Apart from the app's runs. |
 | Who is signed in | `/var/lib/data-director/app-sessions/`, `workbench-sessions/` (`DD_SESSIONS_FILE`) | A hash of each session identifier, the person's iD and name, and the session's times; no token. Not backed up. |
 | Model calls | In the run, as `chat` spans with token counts | No key is ever stored. |
+| Records read from a live registry route (FAIRsharing) | Each agent's cache, `/var/cache/data-director-agent-<name>/` (`DD_REGISTRY_CACHE_DIR`; in memory if unset) | Public records only; no token or credential. A record is read again after its time to live (`DD_REGISTRY_CACHE_TTL_RECORD`, `_SEARCH`, `_MISSING`, in seconds; [example](../../../config/examples/agents.env)), and an expired copy answers, marked stale, while the registry is down. Not backed up: `systemctl clean --what=cache data-director-agent@<name>` or `dd-registry-cache clear <file>` empties it. |
 | Problem reports | A public GitHub issue, if a credential is set | Off without a GitHub App (`DD_FEEDBACK_GITHUB_APP_ID` and `DD_FEEDBACK_GITHUB_APP_PRIVATE_KEY_FILE`) or a token (`DD_FEEDBACK_GITHUB_TOKEN`), not both. Either needs Issues: write on one repository and nothing else. |
 
 ## Before you open it to users

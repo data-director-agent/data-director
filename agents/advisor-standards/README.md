@@ -36,7 +36,10 @@ rules chose it, a `rationale`, and `concern` and `notes` where there are any. It
 came from the rules (`lexical`, `template`) or from a model.
 
 Retrieval is the committed snapshot by default. With `DD_STANDARDS_RETRIEVAL=live` it searches
-FAIRsharing and, if that fails, uses the snapshot and marks the snapshot reference stale.
+FAIRsharing through a local cache (`dd_sdk.registry.fairsharing`): a search or record read again
+within its time to live is answered from the cache and cited as `cache`, and an expired copy
+answers, cited as `cache (stale)`, while FAIRsharing cannot be asked. With no cached copy either,
+it uses the snapshot and marks the snapshot reference stale.
 
 ## Configuration
 
@@ -46,6 +49,7 @@ FAIRsharing and, if that fails, uses the snapshot and marks the snapshot referen
 |---|---|---|
 | `DD_STANDARDS_RETRIEVAL` | `snapshot`, or `live` (falls back to the snapshot, marked stale) | `snapshot` |
 | `DD_STANDARDS_EXPLAINER` | `model` or `template` (`anthropic`, the older value, still works) | `model` |
+| `DD_REGISTRY_CACHE_DIR` | the directory for the live route's local cache; `DD_REGISTRY_CACHE_TTL_RECORD`, `_SEARCH` and `_MISSING` set its times to live, in seconds ([example](../../config/examples/agents.env)) | in memory |
 | `DD_STANDARDS_MAX_LOOKUPS` | the most FAIRsharing searches the model may make in one run, 0 to 30 | `4` |
 | `DD_MODEL_PROVIDER` | `anthropic`, `openai`, `gemini` or `openai-compatible` | `anthropic` |
 | `DD_MODEL_ID` | the model the explainer calls; required with any provider but Anthropic | `explain.DEFAULT_MODEL` (`claude-sonnet-5-5`) with Anthropic |

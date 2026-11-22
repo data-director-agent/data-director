@@ -232,6 +232,29 @@ def test_crossref_can_be_turned_off_and_the_lookups_limited() -> None:
     assert isinstance(agent.explainer, ModelAdvisor) and agent.explainer.max_lookups == 0
 
 
+def test_crossref_is_sent_the_operators_contact_address_only_when_one_is_set() -> None:
+    seen: list[httpx.Request] = []
+
+    def keep(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(404)
+
+    for contact in (None, "ops@example.org"):
+        # A given client is identified too: the header is sent with each request.
+        client = httpx.Client(transport=httpx.MockTransport(keep))
+        assert CrossrefJournals(client, contact=contact).by_issn("2052-4463") is None
+    without, with_contact = (r.headers["user-agent"] for r in seen)
+    assert without.startswith("data-director-advisor-policy/") and "mailto:" not in without
+    assert with_contact.startswith("data-director-advisor-policy/")
+    assert "mailto:ops@example.org" in with_contact
+    built = factory.build({**TEMPLATE, "DD_REGISTRY_CONTACT": " ops@example.org "})
+    assert isinstance(built.sources.crossref, CrossrefJournals)
+    assert built.sources.crossref.user_agent == with_contact
+    unset = factory.build({**TEMPLATE, "DD_REGISTRY_CONTACT": ""})
+    assert isinstance(unset.sources.crossref, CrossrefJournals)
+    assert unset.sources.crossref.user_agent == without
+
+
 def test_live_ror_falls_back_to_the_built_dump() -> None:
     agent = factory.build({**TEMPLATE, "DD_POLICY_ROR": "live"})
     assert isinstance(agent.sources.organisations, RorLive)
@@ -279,6 +302,8 @@ def test_the_anthropic_explainer_declares_its_model() -> None:
         {**TEMPLATE, "DD_POLICY_RETRIEVAL": "both"},
         {**TEMPLATE, "DD_POLICY_ROR": "both"},
         {**TEMPLATE, "DD_POLICY_CROSSREF": "maybe"},
+        {**TEMPLATE, "DD_REGISTRY_CONTACT": "not an address"},
+        {**TEMPLATE, "DD_REGISTRY_CONTACT": "ops@example.org)\r\nX-Other: 1"},
         {"DD_POLICY_ADVISOR": "magic"},
         {"DD_POLICY_EXPLAINER": "magic"},
         {"DD_POLICY_EXPLAINER": "anthropic"},

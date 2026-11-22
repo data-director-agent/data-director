@@ -1,0 +1,63 @@
+# advisor.linking's relation table: the DataCite relationType suggested for a DOI once it has been
+# resolved, chosen by what its record says it names (relations.py). A record's `type` is DataCite's
+# resourceTypeGeneral or Crossref's work type, so each row lists both vocabularies' names. The
+# relation reads from the dataset to the work (the dataset IsSupplementTo the article). `relation`
+# is null where the work is not recorded as a related identifier at all. A DOI that was not
+# resolved, or whose type no row lists, keeps the default in schemes.yaml. Every value is in
+# DataCite Metadata Schema 4.6's controlled lists (tests/test_linking_relations.py).
+- relation: IsSupplementTo
+  types:
+    - JournalArticle
+    - Preprint
+    - Book
+    - BookChapter
+    - ConferencePaper
+    - Report
+    - Dissertation
+    - journal-article
+    - posted-content
+    - book
+    - book-chapter
+    - book-part
+    - book-section
+    - edited-book
+    - monograph
+    - proceedings-article
+    - report
+    - dissertation
+  advice: >-
+    It is a publication: IsSupplementTo suits one the data underlie. Choose IsCitedBy or
+    IsReferencedBy if it only uses the data.
+- relation: IsDescribedBy
+  types:
+    - DataPaper
+  advice: >-
+    It is a data paper: IsDescribedBy suits one that describes this dataset.
+- relation: References
+  types:
+    - Software
+    - ComputationalNotebook
+  advice: >-
+    It is software: References suits code used with the data. Choose IsCompiledBy if the software
+    produced the data, or Requires if the data cannot be used without it.
+- relation: References
+  types:
+    - Dataset
+    - dataset
+    - database
+  advice: >-
+    It is a dataset: References suits one this dataset draws on. Choose IsDerivedFrom if it was
+    made from it, IsNewVersionOf if it replaces it, or IsPartOf if it belongs to it.
+- relation: IsReviewedBy
+  types:
+    - PeerReview
+    - peer-review
+  advice: >-
+    It is a peer review: IsReviewedBy suits a review of this dataset.
+- relation: null
+  types:
+    - Award
+    - grant
+  advice: >-
+    It is a grant record: record it as the awardURI of a funding reference, with the funder's name
+    and identifier, rather than as a related identifier.

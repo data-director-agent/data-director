@@ -6,13 +6,13 @@
   (`dd_sdk.registry.fairsharing`); credentials come from `FAIRSHARING_LOGIN` /
   `FAIRSHARING_PASSWORD`, and the sign-in body is filtered from cassettes.
 
-On any transport failure the caller (`StandardsAgent`) falls back to the snapshot and marks the
-snapshot reference stale.
+Both go through the client's local cache. Each record returned is noted with where it came from
+(`dd_sdk.registry.provenance`), for its evidence. When FAIRsharing cannot be asked and the cache
+holds no expired copy either, the caller (`StandardsAgent`) falls back to the snapshot and marks
+the snapshot reference stale.
 """
 
 from __future__ import annotations
-
-import httpx
 
 from dd_agent_advisor_standards.fairsharing.records import (
     PUBLIC_RECORD_URL,
@@ -20,20 +20,17 @@ from dd_agent_advisor_standards.fairsharing.records import (
     from_api_json,
     from_public_json,
 )
-from dd_sdk.registry import Hit, Query, SnapshotRef
+from dd_sdk.registry import Hit, Query, SnapshotRef, provenance
 from dd_sdk.registry.fairsharing import SEARCH, FairsharingClient
 
 
 class LiveBackend:
     name = "live"
 
-    def __init__(
-        self,
-        client: httpx.Client | None = None,
-        login: str | None = None,
-        password: str | None = None,
-    ) -> None:
-        self._api = FairsharingClient(client, login, password)
+    def __init__(self, api: FairsharingClient | None = None) -> None:
+        """`api` is the FAIRsharing client, with its cache; by default one with credentials from
+        the environment and a cache in memory."""
+        self._api = api or FairsharingClient()
 
     def snapshot_ref(self) -> SnapshotRef:
         return SnapshotRef(label="live")
@@ -41,10 +38,13 @@ class LiveBackend:
     def fetch(self, fairsharing_id: str) -> Record | None:
         """A record by its identifier, from the public route (no account)."""
         url = PUBLIC_RECORD_URL.format(id=fairsharing_id)
-        data = self._api.get_json(url)
+        got = self._api.get_json(url)
+        data = got.value
         if data is None or "name" not in data:  # FAIRsharing returns 200-shaped errors as JSON
             return None
-        return from_public_json(data, source_uri=url)
+        record = from_public_json(data, source_uri=url)
+        provenance.note(record.fairsharing_id, got)
+        return record
 
     def search(self, query: Query) -> list[Hit[Record]]:
         """One search (account required), in FAIRsharing's relevance order."""
@@ -55,13 +55,17 @@ class LiveBackend:
         }
         if query.record_type:
             params["record_type"] = query.record_type
-        items = self._api.search(params)
+        got = self._api.search(params)
+        items = got.value
         # The API returns results in its own relevance order and exposes no score; a descending
         # rank position stands in for the lexical score so the ranker can treat both routes alike.
-        return [
+        hits = [
             Hit(
                 record=from_api_json(item, source_uri=f"{SEARCH}?q={query.text}"),
                 lexical_score=float(len(items) - position),
             )
             for position, item in enumerate(items)
         ]
+        for hit in hits:
+            provenance.note(hit.record.fairsharing_id, got)
+        return hits

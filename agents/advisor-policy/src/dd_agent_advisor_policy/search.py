@@ -30,7 +30,7 @@ from dd_agent_advisor_policy.ror import Organisations
 from dd_mcp_pid.ror_records import Organisation
 from dd_sdk.agent import AgentResult, RunContext, abstain
 from dd_sdk.contract.models import ReasonCode
-from dd_sdk.registry import RegistryUnavailable, SnapshotRef
+from dd_sdk.registry import RegistryUnavailable, SnapshotRef, provenance
 from dd_sdk.tracing import retrieval_span
 
 Matched = list[tuple[Actor, list[PolicyRecord]]]
@@ -211,10 +211,17 @@ class FirstSearch:
     opf: OpfStep = field(default_factory=OpfStep)
     records: dict[str, SourceRecord] = field(default_factory=dict)
     organisations: dict[str, Organisation] = field(default_factory=dict)
+    origins: provenance.Provenance = field(default_factory=provenance.Provenance)
 
     @property
     def where(self) -> str:
         return self.snapshot_ref.as_string()
+
+    def fairsharing_ref(self, source_id: str) -> SnapshotRef:
+        """The copy a FAIRsharing record came from: the live route or its local cache, or the
+        snapshot when the live route failed."""
+        ref = self.snapshot_ref
+        return ref if ref.stale else self.origins.ref(source_id, ref)
 
     @property
     def resolved(self) -> list[tuple[Actor, Organisation]]:

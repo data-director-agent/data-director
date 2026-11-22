@@ -145,6 +145,13 @@
         "units/tests"
       ]
     },
+    "registry-cache": {
+      "component": "registry-cache",
+      "release-type": "python",
+      "exclude-paths": [
+        "registry-cache/tests"
+      ]
+    },
     "subjects": {
       "component": "subjects",
       "release-type": "python",
