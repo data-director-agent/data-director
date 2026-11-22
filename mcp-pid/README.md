@@ -39,10 +39,10 @@ by one field.
 
 | Registry | What a query sends | Terms | Limits |
 |---|---|---|---|
-| DataCite | the DOI | metadata [CC0](https://datacite.org/terms-and-conditions/) | no key; rate-limited per IP |
+| DataCite | the DOI | metadata [CC0](https://support.datacite.org/docs/datacite-data-file-use-policy) | no key; rate-limited per IP |
 | Crossref | the DOI | metadata openly available, facts not copyrightable ([terms](https://www.crossref.org/documentation/retrieve-metadata/rest-api/)) | no key; the public pool is rate-limited |
 | ORCID | the iD | public data; ORCID's [public API terms](https://info.orcid.org/public-client-terms-of-service/) | no key for single records |
-| ROR | the identifier, or the name searched for, and only when the dump cannot answer | [CC0](https://ror.org/about/faqs/) | no key; a free client ID raises the limit |
+| ROR | the identifier, or the name searched for, and only when the dump cannot answer | [CC0](https://ror.org/about/faqs/) | no key; client IDs are announced but not yet enforced |
 
 Only identifiers, and organisation names for `search_organisations`, ever leave the server. It
 never sends research data, the person's details or the project's.
