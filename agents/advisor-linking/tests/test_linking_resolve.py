@@ -10,7 +10,7 @@ from typing import Any
 import httpx
 import pytest
 
-from dd_agent_advisor_linking.agent import LinkingAdviser
+from dd_agent_advisor_linking.agent import LinkingAdviser, load_schemes
 from dd_agent_advisor_linking.classes import LinkCandidates, RelatedIdentifiers
 from dd_harness.gateway.config import ToolServer, tools_digest
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
@@ -29,6 +29,14 @@ CROSSREF_DOI = "10.1038/sdata.2016.18"
 ORCID_ID = "0000-0002-1825-0097"
 ROR_ID = "02b5d8509"
 BROKEN = "10.1000/broken"
+# DOIs whose records name other kinds of work: DOI -> (agency, its type for the work).
+TYPED = {
+    "10.5281/zenodo.1": ("DataCite", "Software"),
+    "10.5281/zenodo.2": ("DataCite", "Dataset"),
+    "10.5281/zenodo.3": ("DataCite", "DataPaper"),
+    "10.13039/grant.4": ("Crossref", "grant"),
+    "10.1016/article.5": ("Crossref", "journal-article"),
+}
 ALL = ["datacite", "crossref", "orcid", "ror"]
 ID_FIELD = {"datacite": "doi", "crossref": "doi", "orcid": "orcid", "ror": "id"}
 
@@ -63,8 +71,16 @@ ANSWERS: dict[str, dict[str, Any]] = {
         ],
         "types": ["funder", "government"],
         "status": "active",
+        "external_ids": [{"type": "fundref", "all": ["501100000270"], "preferred": "501100000270"}],
     },
 }
+for _doi, (_agency, _type) in TYPED.items():
+    if _agency == "DataCite":
+        ANSWERS[f"/dois/{_doi}"] = {
+            "data": {"attributes": {"doi": _doi, "types": {"resourceTypeGeneral": _type}}}
+        }
+    else:
+        ANSWERS[f"/works/{_doi}"] = {"message": {"DOI": _doi, "type": _type}}
 
 
 def answer(req: httpx.Request) -> httpx.Response:
@@ -199,3 +215,41 @@ def test_the_limitations_say_which_schemes_were_looked_up(
     assert payload.links[1].resolved is None
     if not granted:
         assert env.tool_retrievals == []
+
+
+@pytest.mark.parametrize(
+    ("doi", "relation"),
+    [
+        ("10.5281/zenodo.1", "References"),
+        ("10.5281/zenodo.2", "References"),
+        ("10.5281/zenodo.3", "IsDescribedBy"),
+        ("10.1016/article.5", "IsSupplementTo"),
+        ("10.13039/grant.4", None),
+    ],
+)
+def test_a_resolved_doi_is_given_the_relation_its_type_of_work_suits(
+    tmp_path: Path, doi: str, relation: str | None
+) -> None:
+    env = run(tmp_path, [doi])
+    [link] = env.payload_as(RelatedIdentifiers).links
+    assert link.resolved is True
+    assert link.resource_type == TYPED[doi][1]
+    assert link.relation == relation
+
+
+def test_a_doi_not_resolved_or_of_an_unknown_type_keeps_the_default_relation(
+    tmp_path: Path,
+) -> None:
+    default = next(s.relation for s in load_schemes() if s.name == "doi")
+    env = run(tmp_path, ["10.1234/unknown", BROKEN, DATACITE_DOI])
+    missing, failed, other = env.payload_as(RelatedIdentifiers).links
+    assert (missing.resolved, failed.resolved, other.resolved) == (False, False, True)
+    assert other.resource_type == "Other"
+    assert [missing.relation, failed.relation, other.relation] == [default] * 3
+
+
+def test_a_funding_organisation_is_offered_its_crossref_funder_id(tmp_path: Path) -> None:
+    env = run(tmp_path, [ROR_ID])
+    [link] = env.payload_as(RelatedIdentifiers).links
+    assert link.resolved is True and link.relation is None
+    assert "https://doi.org/10.13039/501100000270" in link.message

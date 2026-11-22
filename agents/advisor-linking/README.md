@@ -23,8 +23,9 @@ one `RelatedLink` per identifier, with:
 
 - `scheme`: `doi`, `orcid`, `ror`, `grant` or `unknown`;
 - `normalised`: the canonical https form of a DOI, ORCID iD or ROR id;
-- `relation`: a suggested DataCite relationType (`IsSupplementTo` for a DOI), absent where the
-  adviser cannot tell;
+- `relation`: a suggested DataCite relationType for a DOI, chosen from the type of work its record
+  names, or `IsSupplementTo` where it was not resolved; absent for an ORCID iD, a ROR id or a
+  grant number, which are recorded elsewhere in the metadata;
 - `valid`: whether the identifier is well formed for its scheme;
 - `resolved`, `title` and `resource_type`: for a DOI, ORCID iD or ROR id looked up, whether it
   was found and, if so, what it names: a DOI's title and type, a person's name, or an
@@ -52,14 +53,34 @@ in order and the one tool each offers:
 
 | Scheme | Asked of | Tool | Puts on the link |
 |---|---|---|---|
-| DOI | `datacite`, then `crossref` | `get_doi` | the title and resource type |
+| DOI | `datacite`, then `crossref` | `get_doi` | the title and resource type, and a relation suggested from that type |
 | ORCID iD | `orcid` | `get_orcid` | the person's public name, and `Person` |
-| ROR id | `ror` | `get_organisation` | the organisation's name and its first ROR type |
+| ROR id | `ror` | `get_organisation` | the organisation's name and its first ROR type, and its Crossref Funder ID in the advice where it has one |
 
 Each tool answers `{"records": [...]}`: one record when found, none when not. A DOI DataCite did
 not register is asked of Crossref. The harness records each record; the adviser cites the one each
 link was resolved against in `grounded_on` and in the evidence (`dd_sdk.tools.ToolRecord`). The
 code is in `resolve.py`.
+
+### Relations
+
+A found DOI's relation is chosen by `relations.yaml` from its record's type: DataCite's
+`resourceTypeGeneral` or Crossref's work type, so each row lists both. The relation reads from the
+dataset to the work:
+
+| The DOI names | Suggested relation | Advice also offers |
+|---|---|---|
+| A publication (article, preprint, book, chapter, conference paper, report, thesis) | `IsSupplementTo` | `IsCitedBy`, `IsReferencedBy` |
+| A data paper | `IsDescribedBy` | |
+| Software or a computational notebook | `References` | `IsCompiledBy`, `Requires` |
+| A dataset or database | `References` | `IsDerivedFrom`, `IsNewVersionOf`, `IsPartOf` |
+| A peer review | `IsReviewedBy` | |
+| A grant | none: record it as a funding reference's `awardURI` | |
+
+A DOI not found, or of a type no row lists (such as DataCite's `Other`), keeps `IsSupplementTo`
+from `schemes.yaml`. Every value is in DataCite Metadata Schema 4.6's controlled lists, which a
+test checks. The suggestion rests on what the work is, not on how it relates to the dataset, so
+the researcher confirms it.
 
 A lookup that errors, fails or finds nothing is never raised: the link says `resolved: false`, with
 the reason in `message`. A scheme with no granted tool is checked by form only, and `limitations`
@@ -73,8 +94,8 @@ nothing without one.
 
 - It checks grant numbers by form only, so a well-formed one may not exist or may belong to
   another funder; `limitations` says so on every run. Resolving them is TODO(#953).
-- It does not look up funders or the relations between works, and its relation suggestions are
-  defaults by scheme.
+- It does not look up funders or read the relations works record between themselves; a DOI's
+  relation is suggested from the type of work alone.
 - It recognises no other identifier, such as an arXiv id or an accession number.
 
 ## Summary
