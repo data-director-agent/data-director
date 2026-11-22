@@ -196,11 +196,9 @@ What differs from the command on disk:
   **Describe a folder…** advises the command before describing a folder with a file of 4 GB or
   more, and describes it only if the researcher goes on
   (`app/web/src/components/inventory/LargeFileNotice.tsx`).
-- **Browsers.** CI runs the scanner, and the app's **Describe a folder…** from choosing to
-  attaching, in Playwright's Chromium, Firefox and WebKit (the engine of Safari). Firefox and
+- **Browsers.** CI runs the scanner in Playwright's Chromium, Firefox and WebKit (the engine of
+  Safari), and the app's **Describe a folder…**, from choosing to attaching, in Chromium. Firefox and
   WebKit have no `showDirectoryPicker`, so they always take a folder through `webkitdirectory` or
   a drop. WebKit's `webkitdirectory` offers no hidden file or folder, so the command never sees
   them and its inventory leaves out the sentence saying they were skipped; the files it describes
-  are the same. The app's accessibility check of the dialog runs in Chromium and WebKit only: in
-  Playwright's Firefox, axe crashes the page after a `getByRole("region")` query, with or without
-  a scan.
+  are the same.

@@ -189,10 +189,12 @@ conversation until your next message.
 
 ## Following a run in more detail
 
-- The **activity log**, in the workspace, lists each step of each run since you opened the page:
-  the stages, each check's report, tool calls and the agents delegated to, each linked to its
-  record. The server keeps a run's record, not its events, so the log only holds what this tab has
-  seen.
+- The **activity log**, a page of its own in the main navigation, lists every run Data Director
+  has recorded for you, newest first, with its outcome and a link to its record. For the runs you
+  sent from this tab since you opened it, it also shows each step: the stages, each check's
+  report, tool calls and the agents delegated to, each linked to its record. The server keeps a
+  run's record, not its steps, so after a reload or in another tab you see the runs and their
+  outcomes, not their steps.
 - A delegated agent's card in the conversation opens its own record, with its outcome, its result
   and the evidence it rests on.
 - Every run, including cancelled and failed ones, is recorded

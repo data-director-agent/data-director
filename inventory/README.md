@@ -48,7 +48,7 @@ says how.
 It looks for possible personal data in what it already reads: the values of each table's sampled
 rows, column by column; field, file and folder names; and `.txt` and `.md` files of at most
 256 KB ([Personal data and disclosure control](https://github.com/data-director-agent/data-director/blob/main/docs/specs/personal-data.md)).
-The detector is [Presidio](https://github.com/microsoft/presidio) with its pattern recognisers
+The detector is [Presidio](https://github.com/data-privacy-stack/presidio) with its pattern recognisers
 only, with the UK ones on (National Insurance number, NHS number, postcode, passport, driving
 licence) and phone numbers read as UK numbers, plus a keyword table for names. It runs offline
 and loads no language model, so names and places are looked for in column headers and names, not

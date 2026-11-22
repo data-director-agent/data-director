@@ -7,9 +7,9 @@ id: https://w3id.org/data-director/agents/fairness
 name: dd_agent_advisor_fairness
 title: advisor.fairness classes
 description: >-
-  What a researcher says about a dataset that is already published, and the FAIR Assessor's
-  checks of that description in reply.
-version: 0.1.0
+  What a researcher says about a dataset that is already published, or the project's draft
+  metadata record, and the FAIR Assessor's checks and feedback in reply.
+version: 0.2.0
 license: MIT
 
 prefixes:
@@ -42,17 +42,45 @@ classes:
       - related_identifiers
       - access_protocol
 
+  ProjectMetadataDraft:
+    description: >-
+      A request for feedback on the project's metadata record while it is drafted, at any point
+      in the work. In a project the conductor gives the latest version of the record and the
+      version a person approved last (GivenProjectMetadataRecord); outside one, the caller sends
+      the record's text as draft_text.
+    mixins:
+      - GivenProjectMetadataRecord
+    slots:
+      - schema_class
+      - draft_text
+
   FairnessReport:
     description: >-
       The payload of advisor.fairness: which of a short list of FAIR-related checks the record
-      meets, with a suggestion for each that it does not. It is advisory and changes no record
-      (R9, R12); the researcher decides what to submit to the repository.
+      meets, what is already met first, a tally of the checks for each of F, A, I and R, the next
+      steps most worth taking, and a suggestion for each check not met. For a draft it also says
+      which checks are newly met since the version a person approved last. A tally is a count of
+      presence checks, not a FAIR score (R4). It is advisory and changes no record (R9, R12); the
+      researcher decides what to change.
     mixins:
       - Grounded
     slots:
       - schema_class
       - checks
+      - principle_tallies
+      - next_steps
+      - assessed_version
+      - compared_with
       - limitations
+
+  PrincipleTally:
+    description: >-
+      How many of the checks bearing on one FAIR principle the record meets, of those assessed.
+      A count of presence checks, not a score.
+    slots:
+      - principle_group
+      - tally_met
+      - tally_assessed
 
   FairCheck:
     description: One check of the record against a FAIR sub-principle.
@@ -60,6 +88,8 @@ classes:
       - principle
       - check
       - met
+      - after_deposit
+      - newly_met
       - recommendation
       - recommendation_derivation
 
@@ -115,3 +145,63 @@ slots:
       How the recommendation came about: template, the rule table's own text, or model, where a
       model wrote it for this record. Absent when the check is met.
     range: Derivation
+  draft_text:
+    description: >-
+      The text of a metadata record in DataCite's JSON form, sent by a caller outside a project.
+      In a project the conductor's project_metadata_draft is read instead.
+  after_deposit:
+    description: >-
+      True when a draft does not meet the check because the repository supplies what it checks
+      at deposit, such as the DOI and how the data are accessed. Such a check is not counted as
+      assessed and has no recommendation.
+    range: boolean
+  newly_met:
+    description: >-
+      Whether the draft meets the check and the version a person approved last did not. Absent
+      when there is no approved version to compare with.
+    range: boolean
+  principle_tallies:
+    description: A tally for each of F, A, I and R, in that order.
+    range: PrincipleTally
+    multivalued: true
+    inlined_as_list: true
+  next_steps:
+    description: >-
+      The identifiers of the one or two checks not met that are most worth acting on now, best
+      first, ranked by the rule table's priority.
+    multivalued: true
+  assessed_version:
+    description: The version of the project's metadata record assessed, for a draft.
+    range: DocumentVersionRef
+    inlined: true
+  compared_with:
+    description: >-
+      The version a person approved last, which newly_met compares with. Absent when none was
+      approved, or when it is the version assessed.
+    range: DocumentVersionRef
+    inlined: true
+  principle_group:
+    description: The FAIR principle, by its letter.
+    range: FairPrinciple
+    required: true
+  tally_met:
+    description: How many of the principle's assessed checks the record meets.
+    range: integer
+    required: true
+  tally_assessed:
+    description: How many of the principle's checks were assessed.
+    range: integer
+    required: true
+
+enums:
+
+  FairPrinciple:
+    permissible_values:
+      F:
+        description: Findable.
+      A:
+        description: Accessible.
+      I:
+        description: Interoperable.
+      R:
+        description: Reusable.

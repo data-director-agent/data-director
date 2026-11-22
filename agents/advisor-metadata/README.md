@@ -53,7 +53,9 @@ Every value left `null` is a gap with one question in `document_questions`
 (`questions.py`). The question names the value by its path in the record (`gap_property`, such as
 `titles[0].title` or `subjects[1].subject`), and its identifier is derived from that path, so it
 is the same in every draft. Its text is the rule table's `ask` for the property, with the
-qualifiers the repository asks for.
+qualifiers the repository asks for. The question about `subjects` also names the controlled
+vocabularies, ontologies and terminologies people in the project chose for the dataset
+(`standard` project facts, `chosen.py`, #1391), so that the researcher answers from them.
 
 Where the data were collected (`geoLocations`) is asked in two steps (`location.py`, #1073),
 because a precise location can expose people, private land or protected species. First, the
@@ -101,7 +103,7 @@ Its grounding mode is `input_only`: it cites only its input. The core `Document`
 - It fills no property that only the researcher can, such as the title or licence, except from
   their recorded answers, and fills creators, subjects and funding only from what researchers kept
   from their ORCID records.
-- It uses no controlled vocabularies, and does not split names into given and family names:
+- It takes no terms from a controlled vocabulary, even one the project chose, and does not split names into given and family names:
   TODO(#703).
 - It does not map a record between schemas (R6), or write Figshare's own item format (#383):
   TODO(#703).

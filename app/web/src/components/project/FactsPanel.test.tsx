@@ -160,6 +160,41 @@ describe("FactsPanel", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(/Removed:/);
   });
 
+  it("confirms a standard the standards advisor proposed, for what it was proposed for", async () => {
+    const standard: ProjectFact = {
+      fact_kind: "standard",
+      fact_subject: "field:species Darwin Core",
+      standard_name: "Darwin Core",
+      standard_id: "https://doi.org/10.25504/FAIRsharing.xvf5y3",
+      standard_kind: "controlled_vocabulary",
+      standard_target: "field:species",
+      proposed_because: "Recommended by the Standards Librarian; choose it if you will use it.",
+    };
+    const offered: ProjectFacts = {
+      proposals: [
+        {
+          proposal: "01900000-0000-7000-8000-0000000000d1",
+          agent_id: "advisor.standards",
+          proposed_at: "2026-11-22T10:00:00Z",
+          fact: standard,
+        },
+      ],
+      decisions: [],
+    };
+    const decideFact = vi.fn<FactsApi["decideFact"]>(() => Promise.resolve(DECIDED));
+    const { container } = renderPanel({ facts: () => Promise.resolve(offered), decideFact });
+    const user = userEvent.setup();
+
+    const card = await proposalCard(/Use Darwin Core for the field species/);
+    expect(await axe(container)).toHaveNoViolations();
+    await user.click(within(card).getByRole("button", { name: "Confirm" }));
+
+    expect(decideFact).toHaveBeenCalledWith(PROJECT, {
+      verdict: "confirmed",
+      proposal: offered.proposals[0]?.proposal,
+    });
+  });
+
   it("shows the plan's words for a sharing commitment and keeps them in a correction", async () => {
     const commitment: ProjectFact = {
       fact_kind: "sharing_commitment",

@@ -49,8 +49,6 @@ one without an advisor's shortlist; the same query always gives the same answer.
 
 from __future__ import annotations
 
-import hashlib
-import json
 import logging
 import re
 from collections.abc import Mapping, Sequence
@@ -60,6 +58,9 @@ from typing import Any, Protocol
 
 import yaml
 
+# Re-exported: callers import the loader and its error from here.
+from dd_harness.source_files import RecordsFile as RecordsFile
+from dd_harness.source_files import SourceConfigError as SourceConfigError
 from dd_sdk.contract.models import (
     RE3DATA_ID_PATTERN,
     TOOL_SOURCE_PREFIX,
@@ -92,46 +93,8 @@ _URL_PREFIX = re.compile(r"^(?:https?://)?(?:www\.)?", re.IGNORECASE)
 log = logging.getLogger(__name__)
 
 
-class SourceConfigError(Exception):
-    """`sources.yaml` is malformed, or a file it lists does not match its pin, or is missing and
-    names no command that builds it."""
-
-
 class Resolver(Protocol):
     def record(self, source_id: str) -> dict[str, Any] | None: ...
-
-
-@dataclass(frozen=True)
-class RecordsFile:
-    """The records of one pinned file, indexed by `id_field`."""
-
-    records: Mapping[str, dict[str, Any]]
-
-    @classmethod
-    def load(cls, path: Path, id_field: str, sha256: str) -> RecordsFile:
-        try:
-            raw = path.read_bytes()
-        except OSError as exc:
-            raise SourceConfigError(f"source file {path}: {exc}") from None
-        actual = hashlib.sha256(raw).hexdigest()
-        if actual != sha256:
-            raise SourceConfigError(
-                f"source file {path} has sha256 {actual}, not the pinned {sha256}"
-            )
-        text = raw.decode("utf-8")
-        if text.lstrip().startswith("["):
-            rows = json.loads(text)
-        else:
-            rows = [json.loads(line) for line in text.splitlines() if line.strip()]
-        index: dict[str, dict[str, Any]] = {}
-        for row in rows:
-            if not isinstance(row, dict) or not isinstance(row.get(id_field), str):
-                raise SourceConfigError(f"source file {path}: a record has no string {id_field!r}")
-            index[row[id_field]] = row
-        return cls(records=index)
-
-    def record(self, source_id: str) -> dict[str, Any] | None:
-        return self.records.get(source_id)
 
 
 @dataclass(frozen=True)

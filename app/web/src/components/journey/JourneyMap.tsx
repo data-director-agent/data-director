@@ -25,9 +25,23 @@ export const STATE_WORDS: Record<StationState, string> = {
   open: "Not started",
 };
 
+/** A step's state in words. A step out of scope says so, unless the intake skipped it as the
+ * branch of a decision not taken (dd_sdk.intake), when it says it is skipped. */
+export function stateWords(step: Station["step"], state: StationState): string {
+  if (!step.out_of_scope) return STATE_WORDS[state];
+  return state === "skipped" ? "Skipped, not in this version" : "Not in this version";
+}
+
+/** The stop's state classes: an out-of-scope step keeps its own look, and is struck through when
+ * skipped. */
+function stateClasses(step: Station["step"], state: StationState): string {
+  if (!step.out_of_scope) return `is-${state}`;
+  return state === "skipped" ? "is-out-of-scope is-skipped" : "is-out-of-scope";
+}
+
 /** The stop's state, and what else is true of it, as one phrase for its accessible name. */
 export function stationSummary(station: Station): string {
-  const parts = [station.step.out_of_scope ? "Not in this version" : STATE_WORDS[station.state]];
+  const parts = [stateWords(station.step, station.state)];
   if (station.step.optional) parts.push("optional");
   if (station.suggested) parts.push("suggested next");
   if (station.waiting) parts.push("waiting on you");
@@ -119,7 +133,7 @@ export function JourneyMap({
                       key={item.step.id}
                       className={[
                         "journey-station",
-                        `is-${item.step.out_of_scope ? "out-of-scope" : item.state}`,
+                        stateClasses(item.step, item.state),
                         item.step.optional && "is-optional",
                         item.suggested && "is-suggested",
                         item.waiting && "is-waiting",

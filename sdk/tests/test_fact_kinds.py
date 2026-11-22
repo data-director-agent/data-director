@@ -1,5 +1,7 @@
 """A project fact has what its kind needs (docs/specs/projects.md, invariant 28): a sharing
-commitment read from a plan names the passage it rests on and the document that holds it (#962)."""
+commitment read from a plan names the passage it rests on and the document that holds it (#962),
+and a standard chosen names the standard, and what it is chosen for only as the dataset or one
+field (#1391)."""
 
 from __future__ import annotations
 
@@ -46,3 +48,41 @@ def test_where_and_how_a_commitment_shares_are_optional() -> None:
         if not k.startswith(("commitment_r", "commitment_a", "commitment_l"))
     }
     assert ProjectFact.model_validate(bare).commitment_repository is None
+
+
+STANDARD: dict[str, Any] = {
+    "fact_kind": "standard",
+    "fact_subject": "Darwin Core",
+    "standard_name": "Darwin Core",
+    "standard_id": "https://doi.org/10.25504/FAIRsharing.xvf5y3",
+    "standard_kind": "metadata_standard",
+    "standard_target": "dataset",
+}
+
+
+def test_a_standard_names_what_was_chosen() -> None:
+    fact = ProjectFact.model_validate(STANDARD)
+    assert fact.fact_kind == FactKind.STANDARD
+    assert set(FACT_NEEDS[FactKind.STANDARD]) <= fact.model_fields_set
+
+
+def test_a_standard_without_its_name_is_refused() -> None:
+    with pytest.raises(ValidationError):
+        ProjectFact.model_validate({**STANDARD, "standard_name": None})
+
+
+@pytest.mark.parametrize("target", ["dataset", "field:species"])
+def test_a_standard_is_chosen_for_the_dataset_or_one_field(target: str) -> None:
+    assert ProjectFact.model_validate({**STANDARD, "standard_target": target}).standard_target
+
+
+@pytest.mark.parametrize("target", ["field:", "table", "species"])
+def test_a_standard_chosen_for_anything_else_is_refused(target: str) -> None:
+    with pytest.raises(ValidationError):
+        ProjectFact.model_validate({**STANDARD, "standard_target": target})
+
+
+def test_only_its_name_is_needed() -> None:
+    """A researcher may state a standard by name alone, with no registry record."""
+    bare = {"fact_kind": "standard", "fact_subject": "ISO 8601", "standard_name": "ISO 8601"}
+    assert ProjectFact.model_validate(bare).standard_kind is None

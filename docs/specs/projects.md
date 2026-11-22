@@ -137,7 +137,10 @@ intended design, and each part says where it is not built yet.
    invariant 20; #1374). A `DraftRequest`'s `project_documents` are the documents a researcher attached, each with its
    text, replacing what the caller sent. An agent's own input class asks for the same by mixing
    in `GivenProjectDocuments` (`project_documents`), `GivenProjectDecisions`
-   (`project_decisions`) or `GivenProjectRepository` (`project_repository`); an agent that reads
+   (`project_decisions`), `GivenProjectRepository` (`project_repository`) or
+   `GivenProjectMetadataRecord` (`project_metadata_draft`, the latest version of the project's
+   metadata record whatever its state, and `project_metadata_approved`, the version a person
+   approved last, as a `DraftRequest`'s `metadata_record` is; #432); an agent that reads
    the documents it is given also says so in its card's `reads_attached` ([Agents](agents.md),
    invariant 12): where the accepted schema on the agent's card declares the slot, the
    conductor fills it as it fills a `DraftRequest`'s, by slot name and never by the class's name,
@@ -148,7 +151,9 @@ intended design, and each part says where it is not built yet.
    when asked nothing else, `advisor.rights` takes a decided licence as the mandated licence and a
    decision to withhold or generalise as saying the data are sensitive, and `advisor.policy` looks
    up each decided funder's policy. Each takes a person's decision over what its caller wrote
-   (each agent's `given.py`).
+   (each agent's `given.py`). `advisor.fairness` gives feedback on the metadata record this way,
+   at any point in the work and for no step of its own
+   (`harness/tests/test_project_metadata_record_given.py`).
    Filling any other class is not built yet.
 7. **The conductor fills `project_id`.** The request and the envelope carry an optional
    `project_id`, which the conductor takes from the conversation and a caller cannot set. A
@@ -165,7 +170,7 @@ intended design, and each part says where it is not built yet.
    else before it is sent, with a Problem Details response, and records the refusal. The key is
    `hosted_models` (`dd_harness.policy`). A `DraftRequest`'s inventory, a plain `FileInventory`
    and a `Message`'s `project_inventory` are `inventory`; a metadata record, the version a
-   drafter regenerates, a person's answers and the `project_documents` of a `DraftRequest` or an agent's own class are
+   drafter regenerates, a person's answers, the `project_documents` of a `DraftRequest` or an agent's own class and the `project_metadata_draft` and `project_metadata_approved` of an agent's own class are
    `documentation`; a `Message`'s `project_researchers` and a `DraftRequest`'s `researchers` are
    `researcher`; the `project_decisions` of any of these, and the `project_repository` of a
    `Message` or an agent's own class, a researcher's choice, are `decisions`; a repository's
@@ -360,7 +365,9 @@ intended design, and each part says where it is not built yet.
     management plan makes (`sharing_commitment`: the output, where, how openly and under what
     licence, one repository to a commitment, so that a plan naming several for one output gives
     a commitment for each, its subject carrying the repository, with the plan's own words in `commitment_quote` and the digest of the attached
-    document's text that holds them in `commitment_document`, both required). A succeeded run's proposals are
+    document's text that holds them in `commitment_document`, both required), or a standard,
+    vocabulary, ontology or format chosen for the dataset or one field of its tables (`standard`:
+    its name, required, its identifier, its kind and what it is for, #1391). A succeeded run's proposals are
     `fact_proposed` events, one each, caused by the run and naming its agent, from a payload of
     any class (`dd_harness.project_effects`); they are checked before anything is written and
     recorded only once the run's draft is kept, so a run that fails leaves none. A person decides each as a `fact_decided` event:
@@ -381,7 +388,11 @@ intended design, and each part says where it is not built yet.
     (`GET /api/projects/{project_id}/facts`, `READ`; `POST …/facts/decisions`, `CONTRIBUTE`, or
     `DECIDE` for `sensitivity` and `licence`). A sharing commitment is shown with the plan's words
     and is only proposed, never stated, since it quotes the plan; the DMP Checker compares only
-    those a person decided ([Agents](agents.md)) (`dd_harness.testing.storage`,
+    those a person decided ([Agents](agents.md)). The Standards Librarian proposes each standard it
+    recommends; a person confirms the ones they will use and rejects the others, and only those
+    confirmed, or stated by a person, reach the Metadata Librarian, which names the vocabularies
+    chosen for the dataset in its question about subjects, and the Documentation Editor, which
+    lists every standard chosen in the README's Variables section (`dd_harness.testing.storage`,
     `harness/tests/test_project_decisions.py`, `app/tests/test_project_facts.py`,
     `app/web/src/components/project/FactsPanel.test.tsx`).
 29. **Deleting a conversation is an event in its project's log, not a removal.** A conversation

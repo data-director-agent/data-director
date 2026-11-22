@@ -1,6 +1,5 @@
 /**
- * Describe a folder… in the built shell, with the real browser scanner (#554), in Chromium, Firefox
- * and WebKit: a folder whose files hold a canary string is described in the browser, its inventory
+ * Describe a folder… in the built shell, with the real browser scanner (#554), in Chromium: a folder whose files hold a canary string is described in the browser, its inventory
  * checked and added to the project from Make an inventory in its panel; and the same folder
  * described again under Edit inventory, as a new scan of the project's inventory, which is then
  * saved. The canary must be in no request the page makes, so in no body the app's API is sent.
@@ -10,7 +9,8 @@
  * server then serves at /inventory-bundle/ (vite.config.ts). Chromium's own directory picker
  * cannot be driven by a test, so it is hidden and the folder is chosen with the
  * `<input webkitdirectory>` the dialog falls back to; the picker's route is unit tested
- * (DescribeFolder.test.tsx).
+ * (DescribeFolder.test.tsx). The scanner itself is run in Firefox and WebKit by inventory/browser's
+ * own browser tests, which take a folder the same way.
  */
 
 import { cpSync, existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -64,7 +64,7 @@ function expectNoCanary(requests: Request[], baseURL: string | undefined) {
   }
 }
 
-/** Offer the folder input Firefox and WebKit use, as Chromium's picker cannot be driven (above). */
+/** Offer the folder input browsers without a picker use, as Chromium's cannot be driven (above). */
 async function withoutDirectoryPicker(page: Page) {
   await page.addInitScript(() => {
     delete (Window.prototype as { showDirectoryPicker?: unknown }).showDirectoryPicker;
@@ -117,7 +117,6 @@ async function serveProjectPanel(page: Page) {
 test("a folder is described in the browser and none of its content leaves it", async ({
   page,
   baseURL,
-  browserName,
 }) => {
   test.setTimeout(150_000);
   const requests: Request[] = [];
@@ -137,9 +136,7 @@ test("a folder is described in the browser and none of its content leaves it", a
   await describe.locator('input[type="file"]').setInputFiles(folder);
 
   await expect(describe.getByRole("progressbar")).toBeVisible();
-  // In Playwright's Firefox, axe crashes the page once `getByRole("region")` has been queried, with
-  // or without a scan running, so the dialog's accessibility is checked in Chromium and WebKit.
-  if (browserName !== "firefox") expect(await axeViolations(page)).toEqual([]);
+  expect(await axeViolations(page)).toEqual([]);
   expect((await worker).headers()["content-security-policy"]).toBe(WORKER_POLICY);
 
   const review = page.getByRole("dialog", { name: "Check the inventory before attaching it" });

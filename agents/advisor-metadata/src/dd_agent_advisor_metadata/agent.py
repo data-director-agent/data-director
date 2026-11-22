@@ -17,7 +17,8 @@ the licences the repository accepts, when its requirements list them. Where a mo
 (`factory.py`), it suggests values for some questions, beside the question and never in the
 record (`suggest.py`); the record's text is the rule's either way. Where the data were collected
 is asked in two steps: whether the location may be published, and at what precision, and only
-then the place (`location.py`, #1073).
+then the place (`location.py`, #1073). The question about the subjects names the vocabularies the
+project chose for the dataset (`chosen.py`, #1391).
 
 It reads the DataCite JSON form from `datacite.yaml`. It consults no source, uses no controlled
 vocabulary and maps nothing between schemas (R6), so its grounding mode is `input_only` and it
@@ -35,7 +36,7 @@ from typing import Any
 
 import yaml
 
-from dd_agent_advisor_metadata import location
+from dd_agent_advisor_metadata import chosen, location
 from dd_agent_advisor_metadata.questions import (
     Gap,
     answers_by_question,
@@ -127,7 +128,7 @@ def load_form(path: Path = DATACITE_FORM) -> dict[str, Form]:
 class MetadataLibrarian:
     spec = AgentSpec(
         agent_id="advisor.metadata",
-        version="0.2.0a1",
+        version="0.2.0a2",
         title="Metadata Librarian",
         icon="🏷️",
         description=(
@@ -238,6 +239,9 @@ class MetadataLibrarian:
                 f"{prompts.get(LICENCE_PROPERTY) or 'Under what licence is the dataset shared?'} "
                 f"{requirements.repository_name} accepts: {', '.join(requirements.licences)}."
             )
+        prompts[chosen.SUBJECTS] = chosen.subjects_prompt(
+            prompts.get(chosen.SUBJECTS), asked.project_decisions
+        )
         answers = answers_by_question(asked.draft_answers)
         located = location.located_fields(asked.inventory)
         by_project = location.decided(asked.project_decisions, located)

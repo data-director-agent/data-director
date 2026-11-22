@@ -1140,7 +1140,8 @@
             "file_inclusion",
             "sensitivity",
             "licence",
-            "sharing_commitment"
+            "sharing_commitment",
+            "standard"
          ],
          "title": "FactKind",
          "type": "string"
@@ -1373,6 +1374,36 @@
             }
          },
          "title": "GivenProjectDocuments",
+         "type": "object"
+      },
+      "GivenProjectMetadataRecord": {
+         "additionalProperties": false,
+         "description": "Mixed into an agent's own input class when the agent reads the project's metadata record: its latest version, whatever its state, and the version a person approved last. In a project the conductor fills project_metadata_draft and project_metadata_approved by these names and never needs to know the input class (docs/specs/projects.md, invariant 6); outside one, the caller sends them.",
+         "properties": {
+            "project_metadata_draft": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/CurrentVersion"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The latest version of the project's metadata record, proposed, approved or rejected, with its text and state. In a project the conductor fills it and a caller leaves it out. Absent when the project holds no metadata record."
+            },
+            "project_metadata_approved": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/ApprovedMetadataRecord"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The version of the project's metadata record a person approved last. In a project the conductor fills it and a caller leaves it out. Absent when no version has been approved."
+            }
+         },
+         "title": "GivenProjectMetadataRecord",
          "type": "object"
       },
       "GivenProjectRepository": {
@@ -2629,16 +2660,36 @@
                      "commitment_document"
                   ]
                }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "standard"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "standard_name": {}
+                  },
+                  "required": [
+                     "standard_name"
+                  ]
+               }
             }
          ],
-         "description": "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, or an output a data management plan committed to share (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because.",
+         "description": "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, an output a data management plan committed to share, or a standard, vocabulary or format the researcher chose for the dataset (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because.",
          "properties": {
             "fact_kind": {
                "$ref": "#/$defs/FactKind",
                "description": "What the fact is about, which says which value slots apply."
             },
             "fact_subject": {
-               "description": "The key a decision counts by within its kind: the funder's identifier or name, the repository's re3data identifier or name, the file's path, the field or path judged sensitive, or licence. The last decision on a kind and subject stands.",
+               "description": "The key a decision counts by within its kind: the funder's identifier or name, the repository's re3data identifier or name, the file's path, the field or path judged sensitive, licence, or the standard chosen and what it is chosen for. The last decision on a kind and subject stands.",
                "pattern": "\\S",
                "type": "string"
             },
@@ -2783,6 +2834,40 @@
             "commitment_document": {
                "description": "For a sharing commitment, the digest of the attached document's text (its documentation_digest) the quote is from.",
                "pattern": "^[0-9a-f]{64}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "standard_name": {
+               "description": "For a standard fact, the name of the standard, vocabulary, ontology or format chosen, as its registry record or the researcher gives it.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "standard_id": {
+               "description": "For a standard fact, a persistent identifier of the standard, as a URL, such as its FAIRsharing DOI, where it is known.",
+               "format": "uri",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "standard_kind": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/StandardKind"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "For a standard fact, what kind of standard was chosen, where it is known."
+            },
+            "standard_target": {
+               "description": "For a standard fact, what the standard is chosen for: dataset, or field:<name> for one field of the dataset's tables. Absent means the dataset.",
+               "pattern": "^(dataset|field:\\S.*)$",
                "type": [
                   "string",
                   "null"
@@ -3717,6 +3802,19 @@
          "title": "SensitivityDecision",
          "type": "string"
       },
+      "StandardKind": {
+         "description": "What kind of standard a standard fact names.",
+         "enum": [
+            "metadata_standard",
+            "controlled_vocabulary",
+            "ontology",
+            "terminology",
+            "data_format",
+            "field_format"
+         ],
+         "title": "StandardKind",
+         "type": "string"
+      },
       "StepProgress": {
          "additionalProperties": false,
          "description": "How far one step of the Blueprint's process flow has gone, as the project log shows it: started, done or skipped. A step the list leaves out is open (docs/specs/orchestration.md).",
@@ -4079,5 +4177,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.21.0"
+   "version": "0.22.0"
 }

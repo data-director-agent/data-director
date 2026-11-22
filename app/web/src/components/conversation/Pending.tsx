@@ -18,6 +18,7 @@ import { hasEnded } from "../../run/reduce";
 import { LiveRun } from "../run/LiveRun";
 import { DocumentChip } from "./DocumentChip";
 import { InventoryChip } from "./InventoryChip";
+import { PersonText } from "./PersonText";
 import { Speaker } from "./Speaker";
 import type { LiveRun as Live } from "./useConversationTurns";
 
@@ -26,6 +27,7 @@ export function Pending({
   agentName = agentId,
   agentIcon = "",
   message,
+  answers = false,
   inventory = null,
   document = null,
   live = null,
@@ -36,6 +38,8 @@ export function Pending({
   /** The icon its card declares; empty, or not given, for the default. */
   agentIcon?: string;
   message: string;
+  /** Whether the message sends answers to questions, as Markdown (`answersText`). */
+  answers?: boolean;
   inventory?: AttachedInventory | null;
   document?: AttachedDocument | null;
   /** The turn's run, as its stream has drawn it so far. */
@@ -47,7 +51,7 @@ export function Pending({
       {!live?.stored && (
         <div className="turn-person">
           <Speaker />
-          <p>{message}</p>
+          <PersonText text={message} answers={answers} />
           {inventory && (
             <p>
               <InventoryChip

@@ -1,0 +1,70 @@
+{
+   "@context": {
+      "@vocab": "https://w3id.org/data-director/agents/fairness/",
+      "ApprovedMetadataRecord": {
+         "@id": "https://w3id.org/data-director/ApprovedMetadataRecord"
+      },
+      "CurrentVersion": {
+         "@id": "https://w3id.org/data-director/CurrentVersion"
+      },
+      "DocumentVersionRef": {
+         "@id": "https://w3id.org/data-director/DocumentVersionRef"
+      },
+      "ProjectMetadataDraft": {
+         "@id": "https://w3id.org/data-director/agents/fairness/ProjectMetadataDraft"
+      },
+      "conforms_to": {
+         "@id": "http://purl.org/dc/terms/conformsTo",
+         "@type": "@id"
+      },
+      "dcat": "http://www.w3.org/ns/dcat#",
+      "dcterms": "http://purl.org/dc/terms/",
+      "dd": "https://w3id.org/data-director/",
+      "decision_reason": {
+         "@id": "https://w3id.org/data-director/decision_reason"
+      },
+      "document_id": {
+         "@id": "https://w3id.org/data-director/document_id"
+      },
+      "document_text": {
+         "@id": "https://w3id.org/data-director/document_text"
+      },
+      "document_title": {
+         "@id": "http://purl.org/dc/terms/title"
+      },
+      "draft_text": {
+         "@id": "https://w3id.org/data-director/agents/fairness/draft_text"
+      },
+      "fairness": "https://w3id.org/data-director/agents/fairness/",
+      "linkml": "https://w3id.org/linkml/",
+      "media_type": {
+         "@id": "http://purl.org/dc/terms/format"
+      },
+      "project_metadata_approved": {
+         "@id": "https://w3id.org/data-director/project_metadata_approved",
+         "@type": "@id"
+      },
+      "project_metadata_draft": {
+         "@id": "https://w3id.org/data-director/project_metadata_draft",
+         "@type": "@id"
+      },
+      "prov": "http://www.w3.org/ns/prov#",
+      "schema": "http://schema.org/",
+      "schema_class": {
+         "@id": "https://w3id.org/data-director/schema_class"
+      },
+      "shex": "http://www.w3.org/ns/shex#",
+      "spdx": "http://spdx.org/rdf/terms#",
+      "version": {
+         "@id": "https://w3id.org/data-director/version"
+      },
+      "version_ref": {
+         "@id": "https://w3id.org/data-director/version_ref",
+         "@type": "@id"
+      },
+      "version_state": {
+         "@id": "https://w3id.org/data-director/version_state"
+      },
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+   }
+}

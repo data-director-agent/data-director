@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.21.0
+version: 0.22.0
 license: MIT
 
 prefixes:
@@ -716,8 +716,9 @@ classes:
     description: >-
       One fact about a project that a check agent proposes and a person confirms: a funder, a
       repository a funder or institution requires, whether a file is deposited, whether a
-      sensitive field or file may be published and at what precision, the licence, or an output a
-      data management plan committed to share (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the
+      sensitive field or file may be published and at what precision, the licence, an output a
+      data management plan committed to share, or a standard, vocabulary or format the researcher
+      chose for the dataset (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the
       key a person's decision counts by, so the last decision on a subject stands. An agent's
       payload carries proposals in proposed_facts; only a person's decision makes one a fact, and
       the conductor gives the facts a person decided to every drafter and orchestrator in the
@@ -743,6 +744,10 @@ classes:
       - commitment_licence
       - commitment_quote
       - commitment_document
+      - standard_name
+      - standard_id
+      - standard_kind
+      - standard_target
       - proposed_because
     rules:
       - description: A funder fact names the funder.
@@ -806,6 +811,15 @@ classes:
               required: true
             commitment_document:
               required: true
+      - description: A standard fact names the standard, vocabulary or format chosen.
+        preconditions:
+          slot_conditions:
+            fact_kind:
+              equals_string: standard
+        postconditions:
+          slot_conditions:
+            standard_name:
+              required: true
 
   GivenProjectDocuments:
     mixin: true
@@ -836,6 +850,18 @@ classes:
       sends it.
     slots:
       - project_repository
+
+  GivenProjectMetadataRecord:
+    mixin: true
+    description: >-
+      Mixed into an agent's own input class when the agent reads the project's metadata record:
+      its latest version, whatever its state, and the version a person approved last. In a project
+      the conductor fills project_metadata_draft and project_metadata_approved by these names and
+      never needs to know the input class (docs/specs/projects.md, invariant 6); outside one, the
+      caller sends them.
+    slots:
+      - project_metadata_draft
+      - project_metadata_approved
 
   GivenInstitutionRepositories:
     mixin: true
@@ -926,8 +952,8 @@ classes:
       true the researcher may answer in their own words instead; option values are unique within
       the question. A short or long text question is answered in the researcher's own words and
       has no options; a short text question may suggest answers (question_suggestions), which the
-      researcher may take or ignore. Asking never suspends the run: the researcher may skip a question, or
-      ignore them all and type (docs/specs/orchestration.md).
+      researcher may take or ignore. Asking never suspends the run: the researcher may skip a
+      question, or ignore them all and type (docs/specs/orchestration.md).
     slots:
       - question_key
       - question_prompt
@@ -1802,6 +1828,19 @@ slots:
       The repository a researcher in the project chose last, filled by the conductor and never by
       the caller. Absent when the run is in no project, or nobody in its project has chosen one.
     range: ChosenRepository
+  project_metadata_draft:
+    description: >-
+      The latest version of the project's metadata record, proposed, approved or rejected, with
+      its text and state. In a project the conductor fills it and a caller leaves it out. Absent
+      when the project holds no metadata record.
+    range: CurrentVersion
+    inlined: true
+  project_metadata_approved:
+    description: >-
+      The version of the project's metadata record a person approved last. In a project the
+      conductor fills it and a caller leaves it out. Absent when no version has been approved.
+    range: ApprovedMetadataRecord
+    inlined: true
   chosen_repository_name:
     description: The chosen repository's name, as the pinned re3data export gives it.
     required: true
@@ -1867,7 +1906,8 @@ slots:
     description: >-
       The key a decision counts by within its kind: the funder's identifier or name, the
       repository's re3data identifier or name, the file's path, the field or path judged
-      sensitive, or licence. The last decision on a kind and subject stands.
+      sensitive, licence, or the standard chosen and what it is chosen for. The last decision on
+      a kind and subject stands.
     required: true
     pattern: "\\S"
   fact_funder_name:
@@ -1934,6 +1974,23 @@ slots:
       For a sharing commitment, the digest of the attached document's text (its
       documentation_digest) the quote is from.
     pattern: "^[0-9a-f]{64}$"
+  standard_name:
+    description: >-
+      For a standard fact, the name of the standard, vocabulary, ontology or format chosen, as its
+      registry record or the researcher gives it.
+  standard_id:
+    description: >-
+      For a standard fact, a persistent identifier of the standard, as a URL, such as its
+      FAIRsharing DOI, where it is known.
+    range: uri
+  standard_kind:
+    description: For a standard fact, what kind of standard was chosen, where it is known.
+    range: StandardKind
+  standard_target:
+    description: >-
+      For a standard fact, what the standard is chosen for: dataset, or field:<name> for one
+      field of the dataset's tables. Absent means the dataset.
+    pattern: "^(dataset|field:\\S.*)$"
   proposed_because:
     description: >-
       Why the agent proposes the fact, in a sentence for the person deciding. Kept with the
@@ -2656,6 +2713,11 @@ enums:
           An output the project's data management plan committed to share, with where, how
           openly and under what licence, as read from the plan the researcher attached
           (docs/specs/projects.md, #962).
+      standard:
+        description: >-
+          A standard, vocabulary, ontology or format the researcher chose for the dataset or one
+          of its fields, such as one the standards advisor recommended (docs/specs/projects.md,
+          #1391).
 
   FileDecision:
     description: Whether a file of the inventory is to be deposited.
@@ -2678,6 +2740,22 @@ enums:
         description: It is not published.
       undecided:
         description: A person must decide before deposit; a drafter asks rather than fills it.
+
+  StandardKind:
+    description: What kind of standard a standard fact names.
+    permissible_values:
+      metadata_standard:
+        description: A schema or reporting guideline for describing the dataset.
+      controlled_vocabulary:
+        description: A list of terms that values or keywords are taken from.
+      ontology:
+        description: A model of concepts and their relations that the data are aligned with.
+      terminology:
+        description: A terminology resource not classed as a vocabulary or an ontology.
+      data_format:
+        description: A file format the data are kept in.
+      field_format:
+        description: A standard for the values of a field, such as ISO 8601 for dates.
 
   LocationPrecision:
     description: The precision at which a location may be published.

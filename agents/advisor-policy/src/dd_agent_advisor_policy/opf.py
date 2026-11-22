@@ -13,9 +13,10 @@ The records describe open access policy: where a version of an article may be de
 what embargo and under which licence (Romeo), and what a funder requires of its outputs,
 including any data archiving requirement (Juliet). A journal's record links to its publishers'.
 
-It is read live only. Jisc does not state a licence for the records that would allow a copy to
-be committed, nor any rate limit, so there is no snapshot to fall back to: when the route fails,
-the agent says so and carries on with FAIRsharing (docs/specs/dependencies.md).
+It is read live only. Jisc licenses the data under CC BY-NC-ND 4.0, and the API is for
+non-commercial use. No-derivatives rules out the projected registry a snapshot would be built
+into, and Jisc states no rate limit, so there is no snapshot to fall back to: when the route
+fails, the agent says so and carries on with FAIRsharing (docs/specs/dependencies.md).
 TODO(#302): confirm with a key that `funder` is an item type of the new platform, the filter
 fields (`name`, `title`, `issn`) and operators used below, and the answer's shape; the parser
 reads the shape of the Sherpa v2 API, which Jisc says the platform replicates, and keeps any

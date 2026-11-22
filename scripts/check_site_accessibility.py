@@ -15,6 +15,9 @@ a page whose outside resources had not loaded by then is still checked, and the 
     uv run --locked --only-group docs --only-group accessibility \\
         scripts/check_site_accessibility.py site
 
+CI checks the site as three jobs side by side, each with `--shard 1/3` and so on: every page falls in
+exactly one shard, so the three together check what one run without it does.
+
 The browser comes from `playwright install chromium`. Exits 1 if any page has a violation, and
 2 if the site cannot be read.
 """
@@ -62,6 +65,17 @@ class Findings:
 
     def __bool__(self) -> bool:
         return bool(self.rules or self.overflow)
+
+
+def shard(pages: list[str], value: str | None) -> list[str]:
+    """The pages of one shard, such as `2/3`: every third page of the sorted list, from the second.
+    None keeps every page."""
+    if not value:
+        return pages
+    index, _, count = value.partition("/")
+    if not (index.isdigit() and count.isdigit() and 1 <= int(index) <= int(count)):
+        raise ValueError(f"--shard {value!r}: expected `index/count`, such as 2/3")
+    return sorted(pages)[int(index) - 1 :: int(count)]
 
 
 def read_pages(site: Path) -> tuple[str, list[str]]:
@@ -154,9 +168,10 @@ def check(base: str, pages: list[str]) -> Findings:
     return findings
 
 
-def report(findings: Findings, checked: int) -> str:
-    """The findings as Markdown, for the terminal and the job summary."""
-    lines = ["## Accessibility of the documentation site", ""]
+def report(findings: Findings, checked: int, part: str | None = None) -> str:
+    """The findings as Markdown, for the terminal and the job summary. `part` names the shard."""
+    heading = "## Accessibility of the documentation site"
+    lines = [f"{heading} (shard {part})" if part else heading, ""]
     if findings.unsettled:
         lines += [
             f"{len(findings.unsettled)} page(s) were checked before resources from outside the "
@@ -202,11 +217,15 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("site", type=Path, help="the built site's directory (mkdocs.yml site_dir)")
     parser.add_argument("--summary", type=Path, help="append the report to this file as well")
+    parser.add_argument(
+        "--shard", metavar="INDEX/COUNT", help="check one part of the pages, such as 2/3"
+    )
     args = parser.parse_args(argv)
     site = args.site.resolve()
     try:
         prefix, pages = read_pages(site)
-    except SystemExit as exc:
+        pages = shard(pages, args.shard)
+    except (SystemExit, ValueError) as exc:
         print(exc, file=sys.stderr)
         return 2
     server = serve(site, prefix)
@@ -214,7 +233,7 @@ def main(argv: list[str] | None = None) -> int:
         findings = check(f"http://127.0.0.1:{server.server_port}{prefix}", pages)
     finally:
         server.shutdown()
-    text = report(findings, len(pages))
+    text = report(findings, len(pages), args.shard)
     print(text)
     if args.summary:
         with args.summary.open("a", encoding="utf-8") as summary:

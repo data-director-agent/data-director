@@ -8,7 +8,7 @@ title: advisor.standards classes
 description: >-
   A minimal description of a dataset being planned or prepared (docs/specs/contract.md), and the vocabularies,
   ontologies and formats recommended for it.
-version: 0.2.0
+version: 0.3.0
 license: MIT
 
 prefixes:
@@ -40,9 +40,13 @@ classes:
       - fields
 
   Recommendations:
-    description: The standards advisor payload. Recommended vocabularies, ontologies and formats.
+    description: >-
+      The standards advisor payload. Recommended vocabularies, ontologies and formats, each also
+      proposed as a standard project fact for the researcher to choose or reject
+      (docs/specs/projects.md).
     mixins:
       - Grounded
+      - ProposesFacts
     slots:
       - schema_class
       - items

@@ -40,7 +40,9 @@ documents ([Projects](../../docs/specs/projects.md)). A request names the `docum
   what is still needed in it. The **Files** section lists the inventory's files with
   their formats and sizes. **Variables** does not repeat the tables' fields: it asks the
   researcher to point to the data dictionary, which describes them, and to give any abbreviations
-  or conventions shared across the tables. **Access and licence** lists the licences the chosen
+  or conventions shared across the tables; it lists the standards, vocabularies and formats people
+  in the project chose (`standard` project facts, `drafted.py`, #1391), with what each is for, and
+  is as before when none was chosen. **Access and licence** lists the licences the chosen
   repository offers, if its requirements name any.
 
   When the request carries the project's approved metadata record (`metadata_record`, which the

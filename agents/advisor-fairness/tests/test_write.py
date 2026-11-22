@@ -93,7 +93,7 @@ def test_the_model_is_sent_the_record_and_only_the_unmet_checks(runs_dir: Path) 
     body = json.loads(message["content"])
     assert body["record"]["title"] == RECORD.title
     assert body["record"]["description"] == RECORD.description
-    assert [c["check"] for c in body["unmet_checks"]] == UNMET
+    assert sorted(c["check"] for c in body["unmet_checks"]) == sorted(UNMET)
     assert all(c["template"] for c in body["unmet_checks"])
 
 

@@ -23,6 +23,7 @@ for agents that accept that class, and `workbench invoke` reads it to parse the 
 | `soil-survey.metadata-record.draft.json` | `DraftRequest` | A metadata record for the same inventory and ORDA: `advisor.metadata`'s DataCite record with ORDA's 12 properties, three filled. |
 | `dmp-commitments.json` | `DmpCommitments` | A plan's sharing commitments against planned outputs: one output missing, one unplanned, one access mismatch (open vs restricted) |
 | `published-record.json` | `PublishedRecord` | A published dataset's metadata for the FAIR Assessor mock: a landing-page URL rather than a DOI, no related identifiers and one creator without an ORCID iD, so three of its twelve checks are not met. |
+| `project-metadata-draft.json` | `ProjectMetadataDraft` | A draft DataCite record for the FAIR Assessor's feedback, as a caller sends it outside a project: no keywords or related identifiers yet and one creator without an ORCID iD; its DOI and access are left until deposit. |
 | `rights-context.json` | `RightsContext` | Data that need attribution, are sensitive and include third-party content, for the Rights and Licensing Adviser mock. |
 | `link-candidates.json` | `LinkCandidates` | A DOI URL, a valid ORCID iD, an ORCID iD with a bad checksum, a ROR ID and an unrecognised arXiv ID, for the Linking Adviser mock. |
 

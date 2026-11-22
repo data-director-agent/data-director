@@ -65,6 +65,7 @@
     margin-inline-end: var(--space-1, 0.25rem);
     line-height: 1;
     text-align: center;
+    vertical-align: text-bottom;
   }
 
   .transcript [aria-current="true"] {

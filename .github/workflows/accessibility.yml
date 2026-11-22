@@ -5,7 +5,8 @@ name: Accessibility
 # docs/ui/best-practices.md says why; automated checks find perhaps a third of the barriers, so
 # they do not replace testing with assistive technology and with the people who use it (#74).
 #
-#   Documentation site: every page mkdocs builds, by scripts/check_site_accessibility.py (#429)
+#   Documentation site: every page mkdocs builds, by scripts/check_site_accessibility.py (#429),
+#     as three jobs side by side, each a third of the pages (--shard), since one took six minutes
 #   Workbench viewer: Chat, Inspect, the Glossary and the Agents page, light and dark, by
 #     workbench/browser_tests/test_viewer_accessibility.py (#85)
 #
@@ -71,9 +72,13 @@ jobs:
 
   # A pull request builds the site here, not in docs.yml, which publishes it from main.
   site:
-    name: Documentation site
+    name: Documentation site (${{ matrix.shard }} of 3)
     needs: changes
     if: needs.changes.outputs.docs == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -92,6 +97,7 @@ jobs:
       - run: >-
           uv run --only-group docs --only-group accessibility
           scripts/check_site_accessibility.py site --summary "$GITHUB_STEP_SUMMARY"
+          --shard "${{ matrix.shard }}/3"
 
   viewer:
     name: Workbench viewer

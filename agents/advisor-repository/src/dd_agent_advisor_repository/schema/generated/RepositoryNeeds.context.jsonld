@@ -173,6 +173,19 @@
       },
       "shex": "http://www.w3.org/ns/shex#",
       "spdx": "http://spdx.org/rdf/terms#",
+      "standard_id": {
+         "@id": "https://w3id.org/data-director/standard_id",
+         "@type": "@id"
+      },
+      "standard_kind": {
+         "@id": "https://w3id.org/data-director/standard_kind"
+      },
+      "standard_name": {
+         "@id": "https://w3id.org/data-director/standard_name"
+      },
+      "standard_target": {
+         "@id": "https://w3id.org/data-director/standard_target"
+      },
       "themes": {
          "@id": "http://www.w3.org/ns/dcat#theme"
       },

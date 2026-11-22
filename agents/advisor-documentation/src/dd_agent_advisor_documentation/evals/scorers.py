@@ -19,7 +19,7 @@ from typing import Any
 from inspect_ai.scorer import CORRECT, INCORRECT, NOANSWER, Score, Scorer, Target, scorer
 from inspect_ai.solver import TaskState
 
-from dd_agent_advisor_documentation.agent import GAP_MARKER, _drafted, _facts
+from dd_agent_advisor_documentation.agent import GAP_MARKER, _facts
 from dd_agent_advisor_documentation.dictionary import (
     SOURCE_SUFFIX,
     VALUE_COLUMNS,
@@ -27,6 +27,7 @@ from dd_agent_advisor_documentation.dictionary import (
     asks_about,
     worked_out_unit_code,
 )
+from dd_agent_advisor_documentation.drafted import drafted
 from dd_agent_advisor_documentation.prose import _NAMED, _NOT_PROSE
 from dd_agent_advisor_documentation.record import _record
 from dd_agent_advisor_documentation.sections import SOURCES as FACT_SOURCES
@@ -392,7 +393,7 @@ def no_unsupported_claim() -> Scorer:
         not_model = {" ".join(a.answer_text.split()) for a in asked.draft_answers} | {
             " ".join(body.split())
             for source in FACT_SOURCES
-            if (body := _drafted(source, asked.inventory, asked.requirements, record))
+            if (body := drafted(source, asked, record))
         }
         problems = []
         for paragraph in document["document_text"].split("\n\n"):

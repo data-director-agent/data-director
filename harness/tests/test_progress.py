@@ -321,9 +321,11 @@ def test_yes_to_a_mandated_repository_skips_the_recommendation_and_never_marks_a
     assert states == {"repository.recommend": "skipped"}
 
 
-def test_an_answer_to_the_dmp_question_marks_no_step() -> None:
+def test_an_answer_to_the_dmp_question_skips_the_branch_not_taken_and_marks_nothing_done() -> None:
     for value in (YES, NO, NOT_SURE):
-        assert progress.step_states([chose(1), answered("intake.dmp", value)]) == {}
+        states = progress.step_states([chose(1), answered("intake.dmp", value)])
+        assert states == dict.fromkeys(question("intake.dmp").skips([value]), "skipped")
+    assert progress.step_states([chose(1), answered("intake.dmp", YES)])
 
 
 def test_the_latest_answer_to_an_intake_question_counts() -> None:

@@ -16,11 +16,6 @@ clones = 1
 lines = 18
 
 [[pair]]
-files = ["agents/advisor-dmp/src/dd_agent_advisor_dmp/agent.py", "agents/advisor-fairness/src/dd_agent_advisor_fairness/agent.py"]
-clones = 1
-lines = 18
-
-[[pair]]
 files = ["agents/advisor-dmp/src/dd_agent_advisor_dmp/agent.py", "agents/advisor-linking/src/dd_agent_advisor_linking/agent.py"]
 clones = 1
 lines = 18
@@ -102,11 +97,6 @@ lines = 78
 
 [[pair]]
 files = ["agents/advisor-policy/src/dd_agent_advisor_policy/classes.py", "agents/advisor-quality/src/dd_agent_advisor_quality/classes.py"]
-clones = 1
-lines = 12
-
-[[pair]]
-files = ["agents/advisor-policy/src/dd_agent_advisor_policy/classes.py", "agents/advisor-standards/src/dd_agent_advisor_standards/classes.py"]
 clones = 1
 lines = 12
 
