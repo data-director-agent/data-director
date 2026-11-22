@@ -1,6 +1,8 @@
 # advisor.repository
 
-**Alpha** (`0.1.0-alpha`): exploratory, and likely to change shape.
+**Model-backed alpha** (`0.1.0-alpha.3`): the Repository Librarian persona
+([Agents](../../docs/specs/agents.md)). Exploratory, and likely to change shape. A model only
+writes each repository's rationale; it never chooses or judges a repository.
 
 The repository advisor helps with Phase 3 of the Blueprint's process flow, repository selection
 (§8.2, Figure 3). It serves four of the phase's steps:
@@ -107,8 +109,8 @@ repository or makes a judgement:
   repository above an equal or slightly closer match elsewhere, and never adds one on its own
   (#741). The country is `country` when given, else the one re3data records for the
   affiliation's institution, so no country, funder or repository is written into the rules.
-  Search folds English plurals to singulars (`-ies` to `-y`, a final `s` dropped except after
-  `s`, `u` or `i`) in queries and records alike, so the theme "environmental science" finds a
+  Search folds English plurals to singulars (`-ies` to `-y`, a final `s` dropped unless the
+  word ends in `ss`, `us` or `is`) in queries and records alike, so the theme "environmental science" finds a
   record that says only "sciences".
 - **The researcher's institution's repositories that re3data does not list** are retrieved from
   DataCite (*Sources* below): those whose DataCite member is the researcher's institution, by ROR
@@ -146,15 +148,41 @@ repository or makes a judgement:
   naming the day its snapshot was fetched.
 - **Explanation.** By default a model writes the rationale; `DD_REPOSITORY_EXPLAINER=template`
   writes it from a template and needs no key. The model writes the rationale only, from
-  `system_prompt.md`, and is sent registry text and the needs, never research data.
+  `system_prompt.md`, in one call over the candidates already chosen. It is sent the needs
+  (themes, kinds of data, access, the affiliation's name) and, for each repository, its registry
+  text, its `meets`, `misses` and `notes`, and its description, never research data. If its
+  rationale for a repository names a re3data or FAIRsharing identifier it was not given, the
+  template rationale is used instead and the text says so. `rationale_derivation` records which
+  wrote each one. A repository the researcher chose for the project (basis `chosen`) is described
+  when nothing else is asked.
 
 ## Configuration
 
 - `DD_REPOSITORY_RETRIEVAL`: how FAIRsharing's database records are read: `snapshot` (the
   default) or `live`. The live route is public and needs no account; when it fails the agent falls
   back to the snapshot, marked stale. re3data is always read from the pinned registry.
-- `DD_REPOSITORY_EXPLAINER`: `model` (the default) or `template`, which needs no key, with the provider, model and
-  key as for the standards advisor ([AI models](../../docs/guide/operations/ai-models.md)) ([Policy and identity](../../docs/specs/policy-and-identity.md)).
+- `DD_REPOSITORY_EXPLAINER`: `model` (the default; `anthropic` is its older name) or `template`,
+  which calls no model and needs no key. The provider, model and key are set as for every advisor
+  ([AI models](../../docs/guide/operations/ai-models.md)). With the model on, the agent's card
+  declares the model it sends data to. An unknown value, or a model that cannot be configured,
+  stops `serve` at start-up; with the variable unset and no key, the error says to set
+  `DD_REPOSITORY_EXPLAINER=template`.
+
+What the deployment allows is not set here: it comes from the institutional profile
+([Policy and identity](../../docs/specs/policy-and-identity.md)).
+
+## Run it
+
+```sh
+uv run dd-sources prepare                          # build the pinned re3data registry, once
+DD_REPOSITORY_EXPLAINER=template uv run dd-advisor-repository serve --port 8109   # no model key
+uv run pytest agents/advisor-repository
+```
+
+Without `DD_REPOSITORY_EXPLAINER=template` the agent needs a model key. The workbench's samples
+are `workbench/samples/repository-needs.json`, `repository-mandated.json`,
+`repository-asked-about.json` and `repository-in-plan.json`. The evaluation is in
+[`src/dd_agent_advisor_repository/evals/README.md`](src/dd_agent_advisor_repository/evals/README.md).
 
 ## Sources
 

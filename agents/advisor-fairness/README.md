@@ -1,8 +1,8 @@
 # advisor.fairness
 
-**Alpha** (`0.3.0a1`), and a **model-backed alpha** ([Agents](../../docs/specs/agents.md)): rules
-decide what the record meets, and a model, if configured, writes the recommendations. It gives no
-FAIRness evaluation.
+**Model-backed alpha** (`0.3.0a1`): the FAIR Assessor persona
+([Agents](../../docs/specs/agents.md)). Rules decide what the record meets, and a model, on by
+default, writes the recommendations. It gives no FAIRness evaluation.
 
 The FAIR Assessor looks at a dataset's metadata: a published dataset's, or the project's draft
 metadata record while it is written. It serves two steps of the Blueprint's process flow (§8.2):
@@ -104,7 +104,14 @@ setting stops `dd-advisor-fairness serve` at start-up.
 `datacite.py` reads a DataCite record in DataCite's JSON form and imports nothing from the Data
 Director contract, so it can be lifted into a neutral library.
 
-## Tests
+## Run it
 
-`uv run pytest agents/advisor-fairness`. The model path runs against `dd_sdk.testing.FakeModel`;
+```sh
+uv run dd-advisor-fairness serve --port 8117
+uv run workbench invoke --agent advisor.fairness --input workbench/samples/published-record.json
+uv run workbench invoke --agent advisor.fairness --input workbench/samples/project-metadata-draft.json
+uv run pytest agents/advisor-fairness
+```
+
+With no model key, set `DD_FAIRNESS_WRITER=template` first. The model path runs against `dd_sdk.testing.FakeModel`;
 no test needs a key.

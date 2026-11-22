@@ -59,7 +59,10 @@ plugins:
   - search
   - tags
   - redirects:
-      redirect_maps: {}
+      redirect_maps:
+        # A page mounted by docs/hooks.py is added after this plugin checks targets, so its
+        # target is a full URL.
+        agents/advisor-standards/src/dd_agent_advisor_standards/README.md: https://data-director-agent.github.io/data-director/agents/advisor-standards/
   - git-revision-date-localized:
       enable_creation_date: true
       type: date
@@ -97,6 +100,7 @@ nav:
       - user-guide/index.md
       - Getting started: user-guide/getting-started.md
       - The workflow: user-guide/workflow.md
+      - The agents: user-guide/agents.md
       - Using the conversation: user-guide/conversation.md
       - Running an agent: user-guide/running-an-agent.md
       - Making an inventory: user-guide/making-an-inventory.md
@@ -197,9 +201,11 @@ nav:
           - Working on an agent: /agents/AGENTS.md
           - /agents/README.md
           - Orchestrator: /agents/orchestrator-model/README.md
+          - Rule-based orchestrator: /agents/orchestrator-stub/README.md
           - Friendly Greeter (template): /agents/example-hello/README.md
-          - Standards advisor: /agents/advisor-standards/src/dd_agent_advisor_standards/README.md
+          - Standards advisor: /agents/advisor-standards/README.md
           - Standards evaluations: /agents/advisor-standards/src/dd_agent_advisor_standards/evals/README.md
+          - Quality advisor: /agents/advisor-quality/README.md
           - Policy advisor: /agents/advisor-policy/README.md
           - Repository advisor: /agents/advisor-repository/README.md
           - Repository evaluation: /agents/advisor-repository/src/dd_agent_advisor_repository/evals/README.md

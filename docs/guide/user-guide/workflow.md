@@ -144,7 +144,8 @@ An agent joins a step by declaring the steps it serves. Where no registered agen
 the Data Director says that it cannot help with that step yet, gives some background on what the
 step usually involves, and offers steps it can help with. It does not skip the step or do the work
 itself. The set of steps with an agent depends on which
-agents your deployment has registered, so the list differs between deployments.
+agents your deployment has registered, so the list differs between deployments. [The agents](agents.md)
+lists them and the steps each serves.
 
 The **Data management phases** strip above the conversation in the app shows the same phases in
 order. Open it to see, for each step, the agents here that serve it. It does not yet show where your own project has reached in them

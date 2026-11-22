@@ -93,3 +93,12 @@ declares `local`. Detecting personal data before anything is sent is TODO(#39).
   (TODO(#700)).
 
 The full persona, with policy records as a source, is TODO(#700) under TODO(#355).
+
+## Run it
+
+```sh
+DD_ETHICS_READER=template uv run dd-advisor-ethics serve --port 8111   # without a model
+uv run dd-advisor-ethics serve --port 8111                              # model reader, needs a key
+uv run workbench invoke --agent advisor.ethics --input workbench/samples/ethics-context.json
+uv run pytest agents/advisor-ethics
+```

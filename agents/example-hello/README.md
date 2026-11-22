@@ -1,17 +1,23 @@
 # example.hello
 
-**Template, alpha** (`0.1.1a1`): the Friendly Greeter, the smallest agent that meets the whole of
+**Template, alpha** (`0.1.1-alpha.3`, MIT licence): the Friendly Greeter, the smallest agent that meets the whole of
 the contract. It greets whoever the input names, in English, Welsh, French or German, and does
 nothing else. Read it to see each step of the recipe; start a new agent with
 `uv run scripts/dd.py new-agent <name>` ([Agents](../README.md)).
 
 | Part | In this agent |
 |---|---|
-| Input | `Salutation`: `greeted_name`, and an optional `language` (BCP 47 tag, English if absent). |
+| Input | `Salutation`: `greeted_name`, and an optional `language` (a BCP 47 tag, English if absent; only the primary language subtag is read, so `cy-GB` is Welsh). |
 | Payload | `Greeting`: `greeting_text`, how it came about (`greeting_derivation`, always `template`) and `grounded_on`. |
 | Grounding mode | `none`: deterministic, no retrieval and no model. It cites the input and nothing else. |
-| Outcomes | `succeeded` with a greeting; `abstained` (`capability-not-implemented`) for a language it has no greeting for. |
+| Outcomes | `succeeded` with a greeting; `abstained` (`capability-not-implemented`, no payload or evidence) for a language it has no greeting for. Every success asks for human review. |
+| Action class | `advise`; the conductor matches it against the profile's `actions_requiring_approval`. |
 | Steps served | None. A template is not offered to researchers; a real agent names its process-flow steps in `serves`. |
+
+## What it does not do
+
+It greets in four languages and does no research data work. It reads no environment variable, calls no
+model, tool or retrieval service, and depends only on `dd_sdk` (the tests also use the harness).
 
 ## Run it
 

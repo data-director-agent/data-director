@@ -206,7 +206,7 @@ Each model call is recorded as a `chat` span with its token counts, in the store
 change of model or settings can be judged from the runs themselves. The full list of settings,
 and what an unknown value does, is in the agents' readmes:
 [orchestrator](../../../agents/orchestrator-model/README.md) and
-[standards advisor](../../../agents/advisor-standards/src/dd_agent_advisor_standards/README.md).
+[standards advisor](../../../agents/advisor-standards/README.md).
 
 A model identifier is the provider's, and the services do not check it at start-up: a mistyped
 identifier shows as a failed run, not a failed start. After changing it, run one conversation turn

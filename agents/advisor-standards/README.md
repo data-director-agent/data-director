@@ -1,10 +1,42 @@
-# Standards Librarian
+# advisor.standards
 
-Retrieve → rank → advise over FAIRsharing. See the [contract](../../../../sdk/src/dd_sdk/schema/data_director.yaml)
-for the shape every agent returns; this file covers what is specific to this one.
+**Model-backed alpha** (`0.1.1-alpha.4`): the Standards Librarian persona
+([Agents](../../docs/specs/agents.md)). It recommends vocabularies, ontologies and formats from
+FAIRsharing and chooses none of them for the researcher.
 
-`advisor.standards` accepts a `DatasetProfile`, declares grounding mode `retrieval` and
-returns `Recommendations`. Serve it with `uv run dd-advisor-standards serve --port 8105`.
+The Standards Librarian serves two steps of the Blueprint's process flow (§8.2):
+
+| Step | What it does |
+|---|---|
+| `setup.vocabularies` | Recommends controlled vocabularies and ontologies for the dataset's subject. |
+| `preparation.formats` | Recommends data formats for the declared media types, and a field-level standard such as ISO 8601 for date and time fields. |
+
+## Input and output
+
+`advisor.standards` accepts a `DatasetProfile` (`schema_class`, `title`, `description`,
+`keywords`, `themes`, `media_types` and `fields`), declares grounding mode `retrieval` and returns
+`Recommendations`: `items`, `searched`, `limitations`, `grounded_on` and `proposed_facts`. See the
+[contract](../../sdk/src/dd_sdk/schema/data_director.yaml) for the shape every agent returns; this
+file covers what is specific to this one. Its classes are in
+`src/dd_agent_advisor_standards/schema/standards.yaml`.
+
+It abstains, and does not return an empty list, in four cases:
+
+| Reason code | When |
+|---|---|
+| `insufficient_input` | The profile has no title, keywords, themes, media types or temporal fields to search on. |
+| `registry_unavailable` | The registry could not be searched (live search failed and the snapshot could not be used). |
+| `no_candidates_retrieved` | The search returned nothing. |
+| `no_qualifying_resource` | Records were retrieved but none scored at or above the confidence floor in `ranking.yaml`. |
+
+Each `Recommendation` has a `kind` (`controlled_vocabulary`, `ontology`, `terminology_unclassified`,
+`data_format` or `field_format`), a `target` (`dataset` or `field:<name>`), a `score` where the
+rules chose it, a `rationale`, and `concern` and `notes` where there are any. Its
+`rationale_derivation`, `classification_derivation` and `selection_derivation` say whether each
+came from the rules (`lexical`, `template`) or from a model.
+
+Retrieval is the committed snapshot by default. With `DD_STANDARDS_RETRIEVAL=live` it searches
+FAIRsharing and, if that fails, uses the snapshot and marks the snapshot reference stale.
 
 ## Configuration
 
@@ -27,8 +59,8 @@ which is on by default, without exactly one of its provider's two key variables,
 local `openai-compatible` endpoint, which may have none; the error says to set
 `DD_STANDARDS_EXPLAINER=template` to run without a model. The model must support tool calls. The key is passed to the provider's client
 explicitly: the provider SDK's own credential chain, such as an `ant auth login`, is never used
-([Policy and identity](../../../../docs/specs/policy-and-identity.md)). In development, put the key in `config/local/credentials/` and name it in
-`config/local/agents/advisor-standards.env`, which only this agent reads. In deployment, the key is loaded as a systemd credential (`deploy/README.md`).
+([Policy and identity](../../docs/specs/policy-and-identity.md)). In development, put the key in `config/local/credentials/` and name it in
+`config/local/agents/advisor-standards.env`, which only this agent reads. In deployment, the key is loaded as a systemd credential ([deploy](../../deploy/README.md)).
 
 ## The model advisor
 
@@ -55,17 +87,16 @@ reached or never submits, the template is used and the statement says so.
 The advisor sends the provider the dataset profile's title, description, keywords, themes, media
 types and field names and types, and the records' names, types, statuses, subjects and
 descriptions (`ModelAdvisor._prompt`), and FAIRsharing receives the model's search words. It never
-sends data values. Its manifest declares the model (`models`), and the app's About tab names it.
+sends data values. Its card declares the model (`models`).
 The search tool reaches FAIRsharing from the agent, not yet through the harness's tool gateway
-(TODO(#1143)). The app runs the advisor in its own process only with `template`. For the model, run
-it as a service.
+(TODO(#1143)).
 
 ## Grounding
 
 Each `Recommendation` carries one `GroundingRef` for the FAIRsharing record it recommends, and
 names the record nowhere else. The record's name, status and DOI are in the matching evidence
 item's `content`, the `json-sorted-utf8-v1` projection its hash covers. The linter re-hashes
-that content (E1, [Evidence and grounding](../../../../docs/specs/grounding.md)), so what a reader is shown is what was retrieved. The root
+that content (E1, [Evidence and grounding](../../docs/specs/grounding.md)), so what a reader is shown is what was retrieved. The root
 `Recommendations.grounded_on` lists every cited record once.
 
 ## Proposing a choice
@@ -74,25 +105,26 @@ A recommendation is advice. So that the researcher can record which they choose,
 also carries `proposed_facts` (`ProposesFacts`, `propose.py`): one `standard` project fact for each
 recommendation, naming the record's name, its DOI as a URL (else its FAIRsharing page), its kind
 and what it is for (`dataset` or `field:<name>`), with a sentence saying why for the person
-deciding ([Projects](../../../../docs/specs/projects.md), invariant 28; #1391). This is the one
+deciding ([Projects](../../docs/specs/projects.md), invariant 28; #1391). This is the one
 place the record's name is copied: a later agent is given the decided fact, not this run's
 evidence. In a project the harness records each as a proposal; a person confirms the ones they
 will use and rejects the others on the project page, and only those reach the Metadata Librarian
 and the Documentation Editor.
 
-## Honest limits
+## What it does not do
 
 - **Ranking is lexical and naive.** BM25 over name, abbreviation, description and subject
   labels, weighted with subject overlap and curation status. Over the 169-record snapshot the
   soil-chemistry sample gets sensible formats (CSV, Tabular Data Package, ISO 8601 for its date
   fields) and plausible but arguable terminologies (a chemistry vocabulary ranks above AGROVOC).
   Every recommendation carries its score and signals so a reviewer can disagree. The
-  [seeded-defect evaluation](evals/README.md) measures this: ENVO is never recommended for the
+  [seeded-defect evaluation](src/dd_agent_advisor_standards/evals/README.md) measures this: ENVO is never recommended for the
   soil sample, AGROVOC only once the title is removed, and the Food Ontology is.
 - **Vocabulary versus ontology** (the standards advisor's one explicit distinction) is decided lexically from the
   record's name and description, recorded as `classification_derivation: lexical`, with
   `terminology_unclassified` when neither pattern fires. FAIRsharing's curated subtype is not
   exposed on the public record route. **TODO(#4):** read it from the authenticated API.
+- **It does not choose.** A recommendation is advice; a person confirms or rejects each proposal. A model can add a record or note a doubt but never removes a rule's pick.
 - **Live search needs a FAIRsharing account** (`FAIRSHARING_LOGIN` / `FAIRSHARING_PASSWORD`);
   record fetch does not. No live-search cassette is committed, so that path is unsubstantiated in
   `CONFORMANCE.md` until someone with an account records one.
@@ -101,3 +133,14 @@ and the Documentation Editor.
   out of every stored record. No real reply has been recorded and the seeded-defect evaluation
   runs `template`, so whether its additions and concerns are right is unsubstantiated; it stays
   alpha until an evaluation of the model path (#415, #22).
+
+## Run it
+
+```bash
+uv run dd-advisor-standards serve --port 8105
+uv run workbench invoke --agent advisor.standards --input samples/soil-chemistry.profile.json
+uv run pytest agents/advisor-standards
+```
+
+The model is on by default and needs a key (see Configuration). To run without one, set
+`DD_STANDARDS_EXPLAINER=template`.

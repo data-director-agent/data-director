@@ -26,7 +26,7 @@ The ones that most concern a steward:
 
 | Key | What it decides |
 |---|---|
-| `agents` | Which agents may run, and the action class you assign each. If an agent declares another class, its runs fail until you update the profile. |
+| `agents` | Which agents may run ([the agents](../user-guide/agents.md)), and the action class you assign each. If an agent declares another class, its runs fail until you update the profile. |
 | `actions_requiring_approval` | The classes a person must approve before an agent acts. A run of such a class is **referred** to a data steward and not run. |
 | `hosted_models` | Which kinds of project content may be sent to an agent that uses a hosted AI model. Read [AI models](../operations/ai-models.md) with your data protection officer before you widen it. |
 | `attached_documents` | Whether researchers may attach their own documents to a project. |
