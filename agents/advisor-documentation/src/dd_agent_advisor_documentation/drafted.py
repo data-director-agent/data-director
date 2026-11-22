@@ -1,11 +1,13 @@
-"""A README section's text drafted by rule from one project fact (`from` in `readme.yaml`,
+"""A section's text drafted by rule from one project fact (`from` in `readme.yaml` and `plan.py`,
 docs/specs/drafting.md): the inventory's files, the licences the repository offers, the approved
-metadata record's values, or the standards, vocabularies and formats people in the project chose
-(`standard` project facts, docs/specs/projects.md, #1391)."""
+metadata record's values, the standards, vocabularies and formats people in the project chose
+(`standard` project facts, docs/specs/projects.md, #1391), and, for a Data Management Plan, the
+funders, repository, licence and handling of sensitive data people decided. Each is placed as a
+person decided it: supplied, never inferred (invariant 2)."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 from dd_agent_advisor_documentation.record import _from_record
@@ -37,7 +39,63 @@ def drafted(source: str, asked: DraftRequest, record: Mapping[str, Any] | None) 
         return f"{requirements.repository_name} offers these licences: {offered}."
     if source == "standards":
         return standards(asked.project_decisions)
-    return None
+    return repository(asked) if source == "repository" else decided(source, asked.project_decisions)
+
+
+def _funder(fact: ProjectFact) -> str:
+    return f"- {fact.fact_funder_name}"
+
+
+def _licence(fact: ProjectFact) -> str:
+    return f"- `{fact.licence_id}`"
+
+
+def _sensitive(fact: ProjectFact) -> str:
+    decision = fact.sensitivity_decision
+    handled = _HANDLING[decision.value] if decision is not None else _HANDLING["undecided"]
+    return f"- {fact.sensitive_subject}: {handled}"
+
+
+# How each decided fact a Data Management Plan draws on is placed: the kind of fact, the sentence
+# that introduces the list, and each fact's line.
+_DECIDED: dict[str, tuple[FactKind, str, Callable[[ProjectFact], str]]] = {
+    "funders": (FactKind.FUNDER, "The project is funded by:", _funder),
+    "licence": (FactKind.LICENCE, "The data will be shared under this licence:", _licence),
+    "sensitivity": (
+        FactKind.SENSITIVITY,
+        "These sensitive data were identified, and it was decided how each is handled:",
+        _sensitive,
+    ),
+}
+_HANDLING = {
+    "publish": "published as it is",
+    "generalise": "generalised before it is shared",
+    "withhold": "withheld",
+    "undecided": "not yet decided",
+}
+
+
+def decided(source: str, decisions: Sequence[ProjectFact]) -> str | None:
+    """The decided facts of the kind `source` names, one line each; None when none is decided or
+    the source is not a decided fact's."""
+    if source not in _DECIDED:
+        return None
+    kind, intro, line = _DECIDED[source]
+    lines = [line(f) for f in decisions if f.fact_kind == kind]
+    return f"{intro}\n\n" + "\n".join(lines) if lines else None
+
+
+def repository(asked: DraftRequest) -> str | None:
+    """The repository chosen, and any a funder, journal or institution requires; None if none."""
+    lines = []
+    if asked.requirements is not None:
+        lines.append(f"The data will be deposited in {asked.requirements.repository_name}.")
+    for fact in asked.project_decisions:
+        if fact.fact_kind == FactKind.REQUIRED_REPOSITORY:
+            required_by = ", ".join(fact.fact_required_by)
+            by = f" by {required_by}" if required_by else ""
+            lines.append(f"{fact.fact_repository_name} is required{by}.")
+    return " ".join(lines) or None
 
 
 def standards(decisions: Sequence[ProjectFact]) -> str | None:

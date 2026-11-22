@@ -23,6 +23,7 @@ dev = [
   "data-director-agent-advisor-files",
   "data-director-agent-advisor-metadata",
   "data-director-agent-advisor-documentation",
+  "data-director-agent-advisor-dmp",
   "data-director-harness",
 ]
 

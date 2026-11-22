@@ -1,15 +1,20 @@
 # advisor.dmp
 
-**Alpha** (`0.2.0a1`). It compares the commitments it is given or a researcher confirmed, and with
-a model reads a free-text plan the researcher attached to propose them (#962). Reading a
-machine-actionable plan itself is TODO(#701).
+**Alpha** (`0.3.0a1`). It reviews a plan the researcher attached against the core requirements of
+a plan and the decisions made in the project. It compares the commitments it is given or a
+researcher confirmed, and with a model reads a free-text plan the researcher attached to propose
+them (#962). Reading a machine-actionable plan itself is TODO(#701).
 
-The Data Management Plan Checker is one persona of the agent roster ([Agents](../../docs/specs/agents.md)). It serves one
-step of the Blueprint's process flow:
+The Data Management Plan Checker is one persona of the agent roster ([Agents](../../docs/specs/agents.md)). It serves two
+steps of the Blueprint's process flow:
 
 | Step | What it does |
 |---|---|
+| `setup.dmp-review` | Reviews the plan attached against Science Europe's core requirements and the decisions made in the project ([Reviewing a plan](#reviewing-a-plan)). |
 | `governance.dmp` (R8) | Compares what the data management plan committed to share with what is planned at publication, and lists each difference for a person to review. |
+
+Writing a plan (`setup.dmp-create`) is the Documentation Editor's: a written plan is a project
+document, the core `Document`, and this checker's payload is its own.
 
 R8 asks that sharing at publication be checked against the plan's commitments, with
 discrepancies flagged for human review and never enforced. A reviewed decision not to share is a
@@ -76,6 +81,35 @@ plan committed to share. If the model cannot be reached or its reply is unusable
 `succeeded` with no proposals and its statement says why. Only the start of the attached text
 (60,000 characters, the latest document first) is read.
 
+## Reviewing a plan
+
+`DmpReviewRequest` carries only the attached documents and the decided facts, which the conductor
+fills in a project. The plan reviewed is the latest document attached; with none, the checker
+abstains with `insufficient_input`. The payload's `section_findings` and `decision_conflicts` say
+what it found (`review.py`):
+
+- **By rule, always.** [`dd-dmp-template`](../../dmp-template/README.md) reads the plan's headings
+  against the six core requirements, after Science Europe's. A requirement a heading names, with
+  text under it, is `covered`, with the start of that text quoted; one whose heading has nothing
+  under it is `vague`; one no heading names is `missing`. Each says what the requirement's
+  questions are, for the researcher to check. `finding_derivation` is `lexical`.
+- **Decisions not reflected.** A funder, required repository, licence or standard people in the
+  project decided that the plan never names (case, spaces, quotation marks and dashes set aside,
+  so `CC-BY-4.0` matches "CC BY 4.0"), and sensitive data where the plan has no legal and ethical
+  section, are each a `DecisionConflict` for a person to review. The plan may need updating, or the
+  decision may.
+- **With the model** (`review_model.py`, `review_prompt.md`), on unless `DD_DMP_MATCHER=template`.
+  It is given the plan (its first 60,000 characters), each requirement's questions and the rules'
+  finding, and reads how fully the plan answers each. A reading is used only if it names a
+  requirement it was given, once, gives a reason, and quotes words found in the plan. It may only
+  raise a finding: a `covered` requirement it reads as answered only in part becomes `vague`, with
+  `finding_derivation` `model` and its reason; for a `missing` one it may point to where the plan
+  answers it under another heading, which stays `missing`, with the model's reason and quote, for
+  a person to judge. Readings not used are listed in `dropped`. An unusable reply leaves the rules'
+  review, and the statement says why.
+
+The review never changes the plan, and says nothing of whether it meets a funder's own template.
+
 ## Evaluation
 
 [`evals/`](src/dd_agent_advisor_dmp/evals/README.md) reads a complete, a partial and a vague
@@ -99,6 +133,12 @@ uv run pytest agents/advisor-dmp
 Without a model key, set `DD_DMP_MATCHER=template` first.
 
 ## What it does not do
+
+- Its review reads one funder-neutral template. A funder's own template (UKRI's councils',
+  Horizon Europe's) asks for more; choosing one by the institutional profile is a follow-up.
+- On the template path, its review reads only headings: a plan that answers a requirement under
+  another heading, or with none, is reported as missing it.
+- Its review has no evaluation set yet: how often the rules or the model miss is not measured.
 
 - It reads a free-text plan only with a model, and only to propose commitments for the researcher
   to confirm. It does not yet read a machine-actionable plan in the RDA DMP Common Standard by

@@ -25,7 +25,8 @@ Put code in the package whose job it is, not the one you have open; the full tab
   server behind the tool gateway; depends on no other member. `units/`: `dd-units`, a unit as
   written into a UCUM code, by rule; depends on no other member. `subjects/`: `dd-subjects`,
   subject classifications to suggest a field of study from; depends on no other member.
-  `scripts/`: repository tooling.
+  `dmp-template/`: `dd-dmp-template`, the core requirements of a Data Management Plan and which
+  of them a plan's headings cover; depends on no other member. `scripts/`: repository tooling.
 - `sdk/browser/`: `@data-director/agent-view`, the TypeScript and React library every front end
   uses to show an agent card, its extensions and its payloads. Put card and payload rendering
   there, not in one app.

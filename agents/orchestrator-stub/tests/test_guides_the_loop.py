@@ -13,6 +13,7 @@ from typing import Any
 import pytest
 import yaml
 
+from dd_agent_advisor_dmp.agent import DmpChecker
 from dd_agent_advisor_documentation.agent import DocumentationEditor
 from dd_agent_advisor_files.agent import FileArchivist
 from dd_agent_advisor_metadata.agent import MetadataLibrarian
@@ -325,3 +326,50 @@ def test_a_project_with_no_entry_point_is_asked_for_one_on_its_first_turn(
     env = researcher.say("hello")
     assert asked_keys(env) == [ENTRY_KEY]
     assert researcher.offered() == ["1", "2", "3"]
+
+
+PLAN = """# Data Management Plan
+
+## Data collection
+
+We will interview twenty farmers about soil management.
+
+## Storage and backup
+
+On the university's research storage, backed up nightly.
+"""
+
+
+def test_the_stub_writes_a_plan_and_reviews_the_one_attached(
+    tmp_path: Path, projects: ProjectStore
+) -> None:
+    project = projects.create(acted_for=TEST_PRINCIPAL, caused_by="test")
+    projects.choose_entry(project, 1, acted_for=TEST_PRINCIPAL, caused_by="test")
+    conversation = projects.start_conversation(project, acted_for=TEST_PRINCIPAL, caused_by="t")
+    conductor = make_conductor(
+        tmp_path / "runs", DirectorStub(), DocumentationEditor(), DmpChecker()
+    )
+    conductor.projects = projects
+    researcher = Researcher(conductor, conversation)
+
+    researcher.say("hello")
+    # Writing a plan asks first, with no inventory, then writes it from the answers.
+    env = researcher.say("Write a Data Management Plan", choose="setup.dmp-create")
+    assert delegated_agents(env) == {"advisor.documentation"}
+    (plan,) = [d for d in projects.documents(project) if d["document_kind"] == "dmp"]
+    assert plan["versions"][-1]["stage"] == "questions"
+    env = researcher.say("Write the data management plan from my answers")
+    assert delegated_agents(env) == {"advisor.documentation"}
+    (plan,) = [d for d in projects.documents(project) if d["document_kind"] == "dmp"]
+    assert [v["stage"] for v in plan["versions"]] == ["questions", "draft"]
+    approve_every_proposed(projects, project)
+    assert projects.progress(project)["steps"]["setup.dmp-create"] == "done"
+
+    # Reviewing one reads the plan attached.
+    projects.add_documentation(
+        project, "dmp.md", "text/markdown", PLAN, acted_for=TEST_PRINCIPAL, caused_by="test"
+    )
+    env = researcher.say("Review your Data Management Plan", choose="setup.dmp-review")
+    assert delegated_agents(env) == {"advisor.dmp"}
+    env = researcher.say("Review my data management plan")
+    assert delegated_agents(env) == {"advisor.dmp"}

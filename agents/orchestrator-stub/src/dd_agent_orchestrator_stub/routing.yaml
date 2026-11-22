@@ -53,6 +53,21 @@ rules:
     mention_input: { schema_class: DraftRequest, document_kind: readme }
     example: write the README from my answers
 
+  # The same for a Data Management Plan's card, and a request to review the plan attached.
+  - name: plan
+    agent_id: advisor.documentation
+    pattern: '^(?:please\s+)?(?:write|draft)\s+(?:the|a|my)\s+(?:data\s+management\s+plan|dmp)\b.*$'
+    input: { schema_class: DraftRequest, document_kind: dmp }
+    mention_input: { schema_class: DraftRequest, document_kind: dmp }
+    example: write the data management plan from my answers
+
+  - name: plan-review
+    agent_id: advisor.dmp
+    pattern: '^(?:please\s+)?(?:review|check)\s+(?:the|my)\s+(?:data\s+management\s+plan|dmp)\b.*$'
+    input: { schema_class: DmpReviewRequest }
+    mention_input: { schema_class: DmpReviewRequest }
+    example: review my data management plan
+
   - name: quality
     agent_id: advisor.quality
     pattern: '^review\s+(?:the\s+)?metadata\s+(?:for|of)\s+(?P<title>.+?)[.?!]*$'
@@ -72,6 +87,10 @@ entries:
 next: '^\s*(?:what(?:[''’]s|\s+is)?\s+next|next(?:\s+step)?|what\s+now|continue|carry\s+on|where\s+(?:am\s+i|are\s+we|is\s+my\s+project))\b'
 
 steps:
+  setup.dmp-create:
+    - { schema_class: DraftRequest, document_kind: dmp }
+  setup.dmp-review:
+    - { schema_class: DmpReviewRequest }
   preparation.files:
     - { schema_class: FileInventory }
   preparation.metadata:

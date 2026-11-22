@@ -99,6 +99,12 @@ def test_a_document_step_is_done_once_what_it_needs_and_all_else_drafted_is_appr
     assert progress.step_states([*events, decided("d")])["preparation.documentation"] == "done"
 
 
+def test_an_approved_data_management_plan_finishes_writing_one() -> None:
+    plan = [added("p", "dmp")]
+    assert progress.step_states(plan)["setup.dmp-create"] == "started"
+    assert progress.step_states([*plan, decided("p")])["setup.dmp-create"] == "done"
+
+
 def test_a_researcher_marks_a_step_and_may_take_the_mark_back() -> None:
     assert progress.step_states([marked("governance.embargo", "skipped")]) == {
         "governance.embargo": "skipped"

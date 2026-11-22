@@ -1073,7 +1073,7 @@ describe("ConversationHome", () => {
       expect(await axe(container)).toHaveNoViolations();
     });
 
-    it("shows the Data Management Plan steps and says they are out of scope for now", async () => {
+    it("shows the Data Management Plan steps, now in scope", async () => {
       await renderHome(withOrchestrator(), fakeApi());
       const phases = await screen.findByRole("navigation", {
         name: "Your data journey",
@@ -1093,12 +1093,12 @@ describe("ConversationHome", () => {
         .getByText("Write a Data Management Plan")
         .closest("li");
       expect(create).toHaveTextContent("(optional)");
-      expect(create).toHaveTextContent("(out of scope for now)");
+      expect(create).not.toHaveTextContent("(out of scope for now)");
       expect(
         within(detail)
           .getByText("Review your Data Management Plan")
           .closest("li"),
-      ).toHaveTextContent("(out of scope for now)");
+      ).not.toHaveTextContent("(out of scope for now)");
     });
 
     it("draws what is not built of the project pane, linked to its issues", async () => {
@@ -1601,7 +1601,7 @@ describe("ConversationHome", () => {
       ).not.toBeInTheDocument();
       expect(
         within(phases).queryByRole("button", {
-          name: `Start a conversation: ${label("setup.dmp-create")}`,
+          name: `Start a conversation: ${label("post.dmp-update")}`,
         }),
       ).not.toBeInTheDocument();
 

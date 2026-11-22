@@ -4,11 +4,11 @@ Each step names the functional requirements (§7.1) the Blueprint applies at tha
 A step's `id` is this repository's label, not the Blueprint's. `dd_sdk.process_flow` joins the
 steps to the entry points, the agents that serve them and their states.
 
-Creating, reviewing and updating a Data Management Plan are out of scope for the initial phase.
-The figures' steps for them are kept so that the flow is complete, and marked `out_of_scope`: the
-phase tracker and the orchestrators name them and say so, no agent may serve them, and no
-orchestrator offers to do them. TODO(#284): a read-only check of a deposit against an existing
-Data Management Plan.
+Writing and reviewing a Data Management Plan are served by alpha agents. Updating it after
+publication is out of scope for now: its step is kept so that the flow is complete, and marked
+`out_of_scope`: the phase tracker and the orchestrators name it and say so, no agent may serve it,
+and no orchestrator offers to do it. TODO(#284): a read-only check of a deposit against an
+existing Data Management Plan.
 
 Each phase and step also carries wording for researchers, which the app shows: a phase's `name`
 and `summary`, a step's `label`, and a step's `prompt`, a first-person opening for a conversation
@@ -92,14 +92,12 @@ PHASES: tuple[Phase, ...] = (
                 "setup.dmp-create",
                 "Create a Data Management Plan where none exists",
                 optional=True,
-                out_of_scope=True,
                 label="Write a Data Management Plan",
                 prompt="Help me write a Data Management Plan for my project.",
             ),
             Step(
                 "setup.dmp-review",
                 "Review and update the Data Management Plan",
-                out_of_scope=True,
                 label="Review your Data Management Plan",
                 prompt="Help me review my Data Management Plan.",
             ),

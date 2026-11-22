@@ -5,12 +5,13 @@ docs/specs/drafting.md), and how a count is written in a statement."""
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
 from dd_agent_advisor_documentation.counts import check_counts
+from dd_sdk.model import Usage
 
 
 class StrictReply(BaseModel):
@@ -49,3 +50,20 @@ def unchecked(paragraph: str, facts: Mapping[str, Any], known: str, longest: int
 
 def count(n: int, noun: str) -> str:
     return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
+
+
+def listed(items: Sequence[str]) -> str:
+    """`items` as an English list: "a", "a and b", "a, b and c"."""
+    if len(items) < 2:
+        return "".join(items)
+    return ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def summed(*usages: Usage) -> Usage:
+    """The tokens of several calls: unknown only if no call reports them."""
+
+    def total(counts: list[int | None]) -> int | None:
+        known = [n for n in counts if n is not None]
+        return sum(known) if known else None
+
+    return Usage(total([u.input_tokens for u in usages]), total([u.output_tokens for u in usages]))

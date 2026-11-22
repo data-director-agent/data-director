@@ -20,7 +20,7 @@ from dd_agent_orchestrator_model.own_tools import ENTRY_TOOL, NAME_TOOL
 from dd_agent_orchestrator_model.provisional import chose_provisional
 from dd_sdk.contract.facts import FactKind, InventoryFormat, ProjectFact
 from dd_sdk.contract.models import DraftSummary, GroundingMode, Message
-from dd_sdk.intake import NOT_SURE, YES
+from dd_sdk.intake import NO, NOT_SURE, YES
 from dd_sdk.intake import question as intake_question
 from dd_sdk.process_flow import entry as flow_entry
 from dd_sdk.process_flow import progress, suggested_next
@@ -107,11 +107,13 @@ def _label(question_id: str, value: str) -> str:
 def intake_note(message: Message) -> str | None:
     """The researcher's answers to the setup questions beside the entry question, which the
     researcher gave before the conversation began, or None if they answered none. No step state
-    shows a "Not sure", and an answer about a plan shows only as an out-of-scope step skipped, so
+    shows a "Not sure", and an answer about a plan shows only as the other plan step skipped, so
     without this note the model is not told of them, and denies them when the researcher says
     they answered (#341). When the researcher said
     they have a Data Management Plan and the project holds no attached document, the note asks the
-    model to invite them to attach it first, since the drafters and the plan check read it."""
+    model to invite them to attach it first, since the drafters and the plan check read it, and then
+    to offer a review; with a plan attached, to offer a review; and with none, to offer to write
+    one."""
     answers = message.project_intake or []
     if not answers:
         return None
@@ -134,8 +136,16 @@ def intake_note(message: Message) -> str | None:
         note += (
             " They have a Data Management Plan and have attached no document to the project: "
             "before asking what the plan may already say, invite them to attach it, as the "
-            "drafters and the Data Management Plan check read an attached plan's text."
+            "drafters and the Data Management Plan check read an attached plan's text, and "
+            "then offer to review it."
         )
+    elif dmp is not None and _label(_DMP, YES) in dmp.intake_answer_labels:
+        note += (
+            " They have a Data Management Plan: offer to review it against the decisions made "
+            "in the project."
+        )
+    elif dmp is not None and _label(_DMP, NO) in dmp.intake_answer_labels:
+        note += " They have no Data Management Plan: offer to help write one."
     return note
 
 

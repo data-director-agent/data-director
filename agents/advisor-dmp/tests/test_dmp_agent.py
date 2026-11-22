@@ -75,7 +75,8 @@ def test_the_card_names_the_persona_and_its_steps() -> None:
     assert not entry["description"].startswith("Mock.")
     assert entry["grounding_mode"] == "input_only"
     assert not entry["models"]
-    assert entry["serves"] == ["governance.dmp"]
+    assert entry["serves"] == ["governance.dmp", "setup.dmp-review"]
+    assert entry["accepts"] and len(entry["accepts"]) == 2
     json.dumps(entry)
 
 
