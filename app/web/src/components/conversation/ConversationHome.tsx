@@ -24,7 +24,8 @@
  * A reply may ask questions, which are answered in the message box's place (`ReplyArea`), with a
  * file attached beside them if the researcher wishes; sending the answers takes the same path as
  * a typed message, with the answers beside the words. "Reply in my own words instead" shows the
- * message box, so the researcher may ignore the questions and type instead.
+ * message box, so the researcher may ignore the questions and type instead. The project's intake
+ * card takes the box's place in the same way, after a reply's questions (`intakeSlot`).
  *
  * A message, or answers, may attach a `dd-inventory` file, chosen with the Attach button, dropped
  * on the form or pasted, which shows as a chip and goes to the conversation's project, never into the text
@@ -74,9 +75,10 @@ import {
   LinkedRun,
   askInBox,
   NoConversation,
-  OpenIntake,
   chosenRepository,
   holdsRun,
+  intakeOpen,
+  intakeSlot,
   offeredPrompts,
   projectHandlers,
   projectNamed,
@@ -130,7 +132,6 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   });
   const { conversation, busy, sent, turnCount, quiet } = turns;
   const asking = askingOf(conversation, directory);
-  const mode = useReplyMode(asking);
   const { inventory: attached, document: attachedDocument } = attachments;
   const writing = Boolean(text.trim()) || attachments.carries;
   const { documents, answered, answerMaxLength } = useProjectDocuments(
@@ -146,6 +147,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     failed: turns.setError,
   });
   const { intake } = intakeRead;
+  const mode = useReplyMode(asking, intakeOpen(projectId, intakeRead));
 
   const tracked = trackedProgress(projectId, progress, {
     projectApi,
@@ -187,7 +189,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   /** Puts text in the message box for the researcher, which shows the box. */
   function putText(said: string) {
     setText(said);
-    if (said.trim()) mode.setWords(true);
+    if (said.trim()) mode.setMode("words");
   }
 
   if (unusable || !orchestrator) {
@@ -270,13 +272,6 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             <h2 id="conversation-heading" className="visually-hidden">
               Conversation
             </h2>
-            <OpenIntake
-              projectId={projectId}
-              read={intakeRead}
-              flow={flow}
-              onStart={quiet ? startFromIntake : undefined}
-              onAnnounce={announce}
-            />
             {(turnCount > 0 || sent !== null) && (
               <Transcript
                 conversation={conversation}
@@ -315,8 +310,17 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             <ReplyArea
               ref={reply}
               asking={asking}
-              words={mode.words}
-              onWords={mode.setWords}
+              intake={intakeSlot({
+                projectId,
+                read: intakeRead,
+                flow,
+                onStart: startFromIntake,
+                started: !quiet,
+                onAnnounce: announce,
+                attach: directory.documentsAllowed && readers,
+              })}
+              mode={mode.mode}
+              onMode={mode.setMode}
               box={box}
               text={text}
               onText={setText}

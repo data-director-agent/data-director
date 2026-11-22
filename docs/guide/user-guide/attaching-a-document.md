@@ -34,8 +34,9 @@ attached.
 
 You can also attach a document without starting a conversation. On the project's **Documents**
 page, select **Attach a document** and choose the file. It goes through the same check, and
-selecting **Attach this document** keeps it in the project straight away. Where your
-institution does not allow attached documents, the button is not offered.
+selecting **Attach this document** keeps it in the project straight away. **Attach a file**
+beside a new project's setup questions does the same. Where your institution does not allow
+attached documents, the button is not offered.
 
 The **Documents** page lists every document you have attached under **Attached documents**, below
 the drafts agents have made, whether you attached it there or in a conversation. Select one to read

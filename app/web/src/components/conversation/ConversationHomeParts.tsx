@@ -9,6 +9,7 @@ import { type ComponentProps, type RefObject } from "react";
 import { X } from "lucide-react";
 import { startablePrompts } from "../../flow/prompts";
 import type { FlowStep } from "../../flow/types";
+import type { DocumentReaders } from "../../conversation/documentation";
 import type { Directory } from "../../manifest/normalise";
 import type {
   ProjectApi,
@@ -22,7 +23,10 @@ import { ContextPanel } from "../workspace/ContextPanel";
 import type { FlowLoad, TrackedProgress } from "../workspace/PhaseTracker";
 import { Workspace } from "../workspace/Workspace";
 import { Button } from "../ui/Button";
+import { AttachDocumentButton } from "../project/AttachDocument";
+import { useAttachToProject } from "../project/useAttachToProject";
 import { IntakeCard } from "./IntakeCard";
+import type { IntakeSlot } from "./ReplyArea";
 import { RunDetail } from "./RunDetail";
 import type { IntakeRead } from "./useIntake";
 import type { ProjectDocumentsRead } from "./useProjectDocuments";
@@ -82,37 +86,58 @@ export function holdsRun(conversation: Conversation | null, runId: string): bool
   );
 }
 
-/** The project's intake card, while it is open. */
-export function OpenIntake({
+/**
+ * The project's intake card while it is open, for the reply area to draw in the message box's
+ * place (`ReplyArea`), with Attach a file where the profile allows documents.
+ */
+export function intakeSlot({
   projectId,
   read,
   flow,
   onStart,
+  started,
   onAnnounce,
+  attach,
 }: {
   projectId: string | null;
   read: IntakeRead;
   flow: FlowLoad;
-  onStart: ((message: string) => void) | undefined;
+  onStart: (message: string) => void;
+  /** Whether the project's conversation has begun, so the card no longer offers to start it. */
+  started: boolean;
   onAnnounce: (said: string) => void;
-}) {
+  /** Who reads an attached document's text, where the profile allows documents; else false. */
+  attach: DocumentReaders | false;
+}): IntakeSlot | null {
   const { intake } = read;
   if (!projectId || !intake?.open) return null;
-  return (
+  return (focus, hidden) => (
     <IntakeCard
       key={`${projectId}-${intake.again ? "again" : "pending"}`}
+      ref={focus}
+      hidden={hidden}
       intake={intake.intake}
       again={intake.again}
       flow={flow.state === "loaded" ? flow.flow : null}
-      onAnswer={(questionId, values) =>
-        read.answer(projectId, questionId, values)
-      }
+      onAnswer={(questionId, values) => read.answer(projectId, questionId, values)}
       onDismiss={() => read.dismiss(projectId)}
       onClose={read.close}
-      onStart={onStart}
+      onStart={started ? undefined : onStart}
       onAnnounce={onAnnounce}
+      attach={attach && <IntakeAttach projectId={projectId} readers={attach} />}
     />
   );
+}
+
+/** Whether the intake card of the project being worked in is open. */
+export function intakeOpen(projectId: string | null, read: IntakeRead): boolean {
+  return Boolean(projectId && read.intake?.open);
+}
+
+/** Attaches a document to the project from the intake card, kept at once. */
+function IntakeAttach({ projectId, readers }: { projectId: string; readers: DocumentReaders }) {
+  const attach = useAttachToProject(projectId);
+  return <AttachDocumentButton attach={attach} readers={readers} label="Attach a file" />;
 }
 
 /** A run named in the address but not in the transcript, so that the link still opens it. */
