@@ -2,6 +2,8 @@
 
 import type { ClipboardEvent, Ref } from "react";
 
+import { submitOnCtrlEnter } from "./submitShortcut";
+
 export function MessageField({
   inputRef,
   value,
@@ -27,12 +29,7 @@ export function MessageField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onPaste={onPaste}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && !e.nativeEvent.isComposing) {
-            e.preventDefault();
-            if (canSend) e.currentTarget.form?.requestSubmit();
-          }
-        }}
+        onKeyDown={(e) => submitOnCtrlEnter(e, canSend)}
       />
       <p id="message-hint" className="hint">
         Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> (<kbd>Cmd</kbd>+<kbd>Enter</kbd> on a Mac) to send.

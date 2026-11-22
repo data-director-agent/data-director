@@ -25,6 +25,7 @@ import {
   SHORT_TEXT_MAX,
 } from "../../conversation/question";
 import { SuggestedAnswer } from "./SuggestedAnswer";
+import { submitOnCtrlEnter } from "./submitShortcut";
 
 /** What the researcher has entered for one question so far. */
 export interface Draft {
@@ -101,7 +102,9 @@ function WordsCount({ id, question, draft }: { id: string; question: Question; d
 /** How to answer `question`, said before its controls. */
 function howToAnswer(question: Question, multiple: boolean): string {
   if (question.question_kind === "choice") return multiple ? "Choose one or more." : "Choose one.";
-  return question.question_kind === "short_text" ? "Answer in a line." : "Answer in a few sentences.";
+  return question.question_kind === "short_text"
+    ? "Answer in a line."
+    : "Answer in a few sentences. Press Ctrl+Enter (Cmd+Enter on a Mac) to submit.";
 }
 
 /** The options `question` offers, with "Something else" last where it takes other answers. */
@@ -152,7 +155,11 @@ function TextAnswer({
       <label className="visually-hidden" htmlFor={`${id}-words`}>
         Your answer
       </label>
-      {question.question_kind === "long_text" ? <textarea rows={5} {...words} /> : <input type="text" {...words} />}
+      {question.question_kind === "long_text" ? (
+        <textarea rows={5} onKeyDown={(e) => submitOnCtrlEnter(e)} {...words} />
+      ) : (
+        <input type="text" {...words} />
+      )}
       {count}
     </>
   );
