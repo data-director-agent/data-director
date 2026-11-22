@@ -37,6 +37,7 @@ members = [
     "data-director-mcp-pid",
     "data-director-model-broker",
     "data-director-sdk",
+    "data-director-subjects",
     "data-director-units",
     "data-director-workbench",
 ]
@@ -1171,6 +1172,7 @@ dependencies = [
     { name = "data-director-mcp-pid" },
     { name = "data-director-model-broker" },
     { name = "data-director-sdk" },
+    { name = "data-director-subjects" },
     { name = "data-director-units" },
     { name = "data-director-workbench" },
 ]
@@ -1239,6 +1241,7 @@ requires-dist = [
     { name = "data-director-mcp-pid", editable = "mcp-pid" },
     { name = "data-director-model-broker", editable = "broker" },
     { name = "data-director-sdk", editable = "sdk" },
+    { name = "data-director-subjects", editable = "subjects" },
     { name = "data-director-units", editable = "units" },
     { name = "data-director-workbench", editable = "workbench" },
 ]
@@ -1699,6 +1702,7 @@ version = "0.1.1a5"
 source = { editable = "agents/orchestrator-model" }
 dependencies = [
     { name = "data-director-sdk", extra = ["anthropic", "openai"] },
+    { name = "data-director-subjects" },
 ]
 
 [package.dev-dependencies]
@@ -1712,7 +1716,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "data-director-sdk", extras = ["anthropic", "openai"], editable = "sdk" }]
+requires-dist = [
+    { name = "data-director-sdk", extras = ["anthropic", "openai"], editable = "sdk" },
+    { name = "data-director-subjects", editable = "subjects" },
+]
 
 [package.metadata.requires-dev]
 dev = [
@@ -2119,6 +2126,11 @@ requires-dist = [
     { name = "watchfiles", specifier = ">=1.0" },
 ]
 provides-extras = ["anthropic", "openai", "tools", "brokers"]
+
+[[package]]
+name = "data-director-subjects"
+version = "0.1.0a0"
+source = { editable = "subjects" }
 
 [[package]]
 name = "data-director-units"

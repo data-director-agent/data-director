@@ -260,7 +260,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     buttons, or checkboxes where several may be chosen, each option a card the whole of which can
     be clicked (the control stays visible and ticked beside an accent bar), with "Something else"
     and a text box where the question allows an answer in words; a short text question as a
-    one-line text box; a long text question as a text area that counts the characters left. A lone
+    one-line text box, which offers the question's suggested answers (`question_suggestions`) in a
+    list narrowed to those containing what is typed, the answer always being the text in the box;
+    a long text question as a text area that counts the characters left. A lone
     question is answered and sent in place. A series shows one question at a time, saying in
     words which of how many it is beside a progress bar, with Back, Skip and Next; Next with
     nothing entered says to answer or skip. After the last question it lists the answers to check,

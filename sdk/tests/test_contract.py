@@ -15,6 +15,8 @@ import yaml
 from dd_sdk.contract import validate
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
+    QUESTION_SUGGESTIONS_MAX,
+    SHORT_TEXT_MAX,
     ApprovedMetadataRecord,
     Assurance,
     ChoiceOption,
@@ -688,6 +690,56 @@ def test_only_a_choice_question_has_options(extra: dict[str, object]) -> None:
         Question.model_validate(
             {"question_key": "q", "question_prompt": "Why?", "question_kind": "short_text", **extra}
         )
+
+
+def _suggesting(kind: str, suggestions: list[str], **extra: object) -> Question:
+    return Question.model_validate(
+        {
+            "question_key": "discipline",
+            "question_prompt": "What is your field of study?",
+            "question_kind": kind,
+            "question_suggestions": suggestions,
+            **extra,
+        }
+    )
+
+
+@pytest.mark.requirement("DD-CONVERSATION")
+def test_a_short_text_question_may_suggest_answers_and_its_reply_validates() -> None:
+    question = _suggesting("short_text", ["Mathematics", "Earth sciences"])
+    reply = Reply(
+        reply_text="Which field?",
+        reply_derivation=Derivation.MODEL,
+        reply_questions=[question],
+        grounded_on=[_input_ref()],
+    )
+    env = _succeeded(payload=reply, evidence=[_input_evidence()]).to_document()
+    validate.validate_envelope(env)
+    assert Reply.model_validate(env["payload"]).reply_questions == [question]
+
+
+@pytest.mark.requirement("DD-CONVERSATION")
+@pytest.mark.parametrize(
+    ("kind", "suggestions", "extra"),
+    [
+        ("long_text", ["Mathematics"], {}),
+        (
+            "choice",
+            ["Mathematics"],
+            {"question_options": [{"option_value": "a", "option_label": "A"}] * 2},
+        ),
+        ("short_text", [], {}),
+        ("short_text", ["  "], {}),
+        ("short_text", ["x" * (SHORT_TEXT_MAX + 1)], {}),
+        ("short_text", [f"Field {n}" for n in range(QUESTION_SUGGESTIONS_MAX + 1)], {}),
+    ],
+    ids=["long-text", "choice", "empty", "blank", "too-long", "too-many"],
+)
+def test_only_a_short_text_question_suggests_answers_each_a_line_and_not_too_many(
+    kind: str, suggestions: list[str], extra: dict[str, object]
+) -> None:
+    with pytest.raises(ValueError):
+        _suggesting(kind, suggestions, **extra)
 
 
 @pytest.mark.requirement("DD-CONVERSATION")

@@ -108,7 +108,7 @@ dd:GroundingRef a sh:NodeShape ;
     sh:targetClass dd:GroundingRef .
 
 dd:Question a sh:NodeShape ;
-    rdfs:comment "One question a conversational agent asks the researcher in its reply, shown as a form field and answered with the reply's other questions in the next turn. A choice question has a fixed set of options, of which one or several may be chosen, and where question_other is true the researcher may answer in their own words instead; option values are unique within the question. A short or long text question is answered in the researcher's own words and has no options. Asking never suspends the run: the researcher may skip a question, or ignore them all and type (docs/specs/orchestration.md)." ;
+    rdfs:comment "One question a conversational agent asks the researcher in its reply, shown as a form field and answered with the reply's other questions in the next turn. A choice question has a fixed set of options, of which one or several may be chosen, and where question_other is true the researcher may answer in their own words instead; option values are unique within the question. A short or long text question is answered in the researcher's own words and has no options; a short text question may suggest answers (question_suggestions), which the researcher may take or ignore. Asking never suspends the run: the researcher may skip a question, or ignore them all and type (docs/specs/orchestration.md)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
@@ -135,6 +135,11 @@ dd:Question a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 4 ;
             sh:path dd:question_options ],
+        [ sh:datatype xsd:string ;
+            sh:description "Answers a short text question suggests, in the order they are offered, such as the fields of a subject classification; between 1 and 300, each a line of at most 200 characters. The researcher may take one or answer in their own words, so a suggestion never constrains the answer. Short text questions only." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path dd:question_suggestions ],
         [ sh:datatype xsd:boolean ;
             sh:description "True when several options may be chosen; one only otherwise. Choice questions only." ;
             sh:maxCount 1 ;

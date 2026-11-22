@@ -52,6 +52,8 @@ attached_documents: allowed  # optional: `refused` keeps no document people atta
 agent_settings:              # optional: options an agent offers on its card, per agent.
   advisor.policy:            # Write each value as a quoted string. Without this key every
     journals: "off"          # agent uses its card's defaults
+  orchestrator.model:        # the fields of study suggested when it asks for a discipline:
+    fields_of_study: "anzsrc-for"  # "oecd-fos" (default), "anzsrc-for" or "none"
 
 model_footprint:             # optional: figures to estimate each run's model energy and cost.
                              # The numbers below are illustrative, not real prices or factors.

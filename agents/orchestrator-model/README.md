@@ -118,6 +118,32 @@ In development these go in `config/local/agents/orchestrator-model.env` (`config
 On a server they go in `/etc/data-director/agents/orchestrator-model.env`, with the key loaded as a
 systemd credential (`deploy/README.md`).
 
+### The fields of study it suggests
+
+When the orchestrator asks for the researcher's discipline (the question key `discipline`), it
+shows the question as one line in their own words with the fields of a published subject
+classification as suggestions (`asking.py`, from [`dd-subjects`](../../subjects/README.md)). The
+model writes the question, never the fields. Which classification is the deployment's choice,
+through the card's `fields_of_study` setting, set in the institutional profile's
+`agent_settings` ([Policy and identity](../../docs/specs/policy-and-identity.md)), not an
+environment variable:
+
+| Value | Suggests |
+|---|---|
+| `oecd-fos` (default) | The OECD Fields of R&D (Frascati Manual 2015): 6 broad fields and 42 below them. |
+| `anzsrc-for` | The ANZSRC 2020 Fields of Research: 23 divisions and 213 groups. |
+| `none` | Nothing: a plain one-line answer. |
+
+```yaml
+agent_settings:
+  orchestrator.model:
+    fields_of_study: "anzsrc-for"
+```
+
+Apart from the SDK, `dd-subjects` is the package's only dependency: data read with the standard
+library, which can give the model no tool ([Orchestration](../../docs/specs/orchestration.md),
+invariant 8).
+
 ## Choice of model
 
 The orchestrator defaults to a mid-sized model, which balances the quality of its routing against

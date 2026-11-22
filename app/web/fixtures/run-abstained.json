@@ -19,7 +19,7 @@
     "agent_id": "advisor.standards",
     "agent_version": "0.3.0",
     "completed_at": "2026-01-01T00:00:00Z",
-    "contract_version": "0.20.0",
+    "contract_version": "0.21.0",
     "evidence": [],
     "grounding_mode": "retrieval",
     "input_schema": "7e282eef80b13338e071bc055f041ee02e4534010c93363f6bde6b045f7fd5e0",

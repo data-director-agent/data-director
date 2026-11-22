@@ -125,8 +125,11 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     string value with a label and optional help, whether several may be chosen, and whether the
     researcher may answer in their own words instead; or `short_text` (one line, at most 200
     characters) or `long_text` (at most 4000 characters), answered in their own words and with no
-    options. Option values are unique within the question and are strings, because A2A carries
-    numbers as doubles. A `Message` may carry `ReplyAnswers` (`reply_answers`) naming the
+    options. A `short_text` question may suggest 1 to 300 answers (`question_suggestions`), each a
+    line of at most 200 characters, such as the fields of a subject classification: the researcher
+    may take one or write their own, so a suggestion never constrains the answer, which is checked
+    as any text answer is (#1406; adding it raised the contract version to 0.21.0). Option values are unique within the question and are strings, because
+    A2A carries numbers as doubles. A `Message` may carry `ReplyAnswers` (`reply_answers`) naming the
     invocation whose reply asked and giving one `QuestionAnswer` for each question answered: its
     key, the values chosen and any answer in the researcher's own words (`answer_words`); a
     question skipped has none, and at least one is given. `message_text` says the same in words.

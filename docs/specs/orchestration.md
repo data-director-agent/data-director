@@ -94,7 +94,9 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
    researcher said plainly and leaves a question it cannot settle. `suggest_setup_answers` is not
    built yet, TODO(#908). Nothing else is offered: no MCP server, no server tool
    (web search, web fetch, code execution), no Agent Skills; its package depends on and imports
-   nothing that could provide one. This holds on every provider: the tools are offered as
+   nothing that could provide one: only the SDK, and `dd_subjects`, the subject classifications
+   the discipline question suggests fields from (invariant 16), which is data read with the
+   standard library. This holds on every provider: the tools are offered as
    `dd_sdk.model.ToolSpec`s and the loop keeps its conversation in `dd_sdk.model`'s neutral
    types, which each adapter translates, so the orchestrator imports no provider's client.
    (`agents/orchestrator-model/tests/test_orchestrator_only_delegates.py`, for Claude's adapter
@@ -163,6 +165,16 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     kind's length; and at least one question is answered.
     (`test_questions_show_in_history_and_answers_are_checked_against_them`,
     `test_asking_questions_ends_the_turn_and_the_reply_carries_them`)
+    The model orchestrator asks for the researcher's discipline with the question key
+    `discipline`, which it always shows as a short text question suggesting the fields of a
+    published subject classification (`Question.question_suggestions`, from `dd_subjects`),
+    never fields the model wrote. No list is required, because the registries downstream each use
+    their own (re3data the DFG classification, many institutional repositories ANZSRC), so the
+    answer stays the researcher's own words. Which classification is suggested is the
+    deployment's choice, through the orchestrator's `fields_of_study` setting (the profile's
+    `agent_settings`, [Policy and identity](policy-and-identity.md), invariant 22): `oecd-fos`, the
+    OECD Fields of R&D, by default; `anzsrc-for`, the ANZSRC 2020 Fields of Research; or `none`
+    (#1406; `test_the_profile_chooses_the_scheme_or_none`).
 
 17. **A step the Blueprint has and this project does not yet do is in the flow, marked
     `out_of_scope`.** The Data Management Plan steps (`setup.dmp-create`, `setup.dmp-review`,
