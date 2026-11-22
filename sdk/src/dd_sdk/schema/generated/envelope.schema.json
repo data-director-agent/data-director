@@ -2919,7 +2919,7 @@
       },
       "Question": {
          "additionalProperties": false,
-         "description": "One question a conversational agent asks the researcher in its reply, shown as a form field and answered with the reply's other questions in the next turn. A choice question has a fixed set of options, of which one or several may be chosen, and where question_other is true the researcher may answer in their own words instead; option values are unique within the question. A short or long text question is answered in the researcher's own words and has no options. Asking never suspends the run: the researcher may skip a question, or ignore them all and type (docs/specs/orchestration.md).",
+         "description": "One question a conversational agent asks the researcher in its reply, shown as a form field and answered with the reply's other questions in the next turn. A choice question has a fixed set of options, of which one or several may be chosen, and where question_other is true the researcher may answer in their own words instead; option values are unique within the question. A short or long text question is answered in the researcher's own words and has no options; a short text question may suggest answers (question_suggestions), which the researcher may take or ignore. Asking never suspends the run: the researcher may skip a question, or ignore them all and type (docs/specs/orchestration.md).",
          "properties": {
             "question_key": {
                "description": "The question's identifier within its reply, which an answer names: a lower-case letter, then up to 39 lower-case letters, digits and hyphens.",
@@ -2962,6 +2962,16 @@
                "description": "True when the researcher may answer in their own words instead of an option. Choice questions only.",
                "type": [
                   "boolean",
+                  "null"
+               ]
+            },
+            "question_suggestions": {
+               "description": "Answers a short text question suggests, in the order they are offered, such as the fields of a subject classification; between 1 and 300, each a line of at most 200 characters. The researcher may take one or answer in their own words, so a suggestion never constrains the answer. Short text questions only.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
                   "null"
                ]
             }
@@ -4167,5 +4177,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.21.0"
+   "version": "0.22.0"
 }

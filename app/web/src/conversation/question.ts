@@ -25,6 +25,8 @@ export interface Question {
   question_options?: ChoiceOption[] | null;
   question_multiple?: boolean | null;
   question_other?: boolean | null;
+  /** A short text question's suggested answers, which the researcher may take or ignore. */
+  question_suggestions?: string[] | null;
 }
 
 export interface QuestionAnswer {
