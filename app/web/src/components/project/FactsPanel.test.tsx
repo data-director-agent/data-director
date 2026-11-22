@@ -12,8 +12,10 @@ import {
   FactsApiContext,
   type ProjectFact,
   type ProjectFacts,
+  factKey,
 } from "../../project/facts";
 import type { Problem } from "../../run/types";
+import { factsPath } from "../../route";
 import { FactsPanel } from "./FactsPanel";
 
 // What the server says (app/tests/test_project_facts.py): two proposals from the files check, the
@@ -236,6 +238,32 @@ describe("FactsPanel", () => {
       proposal: "01900000-0000-7000-8000-0000000000c1",
       fact: { ...kept, commitment_repository: "Zenodo" },
       reason: "We moved to Zenodo.",
+    });
+  });
+
+  describe("reached by a link to some of its facts", () => {
+    afterEach(() => history.replaceState(null, "", "/"));
+
+    it("marks the facts linked and moves focus to the first", async () => {
+      const [, sites] = OFFERED.proposals;
+      if (!sites) throw new Error("the fixture has no second proposal");
+      history.replaceState(null, "", factsPath(PROJECT, [factKey(sites.fact)]));
+      const { container } = renderPanel({});
+      const card = await proposalCard(/calibration\/sites\.csv/);
+      expect(card).toHaveClass("fact-target");
+      expect(card).toHaveFocus();
+      const other = screen.getByRole("article", { name: /readings \(copy\)\.csv/ });
+      expect(other).not.toHaveClass("fact-target");
+      expect(screen.getByRole("link", { name: /without marks/ })).toHaveAttribute("href", factsPath(PROJECT));
+      expect(await axe(container)).toHaveNoViolations();
+    });
+
+    it("says so when the facts linked are no longer there, and marks nothing", async () => {
+      history.replaceState(null, "", factsPath(PROJECT, ["funder:Nobody"]));
+      renderPanel({});
+      await proposalCard(/calibration\/sites\.csv/);
+      expect(screen.getByText(/no longer here/)).toBeVisible();
+      expect(document.querySelector(".fact-target")).toBeNull();
     });
   });
 });

@@ -7,7 +7,11 @@ metadata record is given only what a person has decided, never a proposal. So yo
 
 ## Deciding a proposal
 
-1. Open the project's page and choose the **Project facts** tab.
+1. Open the project's page and choose the **Project facts** tab. From a conversation, the
+   quickest way is a link: when an agent proposes facts, its card in the conversation lists them
+   with **Review them in Project facts**, and the project pane beside the conversation has a
+   **Review** button for each kind of fact waiting. Either takes you to those facts, marked, with
+   the first one in view.
 2. Under **Proposed by agents**, each proposal says what it would decide, why the agent proposed
    it, and which agent did.
 3. Choose one of:

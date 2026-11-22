@@ -72,6 +72,17 @@
     border-inline-start: var(--focus-width) solid var(--color-border);
   }
 
+  /* What a run proposed about the project, beneath the card's own line (ProposedFacts.tsx). */
+  .proposed-facts {
+    margin-top: var(--space-3);
+    overflow-wrap: anywhere;
+  }
+
+  .proposed-facts p,
+  .proposed-facts ul {
+    margin: 0 0 var(--space-2);
+  }
+
   /* An open run sits inside its card, beneath the card's own line, set off from it. */
   .child-run:not([hidden]) {
     margin-top: var(--space-3);

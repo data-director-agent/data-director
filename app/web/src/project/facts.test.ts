@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import forbiddenFixture from "../../fixtures/project-facts-forbidden.json";
 import { DecisionConflict } from "./api";
-import { FactForbidden, cleaned, httpFactsApi, missingSlots } from "./facts";
+import type { Envelope } from "../run/types";
+import { FactForbidden, cleaned, factKey, httpFactsApi, missingSlots, proposedFactsOf } from "./facts";
 
 const PROJECT = "01900000-0000-7000-8000-000000000001";
 const CONFLICT = {
@@ -65,5 +66,22 @@ describe("a fact the person gives", () => {
         proposed_because: "The proposal says so.",
       }),
     ).toEqual({ fact_kind: "funder", fact_subject: "NERC", fact_funder_name: "NERC" });
+  });
+});
+
+describe("the facts a run proposed", () => {
+  const run = (status: Envelope["outcome"]["status"], payload: Envelope["payload"]): Envelope =>
+    ({ invocation_id: "i", agent_id: "a", outcome: { status }, payload }) as Envelope;
+  const fact = { fact_kind: "funder", fact_subject: "NERC", fact_funder_name: "NERC" };
+
+  it("reads the payload's proposed facts of any class, leaving out what is not a fact", () => {
+    const proposed = proposedFactsOf(run("succeeded", { schema_class: "Any", proposed_facts: [fact, { x: 1 }, 3] }));
+    expect(proposed.map(factKey)).toEqual([factKey({ fact_kind: "funder", fact_subject: "NERC" })]);
+  });
+
+  it("finds none in a run that did not succeed or proposed nothing", () => {
+    expect(proposedFactsOf(run("failed", { proposed_facts: [fact] }))).toEqual([]);
+    expect(proposedFactsOf(run("succeeded", { schema_class: "Reply" }))).toEqual([]);
+    expect(proposedFactsOf(run("succeeded", null))).toEqual([]);
   });
 });

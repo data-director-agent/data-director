@@ -8,6 +8,7 @@ import { DEFAULT_AGENT_ICON } from "@data-director/agent-view";
 import several from "../../../fixtures/agents-several.json";
 import conversationFixture from "../../../fixtures/conversation.json";
 import projectFixture from "../../../fixtures/project-documents.json";
+import offeredFixture from "../../../fixtures/project-facts.json";
 import projectsFixture from "../../../fixtures/projects.json";
 import runFixture from "../../../fixtures/run-succeeded.json";
 import type { Conversation } from "../../conversation/types";
@@ -19,6 +20,7 @@ import type {
   ProjectDocuments,
   ProjectSummary,
 } from "../../project/api";
+import { type ProjectFact, type ProjectFacts, factKey } from "../../project/facts";
 import { projectName } from "../../project/name";
 import { type RunApi, RunApiContext } from "../../run/api";
 import type { RunResult } from "../../run/types";
@@ -431,5 +433,38 @@ describe("Transcript, as a conversation", () => {
     render(<Transcript conversation={conversation} agents={[]} onToggleRun={() => {}} />);
     const name = turns()[0]?.querySelector(".turn-agent .turn-speaker-name") as HTMLElement;
     expect(name.querySelector(".agent-icon")).toHaveTextContent(DEFAULT_AGENT_ICON);
+  });
+});
+
+describe("Transcript, the facts a delegated run proposed", () => {
+  const { agents } = normalise(several as unknown as RawAgentsResponse);
+
+  it("says what was proposed on the run's card, with a link that lands on those facts", () => {
+    const conversation = structuredClone(conversationFixture) as unknown as Conversation;
+    const child = conversation.turns.flatMap((t) => t.children)[0];
+    if (!child) throw new Error("no delegated run in the fixture");
+    const facts = (offeredFixture as ProjectFacts).proposals.map((p) => p.fact as ProjectFact);
+    child.outcome = { ...child.outcome, status: "succeeded" };
+    child.payload = { ...child.payload, proposed_facts: facts };
+    const project = {
+      ...((projectsFixture as ProjectSummary[])[0] as ProjectSummary),
+      project_id: conversation.project_id ?? "p",
+    };
+    render(<Transcript conversation={conversation} agents={agents} onToggleRun={() => {}} project={project} />);
+
+    const card = screen.getByRole("link", { name: /in Project facts/ }).closest(".child-card");
+    expect(card).not.toBeNull();
+    const href = new URL(
+      screen.getByRole("link", { name: /in Project facts/ }).getAttribute("href") ?? "",
+      location.origin,
+    );
+    expect(href.pathname).toBe(`/projects/${encodeURIComponent(project.project_id)}/facts`);
+    expect(href.searchParams.getAll("fact")).toEqual(facts.map(factKey));
+  });
+
+  it("says nothing of facts for a run that proposed none", () => {
+    const conversation = structuredClone(conversationFixture) as unknown as Conversation;
+    render(<Transcript conversation={conversation} agents={agents} onToggleRun={() => {}} />);
+    expect(screen.queryByRole("link", { name: /in Project facts/ })).toBeNull();
   });
 });

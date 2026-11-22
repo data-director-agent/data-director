@@ -50,3 +50,29 @@ for (const width of [1280, 320]) {
     await page.screenshot({ path: `test-results/facts-${width}.png`, fullPage: true });
   });
 }
+
+for (const width of [1280, 320]) {
+  test(`a link to a proposal lands on it, marked and focused, at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await page.route(`/api/projects/${project.project_id}/documents`, (route) =>
+      route.fulfill({ json: project }),
+    );
+    await page.route(`/api/projects/${project.project_id}/facts`, (route) =>
+      route.fulfill({ json: offered }),
+    );
+    const sites = offered.proposals[1]?.fact;
+    if (!sites) throw new Error("the fixture has no second proposal");
+    const fact = new URLSearchParams({ fact: `${sites.fact_kind}:${sites.fact_subject}` });
+    await page.goto(`/projects/${project.project_id}/facts?${fact.toString()}`);
+
+    const card = page.getByRole("article", { name: /calibration\/sites\.csv/ });
+    await expect(card).toBeFocused();
+    await expect(card).toBeInViewport();
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+    const scrolled = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(scrolled).toBeLessThanOrEqual(0);
+    await page.screenshot({ path: `test-results/facts-linked-${width}.png`, fullPage: false });
+  });
+}
