@@ -677,13 +677,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   package takes it; rejecting, or editing and approving, does not, and keeps its reason rule (#1282).
   The list holds documents only.
 - **A project's pages are tabs.** Beneath the breadcrumb, each of a project's pages is a tab with
-  an address of its own: Documents (`/projects/{id}`), Researchers (`/researchers`), Members
-  (`/members`), Project facts
-  (`/facts`), Repository (`/repository`), Use of generative AI (`/ai-use`), Deposit package
-  (`/deposit`) and the Journey map (`/journey`), each under `/projects/{id}`, then the project's
-  Conversations. Each is there before any document is drafted. A link to one of the first five
-  from when they were entries in the documents list (`?doc=repository` and the like) is sent on
-  to its tab, replacing the history entry (`app/web/src/components/project/ProjectPanelPage.test.tsx`).
+  an address of its own, in the order the work goes: Documents (`/projects/{id}`), Project facts
+  (`/facts`), People (`/people`), Repository (`/repository`), Use of generative AI (`/ai-use`),
+  FAIR feedback (`/fair`), Deposit package (`/deposit`) and the Journey map (`/journey`), each
+  under `/projects/{id}`, then the project's Conversations. Each is there before any document is
+  drafted. A link to one of the panels that were once entries in the documents list
+  (`?doc=repository` and the like) is sent on to its tab, replacing the history entry (`app/web/src/components/project/ProjectPanelPage.test.tsx`).
   The Repository tab (`GET /api/projects/{id}/repository`) shows the repository chosen last, as
   the harness resolved it from the pinned re3data export and the deployment's requirement sets,
   with nothing looked up live: its re3data record and, from its override, where to deposit; the
