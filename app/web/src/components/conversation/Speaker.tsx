@@ -3,10 +3,9 @@
  * researcher sees. Kept apart from `Transcript` so `Pending` heads the part it shows the same way.
  */
 
-import { AgentIcon, type AgentView, agentName } from "../../manifest/normalise";
+import { CircleUserRound } from "lucide-react";
 
-/** The icon beside "You", in the place an agent's card icon takes. */
-const PERSON_ICON = "👤";
+import { AgentIcon, type AgentView, agentName } from "../../manifest/normalise";
 
 /** The agent's name as a researcher sees it: its card's title, or its id when the directory does
  * not list it or its card names none. */
@@ -58,8 +57,9 @@ export function Speaker({
     return (
       <p className="turn-speaker">
         <strong className="turn-speaker-name">
+          {/* A neutral silhouette, as the account menu uses, in the place an agent's icon takes. */}
           <span className="person-icon" aria-hidden="true">
-            {PERSON_ICON}
+            <CircleUserRound size="1.125em" />
           </span>
           {!person || person.you ? "You" : person.name}
         </strong>

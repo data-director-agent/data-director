@@ -321,7 +321,7 @@ describe("Transcript, as a conversation", () => {
     );
     const names = () =>
       turns().map((t) => t.querySelector(".turn-person .turn-speaker-name")?.textContent);
-    await waitFor(() => expect(names()).toEqual(["👤Ada Example", "👤You"]));
+    await waitFor(() => expect(names()).toEqual(["Ada Example", "You"]));
   });
 
   it("heads a reply with the agent's name alone, not its version or model", () => {
