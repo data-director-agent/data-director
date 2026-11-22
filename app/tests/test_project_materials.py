@@ -35,13 +35,13 @@ from dd_app.governance import (
 )
 from dd_harness.project_access import Role
 from dd_harness.projects import ProjectStore
-from dd_harness.projects.extract import PDF
+from dd_harness.projects.extract import DOCX, PDF
 from dd_harness.storage import ProjectStorage
 from dd_harness.testing import (
     TEST_PRINCIPAL,
 )
 from dd_harness.testing.documents import PROTOCOL as DOCUMENT_TEXT
-from dd_harness.testing.documents import pdf_file
+from dd_harness.testing.documents import pdf_file, structured_word_file
 
 
 @pytest.fixture
@@ -498,6 +498,41 @@ def test_a_member_attaches_a_pdf_outside_a_turn_and_the_project_keeps_the_file(
     assert listed["documentation_source_media_type"] == PDF
     original = client.get(f"{url}/{listed['documentation_digest']}?original")
     assert original.content == pdf_file()
+
+
+def test_a_word_document_is_kept_as_markdown_and_previewed_from_its_file(
+    in_projects: tuple[Governance, Any], monkeypatch: pytest.MonkeyPatch
+):
+    client, _store, project_id = a_member_in_a_project(in_projects, monkeypatch)
+    url = f"/api/projects/{project_id}/documentation"
+    data = base64.b64encode(structured_word_file()).decode()
+
+    added = client.post(url, json={"name": "dmp.docx", "media_type": DOCX, "data": data})
+
+    assert added.status_code == 201, added.json()
+    [listed] = added.json()
+    assert listed["documentation_media_type"] == "text/markdown"
+    digest = listed["documentation_digest"]
+    stored = client.get(f"{url}/{digest}")
+    preview = client.get(f"{url}/{digest}?preview")
+    assert preview.status_code == 200
+    assert preview.headers["content-type"].startswith("text/markdown")
+    assert any(line.startswith("# ") for line in preview.text.splitlines())
+    assert preview.text == stored.text
+    assert client.get(f"{url}/{'0' * 64}?preview").status_code == 404
+
+
+def test_a_document_attached_as_text_is_previewed_as_it_is_stored(
+    in_projects: tuple[Governance, Any], monkeypatch: pytest.MonkeyPatch
+):
+    client, _store, project_id = a_member_in_a_project(in_projects, monkeypatch)
+    url = f"/api/projects/{project_id}/documentation"
+    [listed] = client.post(url, json=a_document()).json()
+
+    preview = client.get(f"{url}/{listed['documentation_digest']}?preview")
+
+    assert preview.text == PROTOCOL
+    assert preview.headers["content-type"].startswith(listed["documentation_media_type"])
 
 
 def test_a_document_that_may_hold_personal_data_is_kept_only_once_confirmed(

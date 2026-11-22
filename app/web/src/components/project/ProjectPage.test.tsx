@@ -12,8 +12,8 @@ import {
   digestOf,
 } from "../../project/api";
 import { type ConversationApi, ConversationApiContext } from "../../conversation/api";
-import type { ConversationSummary } from "../../conversation/types";
-import { conversationSummary, projectSummary } from "../../test/api";
+import type { DocumentationSummary } from "../../conversation/documentation";
+import { projectSummary } from "../../test/api";
 import {
   DICTIONARY,
   DRAFT,
@@ -50,17 +50,18 @@ function renderPage(api: ProjectApi, query = "", conversations = fakeConversatio
   );
 }
 
-/** A conversation summary as `GET /api/conversations` lists one. */
-function summary(conversation_id: string, project_id: string | null, title: string): ConversationSummary {
-  return conversationSummary({
-    conversation_id,
-    project_id,
-    agent_id: "orchestrator",
-    title,
-    turns: 2,
-    started_at: "2026-11-01T10:00:00Z",
-  });
-}
+/** A data management plan attached as a Word document. */
+const DMP: DocumentationSummary = {
+  documentation_name: "dmp.docx",
+  documentation_digest: "a".repeat(64),
+  documentation_media_type: "text/plain",
+  documentation_size: 2048,
+  documentation_added_at: "2026-11-10T10:00:00Z",
+  documentation_source_media_type:
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+};
+const DMP_MARKDOWN = "# Data management plan\n\n## Data collection\n\nSoil cores, weekly.\n";
+const DMP_STORED = "Data management plan Data collection Soil cores, weekly.";
 
 /** `PROJECT` with the README's text and media type replaced, as the given kind of document. */
 function withText(text: string, media_type: string): ProjectDocuments {
@@ -249,44 +250,64 @@ describe("ProjectPage", () => {
     expect(screen.getByRole("navigation", { name: "Documents" })).toBeVisible();
   });
 
-  it("lists the project's conversations beside its documents, each a link to open it", async () => {
-    const { container } = renderPage(
-      fakeApi(),
-      "",
-      fakeConversations(() =>
-        Promise.resolve([
-          summary("conv-1", PROJECT.project_id, "Soil cores deposit"),
-          summary("conv-2", "another-project", "Not this project"),
-          summary("conv-3", PROJECT.project_id, "Data dictionary questions"),
-        ]),
+  it("lists no conversations beside its documents", async () => {
+    renderPage(fakeApi());
+    await readme();
+    expect(screen.queryByRole("navigation", { name: /Conversations/ })).toBeNull();
+  });
+
+  it("lists the attached documents and opens one laid out, with its original to download", async () => {
+    const documentationText = vi.fn<ProjectApi["documentationText"]>((_p, _d, preview) =>
+      Promise.resolve(
+        preview
+          ? { text: DMP_MARKDOWN, mediaType: "text/markdown" }
+          : { text: DMP_STORED, mediaType: "text/plain" },
       ),
     );
-    const nav = await screen.findByRole("navigation", { name: /Conversations/ });
-    const first = await within(nav).findByRole("link", { name: /Soil cores deposit/ });
-    expect(first.getAttribute("href")).toBe("/?conversation=conv-1");
-    expect(within(nav).getByRole("link", { name: /Data dictionary questions/ })).toBeTruthy();
-    expect(within(nav).queryByRole("link", { name: /Not this project/ })).toBeNull();
-    expect(within(nav).getByRole("link", { name: /New conversation/ }).getAttribute("href")).toBe(
-      "/",
+    const { container } = renderPage(
+      fakeApi({ documentation: () => Promise.resolve([DMP]), documentationText }),
+      `attached=${DMP.documentation_digest}`,
     );
+    const article = await screen.findByRole("article", { name: DMP.documentation_name });
+    const list = screen.getByRole("navigation", { name: "Documents" });
+    const entry = within(list).getByRole("link", { name: new RegExp(DMP.documentation_name) });
+    expect(entry.getAttribute("aria-current")).toBe("page");
+    expect(entry.getAttribute("href")).toContain(`attached=${DMP.documentation_digest}`);
+    expect(await within(article).findByRole("heading", { name: "Data collection" })).toBeVisible();
+    const download = within(article).getByRole("link", { name: /Download/ });
+    expect(download.getAttribute("href")).toMatch(/\/documentation\/.+\?original$/);
+    await userEvent.click(within(article).getByRole("tab", { name: "Text" }));
+    expect(within(article).getByText(DMP_STORED)).toBeVisible();
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it("says when the project has no conversations yet", async () => {
-    renderPage(fakeApi());
-    const nav = await screen.findByRole("navigation", { name: /Conversations/ });
-    expect(await within(nav).findByText(/No conversations yet/)).toBeTruthy();
+  it("opens the first attached document when nothing has been drafted", async () => {
+    renderPage(
+      fakeApi({
+        documents: () => Promise.resolve({ ...PROJECT, documents: [] }),
+        documentation: () => Promise.resolve([DMP]),
+        documentationText: () => Promise.resolve({ text: DMP_MARKDOWN, mediaType: "text/markdown" }),
+      }),
+    );
+    expect(await screen.findByRole("article", { name: DMP.documentation_name })).toBeVisible();
   });
 
-  it("keeps the documents when the conversations cannot be read", async () => {
+  it("says so when the address names an attached document the project does not hold", async () => {
+    renderPage(fakeApi(), "attached=nonesuch");
+    expect(await screen.findByText(/That document is not in this project/)).toBeVisible();
+  });
+
+  it("says so when an attached document's text cannot be read", async () => {
     renderPage(
-      fakeApi(),
-      "",
-      fakeConversations(() => Promise.reject(new Error("unreachable"))),
+      fakeApi({
+        documentation: () => Promise.resolve([DMP]),
+        documentationText: () => Promise.reject(new Error("unreachable")),
+      }),
+      `attached=${DMP.documentation_digest}`,
     );
-    const nav = await screen.findByRole("navigation", { name: /Conversations/ });
-    expect(await within(nav).findByText(/could not be read/)).toBeTruthy();
-    expect(await readme()).toBeTruthy();
+    const article = await screen.findByRole("article", { name: DMP.documentation_name });
+    expect(await within(article).findByRole("alert")).toBeVisible();
+    expect(within(article).queryByRole("tab")).toBeNull();
   });
 
   it("names the page after the project", async () => {
@@ -559,7 +580,7 @@ describe("ProjectPage", () => {
   it("reaches the repository even before any document is drafted", async () => {
     const empty = { ...PROJECT, documents: [] };
     renderPage(fakeApi({ documents: () => Promise.resolve(empty) }));
-    expect(await screen.findByText(/No document has been drafted/)).toBeVisible();
+    expect(await screen.findByRole("heading", { name: "No documents yet" })).toBeVisible();
     expect(screen.getByRole("link", { name: "Repository" })).toBeVisible();
   });
 

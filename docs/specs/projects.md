@@ -528,11 +528,20 @@ media type, size and the SHA-256 of its UTF-8 text, under which the text is kept
 (`ProjectStore.add_documentation`). A turn may instead attach a Word document (`.docx`) or a
 PDF with a text layer, of at most 1 MB (`SOURCE_MAX_BYTES`, what a request through the
 deployment's proxy carries once encoded): the store reads its text inside the deployment
-(`dd_harness.projects.extract`, with `pypdf` and `python-docx`) and keeps it as a plain-text
-document, under the same limits, with the file as a blob beside it; the event names the file's
+(`dd_harness.projects.extract`, with `pypdf` and `python-docx`) and keeps it as a document under
+the same limits, with the file as a blob beside it. A Word document's text is Markdown, which keeps
+its title, headings, bulleted and numbered lists and tables in the document's own words, with no
+emphasis added, so that a quotation from it is found in it; a PDF's is plain text
+(`extracted_media_type`). The event names the file's
 media type, size and SHA-256 too, the document's `DocumentationSummary` gives
 `documentation_source_media_type`, and `ProjectStore.documentation_source` returns the file
-(`ProjectStore.add_document_file`, `harness/tests/test_document_files.py`). An encrypted or
+(`ProjectStore.add_document_file`, `harness/tests/test_document_files.py`). A document's stored
+text, and so its digest, never changes: one kept before Word documents were read as Markdown stays
+plain text, and `GET /api/projects/{id}/documentation/{digest}?preview` reads its file again as
+Markdown for a person to read, keeping nothing. The project page's **Documents** tab lists the
+documents attached to the project beside those agents drafted, and opens each in a reader with
+that preview, the stored text agents read, and the original file to download
+(`AttachedReader.tsx`). An encrypted or
 damaged file, a scanned PDF with no text layer (no text is recognised in images) and one whose
 text is blank or too long are refused. The text read from a file is `documentation`, so
 `hosted_models` decides whether it reaches a hosted model, as for one attached as text. The

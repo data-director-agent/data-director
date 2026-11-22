@@ -11,7 +11,10 @@ PDF, and the `confirmed` kinds of possible personal data the person has checked)
 with the documents the project then holds, `409` when what was found is not confirmed and `400`
 when the profile or the project refuses it; and `GET /api/projects/{id}/documentation/{digest}`
 is one document's text, `404` when the project holds none with that digest; with `?original`,
-the Word document or PDF its text was read from, `404` for one attached as text.
+the Word document or PDF its text was read from, `404` for one attached as text; with `?preview`,
+a copy to read, which is the stored text under its media type except for a Word document, whose
+text is read again from the file as Markdown, so that one attached before Word documents were read
+as Markdown is laid out as well. A preview keeps nothing and is not what agents read.
 `POST /api/documentation/extract` reads the text of a Word document or PDF
 (`{"name", "media_type", "data"}`, the file as base64) for the person to check before they attach
 it, and keeps nothing (#961). `POST /api/documentation/check` checks a
@@ -59,6 +62,7 @@ from dd_harness.projects import (
     check_documentation,
     read_document_file,
 )
+from dd_harness.projects.extract import DOCX, extract_text, extracted_media_type
 from dd_sdk.contract.models import Principal, now
 
 INVENTORY_REFUSED = "Data Director could not add this inventory"
@@ -275,29 +279,64 @@ async def add_documentation(request: Request, person: Principal, deps: Deps) -> 
     return respond(list[contract.DocumentationSummary], held, status_code=201)
 
 
+def documentation_preview(deps: Deps, project_id: str, digest: str) -> tuple[str, str] | None:
+    """The text of the project's document `digest` to read and its media type, or None: the
+    stored text, or, for a Word document, its file read again as Markdown."""
+    materials = deps.projects.materials
+    source = materials.documentation_source(project_id, digest)
+    if source is not None and source[1] == DOCX:
+        return extract_text(DOCX, source[0]), extracted_media_type(DOCX)
+    text = materials.documentation_text(project_id, digest)
+    if text is None:
+        return None
+    held = (d for d in materials.documentation(project_id) if d["documentation_digest"] == digest)
+    summary = next(held, {})
+    return text, summary.get("documentation_media_type", "text/plain")
+
+
 async def get_documentation(request: Request, _: Principal, deps: Deps) -> Response:
     project_id, digest = request.path_params["project_id"], request.path_params["digest"]
+    if "preview" in request.query_params:
+        return await _preview(deps, project_id, digest)
     if "original" in request.query_params:
-        source = await run_in_threadpool(
-            deps.projects.materials.documentation_source, project_id, digest
-        )
-        if source is None:
-            return problem(
-                404,
-                "documentation-not-found",
-                "No such file",
-                f"Project {project_id!r} holds no file its document {digest!r} was read from.",
-            )
-        return Response(source[0], media_type=source[1])
+        return await _original(deps, project_id, digest)
     found = await run_in_threadpool(deps.projects.materials.documentation_text, project_id, digest)
     if found is None:
+        return _no_documentation(project_id, digest)
+    return PlainTextResponse(found)
+
+
+async def _preview(deps: Deps, project_id: str, digest: str) -> Response:
+    try:
+        preview = await run_in_threadpool(documentation_preview, deps, project_id, digest)
+    except ProjectError as exc:  # a file this deployment can no longer read
+        return refused(str(exc), DOCUMENT_REFUSED)
+    if preview is None:
+        return _no_documentation(project_id, digest)
+    return PlainTextResponse(preview[0], media_type=preview[1])
+
+
+async def _original(deps: Deps, project_id: str, digest: str) -> Response:
+    source = await run_in_threadpool(
+        deps.projects.materials.documentation_source, project_id, digest
+    )
+    if source is None:
         return problem(
             404,
             "documentation-not-found",
-            "No such document",
-            f"Project {project_id!r} holds no document {digest!r}.",
+            "No such file",
+            f"Project {project_id!r} holds no file its document {digest!r} was read from.",
         )
-    return PlainTextResponse(found)
+    return Response(source[0], media_type=source[1])
+
+
+def _no_documentation(project_id: str, digest: str) -> Response:
+    return problem(
+        404,
+        "documentation-not-found",
+        "No such document",
+        f"Project {project_id!r} holds no document {digest!r}.",
+    )
 
 
 def read_orcid(person: Principal, deps: Deps) -> dict[str, Any]:

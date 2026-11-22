@@ -44,6 +44,24 @@ def word_file() -> bytes:
     return out.getvalue()
 
 
+def structured_word_file() -> bytes:
+    """A Word document with a title, a heading, a bulleted list and a table: a short plan."""
+    document = docx.Document()
+    document.add_heading("Data management plan", level=0)
+    document.add_heading("Data collection", level=1)
+    document.add_paragraph(PROTOCOL)
+    document.add_paragraph("Soil moisture", style="List Bullet")
+    document.add_paragraph("Soil temperature", style="List Bullet")
+    table = document.add_table(rows=2, cols=2)
+    rows = (("Output", "Repository"), ("Cores | logs", "Zenodo"))
+    for row, cells in zip(table.rows, rows, strict=True):
+        for cell, text in zip(row.cells, cells, strict=True):
+            cell.text = text
+    out = io.BytesIO()
+    document.save(out)
+    return out.getvalue()
+
+
 def pdf_file(text: str | None = PROTOCOL) -> bytes:
     """A one-page PDF whose text layer holds `text`, or a blank page."""
     if text is None:

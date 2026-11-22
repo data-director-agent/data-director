@@ -15,7 +15,13 @@ from dd_harness.projects import (
 )
 from dd_harness.projects.extract import DOCX, PDF, extract_text
 from dd_harness.testing import TEST_PRINCIPAL
-from dd_harness.testing.documents import PROTOCOL, encrypted_pdf, pdf_file, word_file
+from dd_harness.testing.documents import (
+    PROTOCOL,
+    encrypted_pdf,
+    pdf_file,
+    structured_word_file,
+    word_file,
+)
 
 pytestmark = pytest.mark.requirement("C13.3")
 
@@ -23,7 +29,33 @@ pytestmark = pytest.mark.requirement("C13.3")
 def test_the_text_of_a_word_document_is_read_with_its_tables() -> None:
     text = extract_text(DOCX, word_file())
     assert PROTOCOL in text
-    assert "depth\tcentimetres" in text
+    assert "| depth | centimetres |" in text.splitlines()
+
+
+def test_a_word_document_is_read_as_markdown_with_its_structure() -> None:
+    lines = extract_text(DOCX, structured_word_file()).splitlines()
+    assert any(line.startswith("# ") for line in lines)
+    assert any(line.startswith("## ") for line in lines)
+    items = [i for i, line in enumerate(lines) if line.startswith("- ")]
+    assert len(items) == 2 and items[1] == items[0] + 1  # one list, no blank line within it
+    table = [line for line in lines if line.startswith("|")]
+    assert len(table) == 3 and set(table[1]) <= set("|- ")
+    assert "\\|" in table[2]  # a bar in a cell does not split it
+
+
+def test_a_word_document_is_kept_as_markdown_and_a_pdf_as_plain_text(tmp_path: Path) -> None:
+    store = ProjectStore(tmp_path / "projects")
+    project = store.create(acted_for=TEST_PRINCIPAL, caused_by="t")
+    for name, media_type, data in (
+        ("plan.docx", DOCX, structured_word_file()),
+        ("plan.pdf", PDF, pdf_file()),
+    ):
+        store.add_document_file(
+            project, name, media_type, data, acted_for=TEST_PRINCIPAL, caused_by="t"
+        )
+    listed = store.documentation(project)
+    types = {d["documentation_name"]: d["documentation_media_type"] for d in listed}
+    assert types == {"plan.docx": "text/markdown", "plan.pdf": "text/plain"}
 
 
 def test_the_text_layer_of_a_pdf_is_read() -> None:

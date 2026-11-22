@@ -25,7 +25,7 @@ from collections.abc import Mapping
 from functools import cache
 from typing import Any, Final
 
-from dd_harness.projects.extract import extract_text
+from dd_harness.projects.extract import extract_text, extracted_media_type
 from dd_harness.projects.fold import text_digest
 from dd_harness.projects.rules import (
     DOCUMENTATION_ADDED,
@@ -149,7 +149,8 @@ class Holdings(ProjectRules):
         acted_for: Principal,
         caused_by: str,
     ) -> str:
-        """Add a Word document or PDF: the text read from it, as plain text, and the file itself.
+        """Add a Word document or PDF: the text read from it, as Markdown for a Word document and
+        plain text for a PDF (`extracted_media_type`), and the file itself.
         Returns the SHA-256 of the text, as `add_documentation` does. Raises `ProjectError` for
         what `read_document_file` refuses. What is refused leaves no trace."""
         self._require(project_id)
@@ -158,7 +159,7 @@ class Holdings(ProjectRules):
         source["source_digest"] = digest = hashlib.sha256(data).hexdigest()
         self._keep_blob(project_id, digest, data)
         return self._keep_documentation(
-            project_id, name, "text/plain", text, acted_for, caused_by, source
+            project_id, name, extracted_media_type(media_type), text, acted_for, caused_by, source
         )
 
     def _keep_documentation(
