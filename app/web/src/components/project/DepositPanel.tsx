@@ -39,7 +39,7 @@ import {
 } from "../../project/api";
 import { Button } from "../ui/Button";
 import { formatNumber } from "../../format";
-import { Link, projectTabPath } from "../../route";
+import { Link, projectTabOf, projectTabPath } from "../../route";
 import { tabLabel } from "./ProjectNav";
 import { BeforePackaging } from "./BeforePackaging";
 import { PackageBuilt } from "./PackageBuilt";
@@ -72,11 +72,13 @@ export function sizeInWords(bytes: number): string {
 function waiting(validation: Validation): string {
   const open = validation.review?.items.filter((i) => !i.decision).length ?? 0;
   const parts: string[] = [];
-  if (open > 0) parts.push(`${count(open, "file waits", "files wait")} for your decision`);
+  if (open > 0)
+    parts.push(`${count(open, "file waits", "files wait")} for your decision`);
   if (!validation.review?.confirmation) {
     parts.push("the checks before deposit wait for your confirmation");
   }
-  const what = parts.length > 0 ? parts.join(", and ") : "a decision waits for you";
+  const what =
+    parts.length > 0 ? parts.join(", and ") : "a decision waits for you";
   return `Nothing must be fixed, but ${what} before the package can be built.`;
 }
 
@@ -94,14 +96,21 @@ export function outcome(validation: Validation): string {
 }
 
 /** The link to the page where a person supplies what a result says is missing, if it names one. */
-function SuppliedOn({ projectId, result }: { projectId: string; result: ValidationResult }) {
-  if (!result.supplied_on) return null;
+function SuppliedOn({
+  projectId,
+  result,
+}: {
+  projectId: string;
+  result: ValidationResult;
+}) {
+  const tab = result.supplied_on ? projectTabOf(result.supplied_on) : null;
+  if (!tab) return null;
   const what = result.field ? `the ${result.field} on ` : "it on ";
   return (
     <>
       {" "}
-      <Link to={projectTabPath(projectId, result.supplied_on)}>
-        Supply {what}the {tabLabel(result.supplied_on)} page
+      <Link to={projectTabPath(projectId, tab)}>
+        Supply {what}the {tabLabel(tab)} page
       </Link>
     </>
   );
@@ -149,17 +158,30 @@ function FocusedCallout({
   const callout = useRef<HTMLDivElement>(null);
   useEffect(() => callout.current?.focus(), []);
   return (
-    <div role={role} className={`callout ${className}`} ref={callout} tabIndex={-1}>
+    <div
+      role={role}
+      className={`callout ${className}`}
+      ref={callout}
+      tabIndex={-1}
+    >
       {children}
     </div>
   );
 }
 
 // eslint-disable-next-line complexity -- recorded debt: split it, do not add to it (docs/architecture-review.md)
-export function DepositPanel({ projectId, revision }: { projectId: string; revision: number }) {
+export function DepositPanel({
+  projectId,
+  revision,
+}: {
+  projectId: string;
+  revision: number;
+}) {
   const api = useProjectApi();
   const [busy, setBusy] = useState<"checking" | "building" | null>(null);
-  const [result, setResult] = useState<(Result & { revision: number }) | null>(null);
+  const [result, setResult] = useState<(Result & { revision: number }) | null>(
+    null,
+  );
   const [failed, setFailed] = useState<string | null>(null);
   const [said, setSaid] = useState("");
   const [choice, setChoice] = useState<RepositoryRequirements | null>(null);
@@ -179,7 +201,11 @@ export function DepositPanel({ projectId, revision }: { projectId: string; revis
 
   const stale = result !== null && result.revision !== revision;
   const shown = stale ? null : result;
-  const validation = shown ? (shown.state === "built" ? shown.built : shown.validation) : null;
+  const validation = shown
+    ? shown.state === "built"
+      ? shown.built
+      : shown.validation
+    : null;
 
   const run = async (kind: "checking" | "building") => {
     setBusy(kind);
@@ -221,10 +247,11 @@ export function DepositPanel({ projectId, revision }: { projectId: string; revis
     <section className="deposit" aria-labelledby={HEADING_ID}>
       <h2 id={HEADING_ID}>Deposit package</h2>
       <p className="hint">
-        Data Director checks the project against what the repository you chose asks for. Once
-        nothing stops it, it builds a package: the approved documents, the record of who decided
-        what, and how generative AI was used. Your data files are listed in it but not included; you
-        upload them to the repository yourself, as the panel says once the package is built.
+        Data Director checks the project against what the repository you chose
+        asks for. Once nothing stops it, it builds a package: the approved
+        documents, the record of who decided what, and how generative AI was
+        used. Your data files are listed in it but not included; you upload them
+        to the repository yourself, as the panel says once the package is built.
       </p>
       <p className="document-actions">
         <Button
@@ -236,7 +263,10 @@ export function DepositPanel({ projectId, revision }: { projectId: string; revis
           {busy === "checking" ? "Checking the project…" : "Check the project"}
         </Button>
       </p>
-      <div role="status" className={said && shown ? "callout status-ok" : undefined}>
+      <div
+        role="status"
+        className={said && shown ? "callout status-ok" : undefined}
+      >
         {said && shown && <p>{said}</p>}
       </div>
       {failed && (
@@ -246,7 +276,10 @@ export function DepositPanel({ projectId, revision }: { projectId: string; revis
       )}
       {stale && (
         <div className="callout status-warn">
-          <p>The project has changed since it was checked. Check it again before packaging.</p>
+          <p>
+            The project has changed since it was checked. Check it again before
+            packaging.
+          </p>
         </div>
       )}
       {shown?.state === "refused" && (
@@ -292,7 +325,9 @@ export function DepositPanel({ projectId, revision }: { projectId: string; revis
             isDisabled={busy === "checking"}
             onPress={() => void run("building")}
           >
-            {busy === "building" ? "Building the package…" : "Build the package"}
+            {busy === "building"
+              ? "Building the package…"
+              : "Build the package"}
           </Button>
         </p>
       )}
