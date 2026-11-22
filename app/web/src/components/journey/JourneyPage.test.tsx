@@ -44,6 +44,14 @@ describe("JourneyPage", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("ends with a key to the map's marks, named as a region", async () => {
+    const progress: ProjectProgress = projectProgress({ entry: 1, steps: {}, suggested: null });
+    const { container } = renderPage(fakeApi(progress, () => Promise.resolve(progress)));
+    const legend = await screen.findByRole("region", { name: "How to read the map" });
+    expect(legend.querySelectorAll("li").length).toBeGreaterThan(0);
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
   it("opens a step's details and marks it through the server, showing what it answers", async () => {
     const before: ProjectProgress = projectProgress({ entry: 1, steps: {}, suggested: null });
     const after: ProjectProgress = projectProgress({

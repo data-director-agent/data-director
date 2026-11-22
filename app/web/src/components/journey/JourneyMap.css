@@ -245,6 +245,43 @@
     color: var(--color-text-muted);
   }
 
+  /* The key at the foot of the page: the same dots as the stops, each with its meaning. */
+  .journey-legend {
+    margin-top: var(--space-4);
+    padding-top: var(--space-3);
+    border-top: var(--border-width) solid var(--color-border-subtle);
+  }
+
+  .journey-legend-title {
+    margin: 0 0 var(--space-2);
+    font-size: var(--font-size-h3);
+  }
+
+  .journey-legend-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    gap: var(--space-2) var(--space-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .journey-legend-item {
+    display: flex;
+    gap: var(--space-2);
+    align-items: flex-start;
+    font-size: var(--font-size-small);
+  }
+
+  .journey-legend-item .journey-entry-icon {
+    margin-top: 0.2em;
+    color: var(--color-ok-fg);
+  }
+
+  .journey-legend-label {
+    font-weight: var(--font-weight-medium);
+  }
+
   /* "Waiting on you": everything else steps back, but stays readable and usable. */
   .journey-waiting-only .journey-station:not(.is-waiting),
   .journey-waiting-only .journey-decision:not(.is-waiting) {
