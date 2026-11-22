@@ -5,22 +5,26 @@
 default, writes the recommendations. It gives no FAIRness evaluation.
 
 The FAIR Assessor looks at a dataset's metadata: a published dataset's, or the project's draft
-metadata record while it is written. It serves two steps of the Blueprint's process flow (§8.2):
+metadata record while it is written. It serves three steps of the Blueprint's process flow (§8.2):
 
-| Step | What it does |
-|---|---|
-| `post.fairness` (R12) | Checks the metadata given for the dataset against a short list of FAIR-related presence checks. |
-| `post.retrofit` (R9) | Recommends what to add to the record for each check not met. |
+| Step | Input | What it does |
+|---|---|---|
+| `deposit.fairness` | `ProjectMetadataDraft` | Before submission, checks the project's draft record against the same checks, so that the researcher can still act on them. The step is ours, in no figure of the Blueprint. |
+| `post.fairness` (R12) | `PublishedRecord` | Checks the metadata given for the published dataset against a short list of FAIR-related presence checks. |
+| `post.retrofit` (R9) | `PublishedRecord` | Recommends what to add to the record for each check not met. |
 
-Both steps are optional and advisory. The agent changes no record: the researcher decides what to
-submit to the repository.
+All three steps are optional and advisory. The agent changes no record: the researcher decides what
+to submit to the repository.
 
-It also gives **feedback on the project's draft metadata at any time** (#430, #432), for no step
-of its own, so that each improvement to the record is visible as it is made: a positive feedback
-loop. The orchestrator asks it whenever a researcher wants to know how FAIR their description is
-so far. The draft is the Metadata Librarian's (`advisor.metadata`); the assessor takes no step from
-it, nor from the Metadata Reviewer (`advisor.quality`, `deposit.validate`), which checks that a
-record is complete enough to deposit.
+It also gives **feedback on the project's draft metadata at any time** (#430, #432), beyond that
+step, so that each improvement to the record is visible as it is made: a positive feedback loop.
+The orchestrator asks it whenever a researcher wants to know how FAIR their description is so far.
+The draft is the Metadata Librarian's (`advisor.metadata`). The assessor takes nothing from the
+Metadata Reviewer (`advisor.quality`, `deposit.validate`), which checks that a record is complete
+enough to deposit and is the step that decides it. The two share a few presence checks (title,
+creators, keywords, licence) and differ in purpose: the reviewer's score is about completeness and
+the assessor's tallies are about the FAIR principles. `deposit.fairness` never gates the deposit
+and marks no other step done.
 
 ## Input and output
 

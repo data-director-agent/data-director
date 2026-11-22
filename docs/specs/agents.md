@@ -163,7 +163,10 @@ gives feedback on the project's draft metadata record this way (#430, #432): the
 drafts it (`preparation.metadata`) and the Metadata Reviewer checks it is complete enough to
 deposit (`deposit.validate`), while the assessor says what it already meets against FAIR-related
 checks, what is newly met since the version approved, and what to do next, so that each
-improvement is visible. It changes nothing; the researcher edits or approves the draft.
+improvement is visible. It changes nothing; the researcher edits or approves the draft. The
+assessor also serves `deposit.fairness`, our addition to Figure 5, with the same input class, so
+that the check comes before submission as well as after publication (`post.fairness`). That step
+is advice: it gates nothing and marks no other step done.
 
 Some steps are deliberately served by no agent, and the orchestrators name them as steps with no
 agent:

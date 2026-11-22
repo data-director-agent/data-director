@@ -63,7 +63,7 @@ def test_the_card_names_the_persona_and_its_steps() -> None:
     entry = describe(FairAssessor.spec)
     assert entry["title"] == "FAIR Assessor"
     assert entry["description"].startswith("Alpha.")
-    assert entry["serves"] == ["post.fairness", "post.retrofit"]
+    assert entry["serves"] == ["deposit.fairness", "post.fairness", "post.retrofit"]
     json.dumps(entry)
 
 
