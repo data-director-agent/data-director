@@ -84,6 +84,12 @@ async function readme() {
   return screen.findByRole("article", { name: "README" });
 }
 
+/** Choose to approve version 1 as it is, which nothing pre-selects, and press the button. */
+async function approveAsItIs(user: ReturnType<typeof userEvent.setup>, article: HTMLElement) {
+  await user.click(within(article).getByLabelText("Approve version 1 as it is"));
+  await user.click(within(article).getByRole("button", { name: "Approve version 1" }));
+}
+
 /** The page's live region, which says what a decision did; a reader has its own for copying. */
 async function pageStatus() {
   const regions = await screen.findAllByRole("status");
@@ -570,7 +576,7 @@ describe("ProjectPage", () => {
       fakeApi({ documents: () => Promise.resolve(both), decide: () => Promise.resolve(after) }),
     );
     const article = await readme();
-    await user.click(within(article).getByRole("button", { name: "Approve version 1" }));
+    await approveAsItIs(user, article);
     const said = await screen.findByText(/README: version 1 approved/);
     expect(said).toHaveTextContent(/Data dictionary/);
     expect(within(said).getByRole("link", { name: "Data dictionary" })).toHaveAttribute(
@@ -585,7 +591,7 @@ describe("ProjectPage", () => {
     renderPage(fakeApi({ decide }));
     const article = await readme();
     expect(within(article).getByLabelText("Reason (optional)")).not.toBeRequired();
-    await user.click(within(article).getByRole("button", { name: "Approve version 1" }));
+    await approveAsItIs(user, article);
 
     expect(decide).toHaveBeenCalledWith(PROJECT.project_id, README.document_id, {
       version: 1,
@@ -655,7 +661,7 @@ describe("ProjectPage", () => {
     const user = userEvent.setup();
     renderPage(fakeApi({ documents, decide: () => Promise.reject(conflict) }));
     const article = await readme();
-    await user.click(within(article).getByRole("button", { name: "Approve version 1" }));
+    await approveAsItIs(user, article);
     const alert = await within(article).findByRole("alert");
     expect(alert).toHaveTextContent("Version 1 is not the latest: version 2 is.");
     expect(alert).toHaveFocus();
@@ -675,7 +681,7 @@ describe("ProjectPage", () => {
     const user = userEvent.setup();
     renderPage(fakeApi({ documents, decide: () => Promise.reject(conflict) }));
     const article = await readme();
-    await user.click(within(article).getByRole("button", { name: "Approve version 1" }));
+    await approveAsItIs(user, article);
     const alert = await within(article).findByRole("alert");
     expect(alert).toHaveTextContent("Version 1 is not the latest: version 2 is.");
     expect(alert).toHaveTextContent(/The network is down/);
@@ -704,5 +710,107 @@ describe("ProjectPage", () => {
       digest: digestOf(text),
       edited_text: "# Soil cores\r\n\r\nCores.\r\n",
     });
+  });
+});
+
+describe("ProjectPage, before a version with gaps is approved (#1282)", () => {
+  // Three gaps, one of whose questions has been answered: the answer is not in this version.
+  const questions = ["Description", "Methods", "Licence"].map((section, i) => ({
+    question_id: `q-${String(i).padStart(16, "0")}`,
+    question_prompt: `What goes in ${section}?`,
+    gap_section: section,
+  }));
+  const answered = {
+    question_id: at(questions, 0).question_id,
+    answer_text: "Soil cores",
+    answered_at: DRAFT.added_at,
+    answered_by: DRAFT.added_by,
+    version: 1,
+  };
+  const gappy: ProjectDocuments = {
+    ...PROJECT,
+    documents: [{ ...README, answers: [answered], versions: [{ ...DRAFT, questions }] }, DICTIONARY],
+  };
+
+  function decisionGroup(article: HTMLElement) {
+    return within(article).getByRole("group", { name: "Your decision on version 1" });
+  }
+
+  it("chooses no decision for the person, and records nothing until they choose", async () => {
+    const decide = vi.fn<ProjectApi["decide"]>(() => Promise.resolve(decided("approved")));
+    const user = userEvent.setup();
+    renderPage(fakeApi({ documents: () => Promise.resolve(gappy), decide }));
+    const article = await readme();
+    for (const radio of within(decisionGroup(article)).getAllByRole("radio")) {
+      expect(radio).not.toBeChecked();
+      expect(radio).toBeRequired();
+    }
+    await user.click(within(article).getByRole("button", { name: "Record my decision" }));
+    expect(decide).not.toHaveBeenCalled(); // the browser stops a required choice left unmade
+  });
+
+  it("counts the gaps and open questions beside the decision, and keeps a way to it in view", async () => {
+    const user = userEvent.setup();
+    renderPage(fakeApi({ documents: () => Promise.resolve(gappy) }));
+    const article = await readme();
+    const submit = within(article).getByRole("button", { name: "Record my decision" });
+    expect(submit).toHaveAccessibleDescription(/3 gaps and 2 open questions/);
+
+    const go = within(article).getByRole("button", { name: "Decide on version 1" });
+    expect(go.parentElement).toHaveTextContent(/3 gaps, 2 open questions/);
+    await user.click(go);
+    expect(within(decisionGroup(article)).getAllByRole("radio")[0]).toHaveFocus();
+    // The draft's own headings are the preview's; what this change adds is checked here.
+    expect(await axe(go.parentElement as HTMLElement)).toHaveNoViolations();
+    expect(await axe(submit.closest("form") as HTMLElement)).toHaveNoViolations();
+  });
+
+  it("asks again before approving it as it is, naming the count, and Escape records nothing", async () => {
+    const decide = vi.fn<ProjectApi["decide"]>(() => Promise.resolve(decided("approved")));
+    const user = userEvent.setup();
+    renderPage(fakeApi({ documents: () => Promise.resolve(gappy), decide }));
+    const article = await readme();
+    await approveAsItIs(user, article);
+
+    const dialog = await screen.findByRole("dialog", { name: /3 gaps/ });
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    expect(await axe(dialog)).toHaveNoViolations();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(decide).not.toHaveBeenCalled();
+
+    await user.click(within(article).getByRole("button", { name: "Approve version 1" }));
+    const again = await screen.findByRole("dialog", { name: /3 gaps/ });
+    await user.click(within(again).getByRole("button", { name: /Approve with 3 gaps/ }));
+    expect(decide).toHaveBeenCalledWith(PROJECT.project_id, README.document_id, {
+      version: 1,
+      digest: DRAFT.digest,
+      decision: "approved",
+    });
+    expect(await pageStatus()).toHaveTextContent("README: version 1 approved.");
+  });
+
+  it("does not ask again before approving a version with no gaps", async () => {
+    const decide = vi.fn<ProjectApi["decide"]>(() => Promise.resolve(decided("approved")));
+    const user = userEvent.setup();
+    renderPage(fakeApi({ decide }));
+    await approveAsItIs(user, await readme());
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(decide).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects without asking again, still needing its reason", async () => {
+    const decide = vi.fn<ProjectApi["decide"]>(() =>
+      Promise.resolve(decided("rejected", "Too many gaps.")),
+    );
+    const user = userEvent.setup();
+    renderPage(fakeApi({ documents: () => Promise.resolve(gappy), decide }));
+    const article = await readme();
+    await user.click(within(article).getByLabelText("Reject version 1"));
+    expect(within(article).getByLabelText("Reason (required)")).toBeRequired();
+    await user.type(within(article).getByLabelText("Reason (required)"), "Too many gaps.");
+    await user.click(within(article).getByRole("button", { name: "Reject version 1" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(decide.mock.lastCall?.[2]).toMatchObject({ decision: "rejected", reason: "Too many gaps." });
   });
 });
