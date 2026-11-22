@@ -12,6 +12,27 @@
          "title": "Derivation",
          "type": "string"
       },
+      "DocumentVersionRef": {
+         "additionalProperties": false,
+         "description": "One version of a project document: the document the conductor minted an identifier for, and the version's number within it, counted from 1.",
+         "properties": {
+            "document_id": {
+               "description": "The identifier the conductor minted for the document, a UUIDv7.",
+               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+               "type": "string"
+            },
+            "version": {
+               "description": "The number of a version within its document, counted from 1.",
+               "type": "integer"
+            }
+         },
+         "required": [
+            "document_id",
+            "version"
+         ],
+         "title": "DocumentVersionRef",
+         "type": "object"
+      },
       "FairCheck": {
          "additionalProperties": false,
          "description": "One check of the record against a FAIR sub-principle.",
@@ -27,6 +48,20 @@
             "met": {
                "description": "Whether the record, as given, meets the check.",
                "type": "boolean"
+            },
+            "after_deposit": {
+               "description": "True when a draft does not meet the check because the repository supplies what it checks at deposit, such as the DOI and how the data are accessed. Such a check is not counted as assessed and has no recommendation.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
+            },
+            "newly_met": {
+               "description": "Whether the draft meets the check and the version a person approved last did not. Absent when there is no approved version to compare with.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
             },
             "recommendation": {
                "description": "A suggestion for retrofitting the record when the check is not met. Absent when it is met.",
@@ -55,6 +90,17 @@
          "title": "FairCheck",
          "type": "object"
       },
+      "FairPrinciple": {
+         "description": "",
+         "enum": [
+            "F",
+            "A",
+            "I",
+            "R"
+         ],
+         "title": "FairPrinciple",
+         "type": "string"
+      },
       "GroundingRef": {
          "additionalProperties": false,
          "description": "The identity and content hash of one retrieved thing a payload rests on. The only way a payload may name an external resource as a decided identity, and the only place it names it: what the reference identifies is read from the evidence item with the same source_id and content_hash (docs/specs/grounding.md). The linter matches every GroundingRef against a retrieval span on both fields.",
@@ -73,12 +119,37 @@
          ],
          "title": "GroundingRef",
          "type": "object"
+      },
+      "PrincipleTally": {
+         "additionalProperties": false,
+         "description": "How many of the checks bearing on one FAIR principle the record meets, of those assessed. A count of presence checks, not a score.",
+         "properties": {
+            "principle_group": {
+               "$ref": "#/$defs/FairPrinciple",
+               "description": "The FAIR principle, by its letter."
+            },
+            "tally_met": {
+               "description": "How many of the principle's assessed checks the record meets.",
+               "type": "integer"
+            },
+            "tally_assessed": {
+               "description": "How many of the principle's checks were assessed.",
+               "type": "integer"
+            }
+         },
+         "required": [
+            "principle_group",
+            "tally_met",
+            "tally_assessed"
+         ],
+         "title": "PrincipleTally",
+         "type": "object"
       }
    },
    "$id": "https://w3id.org/data-director/agents/fairness/FairnessReport",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "The payload of advisor.fairness: which of a short list of FAIR-related checks the record meets, with a suggestion for each that it does not. It is advisory and changes no record (R9, R12); the researcher decides what to submit to the repository.",
+   "description": "The payload of advisor.fairness: which of a short list of FAIR-related checks the record meets, what is already met first, a tally of the checks for each of F, A, I and R, the next steps most worth taking, and a suggestion for each check not met. For a draft it also says which checks are newly met since the version a person approved last. A tally is a count of presence checks, not a FAIR score (R4). It is advisory and changes no record (R9, R12); the researcher decides what to change.",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -95,6 +166,48 @@
             "array",
             "null"
          ]
+      },
+      "principle_tallies": {
+         "description": "A tally for each of F, A, I and R, in that order.",
+         "items": {
+            "$ref": "#/$defs/PrincipleTally"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "next_steps": {
+         "description": "The identifiers of the one or two checks not met that are most worth acting on now, best first, ranked by the rule table's priority.",
+         "items": {
+            "type": "string"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "assessed_version": {
+         "anyOf": [
+            {
+               "$ref": "#/$defs/DocumentVersionRef"
+            },
+            {
+               "type": "null"
+            }
+         ],
+         "description": "The version of the project's metadata record assessed, for a draft."
+      },
+      "compared_with": {
+         "anyOf": [
+            {
+               "$ref": "#/$defs/DocumentVersionRef"
+            },
+            {
+               "type": "null"
+            }
+         ],
+         "description": "The version a person approved last, which newly_met compares with. Absent when none was approved, or when it is the version assessed."
       },
       "limitations": {
          "description": "What this assessor does not do.",

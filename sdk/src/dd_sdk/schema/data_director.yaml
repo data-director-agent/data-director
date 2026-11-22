@@ -851,6 +851,18 @@ classes:
     slots:
       - project_repository
 
+  GivenProjectMetadataRecord:
+    mixin: true
+    description: >-
+      Mixed into an agent's own input class when the agent reads the project's metadata record:
+      its latest version, whatever its state, and the version a person approved last. In a project
+      the conductor fills project_metadata_draft and project_metadata_approved by these names and
+      never needs to know the input class (docs/specs/projects.md, invariant 6); outside one, the
+      caller sends them.
+    slots:
+      - project_metadata_draft
+      - project_metadata_approved
+
   GivenInstitutionRepositories:
     mixin: true
     description: >-
@@ -1806,6 +1818,19 @@ slots:
       The repository a researcher in the project chose last, filled by the conductor and never by
       the caller. Absent when the run is in no project, or nobody in its project has chosen one.
     range: ChosenRepository
+  project_metadata_draft:
+    description: >-
+      The latest version of the project's metadata record, proposed, approved or rejected, with
+      its text and state. In a project the conductor fills it and a caller leaves it out. Absent
+      when the project holds no metadata record.
+    range: CurrentVersion
+    inlined: true
+  project_metadata_approved:
+    description: >-
+      The version of the project's metadata record a person approved last. In a project the
+      conductor fills it and a caller leaves it out. Absent when no version has been approved.
+    range: ApprovedMetadataRecord
+    inlined: true
   chosen_repository_name:
     description: The chosen repository's name, as the pinned re3data export gives it.
     required: true

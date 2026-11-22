@@ -5,20 +5,25 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 fairness:FairnessReport a sh:NodeShape ;
-    rdfs:comment "The payload of advisor.fairness: which of a short list of FAIR-related checks the record meets, with a suggestion for each that it does not. It is advisory and changes no record (R9, R12); the researcher decides what to submit to the repository." ;
+    rdfs:comment "The payload of advisor.fairness: which of a short list of FAIR-related checks the record meets, what is already met first, a tally of the checks for each of F, A, I and R, the next steps most worth taking, and a suggestion for each check not met. For a draft it also says which checks are newly met since the version a person approved last. A tally is a count of presence checks, not a FAIR score (R4). It is advisory and changes no record (R9, R12); the researcher decides what to change." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
-            sh:description "What this assessor does not do." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path fairness:limitations ],
-        [ sh:class <https://w3id.org/data-director/GroundingRef> ;
-            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
-            sh:minCount 1 ;
+    sh:property [ sh:class fairness:PrincipleTally ;
+            sh:description "A tally for each of F, A, I and R, in that order." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 2 ;
+            sh:path fairness:principle_tallies ],
+        [ sh:datatype xsd:string ;
+            sh:description "The identifiers of the one or two checks not met that are most worth acting on now, best first, ranked by the rule table's priority." ;
+            sh:nodeKind sh:Literal ;
             sh:order 3 ;
-            sh:path <https://w3id.org/data-director/grounded_on> ],
+            sh:path fairness:next_steps ],
+        [ sh:class <https://w3id.org/data-director/DocumentVersionRef> ;
+            sh:description "The version of the project's metadata record assessed, for a draft." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 4 ;
+            sh:path fairness:assessed_version ],
         [ sh:datatype xsd:string ;
             sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
             sh:maxCount 1 ;
@@ -26,10 +31,27 @@ fairness:FairnessReport a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path <https://w3id.org/data-director/schema_class> ],
+        [ sh:class <https://w3id.org/data-director/DocumentVersionRef> ;
+            sh:description "The version a person approved last, which newly_met compares with. Absent when none was approved, or when it is the version assessed." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 5 ;
+            sh:path fairness:compared_with ],
+        [ sh:datatype xsd:string ;
+            sh:description "What this assessor does not do." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path fairness:limitations ],
         [ sh:class fairness:FairCheck ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 1 ;
-            sh:path fairness:checks ] ;
+            sh:path fairness:checks ],
+        [ sh:class <https://w3id.org/data-director/GroundingRef> ;
+            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 7 ;
+            sh:path <https://w3id.org/data-director/grounded_on> ] ;
     sh:targetClass fairness:FairnessReport .
 
 <https://w3id.org/data-director/GroundingRef> a sh:NodeShape ;
@@ -55,7 +77,18 @@ fairness:FairCheck a sh:NodeShape ;
     rdfs:comment "One check of the record against a FAIR sub-principle." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:boolean ;
+    sh:property [ sh:description "How the recommendation came about: template, the rule table's own text, or model, where a model wrote it for this record. Absent when the check is met." ;
+            sh:in ( "template" "model" "lexical" "registry" ) ;
+            sh:maxCount 1 ;
+            sh:order 6 ;
+            sh:path fairness:recommendation_derivation ],
+        [ sh:datatype xsd:boolean ;
+            sh:description "Whether the draft meets the check and the version a person approved last did not. Absent when there is no approved version to compare with." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path fairness:newly_met ],
+        [ sh:datatype xsd:boolean ;
             sh:description "Whether the record, as given, meets the check." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -63,23 +96,24 @@ fairness:FairCheck a sh:NodeShape ;
             sh:order 2 ;
             sh:path fairness:met ],
         [ sh:datatype xsd:string ;
-            sh:description "A suggestion for retrofitting the record when the check is not met. Absent when it is met." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 3 ;
-            sh:path fairness:recommendation ],
-        [ sh:datatype xsd:string ;
             sh:description "The check's short identifier in checks.yaml, e.g. identifier-is-doi." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path fairness:check ],
-        [ sh:description "How the recommendation came about: template, the rule table's own text, or model, where a model wrote it for this record. Absent when the check is met." ;
-            sh:in ( "template" "model" "lexical" "registry" ) ;
+        [ sh:datatype xsd:boolean ;
+            sh:description "True when a draft does not meet the check because the repository supplies what it checks at deposit, such as the DOI and how the data are accessed. Such a check is not counted as assessed and has no recommendation." ;
             sh:maxCount 1 ;
-            sh:order 4 ;
-            sh:path fairness:recommendation_derivation ],
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path fairness:after_deposit ],
+        [ sh:datatype xsd:string ;
+            sh:description "A suggestion for retrofitting the record when the check is not met. Absent when it is met." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path fairness:recommendation ],
         [ sh:datatype xsd:string ;
             sh:description "The FAIR sub-principle the check bears on, e.g. F1 or R1.1." ;
             sh:maxCount 1 ;
@@ -88,4 +122,51 @@ fairness:FairCheck a sh:NodeShape ;
             sh:order 0 ;
             sh:path fairness:principle ] ;
     sh:targetClass fairness:FairCheck .
+
+fairness:PrincipleTally a sh:NodeShape ;
+    rdfs:comment "How many of the checks bearing on one FAIR principle the record meets, of those assessed. A count of presence checks, not a score." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:description "How many of the principle's assessed checks the record meets." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path fairness:tally_met ],
+        [ sh:datatype xsd:integer ;
+            sh:description "How many of the principle's checks were assessed." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path fairness:tally_assessed ],
+        [ sh:description "The FAIR principle, by its letter." ;
+            sh:in ( "F" "A" "I" "R" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path fairness:principle_group ] ;
+    sh:targetClass fairness:PrincipleTally .
+
+<https://w3id.org/data-director/DocumentVersionRef> a sh:NodeShape ;
+    rdfs:comment "One version of a project document: the document the conductor minted an identifier for, and the version's number within it, counted from 1." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:description "The number of a version within its document, counted from 1." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/version> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The identifier the conductor minted for the document, a UUIDv7." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/document_id> ;
+            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ] ;
+    sh:targetClass <https://w3id.org/data-director/DocumentVersionRef> .
 

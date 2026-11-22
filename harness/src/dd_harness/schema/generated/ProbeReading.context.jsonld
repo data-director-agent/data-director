@@ -1,8 +1,17 @@
 {
    "@context": {
       "@vocab": "https://w3id.org/data-director/harness/doubles/",
+      "ApprovedMetadataRecord": {
+         "@id": "https://w3id.org/data-director/ApprovedMetadataRecord"
+      },
       "ChosenRepository": {
          "@id": "https://w3id.org/data-director/ChosenRepository"
+      },
+      "CurrentVersion": {
+         "@id": "https://w3id.org/data-director/CurrentVersion"
+      },
+      "DocumentVersionRef": {
+         "@id": "https://w3id.org/data-director/DocumentVersionRef"
       },
       "ProbeReading": {
          "@id": "https://w3id.org/data-director/harness/doubles/ProbeReading"
@@ -37,9 +46,25 @@
       "commitment_repository": {
          "@id": "https://w3id.org/data-director/commitment_repository"
       },
+      "conforms_to": {
+         "@id": "http://purl.org/dc/terms/conformsTo",
+         "@type": "@id"
+      },
       "dcat": "http://www.w3.org/ns/dcat#",
       "dcterms": "http://purl.org/dc/terms/",
       "dd": "https://w3id.org/data-director/",
+      "decision_reason": {
+         "@id": "https://w3id.org/data-director/decision_reason"
+      },
+      "document_id": {
+         "@id": "https://w3id.org/data-director/document_id"
+      },
+      "document_text": {
+         "@id": "https://w3id.org/data-director/document_text"
+      },
+      "document_title": {
+         "@id": "http://purl.org/dc/terms/title"
+      },
       "documentation_added_at": {
          "@id": "https://w3id.org/data-director/documentation_added_at",
          "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
@@ -105,12 +130,23 @@
       "location_precision": {
          "@id": "https://w3id.org/data-director/location_precision"
       },
+      "media_type": {
+         "@id": "http://purl.org/dc/terms/format"
+      },
       "project_decisions": {
          "@id": "https://w3id.org/data-director/project_decisions",
          "@type": "@id"
       },
       "project_documents": {
          "@id": "https://w3id.org/data-director/project_documents",
+         "@type": "@id"
+      },
+      "project_metadata_approved": {
+         "@id": "https://w3id.org/data-director/project_metadata_approved",
+         "@type": "@id"
+      },
+      "project_metadata_draft": {
+         "@id": "https://w3id.org/data-director/project_metadata_draft",
          "@type": "@id"
       },
       "project_repository": {
@@ -148,6 +184,16 @@
       },
       "title": {
          "@id": "https://w3id.org/data-director/harness/doubles/title"
+      },
+      "version": {
+         "@id": "https://w3id.org/data-director/version"
+      },
+      "version_ref": {
+         "@id": "https://w3id.org/data-director/version_ref",
+         "@type": "@id"
+      },
+      "version_state": {
+         "@id": "https://w3id.org/data-director/version_state"
       },
       "xsd": "http://www.w3.org/2001/XMLSchema#"
    }

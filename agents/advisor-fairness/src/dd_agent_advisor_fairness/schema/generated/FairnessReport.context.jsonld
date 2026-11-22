@@ -1,6 +1,9 @@
 {
    "@context": {
       "@vocab": "https://w3id.org/data-director/agents/fairness/",
+      "DocumentVersionRef": {
+         "@id": "https://w3id.org/data-director/DocumentVersionRef"
+      },
       "FairCheck": {
          "@id": "https://w3id.org/data-director/agents/fairness/FairCheck"
       },
@@ -10,11 +13,25 @@
       "GroundingRef": {
          "@id": "https://w3id.org/data-director/GroundingRef"
       },
+      "PrincipleTally": {
+         "@id": "https://w3id.org/data-director/agents/fairness/PrincipleTally"
+      },
+      "after_deposit": {
+         "@id": "https://w3id.org/data-director/agents/fairness/after_deposit"
+      },
+      "assessed_version": {
+         "@id": "https://w3id.org/data-director/agents/fairness/assessed_version",
+         "@type": "@id"
+      },
       "check": {
          "@id": "https://w3id.org/data-director/agents/fairness/check"
       },
       "checks": {
          "@id": "https://w3id.org/data-director/agents/fairness/checks",
+         "@type": "@id"
+      },
+      "compared_with": {
+         "@id": "https://w3id.org/data-director/agents/fairness/compared_with",
          "@type": "@id"
       },
       "content_hash": {
@@ -23,6 +40,9 @@
       "dcat": "http://www.w3.org/ns/dcat#",
       "dcterms": "http://purl.org/dc/terms/",
       "dd": "https://w3id.org/data-director/",
+      "document_id": {
+         "@id": "https://w3id.org/data-director/document_id"
+      },
       "fairness": "https://w3id.org/data-director/agents/fairness/",
       "grounded_on": {
          "@id": "https://w3id.org/data-director/grounded_on",
@@ -35,8 +55,21 @@
       "met": {
          "@id": "https://w3id.org/data-director/agents/fairness/met"
       },
+      "newly_met": {
+         "@id": "https://w3id.org/data-director/agents/fairness/newly_met"
+      },
+      "next_steps": {
+         "@id": "https://w3id.org/data-director/agents/fairness/next_steps"
+      },
       "principle": {
          "@id": "https://w3id.org/data-director/agents/fairness/principle"
+      },
+      "principle_group": {
+         "@id": "https://w3id.org/data-director/agents/fairness/principle_group"
+      },
+      "principle_tallies": {
+         "@id": "https://w3id.org/data-director/agents/fairness/principle_tallies",
+         "@type": "@id"
       },
       "prov": "http://www.w3.org/ns/prov#",
       "recommendation": {
@@ -54,6 +87,15 @@
          "@id": "https://w3id.org/data-director/source_id"
       },
       "spdx": "http://spdx.org/rdf/terms#",
+      "tally_assessed": {
+         "@id": "https://w3id.org/data-director/agents/fairness/tally_assessed"
+      },
+      "tally_met": {
+         "@id": "https://w3id.org/data-director/agents/fairness/tally_met"
+      },
+      "version": {
+         "@id": "https://w3id.org/data-director/version"
+      },
       "xsd": "http://www.w3.org/2001/XMLSchema#"
    }
 }

@@ -1,3 +1,4 @@
+@prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix doubles: <https://w3id.org/data-director/harness/doubles/> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
@@ -5,7 +6,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 doubles:ProbeReading a sh:NodeShape ;
-    rdfs:comment "What a checking double reads in a project: an agent's own input class that asks the conductor for the attached documents, the decided facts and the chosen repository by their slots (docs/specs/projects.md, invariant 6)." ;
+    rdfs:comment "What a checking double reads in a project: an agent's own input class that asks the conductor for the attached documents, the decided facts, the chosen repository and the metadata record by their slots (docs/specs/projects.md, invariant 6)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:class <https://w3id.org/data-director/ChosenRepository> ;
@@ -19,6 +20,18 @@ doubles:ProbeReading a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 3 ;
             sh:path <https://w3id.org/data-director/project_decisions> ],
+        [ sh:class <https://w3id.org/data-director/CurrentVersion> ;
+            sh:description "The latest version of the project's metadata record, proposed, approved or rejected, with its text and state. In a project the conductor fills it and a caller leaves it out. Absent when the project holds no metadata record." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 5 ;
+            sh:path <https://w3id.org/data-director/project_metadata_draft> ],
+        [ sh:class <https://w3id.org/data-director/ApprovedMetadataRecord> ;
+            sh:description "The version of the project's metadata record a person approved last. In a project the conductor fills it and a caller leaves it out. Absent when no version has been approved." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 6 ;
+            sh:path <https://w3id.org/data-director/project_metadata_approved> ],
         [ sh:class <https://w3id.org/data-director/ProjectDocument> ;
             sh:description "The documents the project holds, with their text, in the order they were added. In a project the conductor fills them and a caller leaves them out; outside a project, the caller sends them, as it does the other facts." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
@@ -38,6 +51,38 @@ doubles:ProbeReading a sh:NodeShape ;
             sh:order 1 ;
             sh:path doubles:title ] ;
     sh:targetClass doubles:ProbeReading .
+
+<https://w3id.org/data-director/ApprovedMetadataRecord> a sh:NodeShape ;
+    rdfs:comment "The project's metadata record as a person approved it: the version named by the last approval of a metadata_record document in the project (docs/specs/projects.md). A drafter treats what it holds as supplied, given by a person (docs/specs/drafting.md)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:description "The schema or profile document_text follows, such as a repository's metadata schema." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 2 ;
+            sh:path dcterms:conformsTo ],
+        [ sh:class <https://w3id.org/data-director/DocumentVersionRef> ;
+            sh:description "The version, by its document and number." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/version_ref> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The media type of document_text, such as text/markdown or application/json." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dcterms:format ],
+        [ sh:datatype xsd:string ;
+            sh:description "The content of the document, as text; a structured record is serialised." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <https://w3id.org/data-director/document_text> ] ;
+    sh:targetClass <https://w3id.org/data-director/ApprovedMetadataRecord> .
 
 <https://w3id.org/data-director/ChosenRepository> a sh:NodeShape ;
     rdfs:comment "The repository a researcher chose to deposit the project's data in, from the shortlist, by the identifier of the registry that lists it: the conductor fills it into a Message, and into the input of an agent that mixes in GivenProjectRepository, so that the agent knows a repository is chosen and which (docs/specs/projects.md). The last choice stands until a researcher chooses again." ;
@@ -65,6 +110,51 @@ doubles:ProbeReading a sh:NodeShape ;
             sh:order 0 ;
             sh:path <https://w3id.org/data-director/chosen_repository_name> ] ;
     sh:targetClass <https://w3id.org/data-director/ChosenRepository> .
+
+<https://w3id.org/data-director/CurrentVersion> a sh:NodeShape ;
+    rdfs:comment "The version of a project document that a drafter is to regenerate: the document's latest, its text, and its state with the reason a person gave for any decision on it (ADR-0036 decision 7). A drafter that regenerates it names version_ref in its payload's revises." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The content of the document, as text; a structured record is serialised." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <https://w3id.org/data-director/document_text> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The media type of document_text, such as text/markdown or application/json." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dcterms:format ],
+        [ sh:datatype xsd:string ;
+            sh:description "The reason the person gave for their decision, in their words. Present for a rejection, and for an approval only if they gave one." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path <https://w3id.org/data-director/decision_reason> ],
+        [ sh:description "Whether a person has approved or rejected the version, or not yet decided." ;
+            sh:in ( "proposed" "approved" "rejected" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 4 ;
+            sh:path <https://w3id.org/data-director/version_state> ],
+        [ sh:class <https://w3id.org/data-director/DocumentVersionRef> ;
+            sh:description "The version, by its document and number." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/version_ref> ],
+        [ sh:datatype xsd:string ;
+            sh:description "A short name a person can tell documents apart by, such as README for raw/." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dcterms:title ] ;
+    sh:targetClass <https://w3id.org/data-director/CurrentVersion> .
 
 <https://w3id.org/data-director/ProjectDocument> a sh:NodeShape ;
     rdfs:comment "One document a researcher attached to a project, with its text: the conductor fills one per document into a DraftRequest so that a drafter's model may suggest answers from it (docs/specs/projects.md). Its text is the researcher's, untrusted, and given as data." ;
@@ -274,4 +364,25 @@ doubles:ProbeReading a sh:NodeShape ;
             sh:order 22 ;
             sh:path <https://w3id.org/data-director/standard_kind> ] ;
     sh:targetClass <https://w3id.org/data-director/ProjectFact> .
+
+<https://w3id.org/data-director/DocumentVersionRef> a sh:NodeShape ;
+    rdfs:comment "One version of a project document: the document the conductor minted an identifier for, and the version's number within it, counted from 1." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:description "The number of a version within its document, counted from 1." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/version> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The identifier the conductor minted for the document, a UUIDv7." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/document_id> ;
+            sh:pattern "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$" ] ;
+    sh:targetClass <https://w3id.org/data-director/DocumentVersionRef> .
 

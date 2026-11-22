@@ -137,7 +137,10 @@ intended design, and each part says where it is not built yet.
    invariant 20; #1374). A `DraftRequest`'s `project_documents` are the documents a researcher attached, each with its
    text, replacing what the caller sent. An agent's own input class asks for the same by mixing
    in `GivenProjectDocuments` (`project_documents`), `GivenProjectDecisions`
-   (`project_decisions`) or `GivenProjectRepository` (`project_repository`); an agent that reads
+   (`project_decisions`), `GivenProjectRepository` (`project_repository`) or
+   `GivenProjectMetadataRecord` (`project_metadata_draft`, the latest version of the project's
+   metadata record whatever its state, and `project_metadata_approved`, the version a person
+   approved last, as a `DraftRequest`'s `metadata_record` is; #432); an agent that reads
    the documents it is given also says so in its card's `reads_attached` ([Agents](agents.md),
    invariant 12): where the accepted schema on the agent's card declares the slot, the
    conductor fills it as it fills a `DraftRequest`'s, by slot name and never by the class's name,
@@ -148,7 +151,9 @@ intended design, and each part says where it is not built yet.
    when asked nothing else, `advisor.rights` takes a decided licence as the mandated licence and a
    decision to withhold or generalise as saying the data are sensitive, and `advisor.policy` looks
    up each decided funder's policy. Each takes a person's decision over what its caller wrote
-   (each agent's `given.py`).
+   (each agent's `given.py`). `advisor.fairness` gives feedback on the metadata record this way,
+   at any point in the work and for no step of its own
+   (`harness/tests/test_project_metadata_record_given.py`).
    Filling any other class is not built yet.
 7. **The conductor fills `project_id`.** The request and the envelope carry an optional
    `project_id`, which the conductor takes from the conversation and a caller cannot set. A
@@ -165,7 +170,7 @@ intended design, and each part says where it is not built yet.
    else before it is sent, with a Problem Details response, and records the refusal. The key is
    `hosted_models` (`dd_harness.policy`). A `DraftRequest`'s inventory, a plain `FileInventory`
    and a `Message`'s `project_inventory` are `inventory`; a metadata record, the version a
-   drafter regenerates, a person's answers and the `project_documents` of a `DraftRequest` or an agent's own class are
+   drafter regenerates, a person's answers, the `project_documents` of a `DraftRequest` or an agent's own class and the `project_metadata_draft` and `project_metadata_approved` of an agent's own class are
    `documentation`; a `Message`'s `project_researchers` and a `DraftRequest`'s `researchers` are
    `researcher`; the `project_decisions` of any of these, and the `project_repository` of a
    `Message` or an agent's own class, a researcher's choice, are `decisions`; a repository's
