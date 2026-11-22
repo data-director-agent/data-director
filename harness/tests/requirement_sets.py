@@ -15,6 +15,7 @@ from dd_harness.sources import Sources
 
 ORDA = "r3d100012124"
 ELSEWHERE = "r3d100000001"
+ZENODO = "r3d100010468"
 EXPORT = "re3data:export:2026-11"
 
 DURHAM = "bl.durham"
@@ -29,6 +30,7 @@ RECORDS = (
         "url": "https://orda.shef.ac.uk/",
     },
     {"re3data_id": ELSEWHERE, "name": "Elsewhere", "metadata_standards": []},
+    {"re3data_id": ZENODO, "name": "Zenodo", "metadata_standards": ["DataCite Metadata Schema"]},
 )
 # Repositories as DataCite's snapshot holds them (agents/advisor-repository/data/datacite): one
 # re3data does not list, and one at ORDA's address, which re3data describes.
@@ -106,6 +108,64 @@ def override(**changes: Any) -> dict[str, Any]:
         "media_types": [],
         "licences": ["CC-BY-4.0"],
         **changes,
+    }
+
+
+def zenodo_standard() -> dict[str, Any]:
+    """DataCite's set as the deployment's configuration has it: creators supplied on the
+    researchers page, and the publisher and publication year filled in by the repository."""
+    return standard(
+        fields=[
+            {"property": "titles", "schema_org": "name", "obligation": "required"},
+            {
+                "property": "creators",
+                "schema_org": "creator",
+                "obligation": "required",
+                "supplied_on": "researchers",
+            },
+            {
+                "property": "types.resourceTypeGeneral",
+                "schema_org": "additionalType",
+                "obligation": "required",
+            },
+        ],
+        filled_by_repository=["publisher", "publicationYear"],
+    )
+
+
+def zenodo() -> dict[str, Any]:
+    """Zenodo's override as the deployment's configuration has it, cut down to its labels and its
+    required licence."""
+    return {
+        "schema_class": "RequirementSet",
+        "requirement_set_id": "zenodo",
+        "version": 1,
+        "title": "Zenodo",
+        "conforms_to": DATACITE,
+        "re3data_id": ZENODO,
+        "fields": [
+            {
+                "property": "titles",
+                "schema_org": "name",
+                "obligation": "required",
+                "form_label": "Title",
+            },
+            {
+                "property": "creators",
+                "schema_org": "creator",
+                "obligation": "required",
+                "form_label": "Creators",
+            },
+            {
+                "property": "rightsList",
+                "schema_org": "license",
+                "obligation": "required",
+                "form_label": "Licenses",
+            },
+        ],
+        "required_documents": ["metadata_record"],
+        "recommended_documents": ["readme"],
+        "licences": ["CC-BY-4.0"],
     }
 
 

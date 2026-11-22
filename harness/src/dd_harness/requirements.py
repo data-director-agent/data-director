@@ -14,8 +14,9 @@ A choice resolves to the repository's override, if the deployment has one, and t
 set: the one the override names in `conforms_to`, else one the repository's re3data record
 declares, else DataCite's, with a warning. The two are merged. A field is identified by its
 property, qualifier and schema.org term; an override may add one, or raise one from recommended
-to required and label it, but never lower one. Documents are the union of both, and a kind
-either requires is required. Media types, sizes and licences come from the override alone.
+to required, label it and say where its value is supplied, but never lower one. Documents, and
+the properties the repository fills in itself, are the union of both, and a kind either requires
+is required. Media types, sizes and licences come from the override alone.
 
 Every set is checked when it is loaded, so a deployment whose sets are malformed, of neither
 kind, or contradict one another does not start. Recording the choice in a project is
@@ -129,7 +130,11 @@ class Resolved:
                     field
                     if ours is None
                     else ours.model_copy(
-                        update={"obligation": field.obligation, "form_label": field.form_label}
+                        update={
+                            "obligation": field.obligation,
+                            "form_label": field.form_label,
+                            "supplied_on": field.supplied_on or ours.supplied_on,
+                        }
                     )
                 )
             required += override.requirement_set.required_documents
@@ -145,6 +150,9 @@ class Resolved:
         merged["recommended_documents"] = [
             str(k) for k in dict.fromkeys(recommended) if k not in required
         ]
+        merged["filled_by_repository"] = list(
+            dict.fromkeys(p for s in self.sets for p in s.requirement_set.filled_by_repository)
+        )
         merged["warnings"] = list(self.warnings)
         merged["unconfirmed"] = list(
             dict.fromkeys(item for s in self.sets for item in s.requirement_set.unconfirmed)

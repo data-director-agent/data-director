@@ -33,7 +33,8 @@ declares. When none does, it uses DataCite's and warns.
 
 The harness merges the two. A field is identified by its `property`, `qualifier` and
 `schema_org`. An override may add a field, or raise one from `recommended` to `required` and give
-its `form_label`; it may not lower one. Documents are the union of both. Media types, sizes and
+its `form_label` and `supplied_on`; it may not lower one. Documents, and the properties in
+`filled_by_repository`, are the union of both. Media types, sizes and
 licences come from the override alone.
 
 The harness loads the directory that `DD_REPOSITORIES_DIR` names. When a researcher chooses a
@@ -64,6 +65,7 @@ offered.
 | `fields` | The metadata a depositor supplies (below). |
 | `required_documents` | Document kinds that must be approved before a package is built: `metadata_record`, `readme`, `data_dictionary`, `dmp` or `other`. |
 | `recommended_documents` | Document kinds whose absence is a warning. |
+| `filled_by_repository` | Properties the schema makes mandatory that the repository fills in when it registers the record, such as DataCite's `publisher` and `publicationYear`. The researcher is not asked for them; the pre-deposit check says so as information. |
 | `media_types` | Overrides only: the media types the repository accepts. Empty means any. |
 | `max_file_size`, `max_item_size` | Overrides only: size limits in bytes. Leave a key out if the repository does not state it. |
 | `licences` | Overrides only: SPDX identifiers, or the URL of the repository's own terms. |
@@ -81,7 +83,10 @@ Each entry of `fields` has:
   `description` would pass on the abstract alone. Such sets are refused on load;
 - `obligation`: `required` (a missing value stops the package) or `recommended` (a warning);
 - `form_label` (overrides only): the label of the field in the repository's deposit form, where a
-  person depositing by hand puts the value.
+  person depositing by hand puts the value;
+- `supplied_on` (optional): the project page where the researcher supplies the value, which the
+  pre-deposit check names beside a missing one: `documents` (the metadata record's questions, the
+  default), `researchers` (from ORCID), `facts` or `repository`.
 
 An override may also name the API the harness deposits a draft through, in a `deposit` block:
 

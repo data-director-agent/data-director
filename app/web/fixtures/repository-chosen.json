@@ -11,7 +11,8 @@
       "form_label": "Authors",
       "obligation": "required",
       "property": "creators",
-      "schema_org": "creator"
+      "schema_org": "creator",
+      "supplied_on": "researchers"
     },
     {
       "form_label": "Item type",
@@ -28,7 +29,8 @@
     {
       "obligation": "recommended",
       "property": "contributors",
-      "schema_org": "contributor"
+      "schema_org": "contributor",
+      "supplied_on": "researchers"
     },
     {
       "obligation": "recommended",
@@ -80,6 +82,10 @@
       "schema_org": "funding"
     }
   ],
+  "filled_by_repository": [
+    "publisher",
+    "publicationYear"
+  ],
   "guidance": [
     "https://datacite-metadata-schema.readthedocs.io/en/4.6/properties/overview/",
     "https://www.re3data.org/schema",
@@ -119,8 +125,8 @@
   ],
   "requirement_sets": [
     {
-      "ref": "datacite-4@v1",
-      "sha256": "5805dbd29a54d7fae26cdcfd16db9fd7517edd31eab637de9d81193b1bc72083"
+      "ref": "datacite-4@v2",
+      "sha256": "2b8caed6181e75b258fe51d8d516818f6764874d61005352f2cd23eb1c905806"
     },
     {
       "ref": "orda@v3",

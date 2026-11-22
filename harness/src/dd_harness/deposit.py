@@ -5,7 +5,7 @@ built from a valid one (docs/specs/deposit.md).
 requirement set recorded for the repository chosen last:
 
 - that every document kind the set requires has an approved version, and, as warnings, every
-  kind it recommends;
+  kind it recommends and a data dictionary for tabular data (`dd_harness.deposit_checks`);
 - that the approved metadata record, read as RDF through the set's own DataCite to schema.org
   field table, has every required field and, as warnings, every recommended one. These checks are
   SHACL shapes generated from the fields and run by pySHACL;
@@ -13,12 +13,17 @@ requirement set recorded for the repository chosen last:
 - that every inventory entry has an accepted media type and is within the size limits, and the
   inventory as a whole within the item size, when the set states them;
 - as warnings, each item a person must decide before packaging, and the checks they must confirm
-  (`dd_harness.deposit_review`).
+  (`dd_harness.deposit_review`);
+- as information, what the repository fills in itself.
+
+A result about a document or a field names it, and the page of the project where a person
+supplies it (`dd_harness.deposit_checks`).
 
 Every result, whichever check made it, is written in the W3C SHACL Validation Report vocabulary,
 as one report (docs/specs/contract.md). The project is valid when the report has no
-`sh:Violation`; warnings, including those from resolving the repository choice, do not block.
-It is ready to package when it is valid and nothing waits on a person (`dd_harness.deposit_report`).
+`sh:Violation`; warnings, including those from resolving the repository choice, and information
+do not block. It is ready to package when it is valid and nothing waits on a person
+(`dd_harness.deposit_report`).
 
 `check` validates and keeps the report in the project log. `build_package` does the same, and,
 only from a report ready to package, writes the package: one zip whose root `ro-crate-metadata.json`
@@ -48,6 +53,16 @@ from rocrate.model import Person
 from rocrate.rocrate import ROCrate
 
 from dd_harness import deposit_review
+from dd_harness.deposit_checks import (
+    DOCUMENT_CHECK,
+    REPOSITORY_CHECK,
+    check_documents,
+    filled_by_repository,
+    kind_name,
+    located,
+    no_repository,
+    resolver_warnings,
+)
 from dd_harness.deposit_report import Package, PackageRefusedError, Validation
 from dd_harness.deposit_report import project_iri as _project_iri
 from dd_harness.disclosure import disclose, version_chain, version_id
@@ -65,14 +80,17 @@ from dd_harness.package_crate import (
     zip_folder,
 )
 from dd_harness.projects import APPROVED
-from dd_harness.shacl import DD, SH, VIOLATION, WARNING, Result, Severity
+from dd_harness.shacl import DD, INFO, SH, VIOLATION, WARNING, Result, Severity
 from dd_harness.shacl import run as run_shacl
 from dd_harness.storage import DepositSource, RunStorage
-from dd_sdk.contract.models import DocumentKind, Principal, now
+from dd_sdk.contract.models import Principal, now
 
 SCHEMA = Namespace("http://schema.org/")
 # Kept here for deposit's callers.
 __all__ = [
+    "DOCUMENT_CHECK",
+    "INFO",
+    "REPOSITORY_CHECK",
     "VIOLATION",
     "WARNING",
     "Package",
@@ -83,14 +101,12 @@ __all__ = [
 ]
 
 # The constraint component a result that pySHACL did not make names: the check that made it.
-DOCUMENT_CHECK = DD + "RequiredDocumentConstraintComponent"
 RECORD_CHECK = DD + "MetadataRecordConstraintComponent"
 LICENCE_CHECK = DD + "LicenceConstraintComponent"
 INVENTORY_CHECK = DD + "InventoryConstraintComponent"
 MEDIA_TYPE_CHECK = DD + "MediaTypeConstraintComponent"
 FILE_SIZE_CHECK = DD + "FileSizeConstraintComponent"
 ITEM_SIZE_CHECK = DD + "ItemSizeConstraintComponent"
-REPOSITORY_CHECK = DD + "RepositoryChoiceConstraintComponent"
 
 # How each DataCite property holds its value, in DataCite's JSON form: the key of the value in
 # each entry of a property whose value is a list of objects. It mirrors advisor.metadata's rule
@@ -131,26 +147,17 @@ def validate(projects: DepositSource, project_id: str) -> Validation:
     made_at = now()
     requirements = projects.requirements(project_id)
     if requirements is None:
-        result = Result(
-            VIOLATION,
-            "No repository has been chosen, so there are no requirements to check the project "
-            "against.",
-            _project_iri(project_id),
-            REPOSITORY_CHECK,
-        )
-        return Validation(project_id, made_at, None, (result,))
+        return Validation(project_id, made_at, None, (no_repository(project_id),))
     digest = _requirements_digest(projects, project_id)
     repository = requirements["repository_name"]
-    results: list[Result] = [
-        Result(WARNING, warning, _project_iri(project_id), REPOSITORY_CHECK)
-        for warning in requirements.get("warnings", [])
-    ]
-    approved = _approved(projects.documents(project_id))
-    results += _check_documents(project_id, requirements, approved)
+    results = list(resolver_warnings(project_id, requirements))
+    kinds = [document["document_kind"] for document, _ in _approved(projects.documents(project_id))]
+    inventory = projects.inventory(project_id)
+    results += check_documents(project_id, requirements, kinds, inventory)
     record = projects.metadata_record(project_id)
     if record is not None:
-        results += _check_record(record, requirements)
-    inventory = projects.inventory(project_id)
+        results += located(_check_record(record, requirements), requirements)
+    results += filled_by_repository(project_id, requirements)
     if inventory is None:
         results.append(
             Result(
@@ -225,28 +232,6 @@ def _approved(documents: list[dict[str, Any]]) -> list[tuple[dict[str, Any], dic
         if approved:
             found.append((document, approved[-1]))
     return found
-
-
-def _check_documents(
-    project_id: str,
-    requirements: Mapping[str, Any],
-    approved: list[tuple[dict[str, Any], dict[str, Any]]],
-) -> Iterator[Result]:
-    kinds = {document["document_kind"] for document, _ in approved}
-    repository = requirements["repository_name"]
-    checks: tuple[tuple[Severity, str, str], ...] = (
-        (VIOLATION, "required_documents", "requires"),
-        (WARNING, "recommended_documents", "recommends"),
-    )
-    for severity, key, verb in checks:
-        for kind in requirements.get(key, []):
-            if kind not in kinds:
-                yield Result(
-                    severity,
-                    f"{repository} {verb} a {_kind_name(kind)}, and none has been approved.",
-                    _project_iri(project_id),
-                    DOCUMENT_CHECK,
-                )
 
 
 def _check_record(record: Mapping[str, Any], requirements: Mapping[str, Any]) -> Iterator[Result]:
@@ -436,15 +421,6 @@ def _field_name(field: Mapping[str, Any]) -> str:
     return f"{label} ({datacite})" if label else datacite
 
 
-def _kind_name(kind: str) -> str:
-    return {
-        DocumentKind.METADATA_RECORD.value: "metadata record",
-        DocumentKind.README.value: "README",
-        DocumentKind.DATA_DICTIONARY.value: "data dictionary",
-        DocumentKind.DMP.value: "data management plan",
-    }.get(kind, kind.replace("_", " "))
-
-
 def _file_iri(project_id: str, path: str) -> str:
     return f"urn:uuid:{project_id}#file/{quote(path)}"
 
@@ -484,8 +460,8 @@ def _package(
                 name,
                 text.encode("utf-8"),
                 version["media_type"],
-                version.get("document_title") or _kind_name(kind).capitalize(),
-                f"The approved {_kind_name(kind)}, version {version['version']}.",
+                version.get("document_title") or kind_name(kind).capitalize(),
+                f"The approved {kind_name(kind)}, version {version['version']}.",
             )
             entity["identifier"] = version_id(document["document_id"], version["version"])
             entity["version"] = str(version["version"])
@@ -505,7 +481,7 @@ def _package(
                     else {"@id": version_id(document["document_id"], link["version"])}
                 )
                 produced_action(crate, made, document, link, person)
-            add_approval(files, document, version, entity, _kind_name(kind))
+            add_approval(files, document, version, entity, kind_name(kind))
             documents.append(
                 {
                     "document_id": document["document_id"],

@@ -16,9 +16,8 @@ validation when it is not, or while an item waits on a person's decision;
 `PUT /api/projects/{id}/review/items/{item_id}` records the signed-in person's decision on one
 item, and `PUT /api/projects/{id}/review/confirmation` their confirmation of the checks before
 deposit, each answering with the review as it then stands (docs/specs/deposit.md, "The pause
-before packaging"). `GET /api/projects/{id}/disclosure` says how each approved
-document came about and what generative AI was used, as a statement and as a PROV-O graph
-(docs/specs/disclosure.md).
+before packaging"). `GET /api/projects/{id}/disclosure` says how each approved document came
+about and what generative AI was used, as a statement and a PROV-O graph (docs/specs/disclosure.md).
 """
 
 from __future__ import annotations
@@ -95,6 +94,10 @@ class ValidationResult(ResponseBody):
     component: str
     """The check that made it."""
     path: str | None
+    field: str | None
+    """The field or document it is about, such as the repository's form label, or null."""
+    supplied_on: Literal["documents", "researchers", "facts", "repository"] | None
+    """The project's page where a person supplies what is missing, or null."""
 
 
 class ItemDecisionMade(ResponseBody):
@@ -155,8 +158,8 @@ class DepositReview(ResponseBody):
 
 class Validation(ResponseBody):
     """A project's validation against its chosen repository's requirements, as the harness made
-    it and kept it in the project log. A violation stops the package; a warning does not; an
-    item undecided or the checks unconfirmed hold it until a person clears them."""
+    it and kept it in the project log. A violation stops the package; a warning or information
+    does not; an item undecided or the checks unconfirmed hold it until a person clears them."""
 
     project_id: str
     conforms: bool
@@ -168,6 +171,8 @@ class Validation(ResponseBody):
     violations: list[ValidationResult]
     warnings: list[ValidationResult]
     """Warnings that do not wait on a person; those that do are the `review`'s."""
+    infos: list[ValidationResult]
+    """Information that never blocks, such as what the repository fills in itself."""
     review: DepositReview | None
     """What a person must decide and confirm; null when no repository has been chosen."""
     report: dict[str, Any]

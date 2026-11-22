@@ -3,7 +3,8 @@ before packaging (docs/specs/deposit.md).
 
 The harness validates, builds and keeps each decision (`dd_harness.deposit`,
 `dd_harness.deposit_review`). The app passes on what it found, unchanged except for its shape:
-each violation and warning with the message the harness wrote, the SHACL Validation Report
+each violation, warning and piece of information with the message the harness wrote, the field it
+is about and the page where a person supplies it, the SHACL Validation Report
 itself, the digest each is kept by in the project log, and the items a person must decide, with
 the decision that stands for each. What waits on a person is drawn from the review, so it is
 left out of the warnings rather than shown twice.
@@ -33,6 +34,8 @@ def _result(result: Result) -> dict[str, Any]:
         "focus": result.focus,
         "component": result.component,
         "path": result.path,
+        "field": result.field,
+        "supplied_on": result.supplied_on,
     }
 
 
@@ -48,6 +51,7 @@ def validation_view(validation: Validation, report_digest: str | None) -> dict[s
         "requirements_digest": validation.requirements_digest,
         "violations": [_result(r) for r in validation.violations],
         "warnings": [_result(r) for r in validation.warnings if r.component not in REVIEW_CHECKS],
+        "infos": [_result(r) for r in validation.infos],
         "review": validation.review.to_document() if validation.review else None,
         "report": validation.report_jsonld(),
     }

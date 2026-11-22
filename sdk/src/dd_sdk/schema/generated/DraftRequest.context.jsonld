@@ -286,6 +286,9 @@
       "file_size": {
          "@id": "http://www.w3.org/ns/dcat#byteSize"
       },
+      "filled_by_repository": {
+         "@id": "https://w3id.org/data-director/filled_by_repository"
+      },
       "finding_column": {
          "@id": "https://w3id.org/data-director/finding_column"
       },
@@ -605,6 +608,9 @@
       },
       "summary_rows_read": {
          "@id": "https://w3id.org/data-director/summary_rows_read"
+      },
+      "supplied_on": {
+         "@id": "https://w3id.org/data-director/supplied_on"
       },
       "unconfirmed": {
          "@id": "https://w3id.org/data-director/unconfirmed"

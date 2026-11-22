@@ -32,9 +32,10 @@ from dd_sdk.contract.rdf import payload_jsonld
 SH = Namespace("http://www.w3.org/ns/shacl#")
 DD = "https://w3id.org/data-director/"
 
-type Severity = Literal["violation", "warning"]
+type Severity = Literal["violation", "warning", "info"]
 VIOLATION: Final = "violation"
 WARNING: Final = "warning"
+INFO: Final = "info"
 
 # The constraint component of a result that pySHACL did not make because it could not run: the
 # payload could not be read as RDF, or the shapes could not be parsed.
@@ -44,13 +45,17 @@ REPORT_CONTEXT: Final = {"sh": str(SH), "dd": DD, "xsd": str(XSD), "schema": "ht
 
 @dataclass(frozen=True)
 class Result:
-    """One result of a validation, as an `sh:ValidationResult` says it."""
+    """One result of a validation, as an `sh:ValidationResult` says it. `field` and `supplied_on`,
+    where a check knows them, name the value the result is about as a person knows it and the page
+    where they supply it (`dd:field`, `dd:supplied_on`)."""
 
     severity: Severity
     message: str
     focus: str
     component: str
     path: str | None = None
+    field: str | None = None
+    supplied_on: str | None = None
 
     def to_jsonld(self) -> dict[str, Any]:
         node: dict[str, Any] = {
@@ -62,11 +67,16 @@ class Result:
         }
         if self.path is not None:
             node["sh:resultPath"] = {"@id": self.path}
+        if self.field is not None:
+            node["dd:field"] = self.field
+        if self.supplied_on is not None:
+            node["dd:supplied_on"] = self.supplied_on
         return node
 
 
 def conforms(results: Iterable[Result]) -> bool:
-    """A validation conforms when none of its results is a violation; warnings do not block."""
+    """A validation conforms when none of its results is a violation; warnings and information
+    do not block."""
     return all(r.severity != VIOLATION for r in results)
 
 
@@ -83,6 +93,9 @@ def report_jsonld(results: Iterable[Result], **about: Any) -> dict[str, Any]:
     }
 
 
+_SEVERITIES: Final[dict[object, Severity]] = {SH.Violation: VIOLATION, SH.Info: INFO}
+
+
 def run(data: Graph, shapes: Graph) -> list[Result]:
     """pySHACL's results for `data` against `shapes`, without inference."""
     _, report, _ = shacl_validate(data, shacl_graph=shapes, inference="none", allow_warnings=True)
@@ -93,7 +106,7 @@ def run(data: Graph, shapes: Graph) -> list[Result]:
         message = report.value(node, SH.resultMessage)
         found.append(
             Result(
-                VIOLATION if report.value(node, SH.resultSeverity) == SH.Violation else WARNING,
+                _SEVERITIES.get(report.value(node, SH.resultSeverity), WARNING),
                 str(message) if message is not None else "",
                 str(report.value(node, SH.focusNode)),
                 str(report.value(node, SH.sourceConstraintComponent)),

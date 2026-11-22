@@ -230,6 +230,12 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     (`standard_target`: `dataset`, the default, or `field:<name>`). Its subject is the standard's
     name, with the field for a field-level choice ([Projects](projects.md), invariant 28; #1391;
     `sdk/tests/test_fact_kinds.py`). Adding it raised the contract version to 0.21.0.
+34. A `RequirementField` may say where in the app the researcher supplies it, in
+    `supplied_on` (`SuppliedOn`: documents, researchers, facts or repository), and a
+    `RequirementSet` and `RepositoryRequirements` may list in `filled_by_repository` the
+    properties the repository fills itself, such as DataCite's publisher and publication year,
+    which the check before packaging reports as information, never as missing
+    ([Deposit](deposit.md), #1322). Adding them raised the contract version to 0.23.0.
 
 ## Boundaries and contracts
 

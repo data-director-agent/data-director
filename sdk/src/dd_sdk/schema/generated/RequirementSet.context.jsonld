@@ -32,6 +32,9 @@
          "@id": "https://w3id.org/data-director/fields",
          "@type": "@id"
       },
+      "filled_by_repository": {
+         "@id": "https://w3id.org/data-director/filled_by_repository"
+      },
       "form_label": {
          "@id": "https://w3id.org/data-director/form_label"
       },
@@ -96,6 +99,9 @@
       },
       "shex": "http://www.w3.org/ns/shex#",
       "spdx": "http://spdx.org/rdf/terms#",
+      "supplied_on": {
+         "@id": "https://w3id.org/data-director/supplied_on"
+      },
       "target": {
          "@id": "https://w3id.org/data-director/target"
       },

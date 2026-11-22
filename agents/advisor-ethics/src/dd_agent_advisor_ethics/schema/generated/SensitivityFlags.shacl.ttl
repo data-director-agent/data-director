@@ -50,15 +50,15 @@ ethics:SensitivityFlags a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path <https://w3id.org/data-director/source_id> ],
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/content_hash> ;
+            sh:pattern "^[0-9a-f]{64}$" ],
         [ sh:datatype xsd:string ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path <https://w3id.org/data-director/content_hash> ;
-            sh:pattern "^[0-9a-f]{64}$" ] ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/source_id> ] ;
     sh:targetClass <https://w3id.org/data-director/GroundingRef> .
 
 ethics:SensitivityFlag a sh:NodeShape ;
