@@ -25,6 +25,8 @@ export interface ProjectDocumentsRead {
   documents: DocumentsRead;
   /** Holds the documents a change returned, such as an answered document question. */
   answered(projectId: string, value: ProjectDocuments): void;
+  /** The longest answer to a draft's question the harness keeps; null until the server says. */
+  answerMaxLength: number | null;
 }
 
 /**
@@ -70,5 +72,7 @@ export function useProjectDocuments(
     read.resource.state === "loaded"
       ? { state: "loaded", documents: read.resource.value.documents }
       : read.resource;
-  return { documents, answered };
+  const answerMaxLength =
+    read.resource.state === "loaded" ? read.resource.value.answer_max_length : null;
+  return { documents, answered, answerMaxLength };
 }

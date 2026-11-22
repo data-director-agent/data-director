@@ -17,6 +17,7 @@ from dd_sdk.contract.models import (
     NEW_PROJECT_TITLE_MAX,
     QUESTION_KEY_PATTERN,
     QUESTIONS_MAX,
+    SHORT_TEXT_MAX,
     Question,
     QuestionKind,
 )
@@ -58,8 +59,10 @@ QUESTIONS_TOOL_DEFINITION = ToolSpec(
                             "type": "string",
                             "enum": [k.value for k in QuestionKind],
                             "description": (
-                                "choice: pick from options; short_text: one line in their own "
-                                "words; long_text: several sentences in their own words."
+                                "choice: pick from options; short_text: a name, a number or a "
+                                f"date in their own words, at most {SHORT_TEXT_MAX} characters; "
+                                "long_text: anything longer in their own words, such as a "
+                                "policy, a description or a method. When unsure, use long_text."
                             ),
                         },
                         "question_help": {

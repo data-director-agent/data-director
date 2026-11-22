@@ -216,8 +216,9 @@ first, all at once, each box starting with the suggestion and saying it came fro
 researcher checks them, changes or clears any, and records them with one "Accept" button. Those
 with no suggestion follow three at a time, or more to keep one section's parts together, in blank
 boxes. Each question links to a new conversation to talk it through, but its answer is recorded
-only on the draft; the documents page folds the answered questions beneath the form, and lists an
-earlier version's questions read-only ([The app](app.md)). It sends the answers to
+only on the draft. The card and the documents page list the answered questions beneath the form
+(folded on the documents page), each with its saved answer and a way to change it, which records a
+new answer; the documents page lists an earlier version's questions read-only ([The app](app.md)). It sends the answers to
 `POST /api/projects/{id}/documents/{document_id}/answers`, which records them for the person
 signed in and never takes a name from the body. The harness records each answer and fills the
 answers into the next `DraftRequest`. No agent writes an answer.

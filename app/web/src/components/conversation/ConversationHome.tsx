@@ -125,7 +125,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const { conversation, busy, sent, turnCount, quiet } = turns;
   const { inventory: attached, document: attachedDocument } = attachments;
   const writing = Boolean(text.trim()) || attachments.carries;
-  const { documents, answered } = useProjectDocuments(
+  const { documents, answered, answerMaxLength } = useProjectDocuments(
     projectId,
     turnCount,
     turns.awaitedDrafts,
@@ -280,7 +280,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
                 onDocumentWrite={(message) =>
                   void turns.deliver(message, { inventory: null, document: null }, null)
                 }
-                {...projectHandlers(projectId, answered, reloadProjects)}
+                {...projectHandlers(projectId, { answered, answerMaxLength }, reloadProjects)}
               />
             )}
             <StartFromStep

@@ -45,6 +45,7 @@ export function DocumentReader({
   document,
   shown: wanted,
   rules,
+  answerMaxLength,
   hrefFor,
   onDecided,
   onAnswered,
@@ -55,6 +56,8 @@ export function DocumentReader({
   /** The version asked for in the address, or null for the latest. */
   shown: number | null;
   rules: ReviewRules;
+  /** The longest answer to a question the harness keeps, in characters. */
+  answerMaxLength: number;
   /** The address of a version of this document; with no version, its latest. */
   hrefFor: (version?: DocumentVersion) => string;
   onDecided: (value: ProjectDocuments, said: string) => void;
@@ -221,6 +224,8 @@ export function DocumentReader({
           document={document}
           version={version}
           name={name}
+          maxLength={answerMaxLength}
+          foldAnswered
           onAnswered={onAnswered}
         />
       </QuestionList>

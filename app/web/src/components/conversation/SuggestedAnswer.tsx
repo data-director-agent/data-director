@@ -19,7 +19,7 @@ import {
   useFilter,
 } from "react-aria-components";
 
-import { SHORT_TEXT_MAX } from "../../conversation/question";
+import type { ReactNode } from "react";
 
 interface Props {
   /** The id the field's parts are named from. */
@@ -27,9 +27,13 @@ interface Props {
   suggestions: string[];
   words: string;
   onWords: (words: string) => void;
+  /** The count of characters left, drawn under the box and named by `${id}-count`. */
+  count?: ReactNode;
+  /** The id of the error shown for the question, if any: the box is then invalid. */
+  errorId?: string | null;
 }
 
-export function SuggestedAnswer({ id, suggestions, words, onWords }: Props) {
+export function SuggestedAnswer({ id, suggestions, words, onWords, count, errorId }: Props) {
   const { contains } = useFilter({ sensitivity: "base" });
   const typed = words.trim();
   const items = suggestions
@@ -48,11 +52,12 @@ export function SuggestedAnswer({ id, suggestions, words, onWords }: Props) {
       menuTrigger="focus"
       // Filtered above, so that what was typed always narrows the list.
       defaultFilter={() => true}
-      aria-describedby={`${id}-suggested`}
+      aria-describedby={[`${id}-suggested`, count && `${id}-count`, errorId].filter(Boolean).join(" ")}
+      isInvalid={Boolean(errorId)}
     >
       <Label className="visually-hidden">Your answer</Label>
       <div className="suggested-answer-field">
-        <Input id={`${id}-words`} maxLength={SHORT_TEXT_MAX} />
+        <Input id={`${id}-words`} />
         <AriaButton className="button button-secondary" aria-label="Show suggestions">
           <ChevronDown className="button-icon" size="1.125em" aria-hidden="true" />
         </AriaButton>
@@ -60,6 +65,7 @@ export function SuggestedAnswer({ id, suggestions, words, onWords }: Props) {
       <p className="hint" id={`${id}-suggested`}>
         Choose a suggestion or answer in your own words.
       </p>
+      {count}
       <Popover className="suggested-answer-popover">
         <ListBox className="suggested-answer-list">
           {(item: { id: string; label: string }) => (
