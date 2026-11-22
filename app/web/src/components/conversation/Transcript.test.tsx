@@ -375,6 +375,36 @@ describe("Transcript, as a conversation", () => {
     expect(icon).toHaveAttribute("aria-hidden", "true");
   });
 
+  it("shows answers being sent as Markdown while the reply is awaited, and a typed message as typed", () => {
+    const message = "**Which discipline?**\n\nEnvironmental science\n\n**Which formats?**\n\n_Skipped_";
+    const { rerender } = render(
+      <Transcript
+        conversation={conversation}
+        agents={agents}
+        onToggleRun={() => {}}
+        pending={{ agentId: "orchestrator.stub", message, answers: true }}
+      />,
+    );
+    const person = () => (turns().at(-1) as HTMLElement).querySelector(".turn-person") as HTMLElement;
+    expect([...person().querySelectorAll(".markdown strong")].map((s) => s.textContent)).toEqual([
+      "Which discipline?",
+      "Which formats?",
+    ]);
+    expect(person().querySelector("em")).toHaveTextContent("Skipped");
+    expect(person()).not.toHaveTextContent("**");
+
+    rerender(
+      <Transcript
+        conversation={conversation}
+        agents={agents}
+        onToggleRun={() => {}}
+        pending={{ agentId: "orchestrator.stub", message: "**as typed**" }}
+      />,
+    );
+    expect(person().querySelector(".markdown")).toBeNull();
+    expect(within(person()).getByText("**as typed**")).toBeVisible();
+  });
+
   it("puts the agent's icon before its name, hidden from assistive technology", () => {
     render(<Transcript conversation={conversation} agents={agents} onToggleRun={() => {}} />);
     const name = turns()[0]?.querySelector(".turn-agent .turn-speaker-name") as HTMLElement;
