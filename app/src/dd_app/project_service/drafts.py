@@ -40,6 +40,33 @@ class Documents(Area):
         )
         return {**documents.view(store, project_id), "answered": answered.model_dump()}
 
+    def request_revision(
+        self,
+        project_id: str,
+        document_id: str,
+        version: int,
+        digest: str,
+        instruction: str,
+        *,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> tuple[str, str]:
+        """Record `acted_for`'s request for changes to the latest version, and return the agent to
+        revise it and the document's kind. Raises `NoDrafterError`, recording nothing, if no agent
+        drafted the document."""
+        store: ProjectDocuments = self._store
+        agent_id, kind = documents.drafter(store, project_id, document_id)
+        store.request_revision(
+            project_id,
+            document_id,
+            version,
+            digest,
+            instruction,
+            acted_for=acted_for,
+            caused_by=caused_by,
+        )
+        return agent_id, kind
+
 
 class Facts(Area):
     def facts(self, project_id: str) -> dict[str, Any]:

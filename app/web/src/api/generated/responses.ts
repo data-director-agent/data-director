@@ -97,6 +97,8 @@ export type AppResponse =
   | RepositoryTicket
   | ReviewItem
   | ReviewRules
+  | RevisionRequested
+  | RevisionRun
   | Role
   | RunResult
   | RunRow
@@ -807,6 +809,10 @@ export interface DocumentVersion {
   questions: DocumentQuestion[];
   revises: DocumentVersionRef | null;
   /**
+   * The change a person asked for last to this version, in their words.
+   */
+  revision_request: RevisionRequested | null;
+  /**
    * `questions` for a note that asks what the drafter needs before it writes the document,
    * which cannot be decided on; `draft` for the document itself (docs/specs/drafting.md).
    */
@@ -822,6 +828,14 @@ export interface VersionDecision {
   decided_at: string;
   decided_by: Principal;
   reason: string | null;
+}
+/**
+ * A person's request for changes to a version, as the project log records it.
+ */
+export interface RevisionRequested {
+  instruction: string;
+  requested_at: string;
+  requested_by: Principal;
 }
 /**
  * An example input the shell offers (`GET /api/examples`).
@@ -1209,7 +1223,15 @@ export interface ProjectDocuments {
   decided?: DocumentVersionRef;
   documents: ProjectDocument[];
   project_id: string;
+  /**
+   * The longest request for changes the harness keeps, in characters.
+   */
+  request_max_length: number;
   review: ReviewRules;
+  /**
+   * After a request for changes: the run that revised the document, or declined to.
+   */
+  revised?: RevisionRun;
 }
 /**
  * The harness's rule for when a decision needs a reason, which the form states.
@@ -1225,6 +1247,15 @@ export interface ReasonRequired {
   approved: boolean;
   edited_and_approved: boolean;
   rejected: boolean;
+}
+/**
+ * The run asked to revise a document: its outcome, and the version it drafted, if any.
+ */
+export interface RevisionRun {
+  invocation_id: string;
+  statement: string;
+  status: "succeeded" | "abstained" | "referred" | "failed";
+  version: DocumentVersionRef | null;
 }
 /**
  * What a project holds: proposals to decide, and the facts that stand.

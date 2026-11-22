@@ -23,7 +23,7 @@ Every event has these members:
 
 | Member | What it is |
 |---|---|
-| `event` | What happened: `project_created`, `project_renamed`, `project_deleted`, `project_restored`, `conversation_started`, `conversation_deleted`, `conversation_restored`, `inventory_added`, `researcher_added`, `researcher_withdrawn`, `repository_chosen`, `document_version_added`, `document_version_decided`, `document_question_answered`, `document_change_refused`, `fact_proposed`, `fact_decided`, `project_validated`, `package_built`, `deposit_item_decided`, `deposit_checks_confirmed`, `deposit_approved`, `deposit_recorded` or `deposit_failed`. |
+| `event` | What happened: `project_created`, `project_renamed`, `project_deleted`, `project_restored`, `conversation_started`, `conversation_deleted`, `conversation_restored`, `inventory_added`, `researcher_added`, `researcher_withdrawn`, `repository_chosen`, `document_version_added`, `document_version_decided`, `document_question_answered`, `document_revision_requested`, `document_change_refused`, `fact_proposed`, `fact_decided`, `project_validated`, `package_built`, `deposit_item_decided`, `deposit_checks_confirmed`, `deposit_approved`, `deposit_recorded` or `deposit_failed`. |
 | `event_id` | A UUIDv7, so events sort in the order they happened. |
 | `project_id` | The project. |
 | `at` | When, in UTC. |
@@ -251,6 +251,14 @@ version asks ([Drafting documents](../../docs/specs/drafting.md), invariant 6). 
 at most `ANSWER_MAX_LENGTH` (2,000) characters. Its `acted_for` is whoever answered. Answers sent
 together are appended in one write. A decided version's questions may still be answered: the
 answers go into the next draft, not into that version.
+
+`document_revision_requested` records a person's request for changes to the document's latest
+version, in their words ([Drafting documents](../../docs/specs/drafting.md), invariant 12). It
+gives `document_id`, `version`, the `digest` of the text they saw and `instruction`, stripped of
+surrounding white space and at most `REQUEST_MAX_LENGTH` (2,000) characters. Its `acted_for` is
+whoever asked. It changes no version: the last request recorded for the latest version is what the
+conductor gives a drafter asked to revise it. A request naming any text but the latest draft's is
+refused, as an edit is.
 
 `fact_proposed` records one fact a check agent proposed for a person to decide
 ([Projects](../../docs/specs/projects.md), invariant 28). It gives `agent_id`, the agent that

@@ -54,6 +54,7 @@ import projectMembersLastOwner from "../fixtures/project-members-last-owner.json
 import projectAnswers from "../fixtures/project-answers.json";
 import projectCreated from "../fixtures/project-created.json";
 import projectDocuments from "../fixtures/project-documents.json";
+import projectRevised from "../fixtures/project-revised.json";
 import projectFacts from "../fixtures/project-facts.json";
 import projectFactsDecided from "../fixtures/project-facts-decided.json";
 import projectFactsForbidden from "../fixtures/project-facts-forbidden.json";
@@ -100,6 +101,7 @@ void (projectCreated satisfies Wide<ProjectSummary>);
 void (projectsDeleted satisfies Wide<DeletedProject>[]);
 void (projectDocuments satisfies Wide<ProjectDocuments>);
 void (projectAnswers satisfies Wide<ProjectDocuments>);
+void (projectRevised satisfies Wide<ProjectDocuments>);
 void (projectFacts satisfies Wide<ProjectFacts>);
 void (projectFactsDecided satisfies Wide<ProjectFacts>);
 void (projectFactsForbidden satisfies Wide<Problem>);

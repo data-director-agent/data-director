@@ -39,6 +39,7 @@ from dd_harness.projects.decisions import (
     ANSWER_MAX_LENGTH,
     QUESTION_ID,
     REASON_MAX_LENGTH,
+    REQUEST_MAX_LENGTH,
     Decision,
     Verdict,
     check_answers,
@@ -83,6 +84,7 @@ from dd_harness.projects.membership import (
 )
 from dd_harness.projects.repository import RepositoryChoice
 from dd_harness.projects.researchers import Researchers
+from dd_harness.projects.revisions import Revisions
 from dd_harness.projects.rules import (
     CONVERSATION_DELETED,
     CONVERSATION_RESTORED,
@@ -174,6 +176,7 @@ __all__ = [
     "REASON_MAX_LENGTH",
     "REJECTED",
     "REPOSITORY_CHOSEN",
+    "REQUEST_MAX_LENGTH",
     "RESEARCHER_ADDED",
     "RESEARCHER_WITHDRAWN",
     "RO_CRATE",
@@ -208,6 +211,7 @@ __all__ = [
     "RepositoryChoice",
     "Researchers",
     "RestoreRefusedError",
+    "Revisions",
     "SnapshotLog",
     "TitleSource",
     "UnknownConversationError",
@@ -237,6 +241,7 @@ class Projects(
     RepositoryChoice,
     Flow,
     Documents,
+    Revisions,
     Facts,
     DepositRecords,
     RunEffects,

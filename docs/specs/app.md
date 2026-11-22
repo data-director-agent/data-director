@@ -719,7 +719,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   [Drafting](drafting.md), invariant 5), never read from its prose. Approving a version with any gap
   as it is asks again in a dialog that names the count, since an approval is final and the deposit
   package takes it; rejecting, or editing and approving, does not, and keeps its reason rule (#1282).
-  The list holds documents only.
+  Beneath a README's latest draft, decided or not, a form asks for changes in the person's own
+  words; it says that only the prose changes and that a fact they state counts as given by them,
+  and after the run it says which version revises the one they read, or, in the agent's words, why
+  none was drafted ([Drafting](drafting.md), invariant 12;
+  `app/web/src/components/project/RevisionRequest.test.tsx`). The list holds documents only.
 - **A project's pages are tabs.** Beneath the breadcrumb, each of a project's pages is a tab with
   an address of its own, in the order the work goes: Documents (`/projects/{id}`), Project facts
   (`/facts`), People (`/people`), Repository (`/repository`), Use of generative AI (`/ai-use`),

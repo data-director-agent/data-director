@@ -670,7 +670,9 @@ classes:
       answers but never fill a gap. The conductor also fills shared_answers: the latest answer a
       person recorded, for a document of another kind, to a question that asks for the same thing
       as one of this draft's (shared_field), which a drafter may offer as a suggestion but never
-      place.
+      place. With revise, the drafter is asked to revise the current version as a person asked,
+      in their words, and the conductor gives the current version the change they asked for
+      (revision_request).
     slots:
       - schema_class
       - document_kind
@@ -681,6 +683,7 @@ classes:
       - draft_answers
       - shared_answers
       - redraft_document
+      - revise
       - researchers
       - project_documents
       - project_decisions
@@ -693,6 +696,7 @@ classes:
       The version of a project document that a drafter is to regenerate: the document's latest,
       its text, and its state with the reason a person gave for any decision on it (ADR-0036
       decision 7). A drafter that regenerates it names version_ref in its payload's revises.
+      When the request asks for a revision, it also holds the change a person asked for.
     slots:
       - version_ref
       - document_title
@@ -700,6 +704,7 @@ classes:
       - document_text
       - version_state
       - decision_reason
+      - revision_request
 
   ApprovedMetadataRecord:
     description: >-
@@ -2124,6 +2129,18 @@ slots:
     description: >-
       The reason the person gave for their decision, in their words. Present for a rejection,
       and for an approval only if they gave one.
+  revise:
+    description: >-
+      Whether the drafter is to revise the current version as a person asked, rather than draft
+      it again from the project's facts (docs/specs/drafting.md). In a project the conductor
+      gives the current version the change the person asked for last (revision_request), and
+      refuses the run if they asked for none; outside a project the caller sends it.
+    range: boolean
+  revision_request:
+    description: >-
+      The change a person asked for to this version, in their words, as the project log
+      records it. A drafter follows it as an instruction, and a value it states counts as given
+      by that person (docs/specs/drafting.md). In a project only the conductor fills it.
 
   name:
     required: true

@@ -14,6 +14,7 @@ from typing import Any, Final
 
 from dd_harness.projects.rules import (
     DOCUMENT_QUESTION_ANSWERED,
+    DOCUMENT_REVISION_REQUESTED,
     DOCUMENT_VERSION_ADDED,
     DOCUMENT_VERSION_DECIDED,
     Refusal,
@@ -47,6 +48,14 @@ def fold(events: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
                 "reason": event.get("reason"),
                 "decided_by": event["acted_for"],
                 "decided_at": event["at"],
+            }
+        elif event["event"] == DOCUMENT_REVISION_REQUESTED:
+            # The change a person asked for last to a version stands (docs/specs/drafting.md).
+            version = documents[event["document_id"]]["versions"][event["version"] - 1]
+            version["revision_request"] = {
+                "instruction": event["instruction"],
+                "requested_by": event["acted_for"],
+                "requested_at": event["at"],
             }
         elif event["event"] == DOCUMENT_QUESTION_ANSWERED:
             document = documents[event["document_id"]]
@@ -94,6 +103,7 @@ def _add_version(documents: dict[str, dict[str, Any]], event: dict[str, Any]) ->
             "added_at": event["at"],
             "state": PROPOSED,
             "decision": None,
+            "revision_request": None,
         }
     )
 

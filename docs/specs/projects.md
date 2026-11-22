@@ -160,7 +160,11 @@ intended design, and each part says where it is not built yet.
    conversation started from a project is a `conversation_started` event of its log, so the
    harness can say which project a conversation is in after a restart (`ProjectStore.project_of`,
    `harness/tests/test_projects.py`). A delegated child takes its parent's project from the
-   grant. The agent is never sent `project_id` (`harness/tests/test_project_runs.py`).
+   grant. The app may also run an agent in a project it names, in no conversation, as it does to
+   revise a document a person asked to change ([Drafting documents](drafting.md), invariant 12):
+   it passes the project to the conductor beside the request, never in it, and the conductor
+   checks that whom the run acts for may read the project, as for a conversation's. The agent is
+   never sent `project_id` (`harness/tests/test_project_runs.py`).
 8. **Only `inventory` and `decisions` go to a hosted model by default.** Project content is of
    four classes: `inventory`, `documentation` (uploaded text, and any document version given
    back to an agent), `researcher` (the facts researchers kept from their ORCID records,
@@ -211,9 +215,11 @@ intended design, and each part says where it is not built yet.
     the SHA-256 of the text shown, and is refused if the version is not the document's latest,
     is already decided, has another digest, or is not in the request's project (409, or 404 for
     a document not in it). An edit names the version it was edited from and the digest of its
-    text, and is refused (409) if that is not the latest. A turn names the turn it follows and is
+    text, and is refused (409) if that is not the latest. So does a request for changes
+    (`document_revision_requested`, [Drafting documents](drafting.md), invariant 12), which is
+    also refused for a version that only asks questions. A turn names the turn it follows and is
     refused (409) if that is not the conversation's latest turn, or while another turn of it is
-    running. Nothing is merged. Each refusal of a decision or an edit is a
+    running. Nothing is merged. Each refusal of a decision, an edit or a request for changes is a
     `document_change_refused` event; a request malformed in itself, such as a rejection without
     a reason, records nothing. Recording a refused turn is not built yet, TODO(#390).
 13. **A departure from the draft carries a reason.** Rejecting needs a reason; editing and

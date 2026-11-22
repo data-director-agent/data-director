@@ -170,8 +170,12 @@ class Governance:
             self.conductor.projects = self.projects
             self.projects.serving = functools.partial(enabled_manifest, self.conductor)
 
-    async def invoke(self, request: InvocationRequest, acting_for: Principal) -> Envelope:
-        return await self.conductor.ainvoke(request, acting_for=acting_for)
+    async def invoke(
+        self, request: InvocationRequest, acting_for: Principal, in_project: str | None = None
+    ) -> Envelope:
+        """One run. With `in_project`, a run in that project and no conversation, such as a
+        revision a person asked for on the documents page (docs/specs/projects.md, invariant 7)."""
+        return await self.conductor.ainvoke(request, acting_for=acting_for, in_project=in_project)
 
     async def run(
         self, agent_id: str, input: dict[str, Any], acting_for: Principal

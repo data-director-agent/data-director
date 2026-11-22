@@ -79,10 +79,6 @@ from dd_harness.model_grants import GrantMinter
 from dd_harness.observe import RunObserver, Watch
 from dd_harness.project_effects import ProjectEffects
 from dd_harness.project_facts import FactSource
-from dd_harness.projects import (
-    ProjectDeletedError,
-    UnknownProjectError,
-)
 from dd_harness.registry import Registry
 from dd_harness.run_state import Grant as Grant
 from dd_harness.run_state import RunState
@@ -217,6 +213,7 @@ class Conductor:
         acting_for: Principal,
         observer: RunObserver | None = None,
         cancel: threading.Event | None = None,
+        in_project: str | None = None,
     ) -> Envelope:
         """`invoke`, awaited from async code without blocking its event loop."""
         with self._parents_lock:
@@ -224,7 +221,12 @@ class Conductor:
                 self._parents = ThreadPoolExecutor(thread_name_prefix="dd-conductor")
             parents = self._parents
         call = functools.partial(
-            self.invoke, request, acting_for=acting_for, observer=observer, cancel=cancel
+            self.invoke,
+            request,
+            acting_for=acting_for,
+            observer=observer,
+            cancel=cancel,
+            in_project=in_project,
         )
         return await asyncio.get_running_loop().run_in_executor(parents, call)
 
@@ -249,9 +251,12 @@ class Conductor:
         acting_for: Principal,
         observer: RunObserver | None = None,
         cancel: threading.Event | None = None,
+        in_project: str | None = None,
     ) -> Envelope:
         """Run one top-level invocation on behalf of `acting_for`, the principal the caller's
-        transport authenticated. Lineage is the conductor's to set, never the caller's.
+        transport authenticated. Lineage is the conductor's to set, never the caller's. The run
+        is in its conversation's project or, with `in_project`, which only the app passes, in that
+        project and no conversation (docs/specs/projects.md, invariant 7).
 
         `observer` is told the run's stages and its checks' reports as they happen
         (`dd_harness.observe`). Setting `cancel` cancels the run: the conductor looks at it before
@@ -266,29 +271,15 @@ class Conductor:
             raise ProjectAssignmentError(
                 "project_id is set by the conductor from the conversation; a caller may not set it"
             )
-        project_id = (
+        if in_project is not None and request.conversation_id is not None:
+            raise ProjectAssignmentError("a run in a project it names is in no conversation")
+        project_id = in_project or (
             self.projects.project_of(request.conversation_id)
             if self.projects is not None and request.conversation_id is not None
             else None
         )
-        # Everything this run asks of its project before it runs is read from one snapshot.
-        facts = (
-            self.projects.snapshot(project_id)
-            if self.projects is not None and project_id is not None
-            else None
-        )
-        # Only someone who may read the project runs anything in it; anyone else is answered as
-        # for a project that does not exist (docs/specs/projects.md, invariant 17). A delegated
-        # child is not checked again: its grant carries its parent's project.
-        if (
-            project_id is not None
-            and facts is not None
-            and not project_access.may(facts, project_id, acting_for, project_access.Action.READ)
-        ):
-            raise UnknownProjectError(f"no project {project_id!r}")
-        # A deleted project takes no new run, not even its owner's (invariant 24).
-        if project_id is not None and facts is not None and facts.is_deleted(project_id):
-            raise ProjectDeletedError(f"project {project_id} is deleted")
+        # Read from one snapshot, which only someone who may read the project gets.
+        facts = project_access.run_facts(self.projects, project_id, acting_for)
         return self._invoke(
             request, acting_for, project_id=project_id, facts=facts, watch=Watch(observer, cancel)
         )

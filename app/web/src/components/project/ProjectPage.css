@@ -36,7 +36,8 @@
   .document-tab-panel .document-body,
   .question-list,
   .document-questions,
-  .decision-form {
+  .decision-form,
+  .revision-request {
     max-width: calc(var(--measure) + var(--space-6));
   }
 
@@ -328,7 +329,8 @@
     margin: 0;
   }
 
-  .decision-form {
+  .decision-form,
+  .revision-request {
     margin-bottom: var(--space-4);
     padding: var(--space-4);
     border: var(--border-width) solid var(--color-border);

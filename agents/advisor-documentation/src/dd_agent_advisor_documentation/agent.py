@@ -37,6 +37,10 @@ Regenerating a document drafts it afresh from the project's facts, and names the
 replaces in `revises`; a regenerated data dictionary keeps the values the researcher gave in that
 version.
 
+Asked to revise (`DraftRequest.revise`), it changes a README's prose as a person asked, in their
+words (`revise.py`): the one time a writer is given an earlier version. Headings, tables, gaps and
+the values a person gave are kept byte for byte, and without a model it revises nothing.
+
 Every gap is asked (docs/specs/drafting.md): the version carries one `DocumentQuestion` for each
 README section, or part of one asked part by part, left for the researcher, and each `unknown` data
 dictionary cell, or each column several files share by name, type and format (`dictionary.py`).
@@ -51,26 +55,31 @@ from collections.abc import Mapping, Sequence
 from typing import Any, Literal, NamedTuple
 
 from dd_agent_advisor_documentation.checks import count, listed, summed
-from dd_agent_advisor_documentation.counts import counted
 from dd_agent_advisor_documentation.dictionary import (
     Source,
     _answers,
     draft_dictionary,
     unit_codes_statement,
 )
-from dd_agent_advisor_documentation.drafted import drafted, file_format
+from dd_agent_advisor_documentation.drafted import drafted
 from dd_agent_advisor_documentation.notes import how_written, questions_note
 from dd_agent_advisor_documentation.outline import Outlined, outlined
 from dd_agent_advisor_documentation.plan import LIMITATIONS as PLAN_LIMITATIONS
 from dd_agent_advisor_documentation.plan import draft_plan, load_plan_sections
 from dd_agent_advisor_documentation.prose import Prose, TemplateWriter, Writer
+from dd_agent_advisor_documentation.readme_facts import RESEARCHER_ANSWERS as RESEARCHER_ANSWERS
+from dd_agent_advisor_documentation.readme_facts import _facts, _prose_facts
 from dd_agent_advisor_documentation.record import (
-    _collected,
-    _creators,
-    _from_record,
     _record,
     _title,
-    _values,
+)
+from dd_agent_advisor_documentation.revise import gaps
+from dd_agent_advisor_documentation.revised import (
+    REVISION_LIMITATIONS,
+    given_values,
+    revisable,
+    revised_statement,
+    unrevised,
 )
 from dd_agent_advisor_documentation.sections import Section, load_sections
 from dd_agent_advisor_documentation.suggestions import (
@@ -80,7 +89,6 @@ from dd_agent_advisor_documentation.suggestions import (
     section_asks,
     with_documents,
 )
-from dd_agent_advisor_documentation.values import field_facts
 from dd_sdk import shared_answers
 from dd_sdk.agent import (
     AgentResult,
@@ -98,13 +106,11 @@ from dd_sdk.contract.models import (
     DocumentKind,
     DocumentQuestion,
     DraftRequest,
-    FileInventory,
     GroundingMode,
     InvocationRequest,
     Outcome,
     OutcomeStatus,
     ReasonCode,
-    RepositoryRequirements,
 )
 
 # How far a version has got (`document_stage`): a note that asks first, or the document itself.
@@ -122,12 +128,6 @@ class Drafted(NamedTuple):
     suggested: Suggestions
 
 
-# The key under which a writer is given the approved metadata record's values.
-RECORD_FACTS = "approved_metadata_record"
-# The keys under which the README's writer is given the researcher's answers, by section heading,
-# and the project's decisions, once the researcher has answered a section.
-RESEARCHER_ANSWERS = "researcher_answers"
-PROJECT_DECISIONS = "project_decisions"
 TITLES = {
     DocumentKind.README: "README",
     DocumentKind.DATA_DICTIONARY: "Data dictionary",
@@ -161,7 +161,8 @@ class DocumentationEditor:
             "requirements from what people in the project decided: what the facts give is drafted, "
             "with README prose written by a model where one is configured, and what only the "
             "researcher knows is marked and asked of them, with a model's suggested answer offered "
-            "beside a question, never written into the document."
+            "beside a question, never written into the document. With a model, it also revises a "
+            "README's prose as you ask, keeping every gap and every value you gave."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(DraftRequest),),
@@ -198,6 +199,8 @@ class DocumentationEditor:
                 f"Management Plan, not a {kind.value}.",
             )
         inventory = asked.inventory
+        if asked.revise:
+            return self._revise(asked, ctx)
         if kind == DocumentKind.DMP:
             return self._result(asked, self._plan(asked, ctx), ctx)
         if inventory is None or not inventory.inventory_files:
@@ -212,20 +215,9 @@ class DocumentationEditor:
         if kind == DocumentKind.README:
             record, unread = _record(asked.metadata_record)
             text, questions, statement, prose, stage = self._readme(asked, record, ctx)
-            # A person's own words, from another document or a decision, come before a model's.
-            questions = shared_answers.offer(
-                questions, asked.shared_answers, asked.project_decisions
-            )
             # The README is drafted first, so nothing the model suggests can reach its text.
-            questions, suggested = self._suggest(
-                with_documents(_facts(inventory, asked.requirements, record), asked),
-                section_asks(self.sections, questions, has_documents=bool(asked.project_documents)),
-                questions,
-                ctx,
-            )
-            statement += (
-                f" {how_suggested(suggested, TITLES[kind])}{shared_answers.how_offered(questions)}"
-            )
+            questions, suggested, offered = self._offer(asked, record, questions, ctx)
+            statement += offered
             if asked.metadata_record is None:
                 statement += (
                     " It was given no approved metadata record, so it drafts from the inventory "
@@ -290,7 +282,13 @@ class DocumentationEditor:
         statement = drafted.statement
         if current is not None:
             statement += f" It replaces version {current.version_ref.version} of the document."
-        limitations = PLAN_LIMITATIONS if kind == DocumentKind.DMP else LIMITATIONS
+        limitations = (
+            PLAN_LIMITATIONS
+            if kind == DocumentKind.DMP
+            else REVISION_LIMITATIONS
+            if asked.revise
+            else LIMITATIONS
+        )
         # A README's model may write prose and suggest answers: two calls, recorded together.
         logs = [log for log in (prose.calls, suggested.calls) if log is not None]
         usage = summed(prose.usage, suggested.usage)
@@ -350,25 +348,91 @@ class DocumentationEditor:
             for q in questions
         ], suggested
 
+    def _outline(self, asked: DraftRequest, record: Mapping[str, Any] | None) -> list[Outlined]:
+        """The README's sections as the rules draft them, with their gaps and questions."""
+        answers = _answers(asked.draft_answers)
+        return [
+            outlined(
+                section,
+                {
+                    source: body
+                    for source in section.sources
+                    if (body := drafted(source, asked, record)) is not None
+                },
+                record,
+                answers,
+            )
+            for section in self.sections
+        ]
+
+    def _offer(
+        self,
+        asked: DraftRequest,
+        record: Mapping[str, Any] | None,
+        questions: list[DocumentQuestion],
+        ctx: RunContext,
+    ) -> tuple[list[DocumentQuestion], Suggestions, str]:
+        """A README's questions with a person's own words offered first, from another document or
+        a decision, then a model's suggestions, and what the statement says of them."""
+        assert asked.inventory is not None  # run checked it
+        questions = shared_answers.offer(questions, asked.shared_answers, asked.project_decisions)
+        questions, suggested = self._suggest(
+            with_documents(_facts(asked.inventory, asked.requirements, record), asked),
+            section_asks(self.sections, questions, has_documents=bool(asked.project_documents)),
+            questions,
+            ctx,
+        )
+        said = f" {how_suggested(suggested, TITLES[DocumentKind.README])}"
+        return questions, suggested, said + shared_answers.how_offered(questions)
+
+    def _revise(self, asked: DraftRequest, ctx: RunContext) -> AgentResult:
+        """The current README revised as a person asked (`revise.py`), with the questions of
+        the gaps it still marks; or an abstention that says why not."""
+        current, inventory = asked.current_version, asked.inventory
+        why = revisable(asked)
+        if why is not None:
+            return abstain(*why)
+        assert current is not None and current.revision_request is not None
+        assert inventory is not None
+        record, _ = _record(asked.metadata_record)
+        outline = self._outline(asked, record)
+        revision = self.writer.revise(
+            _facts(inventory, asked.requirements, record),
+            current.document_text,
+            current.revision_request,
+            given_values(asked, outline),
+            ctx,
+        )
+        if revision is None:
+            return abstain(
+                ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
+                "Revising the README as you ask needs a model, and none is configured here. "
+                "Edit the README yourself instead.",
+            )
+        if revision.text == current.document_text:
+            return abstain(ReasonCode.INSUFFICIENT_INPUT, unrevised(revision))
+        marked = set(gaps(revision.text))
+        questions = [q for p in outline for q in p.questions if q.question_id in marked]
+        questions, suggested, offered = self._offer(asked, record, questions, ctx)
+        prose = Prose(
+            sections=dict.fromkeys(revision.changed, ""),
+            dropped=revision.dropped,
+            model_id=revision.model_id,
+            usage=revision.usage,
+            calls=revision.calls,
+        )
+        statement = revised_statement(revision, len(marked), len(questions)) + offered
+        return self._result(
+            asked, Drafted(revision.text, questions, statement, "draft", prose, suggested), ctx
+        )
+
     def _readme(
         self, asked: DraftRequest, record: Mapping[str, Any] | None, ctx: RunContext
     ) -> tuple[str, list[DocumentQuestion], str, Prose, Stage]:
         """The README, or, before it is first written, the note that asks what it needs."""
         inventory, requirements = asked.inventory, asked.requirements
         assert inventory is not None  # run checked it
-        answers = _answers(asked.draft_answers)
-        drafted_from = [
-            {
-                source: body
-                for source in section.sources
-                if (body := drafted(source, asked, record)) is not None
-            }
-            for section in self.sections
-        ]
-        outline = [
-            outlined(section, bodies, record, answers)
-            for section, bodies in zip(self.sections, drafted_from, strict=True)
-        ]
+        outline = self._outline(asked, record)
         questions = [q for planned in outline for q in planned.questions]
         title = (_title(record) if record is not None else None) or "README"
         answered = sum(bool(p.answer or p.answered_parts) for p in outline)
@@ -417,70 +481,6 @@ class DocumentationEditor:
             "fill, each marked and asked as a question."
         )
         return "\n\n".join(parts) + "\n", questions, statement, prose, "draft"
-
-
-def _prose_facts(
-    inventory: FileInventory,
-    requirements: RepositoryRequirements | None,
-    record: Mapping[str, Any] | None,
-    asked: DraftRequest,
-    outline: Sequence[Outlined],
-) -> dict[str, Any]:
-    """What the writer is told for the README's prose: the facts, and, when the researcher has
-    answered a section, their answers by heading, the project's decisions and the documents they
-    attached, so that the section can be written from them (docs/specs/drafting.md, invariant 4).
-    """
-    facts = _facts(inventory, requirements, record)
-    given = {p.section.heading: p.answer for p in outline if p.answer is not None}
-    if not given:
-        return facts
-    facts[RESEARCHER_ANSWERS] = given
-    if asked.project_decisions:
-        facts[PROJECT_DECISIONS] = [
-            d.model_dump(mode="json", exclude_none=True) for d in asked.project_decisions
-        ]
-    return with_documents(facts, asked)
-
-
-def _facts(
-    inventory: FileInventory,
-    requirements: RepositoryRequirements | None,
-    record: Mapping[str, Any] | None,
-) -> dict[str, Any]:
-    """What a writer is told: the facts the README is drafted from, and nothing else. A field's
-    description is left out: a definition is the researcher's to give (docs/specs/drafting.md)."""
-    files = [
-        {
-            "path": f.file_path,
-            "format": file_format(f.file_media_type, f.file_pronom_ids),
-            "size_bytes": f.file_size,
-            **({"fields": [field_facts(c) for c in f.file_fields]} if f.file_fields else {}),
-        }
-        for f in inventory.inventory_files
-    ]
-    facts: dict[str, Any] = {
-        **counted(inventory),
-        "files": files,
-    }
-    if record is not None:
-        year = record.get("publicationYear")
-        given = {
-            "title": _title(record),
-            "creators": _creators(record),
-            "funders": _values(record, "fundingReferences", "funderName"),
-            "dates_collected": _collected(record),
-            "geographic_locations": _values(record, "geoLocations", "geoLocationPlace"),
-            "abstract": _from_record("record_abstract", record),
-            "licence": _from_record("record_rights", record),
-            "publication_year": str(year) if isinstance(year, int | str) and str(year) else None,
-        }
-        facts[RECORD_FACTS] = {k: v for k, v in given.items() if v}
-    if requirements is not None and requirements.licences:
-        facts["repository"] = {
-            "name": requirements.repository_name,
-            "licences_offered": list(requirements.licences),
-        }
-    return facts
 
 
 def build() -> DocumentationEditor:

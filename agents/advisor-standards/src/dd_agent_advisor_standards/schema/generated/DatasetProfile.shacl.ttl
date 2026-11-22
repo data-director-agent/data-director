@@ -11,6 +11,10 @@ dcat:Dataset a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dcat:keyword ],
+        [ sh:datatype xsd:string ;
             sh:description "Discipline or subject, as free text or an IRI." ;
             sh:nodeKind sh:Literal ;
             sh:order 4 ;
@@ -39,11 +43,7 @@ dcat:Dataset a sh:NodeShape ;
         [ sh:datatype xsd:string ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
-            sh:path dcat:mediaType ],
-        [ sh:datatype xsd:string ;
-            sh:nodeKind sh:Literal ;
-            sh:order 3 ;
-            sh:path dcat:keyword ] ;
+            sh:path dcat:mediaType ] ;
     sh:targetClass dcat:Dataset .
 
 <https://w3id.org/data-director/CategoryCount> a sh:NodeShape ;

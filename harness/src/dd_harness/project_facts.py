@@ -17,7 +17,8 @@ Three core classes are filled. Within a project:
   the latest version of the project's document of that kind drafted or revised last, or of the one
   `redraft_document` names, so a drafter that revises it makes that document's next version. A
   `redraft_document` that is not the project's, or is of another kind, is refused (`refusal`);
-  outside a project it is removed, since it names a project document;
+  outside a project it is removed, since it names a project document. With `revise`, the current
+  version holds the change a person asked for last, from the log, or the run is refused;
 - a plain `FileInventory` is the project's inventory, when it holds one;
 - a `Message`'s `project_inventory` says what the project's inventory is, so that an orchestrator
   knows the project holds one without being given its files; its `project_entry` and
@@ -328,16 +329,18 @@ def refusal(
     store: FactSource | None, project_id: str | None, filled: Mapping[str, Any]
 ) -> str | None:
     """Why the conductor refuses to run `filled`, an input `give` returned for `project_id`: a
-    `DraftRequest` naming a `redraft_document` that is not the project's, or is of another kind.
-    None if nothing is refused."""
-    named = filled.get("redraft_document")
-    if store is None or project_id is None or named is None:
+    `DraftRequest` naming a `redraft_document` that is not the project's, or of another kind, or
+    asking to revise what nobody asked to change. None if nothing is refused."""
+    named, revise = filled.get("redraft_document"), filled.get("revise") is True
+    if store is None or project_id is None or (named is None and not revise):
         return None
+    what = f"redraft_document {named!r}" if named is not None else "revise"
     try:
-        store.current_version(project_id, DocumentKind(str(filled.get("document_kind"))), named)
+        kind = DocumentKind(str(filled.get("document_kind")))
+        found = store.current_version(project_id, kind, named, revise=revise)
     except ValueError as exc:  # ProjectError, or a kind that is not one
-        return f"redraft_document {named!r}: {exc}"
-    return None
+        return f"{what}: {exc}"
+    return f"{what}: the project holds no such document" if found is None and revise else None
 
 
 def given(
@@ -452,6 +455,7 @@ def _current(
             project_id,
             DocumentKind(str(filled.get("document_kind"))),
             filled.get("redraft_document"),
+            revise=filled.get("revise") is True,
         )
     except ValueError:  # ProjectError, or a kind that is not one
         return None

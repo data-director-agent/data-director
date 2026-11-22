@@ -13,7 +13,8 @@
  * shows their version, so that they can see it laid out before they approve it.
  *
  * An earlier version opens read-only, with a line saying it is not the latest and a link to the
- * latest. After a decision, focus moves to the document's heading, since the form it was in has
+ * latest. Beneath a README's latest draft, the person may ask for changes in their own words
+ * (`RevisionRequest`). After a decision, focus moves to the document's heading, since the form it was in has
  * gone. A decision the server refused because the document has moved on is said in an alert,
  * which takes the focus, above the latest version, which the page has read again.
  */
@@ -39,6 +40,7 @@ import { DocumentHistory } from "./DocumentHistory";
 import { DocumentPreview } from "./DocumentPreview";
 import { DocumentQuestions } from "./DocumentQuestions";
 import { QuestionList } from "./QuestionList";
+import { RevisionRequest } from "./RevisionRequest";
 
 export function DocumentReader({
   projectId,
@@ -46,6 +48,7 @@ export function DocumentReader({
   shown: wanted,
   rules,
   answerMaxLength,
+  requestMaxLength,
   hrefFor,
   onDecided,
   onAnswered,
@@ -58,6 +61,8 @@ export function DocumentReader({
   rules: ReviewRules;
   /** The longest answer to a question the harness keeps, in characters. */
   answerMaxLength: number;
+  /** The longest request for changes the harness keeps, in characters. */
+  requestMaxLength: number;
   /** The address of a version of this document; with no version, its latest. */
   hrefFor: (version?: DocumentVersion) => string;
   onDecided: (value: ProjectDocuments, said: string) => void;
@@ -251,6 +256,17 @@ export function DocumentReader({
           </div>
         </Deciding>
       )}
+      <RevisionRequest
+        key={document.document_id}
+        projectId={projectId}
+        name={name}
+        kind={document.document_kind}
+        version={version}
+        isLatest={isLatest}
+        maxLength={requestMaxLength}
+        onRevised={onAnswered}
+        onStale={refused}
+      />
     </article>
   );
 }

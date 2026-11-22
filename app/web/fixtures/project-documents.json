@@ -34,6 +34,7 @@
           "media_type": "text/markdown",
           "questions": [],
           "revises": null,
+          "revision_request": null,
           "stage": "draft",
           "state": "proposed",
           "text": "# Untitled dataset\n\nDrafted by a stub.\n",
@@ -79,6 +80,7 @@
           "media_type": "text/csv",
           "questions": [],
           "revises": null,
+          "revision_request": null,
           "stage": "draft",
           "state": "approved",
           "text": "field,description\nid,Drafted by a stub.\n",
@@ -88,6 +90,7 @@
     }
   ],
   "project_id": "01900000-0000-7000-8000-000000000005",
+  "request_max_length": 2000,
   "review": {
     "reason_max_length": 2000,
     "reason_required": {

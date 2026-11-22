@@ -16,6 +16,7 @@ from dd_harness.projects import (
     ANSWER_MAX_LENGTH,
     APPROVED,
     REJECTED,
+    REQUEST_MAX_LENGTH,
     Decision,
     Verdict,
     review_rules,
@@ -48,6 +49,7 @@ def view(store: ProjectDocuments, project_id: str) -> dict[str, Any]:
         "documents": store.documents(project_id),
         "review": review_rules(),
         "answer_max_length": ANSWER_MAX_LENGTH,
+        "request_max_length": REQUEST_MAX_LENGTH,
     }
 
 
@@ -109,3 +111,22 @@ def parse_answers(document_id: str, body: object) -> tuple[int, list[DraftAnswer
             raise DecisionRequestError("`answer_text` must be text.")
         answers.append(DraftAnswer(answered_question=question, answer_text=text))
     return version, answers
+
+
+class NoDrafterError(ValueError):
+    """A request for changes to a document no agent drafted, so none can revise it."""
+
+
+def drafter(store: ProjectDocuments, project_id: str, document_id: str) -> tuple[str, str]:
+    """The agent that drafted the latest version an agent drafted of `document_id`, and the
+    document's kind: the agent asked to revise it as a person asks (docs/specs/drafting.md), so
+    the app names none. Raises `NoDrafterError` if no agent drafted any version; a document the
+    project does not hold is the store's to refuse."""
+    for document in store.documents(project_id):
+        if document["document_id"] != document_id:
+            continue
+        for version in reversed(document["versions"]):
+            if version["drafted_by"] is not None:
+                return version["drafted_by"]["agent_id"], document["document_kind"]
+        raise NoDrafterError("No agent drafted this document, so none can revise it.")
+    return "", ""

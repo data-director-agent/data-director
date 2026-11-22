@@ -256,6 +256,7 @@ export function ProjectPage({
       );
     }
     const { documents, review, answer_max_length: answerMaxLength } = load.value;
+    const requestMaxLength = load.value.request_max_length;
     const { chosen, chosenAttached, document, attachedDocument, open } = opened(
       documents,
       attached,
@@ -286,6 +287,7 @@ export function ProjectPage({
           shown={shown}
           rules={review}
           answerMaxLength={answerMaxLength}
+          requestMaxLength={requestMaxLength}
           hrefFor={(version?: DocumentVersion) => hrefFor(document.document_id, version?.version)}
           onDecided={decided}
           onAnswered={answered}

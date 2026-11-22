@@ -69,7 +69,7 @@ fairness:ProjectMetadataDraft a sh:NodeShape ;
     sh:targetClass <https://w3id.org/data-director/ApprovedMetadataRecord> .
 
 <https://w3id.org/data-director/CurrentVersion> a sh:NodeShape ;
-    rdfs:comment "The version of a project document that a drafter is to regenerate: the document's latest, its text, and its state with the reason a person gave for any decision on it (ADR-0036 decision 7). A drafter that regenerates it names version_ref in its payload's revises." ;
+    rdfs:comment "The version of a project document that a drafter is to regenerate: the document's latest, its text, and its state with the reason a person gave for any decision on it (ADR-0036 decision 7). A drafter that regenerates it names version_ref in its payload's revises. When the request asks for a revision, it also holds the change a person asked for." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
@@ -79,6 +79,12 @@ fairness:ProjectMetadataDraft a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
             sh:path <https://w3id.org/data-director/document_text> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The change a person asked for to this version, in their words, as the project log records it. A drafter follows it as an instruction, and a value it states counts as given by that person (docs/specs/drafting.md). In a project only the conductor fills it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path <https://w3id.org/data-director/revision_request> ],
         [ sh:datatype xsd:string ;
             sh:description "The reason the person gave for their decision, in their words. Present for a rejection, and for an approval only if they gave one." ;
             sh:maxCount 1 ;
@@ -91,13 +97,6 @@ fairness:ProjectMetadataDraft a sh:NodeShape ;
             sh:minCount 1 ;
             sh:order 4 ;
             sh:path <https://w3id.org/data-director/version_state> ],
-        [ sh:datatype xsd:string ;
-            sh:description "The media type of document_text, such as text/markdown or application/json." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path dcterms:format ],
         [ sh:class <https://w3id.org/data-director/DocumentVersionRef> ;
             sh:description "The version, by its document and number." ;
             sh:maxCount 1 ;
@@ -105,6 +104,13 @@ fairness:ProjectMetadataDraft a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 0 ;
             sh:path <https://w3id.org/data-director/version_ref> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The media type of document_text, such as text/markdown or application/json." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dcterms:format ],
         [ sh:datatype xsd:string ;
             sh:description "A short name a person can tell documents apart by, such as README for raw/." ;
             sh:maxCount 1 ;
