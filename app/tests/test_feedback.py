@@ -185,6 +185,9 @@ def test_no_token_means_no_reports(governance: Governance, dist: Path) -> None:
         {**REPORT, "include_context": "yes"},
         {**REPORT, "labels": ["admin"]},
         {**REPORT, "run": 5},
+        {**REPORT, "client": "Firefox"},
+        {**REPORT, "client": {"cookies": "x"}},
+        {**REPORT, "client": {"user_agent": "x" * (feedback.CLIENT_FIELD_LIMIT + 1)}},
     ],
 )
 def test_a_bad_report_is_refused_before_github(
@@ -273,3 +276,36 @@ def test_only_a_bug_is_marked_as_a_user_report() -> None:
     assert labels_for("bug") == ["area: app", "user report"]
     assert labels_for("feature") == ["area: app"]
     assert labels_for("other") == ["area: app"]
+
+
+def test_a_report_carries_the_setting_it_was_filed_in(governance: Governance, dist: Path) -> None:
+    client, seen = client_for(governance, dist)
+    browser = {"user_agent": "Mozilla/5.0 Test", "viewport": "800x600", "color_scheme": "dark"}
+    assert client.post("/api/feedback", json={**REPORT, "client": browser}).status_code == 201
+    text = json.loads(seen[0].content)["body"]
+    profile = governance.conductor.profile
+    assert f"`{profile.profile_id}`" in text
+    assert f"`{profile.digest[:12]}`" in text
+    for line in ("Mozilla/5.0 Test", "800x600", "dark", "Filed: ", "Python "):
+        assert line in text
+    assert text.index("It never ends.") < text.index("<details>")
+
+
+def test_the_setting_names_unreachable_agents_but_never_an_address() -> None:
+    report = feedback.Report(kind="bug", title="t", description="d")
+    deployment = {
+        "profile": {"id": "p", "version": 2, "digest": "a" * 64, "orchestrator": None},
+        "unavailable": ["nowhere"],
+        "incompatible": [],
+    }
+    text = feedback.issue_body(report, BUILD, [], deployment)
+    assert "`nowhere`" in text
+    assert "Orchestrator: `none`" in text
+    assert "Incompatible" not in text
+    assert "http" not in text
+
+
+def test_a_report_without_browser_details_still_files(governance: Governance, dist: Path) -> None:
+    client, seen = client_for(governance, dist)
+    assert client.post("/api/feedback", json=REPORT).status_code == 201
+    assert "Browser:" not in json.loads(seen[0].content)["body"]

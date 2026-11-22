@@ -10,10 +10,12 @@ never a payload, an input or evidence. Without a credential the feature is off (
 
 from __future__ import annotations
 
+import platform
 import time
 from collections import deque
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -37,6 +39,9 @@ GITHUB_TIMEOUT_SECONDS = 15.0
 TITLE_LIMIT = 120
 DESCRIPTION_LIMIT = 5000
 CONTEXT_FIELD_LIMIT = 200
+# What the browser says about itself, each value bounded and only these names accepted.
+CLIENT_FIELDS = ("user_agent", "language", "viewport", "color_scheme")
+CLIENT_FIELD_LIMIT = 300
 # TODO(#188): settle the numbers with the first real use.
 RATE_LIMIT = 5
 RATE_WINDOW_SECONDS = 600
@@ -75,6 +80,23 @@ class Report:
     run: str | None = None
     conversation: str | None = None
     include_context: bool = False
+    client: Mapping[str, str] | None = None
+    """What the reporter's browser said about itself (`CLIENT_FIELDS`), shown to them first."""
+
+
+def parse_client(value: object) -> dict[str, str] | None:
+    """The browser details in a request body, or `FeedbackRefusedError`."""
+    if value is None:
+        return None
+    if not isinstance(value, dict) or set(value) - set(CLIENT_FIELDS):
+        raise FeedbackRefusedError(f"`client` takes only {list(CLIENT_FIELDS)}.")
+    found: dict[str, str] = {}
+    for name, text in value.items():
+        if not isinstance(text, str) or len(text) > CLIENT_FIELD_LIMIT:
+            raise FeedbackRefusedError(f"`client.{name}` must be a short string.")
+        if cleaned := " ".join(text.split()):
+            found[name] = cleaned
+    return found or None
 
 
 def parse(body: object) -> Report:
@@ -111,6 +133,7 @@ def parse(body: object) -> Report:
         title=" ".join(title.split()),
         description=description.strip(),
         include_context=include,
+        client=parse_client(body.get("client")),
         **optional,
     )
 
@@ -155,8 +178,49 @@ def conversation_context(found: Mapping[str, Any]) -> list[str]:
     return lines
 
 
-def issue_body(report: Report, build: Mapping[str, str | None], context: list[str]) -> str:
+def deployment_lines(deployment: Mapping[str, Any]) -> list[str]:
+    """What the deployment runs, as `GET /api/about` names it: no addresses, no reasons."""
+    profile = deployment.get("profile") or {}
+    lines = [
+        f"- Profile: `{profile.get('id')}` v{profile.get('version')} "
+        f"(digest `{str(profile.get('digest') or 'unknown')[:12]}`)",
+        f"- Orchestrator: `{profile.get('orchestrator') or 'none'}`",
+    ]
+    for label, key in (
+        ("Unreachable agents", "unavailable"),
+        ("Incompatible agents", "incompatible"),
+    ):
+        if names := deployment.get(key):
+            lines.append(f"- {label}: " + ", ".join(f"`{name}`" for name in names))
+    return lines
+
+
+def client_lines(client: Mapping[str, str] | None) -> list[str]:
+    labels = {
+        "user_agent": "Browser",
+        "language": "Language",
+        "viewport": "Viewport",
+        "color_scheme": "Colour scheme",
+    }
+    return [
+        f"- {labels[name]}: `{client[name]}`" for name in CLIENT_FIELDS if client and name in client
+    ]
+
+
+def issue_body(
+    report: Report,
+    build: Mapping[str, str | None],
+    context: list[str],
+    deployment: Mapping[str, Any] | None = None,
+    now: datetime | None = None,
+) -> str:
+    """The issue's text: what was typed, then the build and, folded away, the setting it ran in.
+
+    Everything after the description is read by the server or shown to the reporter before it is
+    sent; none of it is a person's work (docs/specs/app.md).
+    """
     commit = build.get("commit")
+    filed = (now or datetime.now(UTC)).strftime("%Y-%m-%d %H:%M UTC")
     lines = [
         report.description,
         "",
@@ -171,6 +235,13 @@ def issue_body(report: Report, build: Mapping[str, str | None], context: list[st
     if report.page:
         lines.append(f"- Page: `{report.page}`")
     lines += context
+    environment = [
+        f"- Filed: {filed}",
+        f"- Server: Python {platform.python_version()} on {platform.system()}",
+        *deployment_lines(deployment or {}),
+        *client_lines(report.client),
+    ]
+    lines += ["", "<details><summary>Environment</summary>", "", *environment, "", "</details>"]
     return "\n".join(lines)
 
 
