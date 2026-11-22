@@ -41,6 +41,8 @@ export { replyAnnouncement, sendFailure } from "./turnMessages";
 /** A message on its way, shown in the transcript until the reply arrives. */
 export interface Sent extends Carried {
   message: string;
+  /** Whether the message sends answers to questions, put in Markdown (`answersText`). */
+  answers?: boolean;
 }
 
 /** The run of the turn being sent, or of the last one if it did not finish. */
@@ -276,7 +278,7 @@ export function useConversationTurns(options: TurnsOptions): Turns {
     if (!orchestratorId || isEmpty(message, carried) || busy) return;
     // A typed message comes from the box, and goes back to it if the send fails.
     const fromBox = answer === null;
-    begin({ message, ...carried }, fromBox);
+    begin({ message, ...carried, answers: !fromBox }, fromBox);
     let id = conversationId;
     let ended: RunState | null = null;
     // The latest turn this page shows: the server refuses the turn if the conversation has
