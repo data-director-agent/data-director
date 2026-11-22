@@ -34,7 +34,8 @@ the people who do this work have a [Data Steward's Guide](../guide/steward-guide
 **What is built.** The referral: the policy gate's `referred(policy_requires_approval)` names
 `referred_to: data_steward` and does not run the agent ([Policy and identity](policy-and-identity.md),
 `dd_harness.refusals`), and the Policy page shows each step a steward must approve
-([The app](app.md)). Deployment roles (invariant 1). Everything else in this spec is the intended
+([The app](app.md)). Deployment roles (invariant 1). The escalation record, its routing and a
+steward's queue (invariant 4), without the screens, TODO(#375, #376). Everything else in this spec is the intended
 design; each invariant names the issue that builds it.
 
 ## Invariants
@@ -91,9 +92,22 @@ design; each invariant names the issue that builds it.
    gate's referral, with the invocation; an agent's `abstained` or `referred` outcome, with the
    invocation; or the orchestrator's offer), the **team** it is routed to, the researcher's note,
    and the **scope shared** as the researcher saw it when they confirmed it. A re-opened escalation
-   keeps its history. The listing index that finds a person's projects in one query
-   ([Storage](storage.md)) gains a team index, so that a team's queue is one query too. Not built
-   yet, TODO(#373).
+   keeps its history. Every later event names the escalation by `escalation_id`, the `event_id` of
+   its `escalation_opened`, and a steward's move also records `acting_as: steward`. Each move
+   belongs to a side: the researcher's (reply, withdraw, re-open), open to any member of the
+   project, or the steward's (take, release, ask, resolve, hand back), open to a steward of the
+   team it is routed to who is not a member (invariant 2). Asking the researcher, replying,
+   resolving, handing back and re-opening each need a note.
+
+   **Routing.** An escalation goes to the project's **support team**, the steward team its owners
+   chose (`support_team_chosen`). With none chosen, it goes to the profile's only team; where the
+   profile names several, the sender picks one, and an owner's pick also becomes the project's
+   support team. A deployment with no team refuses it (invariant 11). The listing index that finds
+   a person's projects in one query ([Storage](storage.md)) also names the team that
+   `support_team_chosen` and `escalation_opened` route to, by a URN no principal signs in as, so
+   that a team's queue is one query too. A steward reaches an escalation's record and moves
+   through `/api/steward/escalations`; opening the project itself is TODO(#374). Built:
+   `dd_harness.projects.escalations`, `dd_harness.escalation_api`.
 
 5. **The agent offers; a person confirms.** No escalation exists until a person confirms it, having
    seen what will be shared. An agent's `abstained` outcome offers an escalation and never raises

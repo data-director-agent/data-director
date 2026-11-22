@@ -1,0 +1,42 @@
+{
+  "escalations": [
+    {
+      "escalation_id": "019a0000-0000-7000-8000-0000000000e1",
+      "history": [
+        {
+          "at": "2026-01-01T00:00:00+00:00",
+          "by": {
+            "assurance": "asserted",
+            "name": "Ada Example",
+            "principal_id": "https://orcid.org/0000-0001-5000-0007",
+            "principal_kind": "person"
+          },
+          "move": "open",
+          "note": "May I share the interview transcripts?"
+        }
+      ],
+      "member_of_project": false,
+      "note": "May I share the interview transcripts?",
+      "opened_at": "2026-01-01T00:00:00+00:00",
+      "opened_by": {
+        "assurance": "asserted",
+        "name": "Ada Example",
+        "principal_id": "https://orcid.org/0000-0001-5000-0007",
+        "principal_kind": "person"
+      },
+      "origin": {
+        "kind": "researcher"
+      },
+      "project_id": "019a0000-0000-7000-8000-0000000000a1",
+      "project_title": "Peat",
+      "scope_shared": [
+        "The project's title"
+      ],
+      "state": "open",
+      "taken_by": null,
+      "team_id": "library-rdm",
+      "team_name": "Library Research Data Team",
+      "updated_at": "2026-01-01T00:00:00+00:00"
+    }
+  ]
+}

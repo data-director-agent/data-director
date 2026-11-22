@@ -21,7 +21,13 @@
  * is not: it is written by hand, as what a test sends the server, not what the server says.
  */
 
-import type { ProjectRuns, RunResult } from "./api/generated/responses";
+import type {
+  Escalation,
+  ProjectEscalations,
+  ProjectRuns,
+  RunResult,
+  StewardQueue,
+} from "./api/generated/responses";
 import type { Conversation } from "./conversation/types";
 import type { RawAgentsResponse } from "./manifest/types";
 import type { RawModelAccount, RawRefusal } from "./model-account/api";
@@ -43,6 +49,8 @@ import conversation from "../fixtures/conversation.json";
 import conversationAnswered from "../fixtures/conversation-answered.json";
 import conversationQuestion from "../fixtures/conversation-question.json";
 import conversationTurn from "../fixtures/conversation-turn.json";
+import escalationResolved from "../fixtures/escalation-resolved.json";
+import escalations from "../fixtures/escalations.json";
 import intakeComplete from "../fixtures/intake-complete.json";
 import intakePending from "../fixtures/intake-pending.json";
 import modelAccount from "../fixtures/model-account.json";
@@ -58,6 +66,7 @@ import projectRevised from "../fixtures/project-revised.json";
 import projectFacts from "../fixtures/project-facts.json";
 import projectFactsDecided from "../fixtures/project-facts-decided.json";
 import projectFactsForbidden from "../fixtures/project-facts-forbidden.json";
+import stewardQueue from "../fixtures/steward-queue.json";
 import projectFairnessRuns from "../fixtures/project-fairness-runs.json";
 import projectResearchers from "../fixtures/project-researchers.json";
 import projects from "../fixtures/projects.json";
@@ -108,6 +117,9 @@ void (projectFactsForbidden satisfies Wide<Problem>);
 void (projectFairnessRuns satisfies Wide<ProjectRuns>);
 void (projectMembers satisfies Wide<ProjectMembers>);
 void (projectMembersLastOwner satisfies Wide<Problem>);
+void (escalations satisfies Wide<ProjectEscalations>);
+void (escalationResolved satisfies Wide<Escalation>);
+void (stewardQueue satisfies Wide<StewardQueue>);
 void (projectResearchers satisfies Wide<ResearcherRecord>[]);
 void (orcidRecord satisfies Wide<ResearcherRecord>);
 void (intakePending satisfies Wide<ProjectIntake>);

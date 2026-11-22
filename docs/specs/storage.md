@@ -137,7 +137,9 @@ conversations a page at a time, for the reader allowed to see them (`dd_harness.
   ([Projects](projects.md)), without reading every log: the backend reads, in one read, the logs
   of the projects whose log may give the person a role (`ProjectLog.logs_naming`, from the
   principal each event names in `dd_harness.role_events`; `projects_naming` names the same
-  projects alone), and the access check decides from those logs alone
+  projects alone), and the access check decides from those logs alone. The same index names the
+  steward team an escalation is routed to, so a team's queue is one read too
+  (`dd_harness.escalation_api.queue`; [Data stewards](stewardship.md), invariant 4)
   (`dd_harness.project_access.readable_logs`). The number of reads a listing makes of the project
   store does not grow with the number of projects; a database answers it in one query.
 - **Titles.** A conversation's title is read from its first turn and, when no model wrote one,
@@ -298,7 +300,9 @@ connection's `search_path`, which a location may choose with
   whose foreign key takes a weaker lock on the same row, is not held up by one. Events are in
   `project_events` in the order of `seq`; a `conversation_started` event's conversation is in an
   indexed column, so `project_of` is an indexed query. The principal an event may give a role to
-  (`dd_harness.role_events.names`) is in `names_principal`, indexed with the project and `seq`,
+  (`dd_harness.role_events.names`), or the steward team an escalation or a support-team choice
+  routes it to (by `team_key`, a URN no principal signs in as), is in `names_principal`, indexed
+  with the project and `seq`,
   so the projects naming a person are read from the index alone, in proportion to their projects,
   in the order created (by `project_id`, a UUIDv7, so that a project someone was added to later
   is where it was created);
