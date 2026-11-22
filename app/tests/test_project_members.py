@@ -15,6 +15,7 @@ from support import JSON_HEADERS, OTHER, check_fixture, configure_env, dist_dir,
 from dd_app.app import build_app
 from dd_app.governance import CREATED_BY_ROUTE, Governance
 from dd_app.problems import ProblemDetails
+from dd_app.project_service import ProjectService
 from dd_app.routes.members import ProjectMembers
 from dd_harness.projects import MEMBER_ADDED
 from dd_harness.storage import ProjectStorage
@@ -32,10 +33,14 @@ def governance(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[Gove
 
 
 @pytest.fixture
-def client(governance: Governance, tmp_path: Path) -> TestClient:
-    registry = FakeOrcidRegistry(
+def registry() -> FakeOrcidRegistry:
+    return FakeOrcidRegistry(
         issuer="https://orcid.org", records={SAMPLE_ID: sample_record(host="orcid.org")}
     )
+
+
+@pytest.fixture
+def client(governance: Governance, tmp_path: Path, registry: FakeOrcidRegistry) -> TestClient:
     return TestClient(
         build_app(governance, dist_dir(tmp_path), orcid_transport=registry.transport())
     )
@@ -223,6 +228,62 @@ def test_a_member_is_named_by_the_name_they_kept_from_orcid(client: TestClient, 
     name = kept.json()[0]["researcher_name"]
     (member,) = client.get(path(owned)).json()["members"]
     assert member["researcher_name"] == name
+
+
+def test_a_member_who_kept_no_name_is_named_from_their_public_record(
+    client: TestClient, owned: str, registry: FakeOrcidRegistry
+) -> None:
+    assert client.post(path(owned), json={"member": COLLEAGUE}).status_code == 201
+    me, colleague = client.get(path(owned)).json()["members"]
+    assert me["public_name"]
+    assert "researcher_name" not in me
+    # ORCID has no public name for the colleague, so they are shown by their iD.
+    assert "public_name" not in colleague
+    # Names are held for a while, not read again for every answer.
+    before = registry.requests
+    client.get(path(owned))
+    assert registry.requests == before
+
+
+def test_a_kept_name_needs_no_lookup(
+    client: TestClient, owned: str, registry: FakeOrcidRegistry
+) -> None:
+    kept = client.put(
+        f"/api/projects/{owned}/researchers/me",
+        json={"keep": {"sections": ["researcher_name"]}},
+    )
+    assert kept.status_code == 201
+    before = registry.requests
+    (member,) = client.get(path(owned)).json()["members"]
+    assert registry.requests == before
+    assert "public_name" not in member
+    assert member["record"]["orcid_id"] == member["member_id"]
+
+
+def test_members_are_listed_when_orcid_is_down(
+    client: TestClient, owned: str, registry: FakeOrcidRegistry
+) -> None:
+    registry.failing = 503
+    response = client.get(path(owned))
+    assert response.status_code == 200
+    (member,) = response.json()["members"]
+    assert "public_name" not in member
+    assert "researcher_name" not in member
+
+
+def test_a_former_members_record_is_still_listed(
+    client: TestClient, governance: Governance, store: ProjectStorage, joined: str
+) -> None:
+    kept = client.put(
+        f"/api/projects/{joined}/researchers/me",
+        json={"keep": {"sections": ["researcher_name"]}},
+    )
+    assert kept.status_code == 201
+    store.remove_member(joined, TEST_PRINCIPAL.principal_id, acted_for=OTHER, caused_by="test")
+    # The person removed may no longer read the project; its owner sees what they kept.
+    body = ProjectService.over(governance).members.members(joined, OTHER)
+    assert [m["member_id"] for m in body["members"]] == [OTHER.principal_id]
+    assert [r["orcid_id"] for r in body["former_researchers"]] == [TEST_PRINCIPAL.principal_id]
 
 
 def test_a_deleted_project_takes_no_new_member(client: TestClient, owned: str) -> None:

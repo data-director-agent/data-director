@@ -528,7 +528,7 @@ describe("ProjectPage", () => {
   });
 
   it.each([
-    ["researchers", "researchers"],
+    ["researchers", "people"],
     ["facts", "facts"],
     ["repository", "repository"],
     ["disclosure", "ai-use"],

@@ -56,8 +56,7 @@ export function homePath({
  * other at `/projects/{id}/{tab}`. */
 export const PROJECT_TABS = [
   "documents",
-  "researchers",
-  "members",
+  "people",
   "facts",
   "repository",
   "ai-use",
@@ -68,6 +67,18 @@ export type ProjectTab = (typeof PROJECT_TABS)[number];
 
 export function isProjectTab(value: string): value is ProjectTab {
   return (PROJECT_TABS as readonly string[]).includes(value);
+}
+
+/** Tabs that were merged into another, by their old path, so that an old link still lands. */
+export const FORMER_TABS: Readonly<Record<string, ProjectTab>> = {
+  researchers: "people",
+  members: "people",
+};
+
+/** The tab a path's last part names, a former tab's included; null for none. */
+export function projectTabOf(value: string): ProjectTab | null {
+  if (isProjectTab(value)) return value;
+  return Object.hasOwn(FORMER_TABS, value) ? (FORMER_TABS[value] ?? null) : null;
 }
 
 /** A project's page: its documents, or the tab given. */

@@ -382,15 +382,15 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `ChoiceQuestion.tsx`, as a reply's are (`app/tests/test_intake_routes.py`,
     `app/web/src/components/conversation/IntakeCard.test.tsx`).
 26. **Researcher facts are chosen on the project's page, with nothing ticked.** The project's page
-    lists **Researchers** beside the repository, the disclosure and the deposit package. It shows
-    each record the project's researchers kept and, for the signed-in person's own, a button to
-    withdraw it. **Bring in facts from your ORCID record** reads their public record and offers
+    lists **People** beside the repository, the disclosure and the deposit package (rule 32). Under
+    each member it shows the record they kept and, on the signed-in person's own entry, a button
+    to withdraw it; records kept by people no longer members are listed apart. **Bring in facts from your ORCID record** reads their public record and offers
     each section, and each affiliation, work and funding, as a checkbox, none ticked, with a
     button to tick or untick all of a group; **Keep the ticked facts** sends only what is ticked,
     by section and put-code, and the page then shows what the server kept. The panel says that the
     facts go to the project's agents, and to a hosted model only where the deployment allows it,
     and that an email address is never read
-    (`app/web/src/components/project/ResearcherPanel.test.tsx`, `app/tests/test_researcher_facts.py`,
+    (`app/web/src/components/project/PeoplePanel.test.tsx`, `app/tests/test_researcher_facts.py`,
     [Projects](projects.md), invariant 27).
 27. **The shell opens on the person's projects, and a project is started on purpose.** Where the
     app keeps projects, `/` is the Projects page: the person's projects, as `GET /api/projects`
@@ -478,9 +478,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `app/web/src/components/conversation/DeleteConversation.tsx`,
     `app/web/src/components/project/DeletedConversations.tsx`,
     `app/tests/test_conversation_deletion.py`).
-32. **A project's members are on its Members tab, which offers what the server allows.**
-    `/projects/{id}/members` lists each member by ORCID iD, headed by the name they kept from
-    their own ORCID record in the project where they kept one, with their role and since when.
+32. **A project's members are on its People tab, which offers what the server allows.**
+    `/projects/{id}/people` lists each member by ORCID iD, headed by the name they kept from
+    their own ORCID record in the project, else the name on their public ORCID record, which the
+    server reads for the page and does not keep ([Projects](projects.md), Roles), with their role
+    and since when, and the facts they kept (rule 26). The former Researchers and Members tabs'
+    paths, `/projects/{id}/researchers` and `/projects/{id}/members`, open it.
     The server says what the person may do (`may_manage`, and each member's `removable` and
     `role_changeable`, and `may_leave`), and the tab offers only that: an owner adds a person by
     ORCID iD and chooses their role, makes a member an owner or an owner a member, and removes a
@@ -488,7 +491,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     after leaving the page goes to the Projects page. A refusal is said in the page's status, and
     what was typed stays. The tab says what members see of one another's work. In a project's
     conversations each turn is headed by its sender's name, or "You" for the reader's own
-    (`app/web/src/components/project/MembersPanel.test.tsx`,
+    (`app/web/src/components/project/PeoplePanel.test.tsx`,
     `app/tests/test_project_members.py`; [Projects](projects.md), Roles).
 
 ## Boundaries and contracts

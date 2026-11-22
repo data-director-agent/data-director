@@ -136,11 +136,6 @@ clones = 1
 lines = 10
 
 [[pair]]
-files = ["app/web/src/App.tsx", "app/web/src/components/project/ResearcherPanel.tsx"]
-clones = 1
-lines = 7
-
-[[pair]]
 files = ["app/web/src/components/conversation/ChoiceQuestion.tsx", "app/web/src/components/conversation/ChoiceQuestion.tsx"]
 clones = 1
 lines = 7
