@@ -15,7 +15,7 @@
 
 import "./ChoiceQuestion.css";
 
-import { type Ref, useId } from "react";
+import { type ReactNode, type Ref, useId } from "react";
 
 import {
   LONG_TEXT_MAX,
@@ -116,6 +116,48 @@ function optionsOf(question: Question, other: string | null) {
   ];
 }
 
+/** The box for an answer in the researcher's own words to a text question, if `question` is one. */
+function TextAnswer({
+  id,
+  question,
+  draft,
+  onChange,
+  words,
+  count,
+  error,
+}: {
+  id: string;
+  question: Question;
+  draft: Draft;
+  onChange: (draft: Draft) => void;
+  words: object;
+  count: ReactNode;
+  error: string | null;
+}) {
+  if (question.question_kind === "choice") return null;
+  if (question.question_suggestions) {
+    return (
+      <SuggestedAnswer
+        id={id}
+        suggestions={question.question_suggestions}
+        words={draft.words}
+        onWords={(next) => onChange({ ...draft, words: next })}
+        count={count}
+        errorId={error ? `${id}-error` : null}
+      />
+    );
+  }
+  return (
+    <>
+      <label className="visually-hidden" htmlFor={`${id}-words`}>
+        Your answer
+      </label>
+      {question.question_kind === "long_text" ? <textarea rows={5} {...words} /> : <input type="text" {...words} />}
+      {count}
+    </>
+  );
+}
+
 /** One question's field: the controls, inside a fieldset whose legend is the question. */
 export function QuestionField({
   question,
@@ -206,34 +248,7 @@ export function QuestionField({
           {count}
         </div>
       )}
-      {question.question_kind === "short_text" && question.question_suggestions && (
-        <SuggestedAnswer
-          id={id}
-          suggestions={question.question_suggestions}
-          words={draft.words}
-          onWords={(words) => onChange({ ...draft, words })}
-          count={count}
-          errorId={error ? `${id}-error` : null}
-        />
-      )}
-      {question.question_kind === "short_text" && !question.question_suggestions && (
-        <>
-          <label className="visually-hidden" htmlFor={`${id}-words`}>
-            Your answer
-          </label>
-          <input type="text" {...words} />
-          {count}
-        </>
-      )}
-      {question.question_kind === "long_text" && (
-        <>
-          <label className="visually-hidden" htmlFor={`${id}-words`}>
-            Your answer
-          </label>
-          <textarea rows={5} {...words} />
-          {count}
-        </>
-      )}
+      <TextAnswer id={id} question={question} draft={draft} onChange={onChange} words={words} count={count} error={error} />
     </fieldset>
   );
 }
