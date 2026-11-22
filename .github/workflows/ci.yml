@@ -475,9 +475,9 @@ jobs:
           flags: web
           fail_ci_if_error: false
 
-  # The shell's browser tests, among them Describe a folder… with the real browser scanner
-  # (e2e/scan.spec.ts), so the scanner's bundle is built first for the preview server to serve.
-  # That test runs in Firefox and WebKit too; the rest in Chromium.
+  # The shell's browser tests in Chromium, among them Describe a folder… with the real browser
+  # scanner (e2e/scan.spec.ts), so the scanner's bundle is built first for the preview server to
+  # serve. The scanner itself runs in Firefox and WebKit in the inventory-bundle job.
   web-e2e:
     name: App shell in a browser (Playwright)
     needs: changes
@@ -514,7 +514,6 @@ jobs:
         with:
           playwright: npx playwright
           working-directory: app/web
-          other-browsers: "true"
       # playwright.config.ts builds the shell before it serves it, so there is no build step here.
       - run: npm run e2e
       - if: failure()
