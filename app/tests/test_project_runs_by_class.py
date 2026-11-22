@@ -13,7 +13,7 @@ from typing import Any
 
 import pytest
 from starlette.testclient import TestClient
-from support import check_fixture, configure_env, dist_dir, new_governance
+from support import check_fixture, configure_env, dist_dir, new_governance, normalised_conversation
 
 from dd_agent_advisor_fairness import factory as fairness
 from dd_app.app import build_app
@@ -133,7 +133,9 @@ def test_the_project_runs_of_a_class_are_listed_newest_first(
     runs = found.json()["runs"]
     assert [r["invocation_id"] for r in runs] == [latest["invocation_id"], first["invocation_id"]]
     assert {r["payload"]["schema_class"] for r in runs} == {FAIRNESS_CLASS}
-    check_fixture("project-fairness-runs.json", found.json(), model=ProjectRuns)
+    check_fixture(
+        "project-fairness-runs.json", normalised_conversation(found.json()), model=ProjectRuns
+    )
 
     limited = client.get(
         f"/api/projects/{project}/runs", params={"payload": FAIRNESS_CLASS, "limit": "1"}
