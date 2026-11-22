@@ -40,6 +40,7 @@ import {
   useProjectApi,
 } from "../../project/api";
 import { draftedBy } from "../../project/drafted";
+import { proposedFactsOf } from "../../project/facts";
 import { shortlistOf, unlistedOf } from "../../project/shortlist";
 import type { AgentView } from "../../manifest/normalise";
 import { Link } from "../../route";
@@ -47,6 +48,7 @@ import { useViewerId } from "../../session/viewer";
 import type { Envelope } from "../../run/types";
 import { Button } from "../ui/Button";
 import { Markdown } from "../ui/Markdown";
+import { ProposedFacts } from "./ProposedFacts";
 import { OUTCOME } from "../../manifest/wording";
 import { type DocumentAnswering, DocumentCard } from "./DocumentCard";
 import { FAILED_REPLY, OutcomeNote, RetryTurn } from "./TurnOutcome";
@@ -140,6 +142,7 @@ function ChildCard({
       <Link to={`/agents?agent=${encodeURIComponent(child.agent_id)}`}>
         About this agent<span className="visually-hidden"> {name}</span>
       </Link>
+      <ProposedFacts facts={proposedFactsOf(child)} projectId={project?.project_id ?? null} />
       <div id={regionId} className="child-run" hidden={!selected}>
         {selected && (
           <RunDetail

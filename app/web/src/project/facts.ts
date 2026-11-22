@@ -13,7 +13,7 @@ import { createContext, useContext } from "react";
 
 import type { ProjectFacts } from "../api/generated/responses";
 import { json } from "../http";
-import type { Problem } from "../run/types";
+import type { Envelope, Problem } from "../run/types";
 import { DecisionConflict } from "./api";
 
 export type FactKind =
@@ -100,6 +100,26 @@ export interface ProjectFact {
 }
 
 export type { FactProposal, ProjectFacts } from "../api/generated/responses";
+
+/** What a decision counts by: a fact's kind and subject, as `{kind}:{subject}`. A link to a fact
+ * names it by this (`factsPath` in `route.ts`). */
+export function factKey(fact: Pick<ProjectFact, "fact_kind" | "fact_subject">): string {
+  return `${fact.fact_kind}:${fact.fact_subject}`;
+}
+
+function isFact(value: unknown): value is ProjectFact {
+  if (typeof value !== "object" || value === null) return false;
+  const fact = value as Partial<ProjectFact>;
+  return typeof fact.fact_kind === "string" && typeof fact.fact_subject === "string";
+}
+
+/** The facts a run's payload proposed for a person to decide (the contract's `ProposesFacts`,
+ * whichever class carries it); empty if it proposed none or did not succeed. */
+export function proposedFactsOf(envelope: Envelope): ProjectFact[] {
+  if (envelope.outcome.status !== "succeeded") return [];
+  const proposed: unknown = envelope.payload?.proposed_facts;
+  return Array.isArray(proposed) ? proposed.filter(isFact) : [];
+}
 
 export interface FactDecision {
   verdict: FactVerdict;

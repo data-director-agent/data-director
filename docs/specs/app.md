@@ -484,7 +484,13 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     server read back. A proposal that has moved on is read again with a warning, and a member
     deciding whether sensitive data is published, or the licence, is told only an owner may
     (`app/web/src/components/project/FactsPanel.test.tsx`, `app/tests/test_project_facts.py`,
-    [Projects](projects.md), invariant 28).
+    [Projects](projects.md), invariant 28). The way to a proposal is one press from where it
+    was made: a delegated run's card in the conversation lists the facts it proposed, a few in
+    words and the rest counted, with **Review them in Project facts**, and each fact the project
+    pane names links to it. Such a link names the facts by kind and subject
+    (`/projects/{id}/facts?fact={kind}:{subject}`, repeated), and the panel marks them, brings the
+    first into view and moves focus to it, or says that none of them is there any more
+    (`ProposedFacts.test.tsx`, `app/web/e2e/facts.spec.ts`). Nothing but the panel decides one.
 30. **A person's own settings are on the Settings page.** `/settings`, reached from the cog
     labelled **Settings** in the banner on every page and from the profile page, holds what a
     person sets for themselves, in tabs (**AI account**, **Appearance**, **Dates and times** and
@@ -897,8 +903,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   conversation's own first; and the guardrails, closed until opened. What waits comes first
   because it is what a person must act on (`docs/ui/best-practices.md` §1, §2); the facts sit
   beside the chat so that a wrong one is seen before an answer built on it is relied on (§4). The
-  pane decides nothing: a button goes to the project page where the decision is made, or puts a
-  question in the message box, unsent. Approval before an agent acts and the pause for personal
+  pane decides nothing: a button goes to the project page where the decision is made, landing on
+  the fact or document concerned (rule 29), or puts a question in the message box, unsent. Approval before an agent acts and the pause for personal
   data are drawn as not built (#72, #39); the guardrails link to what the policy delegates at each
   step.
   The activity log spans runs and conversations, so it is a page of its own in the main
