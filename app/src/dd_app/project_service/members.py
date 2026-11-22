@@ -5,9 +5,11 @@ What the page offers the person viewing it is said here, from what the harness d
 members, whom they may remove, and whether they may leave. Every change is checked again by the
 route guard and by the rules (`dd_harness.projects.Membership`), whatever the shell offered.
 
-A member is named by their principal identifier alone: the project keeps no name for them. Where
-a member has kept facts from their own ORCID record in the project (invariant 27), the name they
-kept is shown beside their iD.
+The project keeps no name for a member, only their principal identifier. Where a member has kept
+facts from their own ORCID record in the project (invariant 27), their record, and so the name
+they kept, comes with them; the route names the others from their public ORCID records
+(`dd_harness.orcid_names`). Records kept by people who are no longer members still stand, and
+agents are still given them, so they are listed too.
 """
 
 from __future__ import annotations
@@ -24,14 +26,11 @@ from dd_sdk.contract.models import Principal
 
 class Members(Area):
     def members(self, project_id: str, viewer: Principal) -> dict[str, Any]:
-        """Each member, with the name they kept from ORCID if any, and what `viewer` may do."""
+        """Each member, with the record they kept from ORCID if any, the records of people no
+        longer members, and what `viewer` may do."""
         store = self._store
         roles = member_roles(store.events(project_id))
-        names = {
-            r["orcid_id"]: r["researcher_name"]
-            for r in store.researchers(project_id) or []
-            if r.get("researcher_name")
-        }
+        records = {r["orcid_id"]: r for r in store.researchers(project_id) or []}
         your_role = project_access.role_of(store, project_id, viewer)
         may_manage = project_access.allowed(your_role, Action.MANAGE)
         listed = []
@@ -39,10 +38,11 @@ class Members(Area):
             member_id = member["member_id"]
             is_you = member_id == viewer.principal_id
             last = is_last_owner(roles, member_id)
+            record = records.pop(member_id, None)
             listed.append(
                 {
                     **member,
-                    **({"researcher_name": names[member_id]} if member_id in names else {}),
+                    **_kept(record),
                     "is_you": is_you,
                     "removable": (may_manage or is_you) and not last,
                     "role_changeable": may_manage and not last,
@@ -50,6 +50,7 @@ class Members(Area):
             )
         return {
             "members": listed,
+            "former_researchers": list(records.values()),
             "your_role": your_role.value if your_role else None,
             "may_manage": may_manage,
             "may_leave": your_role is not None and not is_last_owner(roles, viewer.principal_id),
@@ -102,3 +103,11 @@ class Members(Area):
         if member_id == acted_for.principal_id:
             return None
         return self.members(project_id, acted_for)
+
+
+def _kept(record: dict[str, Any] | None) -> dict[str, Any]:
+    """A member's record and the name in it, for those who kept one."""
+    if record is None:
+        return {}
+    name = record.get("researcher_name")
+    return {"record": record, **({"researcher_name": name} if name else {})}

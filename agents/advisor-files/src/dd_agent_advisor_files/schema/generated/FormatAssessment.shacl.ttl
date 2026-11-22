@@ -135,7 +135,7 @@ files:FileCheck a sh:NodeShape ;
             sh:order 2 ;
             sh:path files:matched ],
         [ sh:description "What the name, size or digest suggests." ;
-            sh:in ( "free_text" "coordinates" "third_party" "governance" "system_file" "empty" "duplicate" "extension_mismatch" ) ;
+            sh:in ( "free_text" "coordinates" "third_party" "governance" "system_file" "credentials" "empty" "duplicate" "extension_mismatch" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 1 ;

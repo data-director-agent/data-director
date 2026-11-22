@@ -33,14 +33,4 @@
     margin: 0 0 var(--space-2);
     padding-left: var(--space-5);
   }
-
-  .recorded-runs {
-    margin: 0 0 var(--space-3);
-    padding-left: var(--space-5);
-    max-width: var(--measure);
-  }
-
-  .recorded-run {
-    padding: var(--space-1) 0;
-  }
 }

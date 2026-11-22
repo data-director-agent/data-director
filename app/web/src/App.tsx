@@ -23,7 +23,7 @@ import { SignedOutPage } from "./components/session/SignedOutPage";
 import { SignInPage } from "./components/session/SignInPage";
 import { ActiveProjectProvider } from "./project/active";
 import { RunActivityProvider } from "./run/activity";
-import { type ProjectTab, isProjectTab, useLocation } from "./route";
+import { type ProjectTab, projectTabOf, useLocation } from "./route";
 import { type Directory, normalise } from "./manifest/normalise";
 import type { RawAgentsResponse } from "./manifest/types";
 import {
@@ -60,8 +60,8 @@ function projectRoute(path: string): { projectId: string | null; tab: ProjectTab
   if (!path.startsWith(PROJECT_PREFIX)) return { projectId: null, tab: "documents" };
   const rest = path.slice(PROJECT_PREFIX.length);
   const cut = rest.lastIndexOf("/");
-  const last = rest.slice(cut + 1);
-  if (cut > 0 && last !== "documents" && isProjectTab(last)) {
+  const last = projectTabOf(rest.slice(cut + 1));
+  if (cut > 0 && last !== null && last !== "documents") {
     return { projectId: rest.slice(0, cut), tab: last };
   }
   return { projectId: rest, tab: "documents" };

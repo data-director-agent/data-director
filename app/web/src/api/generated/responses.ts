@@ -11,6 +11,7 @@
 
 import type { Question } from "../../conversation/question";
 import type { ProjectFact } from "../../project/facts";
+import type { ResearcherRecord } from "../../project/researcher";
 import type { DocumentQuestion, DocumentVersionRef, InvocationRequest, Principal } from "../contract";
 import type { Envelope, RawModelUse, RawSchemaEntry, RawSkillUse, RawToolUse } from "@data-director/agent-view";
 
@@ -82,6 +83,7 @@ export type AppResponse =
   | ProjectMember
   | ProjectMembers
   | ProjectProgress
+  | ProjectRuns
   | ProjectSummary
   | RawAgentsResponse
   | RawManifestEntry
@@ -1249,12 +1251,22 @@ export interface ProjectMember {
    */
   member_since: string;
   /**
+   * The name on the member's public ORCID record, read for this answer and never kept; left
+   * out where they kept a name, keep theirs private, or ORCID did not answer in time.
+   */
+  public_name?: string;
+  /**
+   * The facts the member kept from their own ORCID record, which agents in the project are
+   * given; left out while they have kept none.
+   */
+  record?: ResearcherRecord;
+  /**
    * Whether the person asking may remove this member (or leave, for themselves).
    */
   removable: boolean;
   /**
    * The name the member kept from their own ORCID record in this project; left out while they
-   * have kept none. The project keeps no other name for a member.
+   * have kept none.
    */
   researcher_name?: string;
   role: Role;
@@ -1269,6 +1281,11 @@ export interface ProjectMember {
  */
 export interface ProjectMembers {
   /**
+   * The records kept by people who are no longer members: agents are still given them until
+   * their keeper withdraws them.
+   */
+  former_researchers: ResearcherRecord[];
+  /**
    * Whether the person asking may leave: a member, or an owner who is not the last.
    */
   may_leave: boolean;
@@ -1278,6 +1295,12 @@ export interface ProjectMembers {
   may_manage: boolean;
   members: ProjectMember[];
   your_role: Role | null;
+}
+/**
+ * The succeeded runs in a project whose payload is of one class, newest first.
+ */
+export interface ProjectRuns {
+  runs: Envelope[];
 }
 /**
  * One project the person may read, as `GET /api/projects` lists it and

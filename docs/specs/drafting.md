@@ -142,7 +142,11 @@ suggests some of those values beside their questions
    (`agents/advisor-documentation/tests/test_attached_documents.py`). A
    dictionary suggestion is offered only if it is one short line of plain text that names no
    link, email address or identifier its input does not give; a README suggestion only if it
-   passes the checks the prose does. The Metadata Librarian suggests only the values its rule
+   passes the checks the prose does. The questions are asked in batches, and a reply that does not parse
+   as a whole costs only the suggestions it does not hold complete and well formed: a reply cut
+   off at the model's length limit, or one malformed item, never discards the rest. The outcome's
+   statement says how many questions got no suggestion and why, in plain words
+   (`agents/advisor-documentation/tests/test_suggestion_batches.py`, #1318). The Metadata Librarian suggests only the values its rule
    table marks `suggest` (`agents/advisor-metadata/src/dd_agent_advisor_metadata/datacite.yaml`):
    a title, a description, a free keyword and a language; never a creator, contributor, date,
    rights statement, funder, related identifier or place, which only the researcher can give,
@@ -240,8 +244,9 @@ or the researcher's own answer for another document or a decision (invariant 11)
 researcher checks them, changes or clears any, and records them with one "Accept" button. Those
 with no suggestion follow three at a time, or more to keep one section's parts together, in blank
 boxes. Each question links to a new conversation to talk it through, but its answer is recorded
-only on the draft; the documents page folds the answered questions beneath the form, and lists an
-earlier version's questions read-only ([The app](app.md)). It sends the answers to
+only on the draft. The card and the documents page list the answered questions beneath the form
+(folded on the documents page), each with its saved answer and a way to change it, which records a
+new answer; the documents page lists an earlier version's questions read-only ([The app](app.md)). It sends the answers to
 `POST /api/projects/{id}/documents/{document_id}/answers`, which records them for the person
 signed in and never takes a name from the body. The harness records each answer and fills the
 answers into the next `DraftRequest`. No agent writes an answer.

@@ -16,7 +16,7 @@ from typing import Annotated, Any, Literal
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, SerializeAsAny, model_validator
 
 # `base` and `inventory` hold the rest of the core's mirrors; their names are this module's too.
-from dd_sdk.contract import inventory, questions
+from dd_sdk.contract import inventory, questions, reply_questions
 from dd_sdk.contract.base import RE3DATA_ID_PATTERN as RE3DATA_ID_PATTERN
 from dd_sdk.contract.base import REPOSITORY_ID_PATTERN as REPOSITORY_ID_PATTERN
 from dd_sdk.contract.base import SHA256_PATTERN as SHA256_PATTERN
@@ -68,6 +68,15 @@ QUESTION_ID_PATTERN = questions.QUESTION_ID_PATTERN
 Derivation = questions.Derivation
 DocumentQuestion = questions.DocumentQuestion
 DraftAnswer = questions.DraftAnswer
+CHOICE_OPTIONS_MIN = reply_questions.CHOICE_OPTIONS_MIN
+CHOICE_OPTIONS_MAX = reply_questions.CHOICE_OPTIONS_MAX
+SHORT_TEXT_MAX = reply_questions.SHORT_TEXT_MAX
+LONG_TEXT_MAX = reply_questions.LONG_TEXT_MAX
+QUESTION_SUGGESTIONS_MAX = reply_questions.QUESTION_SUGGESTIONS_MAX
+QUESTION_KEY_PATTERN = reply_questions.QUESTION_KEY_PATTERN
+QuestionKind = reply_questions.QuestionKind
+ChoiceOption = reply_questions.ChoiceOption
+Question = reply_questions.Question
 
 UUID7_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 POLICY_BUNDLE_REF_PATTERN = r"^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$"
@@ -80,17 +89,8 @@ CONVERSATION_TITLE_MAX = 80
 PROJECT_TITLE_PATTERN = r"^.{1,200}$"
 NEW_PROJECT_TITLE_PATTERN = CONVERSATION_TITLE_PATTERN
 NEW_PROJECT_TITLE_MAX = CONVERSATION_TITLE_MAX
-# A choice question offers between 2 and 12 options (Question.question_options).
-CHOICE_OPTIONS_MIN = 2
-CHOICE_OPTIONS_MAX = 12
 # A reply asks between 1 and 8 questions (Reply.reply_questions).
 QUESTIONS_MAX = 8
-# An answer in the researcher's own words: one line for a short text question, several for a
-# long one; a choice question's own-words answer is held to the short bound (QuestionAnswer).
-SHORT_TEXT_MAX = 200
-LONG_TEXT_MAX = 4000
-# A question's identifier within its reply (Question.question_key, QuestionAnswer.answered_key).
-QUESTION_KEY_PATTERN = r"^[a-z][a-z0-9-]{0,39}$"
 
 
 def new_invocation_id() -> str:
@@ -162,12 +162,6 @@ class PrincipalKind(StrEnum):
 class Assurance(StrEnum):
     ASSERTED = "asserted"
     AUTHENTICATED = "authenticated"
-
-
-class QuestionKind(StrEnum):
-    CHOICE = "choice"
-    SHORT_TEXT = "short_text"
-    LONG_TEXT = "long_text"
 
 
 class TurnRole(StrEnum):
@@ -343,45 +337,6 @@ AnyPayloadDocument = Annotated[SerializeAsAny[Grounded], BeforeValidator(_open_p
 # Every payload class carries `schema_class` and mixes in Grounded. The core defines only the
 # conversation's Reply and the project's Document; every other payload class belongs to its agent
 # (docs/specs/contract.md, docs/specs/projects.md).
-
-
-class ChoiceOption(Frozen):
-    """One option of a choice question. The value is a string: a number would reach the agent as
-    a floating-point value over A2A."""
-
-    option_value: str
-    option_label: str
-    option_help: str | None = None
-
-
-class Question(Frozen):
-    """One question a reply asks, shown as a form field. A choice question has fixed options, of
-    which one or several may be chosen, and may be answered in the researcher's own words where
-    `question_other` is true; a short or long text question is answered in their own words and
-    has no options."""
-
-    question_key: str = Field(pattern=QUESTION_KEY_PATTERN)
-    question_prompt: str
-    question_kind: QuestionKind
-    question_help: str | None = None
-    # The bounds are not in the schema (#333).
-    question_options: list[ChoiceOption] | None = Field(
-        default=None, min_length=CHOICE_OPTIONS_MIN, max_length=CHOICE_OPTIONS_MAX
-    )
-    question_multiple: bool = False
-    question_other: bool = False
-
-    @model_validator(mode="after")
-    def _options_fit_the_kind(self) -> Question:
-        if self.question_kind is QuestionKind.CHOICE:
-            if self.question_options is None:
-                raise ValueError("a choice question has options")
-            values = [o.option_value for o in self.question_options]
-            if len(set(values)) != len(values):
-                raise ValueError("each option of a choice question has a value of its own")
-        elif self.question_options is not None or self.question_multiple or self.question_other:
-            raise ValueError("only a choice question has options")
-        return self
 
 
 class Reply(Grounded):

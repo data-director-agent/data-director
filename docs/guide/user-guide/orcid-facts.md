@@ -7,8 +7,8 @@ fill these in for you.
 
 ## Choosing what to keep
 
-1. Open the project's page and choose the **Researchers** tab.
-2. Select **Bring in facts from your ORCID record**. Data Director reads your public record from
+1. Open the project's page and choose the **People** tab.
+2. Under your own entry, select **Bring in facts from your ORCID record**. Data Director reads your public record from
    ORCID. Nothing is kept yet.
 3. Tick what you want agents in this project to use: your name, other names, biography, keywords,
    country, web pages and other identifiers, and any of your affiliations, works and funding.
@@ -29,9 +29,11 @@ An agent that sends data to an AI model hosted outside your institution is given
 only if your institution's deployment allows it; otherwise they are left out.
 
 Data Director never reads your email address from ORCID, even if you have made it public, and it
-reads only your own record, only when you ask.
+reads only your own record, only when you ask. To name the people on a project, the People tab
+also reads the name on each member's public ORCID record; that name is shown, never kept and
+never given to an agent.
 
 ## Withdrawing
 
-Select **Withdraw what you kept** under your record. Agents in the project are no longer given
+Select **Withdraw what you kept** under your entry on the People tab. Agents in the project are no longer given
 it. Like everything in a project's record, what you kept stays in the project's history.

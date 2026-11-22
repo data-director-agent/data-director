@@ -214,6 +214,13 @@ how long data may be withheld or under which licence. So each policy's own text 
 - The `policy_text` setting is `read` by default; the institutional profile may set it to `off`
   (`agent_settings`, docs/specs/policy-and-identity.md). Reading needs a model: the advisor's, or
   the one the agent's settings configure. With none, nothing is fetched and the statement says so.
+- A document the researcher attached to the project, such as an institutional policy or an award
+  letter, is read the same way (`attached.py`, #1326). In a project the conductor gives it in
+  `project_documents` (the `GivenProjectDocuments` mixin), unless the profile keeps documentation
+  from the agent's model (`hosted_models`). It is read for each actor whose name it contains, or
+  for the only actor given; otherwise it is not read, and the statement names it. Its reading is
+  grounded on the document itself, cited as `attached:<sha256>` with its name and text as the
+  evidence `content`, under the label `attached-document`.
 
 Limits: a page is read only where a matched FAIRsharing record names it or the researcher gives a
 `policy_url`; Open Policy Finder records name an organisation's home page, not its policy, so

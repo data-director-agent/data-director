@@ -25,6 +25,8 @@ export interface Question {
   question_options?: ChoiceOption[] | null;
   question_multiple?: boolean | null;
   question_other?: boolean | null;
+  /** A short text question's suggested answers, which the researcher may take or ignore. */
+  question_suggestions?: string[] | null;
 }
 
 export interface QuestionAnswer {
@@ -46,6 +48,12 @@ export interface ReplyAnswers {
  * option; and to a long text question. The harness holds answers to the same bounds. */
 export const SHORT_TEXT_MAX = 200;
 export const LONG_TEXT_MAX = 4000;
+
+/** How many characters `text` has as the harness counts them, by code point, so that a character
+ * outside the Basic Multilingual Plane, such as an emoji, counts once. */
+export function charactersIn(text: string): number {
+  return [...text].length;
+}
 
 const KINDS = new Set<string>(["choice", "short_text", "long_text"]);
 

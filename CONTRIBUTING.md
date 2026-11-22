@@ -47,6 +47,7 @@ the default home for anything.
 | `dd-inventory`, which a researcher runs where their data live to describe a dataset's files ([Projects](docs/specs/projects.md)) | `inventory/` |
 | The PID resolver, an MCP server that resolves DOIs, ORCID iDs and ROR identifiers for agents through the tool gateway | `mcp-pid/` |
 | `dd-units`, a library that turns a unit as a person writes it into a UCUM code | `units/` |
+| `dd-subjects`, subject classifications (OECD Fields of R&D, ANZSRC Fields of Research) to suggest a field of study from | `subjects/` |
 | The FAIRsharing server, an MCP server that looks up FAIRsharing records for agents through the tool gateway | `mcp-fairsharing/` |
 | Repository tooling and tests of the repository as a whole (scripts, shipped configuration, cross-package checks) | `scripts/`, `scripts/tests/` |
 | What governs every package: the Blueprint, system overview, specifications, contract, glossary, requirements register, reviews | `docs/` |

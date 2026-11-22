@@ -1,0 +1,250 @@
+{
+ "id": "oecd-fos",
+ "name": "OECD Fields of Research and Development (Fields of Science and Technology)",
+ "version": "Frascati Manual 2015",
+ "source": "https://doi.org/10.1787/9789264239012-en",
+ "licence": "LicenseRef-OECD-excerpt",
+ "attribution": "OECD (2015), Frascati Manual 2015: Guidelines for Collecting and Reporting Data on Research and Experimental Development, The Measurement of Scientific, Technological and Innovation Activities, OECD Publishing, Paris, Table 2.2. Fields of R&D classification. © OECD 2015.",
+ "terms": [
+  {
+   "code": "1",
+   "label": "Natural sciences",
+   "parent": null
+  },
+  {
+   "code": "1.1",
+   "label": "Mathematics",
+   "parent": "1"
+  },
+  {
+   "code": "1.2",
+   "label": "Computer and information sciences",
+   "parent": "1"
+  },
+  {
+   "code": "1.3",
+   "label": "Physical sciences",
+   "parent": "1"
+  },
+  {
+   "code": "1.4",
+   "label": "Chemical sciences",
+   "parent": "1"
+  },
+  {
+   "code": "1.5",
+   "label": "Earth and related environmental sciences",
+   "parent": "1"
+  },
+  {
+   "code": "1.6",
+   "label": "Biological sciences",
+   "parent": "1"
+  },
+  {
+   "code": "1.7",
+   "label": "Other natural sciences",
+   "parent": "1"
+  },
+  {
+   "code": "2",
+   "label": "Engineering and technology",
+   "parent": null
+  },
+  {
+   "code": "2.1",
+   "label": "Civil engineering",
+   "parent": "2"
+  },
+  {
+   "code": "2.2",
+   "label": "Electrical engineering, electronic engineering, information engineering",
+   "parent": "2"
+  },
+  {
+   "code": "2.3",
+   "label": "Mechanical engineering",
+   "parent": "2"
+  },
+  {
+   "code": "2.4",
+   "label": "Chemical engineering",
+   "parent": "2"
+  },
+  {
+   "code": "2.5",
+   "label": "Materials engineering",
+   "parent": "2"
+  },
+  {
+   "code": "2.6",
+   "label": "Medical engineering",
+   "parent": "2"
+  },
+  {
+   "code": "2.7",
+   "label": "Environmental engineering",
+   "parent": "2"
+  },
+  {
+   "code": "2.8",
+   "label": "Environmental biotechnology",
+   "parent": "2"
+  },
+  {
+   "code": "2.9",
+   "label": "Industrial biotechnology",
+   "parent": "2"
+  },
+  {
+   "code": "2.10",
+   "label": "Nano-technology",
+   "parent": "2"
+  },
+  {
+   "code": "2.11",
+   "label": "Other engineering and technologies",
+   "parent": "2"
+  },
+  {
+   "code": "3",
+   "label": "Medical and health sciences",
+   "parent": null
+  },
+  {
+   "code": "3.1",
+   "label": "Basic medicine",
+   "parent": "3"
+  },
+  {
+   "code": "3.2",
+   "label": "Clinical medicine",
+   "parent": "3"
+  },
+  {
+   "code": "3.3",
+   "label": "Health sciences",
+   "parent": "3"
+  },
+  {
+   "code": "3.4",
+   "label": "Medical biotechnology",
+   "parent": "3"
+  },
+  {
+   "code": "3.5",
+   "label": "Other medical science",
+   "parent": "3"
+  },
+  {
+   "code": "4",
+   "label": "Agricultural and veterinary sciences",
+   "parent": null
+  },
+  {
+   "code": "4.1",
+   "label": "Agriculture, forestry, and fisheries",
+   "parent": "4"
+  },
+  {
+   "code": "4.2",
+   "label": "Animal and dairy science",
+   "parent": "4"
+  },
+  {
+   "code": "4.3",
+   "label": "Veterinary science",
+   "parent": "4"
+  },
+  {
+   "code": "4.4",
+   "label": "Agricultural biotechnology",
+   "parent": "4"
+  },
+  {
+   "code": "4.5",
+   "label": "Other agricultural sciences",
+   "parent": "4"
+  },
+  {
+   "code": "5",
+   "label": "Social sciences",
+   "parent": null
+  },
+  {
+   "code": "5.1",
+   "label": "Psychology and cognitive sciences",
+   "parent": "5"
+  },
+  {
+   "code": "5.2",
+   "label": "Economics and business",
+   "parent": "5"
+  },
+  {
+   "code": "5.3",
+   "label": "Education",
+   "parent": "5"
+  },
+  {
+   "code": "5.4",
+   "label": "Sociology",
+   "parent": "5"
+  },
+  {
+   "code": "5.5",
+   "label": "Law",
+   "parent": "5"
+  },
+  {
+   "code": "5.6",
+   "label": "Political science",
+   "parent": "5"
+  },
+  {
+   "code": "5.7",
+   "label": "Social and economic geography",
+   "parent": "5"
+  },
+  {
+   "code": "5.8",
+   "label": "Media and communications",
+   "parent": "5"
+  },
+  {
+   "code": "5.9",
+   "label": "Other social sciences",
+   "parent": "5"
+  },
+  {
+   "code": "6",
+   "label": "Humanities and the arts",
+   "parent": null
+  },
+  {
+   "code": "6.1",
+   "label": "History and archaeology",
+   "parent": "6"
+  },
+  {
+   "code": "6.2",
+   "label": "Languages and literature",
+   "parent": "6"
+  },
+  {
+   "code": "6.3",
+   "label": "Philosophy, ethics and religion",
+   "parent": "6"
+  },
+  {
+   "code": "6.4",
+   "label": "Arts (arts, history of arts, performing arts, music)",
+   "parent": "6"
+  },
+  {
+   "code": "6.5",
+   "label": "Other humanities",
+   "parent": "6"
+  }
+ ]
+}

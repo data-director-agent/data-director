@@ -65,6 +65,9 @@
       "question_prompt": {
          "@id": "https://w3id.org/data-director/question_prompt"
       },
+      "question_suggestions": {
+         "@id": "https://w3id.org/data-director/question_suggestions"
+      },
       "reply_derivation": {
          "@id": "https://w3id.org/data-director/reply_derivation"
       },

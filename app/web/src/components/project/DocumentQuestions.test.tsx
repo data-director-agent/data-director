@@ -58,6 +58,7 @@ function renderQuestions(
         document={document}
         version={first(document.versions)}
         name="README"
+        maxLength={ANSWERED.answer_max_length}
         onAnswered={onAnswered}
         {...(onWrite ? { onWrite } : {})}
       />
@@ -151,6 +152,58 @@ describe("DocumentQuestions", () => {
     ]);
     expect(onAnswered).toHaveBeenCalledWith(ANSWERED);
     expect(screen.getByRole("status")).toHaveTextContent(/Recorded 1 answer/);
+  });
+
+  it("keeps an answer over the limit whole, and refuses it with a message without sending it", async () => {
+    const answer = vi.fn<ProjectApi["answer"]>().mockResolvedValue(ANSWERED);
+    const onWrite = vi.fn();
+    renderQuestions(UNANSWERED, answer, onWrite);
+    const box = screen.getByRole("textbox", { name: "What unit is field_1 in?" });
+    expect(box).not.toHaveAttribute("maxlength");
+    const long = "x".repeat(ANSWERED.answer_max_length + 10);
+    await userEvent.click(box);
+    await userEvent.paste(long);
+    expect(box).toHaveValue(long);
+    expect(box).toHaveAttribute("aria-invalid", "true");
+
+    await userEvent.click(screen.getByRole("button", { name: "Save answers" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save and write the README" }));
+    expect(answer).not.toHaveBeenCalled();
+    expect(onWrite).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toBeVisible();
+    expect(box).toHaveValue(long);
+  });
+
+  it("says which boxes hold a change not saved, and asks before the page is left", async () => {
+    const answer = vi.fn<ProjectApi["answer"]>().mockResolvedValue(ANSWERED);
+    renderQuestions(UNANSWERED, answer);
+    const box = screen.getByRole("textbox", { name: "What unit is field_1 in?" });
+    const leaving = () => {
+      const event = new Event("beforeunload", { cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    expect(box).not.toHaveAccessibleDescription(/Not saved yet/);
+    expect(leaving()).toBe(false);
+
+    await userEvent.type(box, "kg");
+    expect(box).toHaveAccessibleDescription(/Not saved yet/);
+    expect(screen.getByText("Not saved yet")).toBeVisible();
+    expect(leaving()).toBe(true);
+
+    await userEvent.click(screen.getByRole("button", { name: "Save answers" }));
+    expect(answer).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Not saved yet")).toBeNull();
+    expect(leaving()).toBe(false);
+  });
+
+  it("lists the answered questions with their answers beneath the form", () => {
+    renderQuestions(README, vi.fn());
+    const question = first(VERSION.questions);
+    expect(
+      screen.getByRole("button", { name: `Change your answer to: ${question.question_prompt}` }),
+    ).toBeVisible();
+    expect(screen.getByText(first(README.answers).answer_text)).toBeVisible();
   });
 
   it("puts a model's suggestions in their boxes, marked, and records them only when accepted", async () => {
@@ -275,7 +328,7 @@ describe("DocumentQuestions", () => {
 
   it("asks nothing once every question is answered", () => {
     renderQuestions(README, vi.fn());
-    expect(screen.queryByRole("group")).toBeNull();
+    expect(screen.queryByRole("form")).toBeNull();
     expect(screen.queryByRole("textbox")).toBeNull();
   });
 

@@ -11,12 +11,13 @@ with where it came from: inferred from the inventory or worked out by rule (a un
 
 When a model is configured, which it is by default (`factory.py`), it may suggest an answer to a
 data dictionary's questions about a field's definition or unit, and to the questions of the README
-sections `readme.yaml` marks `suggest` (`prose.py`, `suggest`). The suggestion is offered with the
-question (`suggested_answer`) and never placed in the document: the draft is made by rule before
-the model is asked, and a suggestion becomes `supplied` only when the researcher records it, or a
-correction of it, as their answer (docs/specs/drafting.md, invariant 7). Only for suggestions is
-the model also given the documents the researcher attached (`project_documents`, `with_documents`),
-and only then is it asked about the README's Methods (`suggest: documents`, `sections.py`).
+sections `readme.yaml` marks `suggest` (`suggestions.py`, `suggest`). The suggestion is offered
+with the question (`suggested_answer`) and never placed in the document: the draft is made by rule
+before the model is asked, and a suggestion becomes `supplied` only when the researcher records
+it, or a correction of it, as their answer (docs/specs/drafting.md, invariant 7). Only for
+suggestions is the model also given the documents the researcher attached (`project_documents`,
+`with_documents`), and only then is it asked about the README's Methods (`suggest: documents`,
+`sections.py`).
 
 A README also takes, as given, the title, creators, dates of data collection, geographic
 location, funding, abstract and licence of the project's approved metadata record, when the
@@ -49,6 +50,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any, Literal
 
+from dd_agent_advisor_documentation.checks import count
 from dd_agent_advisor_documentation.counts import counted
 from dd_agent_advisor_documentation.dictionary import (
     Source,
@@ -58,16 +60,7 @@ from dd_agent_advisor_documentation.dictionary import (
 )
 from dd_agent_advisor_documentation.drafted import drafted, file_format
 from dd_agent_advisor_documentation.outline import Outlined, outlined
-from dd_agent_advisor_documentation.prose import (
-    Ask,
-    Prose,
-    Suggestions,
-    TemplateWriter,
-    Writer,
-    count,
-    how_suggested,
-    with_documents,
-)
+from dd_agent_advisor_documentation.prose import Prose, TemplateWriter, Writer
 from dd_agent_advisor_documentation.record import (
     _collected,
     _creators,
@@ -77,6 +70,12 @@ from dd_agent_advisor_documentation.record import (
     _values,
 )
 from dd_agent_advisor_documentation.sections import Section, load_sections
+from dd_agent_advisor_documentation.suggestions import (
+    Ask,
+    Suggestions,
+    how_suggested,
+    with_documents,
+)
 from dd_agent_advisor_documentation.values import field_facts
 from dd_sdk import shared_answers
 from dd_sdk.agent import (

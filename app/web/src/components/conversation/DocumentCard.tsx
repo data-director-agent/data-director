@@ -5,7 +5,8 @@
  * Its preview, closed at first, shows the text as a run's result does, with copy and download.
  * Deciding on the version is done on the project's documents page, which the card links to, so
  * that there is one place where a decision is made, with its rules. While the version is its
- * document's latest, the card puts its open questions to the researcher, a few at a time
+ * document's latest, the card puts its open questions to the researcher, a few at a time, and lists
+ * the questions already answered with the answers saved, each of which may be changed
  * (`DocumentQuestions`, docs/specs/drafting.md).
  *
  * A version at the `questions` stage is not the document yet: the drafter asks what it needs
@@ -27,20 +28,27 @@ import { STATES } from "../project/DocumentFacts";
 import { DocumentQuestions } from "../project/DocumentQuestions";
 import { Button } from "../ui/Button";
 
+/** How the card answers a draft's questions: the limit the server states, and where the project's
+ * documents go once it has read them back. */
+export interface DocumentAnswering {
+  maxLength: number;
+  onAnswered: (value: ProjectDocuments) => void;
+}
+
 export function DocumentCard({
   projectId,
   drafted,
   idPrefix,
-  onAnswered,
+  answering,
   onWrite,
 }: {
   projectId: string;
   drafted: DraftedVersion;
   /** Unique within the page, for the preview's ids. */
   idPrefix: string;
-  /** Called with the project's documents after the researcher answers; without it, the card
-   * asks nothing. */
-  onAnswered?: (value: ProjectDocuments) => void;
+  /** The longest answer the harness keeps, and what is called with the project's documents after
+   * the researcher answers; without it, the card asks nothing. */
+  answering?: DocumentAnswering;
   /** Asks in the conversation for the document to be written, for a `questions` version. */
   onWrite?: (message: string) => void;
 }) {
@@ -119,13 +127,14 @@ export function DocumentCard({
           />
         )}
       </div>
-      {onAnswered && latest.version === version.version && (
+      {answering && latest.version === version.version && (
         <DocumentQuestions
           projectId={projectId}
           document={document}
           version={version}
           name={name}
-          onAnswered={onAnswered}
+          maxLength={answering.maxLength}
+          onAnswered={answering.onAnswered}
           {...(asking && onWrite ? { onWrite } : {})}
         />
       )}

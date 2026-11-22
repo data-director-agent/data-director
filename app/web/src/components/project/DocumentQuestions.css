@@ -13,4 +13,13 @@
   .document-questions textarea {
     width: 100%;
   }
+
+  /* The answered questions beneath the form, each with its saved answer and a way to change it. */
+  .document-answers {
+    margin-block: var(--space-3);
+  }
+
+  .document-answers li + li {
+    margin-top: var(--space-2);
+  }
 }

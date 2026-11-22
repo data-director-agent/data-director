@@ -1,11 +1,12 @@
 /**
  * A version's Questions section on the project's documents page (docs/specs/drafting.md): one
- * heading, how many are answered, and then, on the latest version, the form for those still open
- * (`children`, the same form as the draft's card in the conversation) with the answered ones folded
- * away beneath it; on an earlier version, every question listed read-only with its answer, since
- * only the latest version's questions can be answered. An answer is put into the next draft, not
- * into this version. Whether a question is answered is said in words, never by colour. A model's
- * suggested answer is shown as a suggestion until a person records an answer.
+ * heading, how many are answered, and then, on the latest version, the form (`children`, the same
+ * form as the draft's card in the conversation), which puts the questions still open and lists the
+ * answered ones with their saved answers, folded away beneath it; on an earlier version, every
+ * question listed read-only with its answer, since only the latest version's questions can be
+ * answered. An answer is put into the next draft, not into this version. Whether a question is
+ * answered is said in words, never by colour. A model's suggested answer is shown as a suggestion
+ * until a person records an answer.
  */
 
 import type { ReactNode } from "react";
@@ -23,10 +24,10 @@ export function QuestionList({
 }: {
   document: ProjectDocument;
   version: DocumentVersion;
-  /** Whether this is the latest version, whose open questions `children` answers. */
+  /** Whether this is the latest version, whose questions `children` answers. */
   isLatest: boolean;
   headingId: string;
-  /** The form for the latest version's open questions. */
+  /** The form for the latest version's questions, which lists the answered ones too. */
   children?: ReactNode;
 }) {
   if (version.questions.length === 0) return null;
@@ -42,30 +43,23 @@ export function QuestionList({
           ? "Answers go into the next draft as you wrote them."
           : "These were asked of an earlier version; answer the latest version's questions instead."}
       </p>
-      {isLatest ? (
-        <>
-          {children}
-          {answeredOnes.length > 0 && (
-            <details className="question-list-answered">
-              <summary>Answered ({answeredOnes.length})</summary>
-              <Listed questions={answeredOnes} answers={answers} />
-            </details>
-          )}
-        </>
-      ) : (
-        <Listed questions={version.questions} answers={answers} />
-      )}
+      {isLatest ? children : <Listed questions={version.questions} answers={answers} />}
     </section>
   );
 }
 
-/** Each question with what it fills and its recorded answer, or its suggestion while it has none. */
-function Listed({
+/**
+ * Each question with what it fills and its recorded answer, or its suggestion while it has none;
+ * `action`, if given, is put after each recorded answer, such as a way to change it.
+ */
+export function Listed({
   questions,
   answers,
+  action,
 }: {
   questions: DocumentQuestion[];
-  answers: Map<string, ProjectDocument["answers"][number]>;
+  answers: ReadonlyMap<string, ProjectDocument["answers"][number]>;
+  action?: (question: DocumentQuestion) => ReactNode;
 }) {
   return (
     <ul>
@@ -78,6 +72,7 @@ function Listed({
             {answer ? (
               <>
                 Answered: <q>{answer.answer_text}</q>
+                {action && <> {action(q)}</>}
               </>
             ) : (
               <>

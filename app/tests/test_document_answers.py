@@ -121,6 +121,49 @@ def test_malformed_answers_are_refused_and_record_nothing(
     assert store.events(project_id) == before
 
 
+def test_an_answer_longer_than_the_limit_is_a_problem_and_records_nothing(
+    client: TestClient, store: ProjectStorage, tmp_path: Path
+) -> None:
+    project_id, document_id = asking(store, tmp_path)
+    before = store.events(project_id)
+    limit = client.get(f"/api/projects/{project_id}/documents").json()["answer_max_length"]
+    body = {"version": 1, "answers": given(text="x" * (limit + 1))}
+    response = answer(client, project_id, document_id, body)
+    assert 400 <= response.status_code < 500
+    assert response.headers["content-type"].startswith("application/problem+json")
+    assert response.json()["title"] == ANSWERS_REFUSED
+    assert store.events(project_id) == before
+    # An answer of exactly the limit is kept whole.
+    whole = "y" * limit
+    kept = answer(client, project_id, document_id, {"version": 1, "answers": given(text=whole)})
+    assert kept.status_code == 201, kept.text
+    assert kept.json()["documents"][0]["answers"][0]["answer_text"] == whole
+
+
+def test_an_answer_is_read_back_by_a_new_server_and_a_second_one_replaces_it(
+    client: TestClient, store: ProjectStorage, tmp_path: Path
+) -> None:
+    """What a researcher saved is in the project log, so a reload, a new session or a restarted
+    server shows it; answering again records a new answer, the latest of which stands."""
+    project_id, document_id = asking(store, tmp_path)
+    assert answer(client, project_id, document_id, {"version": 1, "answers": given()}).is_success
+
+    fresh = TestClient(build_app(next(new_governance()), tmp_path / "dist"))
+    (document,) = fresh.get(f"/api/projects/{project_id}/documents").json()["documents"]
+    assert [(a["question_id"], a["answer_text"]) for a in document["answers"]] == [
+        (ASKED, "Soil cores")
+    ]
+
+    again = answer(fresh, project_id, document_id, {"version": 1, "answers": given("Peat cores")})
+    assert again.status_code == 201, again.text
+    (document,) = again.json()["documents"]
+    assert [(a["question_id"], a["answer_text"]) for a in document["answers"]] == [
+        (ASKED, "Peat cores")
+    ]
+    answered = [e for e in store.events(project_id) if e["event"] == DOCUMENT_QUESTION_ANSWERED]
+    assert [e["answer_text"] for e in answered] == ["Soil cores", "Peat cores"]
+
+
 @pytest.mark.parametrize(
     ("version", "question", "refusal"),
     [(2, ASKED, "version-not-latest"), (1, "q-" + "1" * 16, "question-not-asked")],

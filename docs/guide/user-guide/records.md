@@ -61,8 +61,12 @@ A project's page lists its documents on the left, those waiting for you first, a
 you choose beside them. **Preview** shows the document laid out, with a data dictionary as a
 table. **Source** shows the exact text your decision is on, which is what goes into the deposit
 package. **Versions** lists each earlier version, what was decided on it and why, and what each
-version changed. Your decision form is under the document. If you edit the text, the preview
-shows your version before you approve it.
+version changed. Your decision form is under the document, and nothing in it is chosen for you.
+A bar at the foot of the window says how many gaps the draft still has and how many of its
+questions are unanswered, with **Decide on version …** to go to the form. Approving a draft that
+still has gaps asks you to confirm, naming how many: an approval cannot be undone, and the
+deposit package takes the approved version. If you edit the text, the preview shows your version
+before you approve it.
 
 ### Deleting a project
 

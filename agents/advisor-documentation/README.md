@@ -160,7 +160,7 @@ written into the README (`dd_sdk.shared_answers`, `tests/test_readme_shared_answ
 is not asked about a question that already offers one.
 
 When a model is configured, it suggests answers to some of a draft's questions, replying against a
-schema (`SuggestionReply` in `prose.py`). For a README, it suggests an answer to the question of
+schema (`SuggestionReply` in `suggestions.py`). For a README, it suggests an answer to the question of
 each section `readme.yaml` marks `suggest`: **Files** (how the files relate, from their paths,
 formats and fields), **Variables** (a pointer to the data dictionary, and naming conventions plain
 from the field names), **Software requirements** (what opens the formats) and **Access and
@@ -173,7 +173,7 @@ suggestions, both recorded with the run and their tokens summed.
 
 For a data dictionary, it suggests answers to the questions about a field's
 definition (`description`) or `unit`, such as that `age_yrs` is the participant's age in years
-(`prose.py`, `suggest`, prompted by `suggest_prompt.md`). A suggestion is a question's
+(`suggestions.py`, `suggest`, prompted by `suggest_prompt.md`). A suggestion is a question's
 `suggested_answer`, with `suggestion_derivation` `model`, and is never placed in the CSV: the
 dictionary is drafted by rule before the model is asked, and its text is the template's, byte for
 byte. In the app the researcher sees it beside the question, can copy it into the answer box and
@@ -186,8 +186,17 @@ drafted again (`tests/test_suggestions.py`; docs/specs/drafting.md, invariant 7)
   suggestion is dropped if it is longer than 200 characters, is not one line of plain text, or
   names a link, DOI, email address or ORCID iD the facts do not give; the statement says how many
   were offered and which were dropped.
+- **How it is asked.** The questions go in batches of at most 30, each its own call, so that a long
+  dictionary's reply stays within what the model may write (`replies.py`, #1318). Every call is
+  recorded with the run and their tokens are summed.
+- **What a bad reply costs.** A reply that does not parse as a whole still gives each suggestion it
+  holds complete and in the form asked for: one cut off at the model's length limit keeps those
+  before the cut, and one malformed item is dropped alone (`tests/test_suggestion_batches.py`).
+  The statement says, in plain words, how many questions got no suggestion and why: the reply was
+  cut off, was not in the form asked for, or the model declined. If none got one, it says so and
+  that the researcher can answer the questions or draft again.
 - **How a version is marked.** `document_derivation` stays `template`, because no model wrote the
-  dictionary's text. The call is recorded with the run, as for the prose.
+  dictionary's text.
 
 ## Configuration
 

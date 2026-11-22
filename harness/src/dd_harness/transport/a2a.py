@@ -13,6 +13,7 @@ protobuf-based, so documents cross as `google.protobuf.Struct` values via the SD
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 from typing import Any
 
@@ -24,7 +25,8 @@ from a2a.helpers import (
 )
 from a2a.server.agent_execution import AgentExecutor, RequestContext
 from a2a.server.events import EventQueue
-from a2a.server.routes import create_agent_card_routes, create_jsonrpc_routes
+from a2a.server.request_handlers.response_helpers import agent_card_to_dict
+from a2a.server.routes import create_jsonrpc_routes
 from a2a.server.tasks import TaskUpdater
 from a2a.types import (
     AgentCapabilities,
@@ -34,7 +36,9 @@ from a2a.types import (
     AgentSkill,
 )
 from google.protobuf.json_format import MessageToDict
-from starlette.routing import BaseRoute
+from starlette.requests import Request
+from starlette.responses import Response
+from starlette.routing import BaseRoute, Route
 
 from dd_harness.conductor import Conductor, UnknownAgent
 from dd_harness.identity import Authenticator, IdentityError, Unauthenticated, record_refusal
@@ -51,6 +55,7 @@ from dd_sdk.wire import (
 )
 
 PROTOCOL_VERSION = "1.0"
+AGENT_CARD_WELL_KNOWN_PATH = "/.well-known/agent-card.json"
 
 
 def agent_card(conductor: Conductor, base_url: str) -> AgentCard:
@@ -186,6 +191,33 @@ class ConductorExecutor(AgentExecutor):
         raise NotImplementedError("invocations are synchronous; nothing to cancel")
 
 
+def card_route(card: AgentCard, path: str = AGENT_CARD_WELL_KNOWN_PATH) -> Route:
+    """`GET` of the card at `path`, serialised once, here, when the route is built.
+
+    The a2a library's own card route serialises the card and hashes it again on every request,
+    on the event loop; the harness's card carries every agent's schemas and is about a megabyte,
+    so that was most of the loop's time under load (#1423). The body and its ETag are bytes held
+    here, and `If-None-Match` is answered with a `304` and no body, as the library's route does.
+    """
+    body = json.dumps(agent_card_to_dict(card), separators=(",", ":")).encode("utf-8")
+    etag = f'"{hashlib.sha256(body).hexdigest()}"'
+
+    async def serve(request: Request) -> Response:
+        headers = {"ETag": etag}
+        sent = request.headers.get("if-none-match")
+        if sent and _etag_matches(sent, etag):
+            return Response(status_code=304, headers=headers)
+        return Response(body, media_type="application/json", headers=headers)
+
+    return Route(path, serve, methods=["GET"])
+
+
+def _etag_matches(header: str, etag: str) -> bool:
+    """Whether an `If-None-Match` header selects `etag` (weak comparison, RFC 9110 8.2.2)."""
+    candidates = [c.strip().removeprefix("W/") for c in header.split(",")]
+    return "*" in candidates or etag in candidates
+
+
 def a2a_routes(
     conductor: Conductor, authenticator: Authenticator | None, base_url: str
 ) -> tuple[AgentCard, list[BaseRoute]]:
@@ -197,7 +229,7 @@ def a2a_routes(
     # `message/send` alone: no task is kept for any caller to read back (dd_sdk.serve).
     handler = request_handler(ConductorExecutor(conductor, authenticator), card)
     routes: list[BaseRoute] = [
-        *create_agent_card_routes(card),
+        card_route(card),
         *create_jsonrpc_routes(handler, "/a2a"),
     ]
     return card, routes

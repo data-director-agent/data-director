@@ -28,12 +28,8 @@ from dd_agent_advisor_documentation.evals.drafting import (
     documentation_drafting,
     load_cases,
 )
-from dd_agent_advisor_documentation.prose import (
-    SUGGEST_PROMPT,
-    SYSTEM_PROMPT,
-    ModelWriter,
-    ProseReply,
-)
+from dd_agent_advisor_documentation.prose import SYSTEM_PROMPT, ModelWriter, ProseReply
+from dd_agent_advisor_documentation.suggestions import SUGGEST_PROMPT
 from dd_agent_advisor_documentation.testing import prose_reply, suggestion_reply
 from dd_harness.testing import TEST_PRINCIPAL
 from dd_sdk.contract.models import DocumentKind, DraftRequest, FileInventory

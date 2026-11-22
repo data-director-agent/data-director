@@ -4,7 +4,7 @@
  * this tab has streamed, these outlast a reload, another tab and signing in again.
  *
  * A run this tab holds, or one it delegated to, is shown step by step above, so it is not listed
- * again here. The list is read again whenever a run streamed in this tab ends.
+ * again here. The table is read again whenever a run streamed in this tab ends.
  */
 
 import { useState } from "react";
@@ -16,19 +16,28 @@ import type { RunRow } from "../../run/types";
 import { homePath, Link } from "../../route";
 import { useResource } from "../../useResource";
 import { Button } from "../ui/Button";
+import { TableScroll } from "../ui/TableScroll";
 
 function Row({ row }: { row: RunRow }) {
   const outcome = OUTCOME[row.status];
   return (
-    <li className="recorded-run">
-      <code>{row.agent_id}</code>{" "}
-      <span className={`status status-${outcome.tone}`}>{outcome.label}</span>{" "}
-      <span>
-        ended {formatDateTime(row.completed_at, { dateStyle: "medium", timeStyle: "short" })}
-      </span>
-      {row.acting_for && <span>, for {row.acting_for}</span>}{" "}
-      <Link to={homePath({ run: row.invocation_id })}>Open its record</Link>
-    </li>
+    <tr>
+      <td>
+        <code>{row.agent_id}</code>
+      </td>
+      <td>
+        <span className={`status status-${outcome.tone}`}>{outcome.label}</span>
+      </td>
+      <td>
+        <time dateTime={row.completed_at}>
+          {formatDateTime(row.completed_at, { dateStyle: "medium", timeStyle: "short" })}
+        </time>
+      </td>
+      <td>{row.acting_for ?? ""}</td>
+      <td>
+        <Link to={homePath({ run: row.invocation_id })}>Open its record</Link>
+      </td>
+    </tr>
   );
 }
 
@@ -80,11 +89,27 @@ export function RecordedRuns({
       ) : rows.length === 0 ? (
         <p>No other runs recorded yet. Send a message in a conversation to start one.</p>
       ) : (
-        <ol className="recorded-runs">
-          {rows.map((row) => (
-            <Row key={row.invocation_id} row={row} />
-          ))}
-        </ol>
+        <TableScroll label="Recorded runs table">
+          <table className="data-table">
+            <caption className="visually-hidden">
+              Runs Data Director has recorded, newest first
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Agent</th>
+                <th scope="col">Outcome</th>
+                <th scope="col">Ended</th>
+                <th scope="col">Acting for</th>
+                <th scope="col">Record</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <Row key={row.invocation_id} row={row} />
+              ))}
+            </tbody>
+          </table>
+        </TableScroll>
       )}
       {more.error && (
         <p role="alert" className="status status-danger">

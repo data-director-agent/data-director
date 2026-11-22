@@ -144,6 +144,13 @@
       "exclude-paths": [
         "units/tests"
       ]
+    },
+    "subjects": {
+      "component": "subjects",
+      "release-type": "python",
+      "exclude-paths": [
+        "subjects/tests"
+      ]
     }
   }
 }

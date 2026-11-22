@@ -1,9 +1,12 @@
 """A project's members (docs/specs/projects.md, Roles and invariants 16, 17 and 19; #391).
 
-`GET /api/projects/{id}/members` lists the members, their roles and since when, with the name a
-member kept from their own ORCID record where they kept one, and says what the person asking may
-do: whether they may manage members (`may_manage`), whom they may remove (each `removable`), and
-whether they may leave (`may_leave`). The shell offers only that; it decides nothing.
+`GET /api/projects/{id}/members` lists the members, their roles and since when, with the facts a
+member kept from their own ORCID record where they kept them (invariant 27), the name on each
+other member's public ORCID record, read for this answer and not kept (`dd_harness.orcid_names`),
+and the records of people no longer members, which agents are still given. It says what the
+person asking may do: whether they may manage members (`may_manage`), whom they may remove
+(each `removable`), and whether they may leave (`may_leave`). The shell offers only that; it
+decides nothing.
 
 An owner adds a person by the identifier they sign in with, an ORCID iD for ORCID sign-in
 (`POST …/members`, `{"member", "role"}`), and changes a member's role (`PATCH …/members`,
@@ -16,7 +19,7 @@ one, a role they already have) is `409` with the refusal's slug.
 
 from __future__ import annotations
 
-from typing import ClassVar, Literal
+from typing import Any, ClassVar, Literal
 
 from pydantic import MISSING
 from starlette.concurrency import run_in_threadpool
@@ -24,6 +27,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 from starlette.routing import Route
 
+from dd_app.contract_shapes import ResearcherRecord
 from dd_app.routes.common import (
     Deps,
     RequestBody,
@@ -60,7 +64,13 @@ class ProjectMember(ResponseBody):
     """When they became a member: the project's creation, for its creator."""
     researcher_name: str | MISSING = MISSING
     """The name the member kept from their own ORCID record in this project; left out while they
-    have kept none. The project keeps no other name for a member."""
+    have kept none."""
+    public_name: str | MISSING = MISSING
+    """The name on the member's public ORCID record, read for this answer and never kept; left
+    out where they kept a name, keep theirs private, or ORCID did not answer in time."""
+    record: ResearcherRecord | MISSING = MISSING
+    """The facts the member kept from their own ORCID record, which agents in the project are
+    given; left out while they have kept none."""
     is_you: bool
     """Whether this member is the person asking."""
     removable: bool
@@ -74,6 +84,9 @@ class ProjectMembers(ResponseBody):
     """A project's members, the creator first, and what the person asking may do."""
 
     members: list[ProjectMember]
+    former_researchers: list[ResearcherRecord]
+    """The records kept by people who are no longer members: agents are still given them until
+    their keeper withdraws them."""
     your_role: Role | None
     may_manage: bool
     """Whether the person asking may add members and change their roles: an owner."""
@@ -120,7 +133,9 @@ def routes(deps: Deps) -> list[Route]:
 
 async def list_members(request: Request, person: Principal, deps: Deps) -> Response:
     project_id = request.path_params["project_id"]
-    found = await run_in_threadpool(deps.projects.members.members, project_id, person)
+    found = await run_in_threadpool(
+        lambda: _named(deps.projects.members.members(project_id, person), deps)
+    )
     return respond(ProjectMembers, found)
 
 
@@ -131,8 +146,15 @@ async def add_member(request: Request, person: Principal, deps: Deps) -> Respons
         return body
     try:
         found = await run_in_threadpool(
-            lambda: deps.projects.members.add(
-                project_id, body.member, body.role, acted_for=person, caused_by=caused_by(request)
+            lambda: _named(
+                deps.projects.members.add(
+                    project_id,
+                    body.member,
+                    body.role,
+                    acted_for=person,
+                    caused_by=caused_by(request),
+                ),
+                deps,
             )
         )
     except ProjectError as exc:
@@ -147,12 +169,15 @@ async def change_role(request: Request, person: Principal, deps: Deps) -> Respon
         return body
     try:
         found = await run_in_threadpool(
-            lambda: deps.projects.members.change_role(
-                project_id,
-                body.member_id,
-                body.role,
-                acted_for=person,
-                caused_by=caused_by(request),
+            lambda: _named(
+                deps.projects.members.change_role(
+                    project_id,
+                    body.member_id,
+                    body.role,
+                    acted_for=person,
+                    caused_by=caused_by(request),
+                ),
+                deps,
             )
         )
     except ProjectError as exc:
@@ -186,4 +211,17 @@ async def remove_member(request: Request, person: Principal, deps: Deps) -> Resp
         return _refused(exc, project_id)
     if found is None:
         return Response(status_code=204)
-    return respond(ProjectMembers, found)
+    return respond(ProjectMembers, await run_in_threadpool(_named, found, deps))
+
+
+def _named(found: dict[str, Any], deps: Deps) -> dict[str, Any]:
+    """`found` with each member who kept no name named from their public ORCID record."""
+    unnamed = [m["member_id"] for m in found["members"] if "researcher_name" not in m]
+    names = deps.public_names.names(unnamed)
+    return {
+        **found,
+        "members": [
+            {**m, "public_name": names[m["member_id"]]} if m["member_id"] in names else m
+            for m in found["members"]
+        ],
+    }
