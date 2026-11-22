@@ -1,8 +1,10 @@
 /**
  * The top of each of a project's pages: where the project sits (Projects › its name), then its
- * pages as tabs (its documents, its people, its facts, the repository chosen, the FAIR feedback
- * on its metadata record, the statement of how generative AI was used, the deposit package, its
- * journey map and its conversations), the one shown marked as current. The same block on each
+ * pages as tabs, in the order the work goes: what it holds (its documents, its facts, its
+ * people), what is decided for the deposit (the repository chosen, the statement of how
+ * generative AI was used), the check on it (the FAIR feedback on its metadata record), the
+ * deposit package, then the overview and the talk (its journey map and its conversations), the
+ * one shown marked as current. The same block on each
  * page, so moving between them is one press from any, and nothing moves when the page changes.
  *
  * Its conversations open on the conversation page, in this project: a project's page makes the
@@ -34,11 +36,11 @@ export function projectPath(projectId: string): string {
 
 const TABS: { id: ProjectTab; label: string; icon: LucideIcon }[] = [
   { id: "documents", label: "Documents", icon: FileText },
-  { id: "people", label: "People", icon: Users },
   { id: "facts", label: "Project facts", icon: ListChecks },
+  { id: "people", label: "People", icon: Users },
   { id: "repository", label: "Repository", icon: Landmark },
-  { id: "fair", label: "FAIR feedback", icon: Compass },
   { id: "ai-use", label: "Use of generative AI", icon: Sparkles },
+  { id: "fair", label: "FAIR feedback", icon: Compass },
   { id: "deposit", label: "Deposit package", icon: Package },
   { id: "journey", label: "Journey map", icon: MapIcon },
 ];

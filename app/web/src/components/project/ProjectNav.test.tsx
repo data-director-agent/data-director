@@ -24,6 +24,22 @@ describe("ProjectNav", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("lists the tabs in the order the work goes", () => {
+    render(<ProjectNav projectId="p" name="Moorland" current="documents" />);
+    const tabs = screen.getByRole("navigation", { name: "Project" });
+    expect(within(tabs).getAllByRole("link").map((a) => a.textContent)).toEqual([
+      "Documents",
+      "Project facts",
+      "People",
+      "Repository",
+      "Use of generative AI",
+      "FAIR feedback",
+      "Deposit package",
+      "Journey map",
+      "Conversations",
+    ]);
+  });
+
   it("gives each of the project's panels a tab of its own", () => {
     render(<ProjectNav projectId="p 1" name="Moorland" current="repository" />);
     const tabs = screen.getByRole("navigation", { name: "Project" });
