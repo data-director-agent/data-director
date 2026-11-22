@@ -3,11 +3,10 @@
  * researcher sees. Kept apart from `Transcript` so `Pending` heads the part it shows the same way.
  */
 
+import { CircleUserRound } from "lucide-react";
+
 import { AgentIcon, type AgentView, agentName } from "../../manifest/normalise";
 import { PERSON_ICONS, usePreferences } from "../../preferences";
-
-/** The icon beside another member of the project, whose own choice this browser cannot know. */
-const MEMBER_ICON = PERSON_ICONS.person.icon;
 
 /** The agent's name as a researcher sees it: its card's title, or its id when the directory does
  * not list it or its card names none. */
@@ -61,8 +60,13 @@ export function Speaker({
     return (
       <p className="turn-speaker">
         <strong className="turn-speaker-name">
+          {/* A neutral silhouette, as the account menu uses, in the place an agent's icon takes. */}
           <span className="person-icon" aria-hidden="true">
-            {you ? PERSON_ICONS[personIcon].icon : MEMBER_ICON}
+            {you && personIcon !== "person" ? (
+              PERSON_ICONS[personIcon].icon
+            ) : (
+              <CircleUserRound size="1.125em" />
+            )}
           </span>
           {you ? "You" : person.name}
         </strong>
