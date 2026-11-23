@@ -39,20 +39,31 @@ disabled: []
 #     charges_deposit_fee: false
 #     guidance: [https://www.sheffield.ac.uk/library/research-data-management]
 
-# Your institution's storage for data while a project runs, recommended by the storage adviser and
-# copied into the profile as written. No registry lists it, so name each service by your own label
-# and add only what you vouch for; a service not marked approved_for_sensitive is never offered
-# for personal data (docs/guide/operations/configuration.md).
-# institution_storage:
-#   - storage_id: research-filestore
-#     storage_name: Research filestore
-#     storage_kind: institutional_filestore
-#     approved_for_sensitive: true
-#     allows_external_collaborators: false
-#     allowance_gb: 10000
-#     charges_for_storage: false
-#     storage_backup: Nightly snapshots replicated to a second site
-#     guidance: [https://example.ac.uk/research-storage]
+# Your institution's storage for data while a project runs, recommended by the storage adviser,
+# offered to a Data Management Plan's storage question, and copied into the profile as written. No
+# registry lists it, so name each service by your own label and add only what you vouch for; a
+# service not marked approved_for_sensitive is never offered for personal data
+# (docs/guide/operations/configuration.md). These two are examples, at example.ac.uk: replace them
+# with your institution's own services before researchers use this instance, or delete the key.
+institution_storage:
+  - storage_id: research-filestore
+    storage_name: Research filestore
+    storage_kind: institutional_filestore
+    approved_for_sensitive: true
+    allows_external_collaborators: false
+    allowance_gb: 10000
+    charges_for_storage: false
+    storage_backup: Nightly snapshots replicated to a second site
+    guidance: [https://example.ac.uk/research-storage]
+  - storage_id: cloud-drive
+    storage_name: Cloud drive
+    storage_kind: institutional_cloud
+    approved_for_sensitive: false
+    allows_external_collaborators: true
+    allowance_gb: 1000
+    charges_for_storage: false
+    storage_backup: Deleted files kept for 30 days
+    guidance: [https://example.ac.uk/cloud-drive]
 
 # Who administers this instance, each by their ORCID iD as a URL, copied into the profile as written.
 # A deployed workbench admits them and no one else, and does not run without one. Being an

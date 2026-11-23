@@ -122,7 +122,10 @@ what its `storage_backup` is, and the `guidance` pages you checked. The storage 
 from these alone and cites them under the profile's reference; without them it declines and
 points the researcher to your research data staff. The Data Management Plan drafter also offers
 them, as a suggestion the researcher confirms, to the plan's question on storage and backup
-([Policy and identity](../../specs/policy-and-identity.md)).
+([Policy and identity](../../specs/policy-and-identity.md)). The example `deployment.yaml` names
+two example services at `example.ac.uk`, one approved for sensitive data and one not, so that a
+new instance shows the storage advice working: replace them with your institution's own before
+researchers use the instance, or delete the key.
 
 Raise the profile's `version` on every change. Each stored run records the profile and version it
 was held to, with the digest of its bytes, so a later reader can tell which rules applied. A
