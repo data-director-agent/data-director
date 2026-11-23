@@ -27,6 +27,10 @@ export interface DocumentVersionRef {
 export interface DocumentQuestion {
   question_id: string;
   question_prompt: string;
+  /** A line of help shown under the question. */
+  question_help?: string;
+  /** How the question is answered: `text` (the default), or `list`, a list of values. */
+  answer_kind?: "text" | "list";
   gap_section?: string;
   gap_part?: string;
   gap_file?: string;

@@ -13,6 +13,7 @@ import pytest
 
 from dd_agent_advisor_documentation.agent import DocumentationEditor
 from dd_agent_advisor_documentation.dictionary import VALUE_COLUMNS, Source
+from dd_agent_advisor_documentation.values import missing_values_cell
 from dd_harness.conductor import Conductor
 from dd_harness.projects import ProjectStore
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
@@ -80,10 +81,9 @@ def test_a_researcher_completes_a_data_dictionary_by_answering_its_questions(
         row = rows_of(again)[(field[0] or "", field[1] or "")]
         for q in questions:
             column = q.gap_column or ""
-            assert (row[column], row[f"{column}_source"]) == (
-                f"Answer for {column}",
-                Source.SUPPLIED,
-            )
+            text = f"Answer for {column}"
+            placed = missing_values_cell(text) if column == "missing_values" else text
+            assert (row[column], row[f"{column}_source"]) == (placed, Source.SUPPLIED)
         still = {q.question_id for q in again.document_questions}
         assert still.isdisjoint(a.answered_question for a in answers)
         # Once its unit is given, a field's unit code is asked, here because "Answer for unit"
