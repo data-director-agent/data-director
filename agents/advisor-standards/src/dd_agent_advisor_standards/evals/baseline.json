@@ -5,10 +5,10 @@
     "configuration": {
       "DD_STANDARDS_EXPLAINER": "template"
     },
-    "git_revision": "219a056cb49bb159d3ae0e991207938bc5f4381b",
+    "git_revision": "349a92545f68bbea59b4465fede5a2077051201f",
     "ranking_sha256": "10f0eb50aa9ff44bee678b0e134cad4d8ad4240f77c7c1aaf47217f75663f8f6",
     "snapshot_sha256": "969642eed642d2f4cbb0e6999878cb3bf2480734c0bbab4fcd3db212ecdbcdf1",
-    "spec_version": "0.4.0"
+    "spec_version": "0.5.0"
   },
   "scores": {
     "soil-baseline": {

@@ -51,7 +51,7 @@ servers:
 In development, `pid_resolver: true` in `deployment.yaml` sets this up for you: `apply` names
 `app/config/tools.yaml` here and grants the Linking Adviser its servers, and `dd.py start` (or
 Docker Compose, with `docker/tools.yaml`) runs the PID resolver, an MCP server that resolves
-DOIs, ORCID iDs and ROR identifiers ([`mcp-pid/README.md`](../../../mcp-pid/README.md)). A VM
+DOIs, ORCID iDs and ROR identifiers, and looks journals up by ISSN or title ([`mcp-pid/README.md`](../../../mcp-pid/README.md)). A VM
 refuses the setting until the server has a unit there.
 
 `DD_REGISTRY_CONTACT` gives Crossref and DataCite an address where they can reach your operators.

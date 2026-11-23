@@ -4,7 +4,7 @@
  * fact a person decides: **Mark as the Data Management Plan** states it, replacing any plan marked
  * before, and **Not the plan** removes it (`POST /api/projects/{id}/facts/decisions`). The
  * documents are then read again, since the server says which one is the plan. A proposal of the
- * plan by the DMP check waits on the Project facts panel. On the plan, **Ask the DMP Checker to
+ * plan by the DMP check waits on the Project facts panel. On the plan, **Ask the Data Management Planner to
  * review it** opens the conversation with that request in the message box, unsent
  * (`?dmp=review`): the orchestrator delegates the review; this page does not run an agent.
  */
@@ -87,7 +87,7 @@ export function PlanMark({
           icon={ClipboardCheck}
           onPress={() => navigate(homePath({ dmp: true }))}
         >
-          Ask the DMP Checker to review it
+          Ask the Data Management Planner to review it
         </Button>
       )}{" "}
       {refused && <span role="alert"> {refused}</span>}

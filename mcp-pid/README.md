@@ -10,9 +10,12 @@ small structured records an agent can cite:
 | `/orcid/mcp` | `get_orcid` | an ORCID iD, to the person's public name | [ORCID public API v3.0](https://info.orcid.org/documentation/features/public-api/) |
 | `/ror/mcp` | `get_organisation` | a ROR identifier | a pinned [ROR data dump](https://doi.org/10.5281/zenodo.6347574), then [ROR's API](https://ror.readme.io/v2/docs/rest-api) |
 | `/ror/mcp` | `search_organisations` | an organisation's exact name, acronym or alias | the same |
+| `/journals/mcp` | `get_journal` | an ISSN (print, online or linking), to its journal | the [`dd-journals`](../journals/README.md) registry, built from a pinned [OpenAlex](https://openalex.org) snapshot |
+| `/journals/mcp` | `search_journals` | a journal's title, the start of one, or an ISSN, to up to 10 journals, likeliest first | the same |
 
 It is framework-neutral ([System](../docs/specs/system.md)): it imports nothing of the Data
-Director, so it can be published on its own. In the Data Director it sits behind the harness's
+Director but [`dd-journals`](../journals/README.md), a standard-library-only library published on
+its own, so it can be published on its own too. In the Data Director it sits behind the harness's
 tool gateway, which pins each server's tools and records every record an agent reads
 ([Agents](../docs/specs/agents.md#tools-mcp-servers-and-agent-skills)). The Linking Adviser
 (`advisor.linking`) is the first agent to use it (#953, #360).
@@ -29,8 +32,8 @@ valid against the tool's `outputSchema`, with a one-line summary as text:
 - **Error** (`isError`): the input is not that kind of identifier, or the registry could not be
   asked. Busy or failing services are retried twice first.
 
-Records are identified at their top level: `doi` (bare and lower-case), `orcid` (as a URL) or `id`
-(the ROR URL). They hold no integers: a publication year is text.
+Records are identified at their top level: `doi` (bare and lower-case), `orcid` (as a URL), `id`
+(the ROR URL) or `issn_l` (the journal's linking ISSN). They hold no integers: a publication year is text.
 
 Each server is a separate path because a client such as the gateway identifies a server's records
 by one field.
@@ -43,6 +46,7 @@ by one field.
 | Crossref | the DOI | metadata openly available, facts not copyrightable ([terms](https://www.crossref.org/documentation/retrieve-metadata/rest-api/)) | no key; the public pool is rate-limited |
 | ORCID | the iD | public data; ORCID's [public API terms](https://info.orcid.org/public-client-terms-of-service/) | no key for single records |
 | ROR | the identifier, or the name searched for, and only when the dump cannot answer | [CC0](https://ror.org/about/faqs/) | no key; client IDs are announced but not yet enforced |
+| Journals (OpenAlex) | nothing: the registry is local | [CC0](https://help.openalex.org/access/snapshot/) | none |
 
 Only identifiers, and organisation names for `search_organisations`, ever leave the server. It
 never sends research data, the person's details or the project's.
@@ -68,6 +72,7 @@ Settings, all from the environment:
 | `DD_PID_ROR_REGISTRY` | The built registry, one ROR organisation per line. In the Data Director this is `agents/advisor-policy/data/ror/registry.jsonl`, built by `uv run dd-sources prepare`. |
 | `DD_PID_ROR_SNAPSHOT` | Which dump the registry was built from, as answers name it (such as `ROR dump v2.15`). |
 | `DD_REGISTRY_CONTACT` | The operators' contact address sent to DataCite and Crossref as `mailto:` (above). Unset or blank: none. Anything but one plain address stops start-up. |
+| `DD_PID_JOURNALS_REGISTRY` | The journal registry's index (`journals.sqlite`), built by `uv run dd-journals fetch`; in the Data Director by `uv run dd-sources prepare`. Unset: where `dd-journals` builds it. Until it is built, each journal look-up is an error that says so; the tools are still listed. |
 | `DD_PID_HOSTS` | Comma-separated host names that clients reach the server by, beyond loopback, such as a container's service name. Any other `Host` header is refused (DNS-rebinding protection). |
 
 `GET /healthz` answers when the server is up.

@@ -5,7 +5,8 @@ of its Sources entity, and the SHA-256 of the `journals.jsonl` they build. OpenA
 manifest gives sizes but no hashes, so the hashes are taken when the snapshot is pinned. Neither
 the parts nor `journals.jsonl` is committed: `dd-journals fetch` downloads the parts once into
 `data/archives/` (or the cache it is given), checks each against the pin, builds the registry and
-checks it too. `dd-journals fetch --update-pin` pins the newest snapshot instead.
+checks it too, then indexes it in `journals.sqlite` (`index.py`). `dd-journals fetch --update-pin`
+pins the newest snapshot instead.
 
 Only OpenAlex's public bucket is asked, over HTTPS; nothing about the person or the deployment is
 sent but a User-Agent naming this library.
@@ -26,12 +27,15 @@ from functools import cache
 from pathlib import Path
 from typing import IO, Any
 
-from dd_journals.build import build
+from dd_journals.build import build, parse
+from dd_journals.index import build_index
+from dd_journals.records import Journal
 from dd_journals.registry import PinError, Registry
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 MANIFEST = DATA_DIR / "manifest.json"
 REGISTRY = DATA_DIR / "journals.jsonl"
+INDEX = DATA_DIR / "journals.sqlite"
 ARCHIVES = DATA_DIR / "archives"
 
 BUCKET = "https://openalex.s3.amazonaws.com/"
@@ -144,26 +148,41 @@ def _write(registry: Path, data: bytes) -> None:
     partial.replace(registry)
 
 
-def fetch(
-    cache_dir: Path = ARCHIVES,
-    registry: Path = REGISTRY,
-    manifest: Path = MANIFEST,
-    opener: Opener = _urlopen,
-) -> Pin:
-    """Build `registry` from the pinned parts, downloading those not in `cache_dir`."""
-    pin = Pin.load(manifest)
+def _pinned_journals(pin: Pin, cache_dir: Path, registry: Path, opener: Opener) -> list[Journal]:
+    """The journals of `registry` when it is built as pinned; otherwise build it from the pinned
+    parts, downloading those not in `cache_dir`."""
+    if registry.is_file():
+        data = registry.read_bytes()
+        if hashlib.sha256(data).hexdigest() == pin.registry_sha256:
+            return parse(data)
     paths = []
     for part in pin.parts:
         target = cache_dir / part.cache_name
         download(part.url, target, opener, part.sha256)
         paths.append(target)
-    data, _ = build(paths)
+    data, journals = build(paths)
     if hashlib.sha256(data).hexdigest() != pin.registry_sha256:
         raise PinError(
             "the parts match their pin but build a different registry: dd_journals.build changed, "
             "so run `dd-journals fetch --update-pin`"
         )
     _write(registry, data)
+    return journals
+
+
+def fetch(
+    cache_dir: Path = ARCHIVES,
+    registry: Path = REGISTRY,
+    manifest: Path = MANIFEST,
+    opener: Opener = _urlopen,
+    index: Path = INDEX,
+) -> Pin:
+    """Build `registry` and its `index` as pinned, unless they are already."""
+    pin = Pin.load(manifest)
+    if problem(registry, manifest, index) is None:
+        return pin
+    journals = _pinned_journals(pin, cache_dir, registry, opener)
+    build_index(journals, index, pin.registry_sha256, pin.label)
     return pin
 
 
@@ -182,9 +201,10 @@ def update_pin(
     registry: Path = REGISTRY,
     manifest: Path = MANIFEST,
     opener: Opener = _urlopen,
+    index: Path = INDEX,
 ) -> Pin:
-    """Pin OpenAlex's newest snapshot: download every part, hash it, build the registry and write
-    the pin."""
+    """Pin OpenAlex's newest snapshot: download every part, hash it, build the registry and its
+    index, and write the pin."""
     date, files = _sources_files(opener)
     parts, paths = [], []
     for item in files:
@@ -194,36 +214,40 @@ def update_pin(
         target = cache_dir / part.cache_name
         parts.append(Part(**{**asdict(part), "sha256": download(url, target, opener)}))
         paths.append(target)
-    data, count = build(paths)
+    data, journals = build(paths)
     _write(registry, data)
     pin = Pin(
         snapshot_date=date,
         parts=tuple(sorted(parts, key=lambda p: p.url)),
-        journals=count,
+        journals=len(journals),
         registry_sha256=hashlib.sha256(data).hexdigest(),
         fetched_at=datetime.now(UTC).replace(microsecond=0).isoformat(),
     )
     pin.save(manifest)
+    build_index(journals, index, pin.registry_sha256, pin.label)
     return pin
 
 
-def problem(registry: Path = REGISTRY, manifest: Path = MANIFEST) -> str | None:
-    """Why the registry is not built as pinned, or None when it is."""
+def problem(
+    registry: Path = REGISTRY, manifest: Path = MANIFEST, index: Path = INDEX
+) -> str | None:
+    """Why the registry or its index is not built as pinned, or None when both are."""
     try:
         pin = Pin.load(manifest)
+        if not registry.exists():
+            return f"{registry} is not built: run `dd-journals fetch`"
+        if _sha256(registry) != pin.registry_sha256:
+            return f"{registry} does not match its pin: run `dd-journals fetch`"
+        Registry(index, pin.registry_sha256)
     except PinError as exc:
         return str(exc)
-    if not registry.exists():
-        return f"{registry} is not built: run `dd-journals fetch`"
-    if _sha256(registry) != pin.registry_sha256:
-        return f"{registry} does not match its pin: run `dd-journals fetch`"
     return None
 
 
 @cache
 def registry() -> Registry:
     """The built registry, checked against its pin."""
-    return Registry.load(REGISTRY, Pin.load().registry_sha256)
+    return Registry(INDEX, Pin.load().registry_sha256)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
