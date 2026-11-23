@@ -15,7 +15,11 @@ Settings, from the environment:
   container's service name).
 - `DD_REGISTRY_CONTACT`: the operators' contact address, which DataCite and Crossref are sent as
   `mailto:` in the User-Agent so that they serve the server from their faster, identified pool.
-  Never a person's own address. Unset, no address is sent.
+  Never a person's own address. Unset, no address is sent. OpenAIRE is sent it as `mailto`, which
+  its API takes for its polite pool.
+- `DD_OPENAIRE_REFRESH_TOKEN`: a secret, an OpenAIRE refresh token. Each request to the OpenAIRE
+  Graph then carries an access token issued from it, which raises the limit from 60 requests an
+  hour to 7,200. A refresh token lasts a month. Unset, OpenAIRE is asked anonymously.
 - `DD_PID_CACHE_DIR`: the directory for the cache of the registries' answers (`pid.sqlite3`).
   Unset, the cache is kept in memory for the life of the process.
 - `DD_PID_CACHE_TTL_FOUND`, `DD_PID_CACHE_TTL_MISSING`: how many seconds a found record and a
@@ -39,6 +43,8 @@ from dd_journals.snapshot import INDEX
 from dd_mcp_pid.app import LOOPBACK, create_app
 from dd_mcp_pid.caching import DEFAULT_TTL, Lookups, lookups
 from dd_mcp_pid.dois import Crossref, DataCite
+from dd_mcp_pid.grant_server import GrantSources, grant_registry
+from dd_mcp_pid.grants import AccessToken, CrossrefGrants, OpenAireGraph
 from dd_mcp_pid.http import contact_address
 from dd_mcp_pid.journals import JournalSource, journal_registry
 from dd_mcp_pid.orcid import Orcid
@@ -136,6 +142,16 @@ def journal_source(env: Mapping[str, str]) -> JournalSource:
     return JournalSource(Path(index) if index else INDEX)
 
 
+def grant_sources(env: Mapping[str, str], address: str | None, cached: Lookups) -> GrantSources:
+    refresh = env.get("DD_OPENAIRE_REFRESH_TOKEN", "").strip()
+    token = AccessToken(refresh) if refresh else None
+    return GrantSources(
+        CrossrefGrants(contact=address),
+        OpenAireGraph(contact=address, token=token),
+        offline=cached.offline,
+    )
+
+
 def registries(env: Mapping[str, str]) -> list[Registry]:
     address = contact(env)
     cached = cache(env)
@@ -145,6 +161,7 @@ def registries(env: Mapping[str, str]) -> list[Registry]:
         orcid_registry(Orcid(), cached),
         ror_registry(ror_sources(env, cached)),
         journal_registry(journal_source(env)),
+        grant_registry(grant_sources(env, address, cached)),
     ]
 
 

@@ -145,18 +145,18 @@ dd:Affiliation a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 4 ;
             sh:path dd:organisation_identifier_scheme ],
-        [ sh:datatype xsd:string ;
-            sh:description "The department within the organisation." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 5 ;
-            sh:path dd:department ],
         [ sh:description "What kind of affiliation the item is." ;
             sh:in ( "employment" "education" "qualification" "invited_position" "distinction" "membership" "service" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 1 ;
             sh:path dd:affiliation_kind ],
+        [ sh:datatype xsd:string ;
+            sh:description "The department within the organisation." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:department ],
         [ sh:datatype xsd:string ;
             sh:description "The organisation's identifier, where ORCID gives one: a URL for ROR, else as given." ;
             sh:maxCount 1 ;

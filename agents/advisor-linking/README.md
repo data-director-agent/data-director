@@ -1,8 +1,8 @@
 # advisor.linking
 
-**Alpha** (`0.2.0a1`, [Agents](../../docs/specs/agents.md)). It checks the form of identifiers and,
-where the deployment grants it lookup tools, looks DOIs, ORCID iDs and ROR ids up. A model writes only a summary beside
-its findings.
+**Alpha** (`0.3.0a1`, [Agents](../../docs/specs/agents.md)). It checks the form of identifiers and,
+where the deployment grants it lookup tools, looks DOIs, ORCID iDs, ROR ids and grant numbers up.
+A model writes only a summary beside its findings.
 
 The Linking Adviser helps a researcher link a dataset to the publications, people, organisations,
 grants and software around it (Blueprint R11), with persistent identifiers in a form ready for
@@ -27,9 +27,10 @@ one `RelatedLink` per identifier, with:
   names, or `IsSupplementTo` where it was not resolved; absent for an ORCID iD, a ROR id or a
   grant number, which are recorded elsewhere in the metadata;
 - `valid`: whether the identifier is well formed for its scheme;
-- `resolved`, `title` and `resource_type`: for a DOI, ORCID iD or ROR id looked up, whether it
+- `resolved`, `title` and `resource_type`: for an identifier looked up, whether it
   was found and, if so, what it names: a DOI's title and type, a person's name, or an
   organisation's name and type; `resolved` is absent where no lookup was made;
+- `candidates`: for a grant number looked up, every grant it may name (below);
 - `message`: what to check or how to record it, or why a lookup failed.
 
 It also gives a `summary` (below) and lists, in `limitations`, what it did not do.
@@ -43,7 +44,7 @@ it matches no other scheme, has no spaces or colons and contains a digit; anythi
 `unknown`. With no identifiers it abstains (`insufficient_input`). This part is exact and uses no
 source.
 
-## Resolving DOIs, ORCID iDs and ROR ids
+## Resolving identifiers
 
 Which sources exist is the deployment's choice: it lists the MCP servers it runs, and its profile
 grants them to `advisor.linking` (`tool_servers`). In this repository they are the PID resolver's
@@ -56,11 +57,28 @@ in order and the one tool each offers:
 | DOI | `datacite`, then `crossref` | `get_doi` | the title and resource type, and a relation suggested from that type |
 | ORCID iD | `orcid` | `get_orcid` | the person's public name, and `Person` |
 | ROR id | `ror` | `get_organisation` | the organisation's name and its first ROR type, and its Crossref Funder ID in the advice where it has one |
+| Grant number | `grants` | `resolve_grant` | every grant it may name, as `candidates`; with one, its title, `Grant`, its grant DOI and the funding reference to record |
 
-Each tool answers `{"records": [...]}`: one record when found, none when not. A DOI DataCite did
-not register is asked of Crossref. The harness records each record; the adviser cites the one each
-link was resolved against in `grounded_on` and in the evidence (`dd_sdk.tools.ToolRecord`). The
-code is in `resolve.py`.
+Each tool answers `{"records": [...]}`: one record when found, none when not (`resolve_grant` one
+for each grant the number may name). A DOI DataCite did not register is asked of Crossref. The
+harness records each record; the adviser cites the ones each link was resolved against in
+`grounded_on` and in the evidence (`dd_sdk.tools.ToolRecord`). The code is in `resolve.py` and,
+for grants, `grants.py`.
+
+### Grants
+
+A grant number is sent as given, with no funder, since the input holds none. The PID resolver
+answers from Crossref's grant records and the OpenAIRE Graph's projects, and lists a grant both
+hold once, by its grant DOI. The same number can name several funders' grants (award `100000` is
+both a Wellcome Trust grant and a Swiss National Science Foundation project), so:
+
+- **One grant:** the link takes its title and, where it has one, its grant DOI as `normalised`.
+  The advice spells out the DataCite funding reference: `funderName`, `funderIdentifier` (a
+  Crossref Funder ID, or a ROR id) with its type, `awardNumber`, `awardTitle` and `awardURI`.
+- **More than one:** the link lists each as a candidate, with its funder, funder identifier,
+  funding stream and source, and has no title. The advice asks the researcher to choose theirs by
+  its funder. The adviser never chooses, and its summary may not either.
+- **None:** `resolved: false`, as for any identifier not found.
 
 ### Relations
 
@@ -92,10 +110,10 @@ nothing without one.
 
 ## What it does not do
 
-- It checks grant numbers by form only, so a well-formed one may not exist or may belong to
-  another funder; `limitations` says so on every run. Resolving them is TODO(#953).
-- It does not look up funders or read the relations works record between themselves; a DOI's
-  relation is suggested from the type of work alone.
+- It sends a grant number without its funder, so a number several funders use lists each of
+  their grants for the researcher to choose from. It never chooses one.
+- It does not read the relations works record between themselves; a DOI's relation is suggested
+  from the type of work alone.
 - It recognises no other identifier, such as an arXiv id or an accession number.
 
 ## Summary

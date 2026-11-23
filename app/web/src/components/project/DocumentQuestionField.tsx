@@ -4,6 +4,10 @@
  * against the longest answer the harness keeps, and, while it holds a change not saved, by
  * "Not saved yet". The box never cuts what is typed or pasted: over the limit, the count says by
  * how much, the box is marked invalid, and the form refuses to save it.
+ *
+ * A question answered with a list of values (`answer_kind` `list`) takes one value on each line,
+ * says what will be recorded, warns when a line reads like several values or a note, and offers
+ * "no value means missing" (`listAnswer`). Its help, if any, shows under the question.
  */
 
 import { MessageCircle, Undo2 } from "lucide-react";
@@ -13,6 +17,7 @@ import { type DocumentQuestion, questionTarget } from "../../project/api";
 import { suggestionSource } from "../../project/suggestion";
 import { Link, homePath } from "../../route";
 import { Button } from "../ui/Button";
+import { AnswerBox, answerLength, listDescriptions } from "./AnswerBox";
 import { suggestion } from "./useAnswerDrafts";
 
 function characters(n: number): string {
@@ -47,9 +52,11 @@ export function DocumentQuestionField({
   onKeep?: () => void;
 }) {
   const offered = onKeep ? "" : suggestion(q);
-  const left = maxLength - charactersIn(value.trim());
+  const left = maxLength - answerLength(q, value);
   const described = [
+    q.question_help && `${id}-help`,
     `${id}-target`,
+    ...listDescriptions(id, q, value),
     offered && `${id}-suggestion`,
     `${id}-count`,
     unsaved && `${id}-unsaved`,
@@ -57,6 +64,11 @@ export function DocumentQuestionField({
   return (
     <div className="field document-question">
       <label htmlFor={id}>{q.question_prompt}</label>
+      {q.question_help && (
+        <p className="hint" id={`${id}-help`}>
+          {q.question_help}
+        </p>
+      )}
       <p className="hint" id={`${id}-target`}>
         Fills: {questionTarget(q)}
       </p>
@@ -77,13 +89,13 @@ export function DocumentQuestionField({
           )}
         </p>
       )}
-      <textarea
+      <AnswerBox
         id={id}
-        aria-describedby={described.join(" ")}
-        {...(left < 0 ? { "aria-invalid": true } : {})}
-        rows={2}
+        question={q}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        describedBy={described.join(" ")}
+        invalid={left < 0}
+        onChange={onChange}
       />
       <p className="hint document-question-state">
         <span id={`${id}-count`}>

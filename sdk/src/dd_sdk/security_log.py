@@ -45,6 +45,7 @@ class SecurityEvent(StrEnum):
     BROKER_ACCOUNT_REMOVED = "broker.account-removed"
     BROKER_CALL_REFUSED = "broker.call-refused"
     SPAN_SECRET_DROPPED = "agent.span-secret-dropped"
+    CASE_EXPORTED = "case.exported"
 
 
 type Outcome = Literal["success", "failure"]
@@ -54,6 +55,7 @@ CONTEXT_KEYS = frozenset(
     {
         "agent_id",
         "invocation_id",
+        "conversation_id",
         "profile_id",
         "profile_version",
         "project_id",

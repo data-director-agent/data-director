@@ -53,7 +53,8 @@ It does not cover what a run or a project contains ([Contract](contract.md), [Pr
    `dd_harness.pipeline.withhold` failed it. Only operator surfaces read it (the admin service and
    the export of a case for debugging, #1576); the app, the workbench, the envelope, the crate and
    the deposit package never carry it, since showing a person what the checks withheld would undo
-   the withholding ([Evidence and grounding](grounding.md)). An artifact belongs to a stored run, is written once, and is read back byte for
+   the withholding ([Evidence and grounding](grounding.md)). A case exported for debugging copies
+   a selection of runs and projects into this layout ([Case files](casefile.md)). An artifact belongs to a stored run, is written once, and is read back byte for
    byte. A run's artifacts are kept together, in one transaction where the backend has them, so a failure keeps none. Its name is a relative path of plain segments and cannot name the run's own files, in
    every backend, including those whose keys could hold any string.
 6. **A class schema is kept once under its digest**, and its bytes never change

@@ -166,6 +166,7 @@ def test_offline_answers_from_the_dump_and_the_cache_and_asks_nothing(
     for name, tool, arguments in [
         ("crossref", "get_doi", {"doi": DATACITE_DOI}),
         ("orcid", "get_orcid", {"orcid": ORCID_ID}),
+        ("grants", "resolve_grant", {"award": "NE/X007197/1"}),
     ]:
         error, message = text_of(offline[name], tool, **arguments)
         assert error

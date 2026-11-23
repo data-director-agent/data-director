@@ -391,6 +391,54 @@ describe("DocumentQuestions", () => {
     expect(box).toHaveValue("mg/kg");
   });
 
+  it("takes a list of values one on each line and records them as a JSON array", async () => {
+    const answer = vi.fn<ProjectApi["answer"]>().mockResolvedValue(ANSWERED);
+    const asked: DocumentQuestion = {
+      ...cell(1),
+      question_prompt: "Which values of `Sample` mean that a value is missing?",
+      question_help: "An empty cell already counts as missing.",
+      answer_kind: "list",
+      gap_column: "missing_values",
+    };
+    const document: ProjectDocument = {
+      ...UNANSWERED,
+      versions: [{ ...VERSION, questions: [asked] }],
+    };
+    const { container } = renderQuestions(document, answer);
+    const box = screen.getByRole("textbox", { name: asked.question_prompt });
+    expect(box).toHaveAccessibleDescription(/already counts as missing/);
+
+    await userEvent.type(box, "-99\nNA, none");
+    expect(box).toHaveAccessibleDescription(/Will be recorded as \["-99","NA, none"\]/);
+    expect(box).toHaveAccessibleDescription(/comma or semicolon/);
+    expect(await axe(container)).toHaveNoViolations();
+    await userEvent.clear(box);
+    await userEvent.type(box, "-99\nNA");
+    await userEvent.click(screen.getByRole("button", { name: "Save answers" }));
+    expect(answer).toHaveBeenCalledWith(
+      ANSWERED.project_id,
+      README.document_id,
+      VERSION.version,
+      [{ answered_question: asked.question_id, answer_text: '["-99","NA"]' }],
+    );
+  });
+
+  it("records that no value means missing, as the standard's default", async () => {
+    const answer = vi.fn<ProjectApi["answer"]>().mockResolvedValue(ANSWERED);
+    const asked: DocumentQuestion = { ...cell(1), answer_kind: "list" };
+    const document: ProjectDocument = {
+      ...UNANSWERED,
+      versions: [{ ...VERSION, questions: [asked] }],
+    };
+    renderQuestions(document, answer);
+    await userEvent.click(screen.getByRole("checkbox", { name: /No value means missing/ }));
+    expect(screen.getByRole("textbox", { name: asked.question_prompt })).toBeDisabled();
+    await userEvent.click(screen.getByRole("button", { name: "Save answers" }));
+    expect(answer.mock.calls[0]?.[3]).toEqual([
+      { answered_question: asked.question_id, answer_text: '[""]' },
+    ]);
+  });
+
   it("links each question to a new conversation about it", () => {
     renderQuestions(UNANSWERED, vi.fn());
     const link = screen.getByRole("link", {

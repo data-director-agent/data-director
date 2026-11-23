@@ -26,6 +26,13 @@ class Derivation(StrEnum):
     ANSWER = "answer"
 
 
+class AnswerKind(StrEnum):
+    """How a drafter's question is answered, so that a front end shows the fitting input."""
+
+    TEXT = "text"
+    LIST = "list"
+
+
 class SharedField(StrEnum):
     """A value every kind of project document gives the same way (docs/specs/drafting.md)."""
 
@@ -40,6 +47,8 @@ class SharedField(StrEnum):
 
 # Where a suggestion copied from a person's own words came from: a document kind, or a decision.
 SUGGESTED_FROM_DECISION = "decision"
+# A suggestion made of the project's people, from what they kept of their own ORCID records.
+SUGGESTED_FROM_RESEARCHERS = "researchers"
 # A suggestion a drafter composed by rule from what the deployment's profile vouches for, such as
 # the institution's storage services (derived as `template`).
 SUGGESTED_FROM_INSTITUTION = "institution"
@@ -51,6 +60,10 @@ class DocumentQuestion(Frozen):
 
     question_id: str = Field(pattern=QUESTION_ID_PATTERN)
     question_prompt: str
+    # A line of help shown under the question.
+    question_help: str | None = None
+    # How the question is answered; None means text.
+    answer_kind: AnswerKind | None = None
     gap_section: str | None = None
     # The part of the section, when the drafter asks a section part by part.
     gap_part: str | None = None
@@ -71,7 +84,7 @@ class DocumentQuestion(Frozen):
     # derived as `answer`, "institution" for one derived as `template` from the profile.
     suggested_from: str | None = Field(
         default=None,
-        pattern=r"^(metadata_record|readme|data_dictionary|dmp|other|decision|institution)$",
+        pattern=r"^(metadata_record|readme|data_dictionary|dmp|other|decision|institution|researchers)$",
     )
 
     @model_validator(mode="after")

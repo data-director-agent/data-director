@@ -78,38 +78,39 @@ dd:Document a sh:NodeShape ;
     sh:targetClass dd:Document .
 
 dd:DocumentQuestion a sh:NodeShape ;
-    rdfs:comment "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, a data dictionary cell it could not fill, or a metadata record property it left null. The target is either gap_section, with gap_part when the section is asked part by part, or gap_file, gap_field and gap_column together, or gap_property alone. A cell question about a column that several files share, by name, type and format, also lists in gap_files every file whose cell the answer fills. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied only when a person records it as their answer. A question that asks for a value every kind of document gives the same way names it in shared_field; a suggestion copied from a person's own answer or decision elsewhere in the project says where, in suggested_from." ;
+    rdfs:comment "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, a data dictionary cell it could not fill, or a metadata record property it left null. The target is either gap_section, with gap_part when the section is asked part by part, or gap_file, gap_field and gap_column together, or gap_property alone. A cell question about a column that several files share, by name, type and format, also lists in gap_files every file whose cell the answer fills. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied only when a person records it as their answer. A question that asks for a value every kind of document gives the same way names it in shared_field; a suggestion copied from a person's own answer or decision elsewhere in the project says where, in suggested_from. A question whose answer is a list of values, such as the values that mean a value is missing, says so in answer_kind, and may add a line of help in question_help." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:description "How suggested_answer came about. Present exactly when suggested_answer is." ;
-            sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
-            sh:maxCount 1 ;
-            sh:order 10 ;
-            sh:path dd:suggestion_derivation ],
-        [ sh:datatype xsd:string ;
-            sh:description "The question, as a short line a person reads before the options." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dd:question_prompt ],
-        [ sh:datatype xsd:string ;
+    sh:property [ sh:datatype xsd:string ;
             sh:description "An answer the drafter suggests, offered to the person with the question and never placed in the document. It becomes supplied only when a person records it, or a correction of it, as their answer." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 9 ;
+            sh:order 11 ;
             sh:path dd:suggested_answer ],
-        [ sh:datatype xsd:string ;
-            sh:description "The part of the README section the question would fill, such as Funding, when the drafter asks the section part by part. Present only with gap_section." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 3 ;
-            sh:path dd:gap_part ],
         [ sh:description "The value a question asks for, or an answer gives, when every kind of document gives it the same way, so that an answer given for one document may be offered as a suggestion in another (docs/specs/drafting.md)." ;
             sh:in ( "title" "creators" "description" "dates_collected" "place" "funder" "licence" ) ;
             sh:maxCount 1 ;
-            sh:order 11 ;
+            sh:order 13 ;
             sh:path dd:shared_field ],
+        [ sh:datatype xsd:string ;
+            sh:description "One or two sentences shown under the question to help the researcher answer it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:question_help ],
+        [ sh:datatype xsd:string ;
+            sh:description "Where a suggestion not made by a model came from: for one copied from the person's own words (suggestion_derivation `answer`), the kind of document whose question they answered, or `decision` for a fact people in the project decided; for one a drafter composed by rule from what the deployment's profile vouches for (suggestion_derivation `template`), `institution`; for one made of the project's people by rule (derivation `answer`), `researchers`. Present exactly then." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 14 ;
+            sh:path dd:suggested_from ;
+            sh:pattern "^(metadata_record|readme|data_dictionary|dmp|other|decision|institution|researchers)$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The heading of the README section the question would fill, as the drafter wrote it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:gap_section ],
         [ sh:datatype xsd:string ;
             sh:description "The question's identifier within its document: q- and 16 lower-case hexadecimal digits, derived from the gap it targets." ;
             sh:maxCount 1 ;
@@ -119,47 +120,57 @@ dd:DocumentQuestion a sh:NodeShape ;
             sh:path dd:question_id ;
             sh:pattern "^q-[0-9a-f]{16}$" ],
         [ sh:datatype xsd:string ;
-            sh:description "The field whose data dictionary row the question would fill." ;
+            sh:description "The part of the README section the question would fill, such as Funding, when the drafter asks the section part by part. Present only with gap_section." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
-            sh:path dd:gap_field ],
+            sh:path dd:gap_part ],
         [ sh:datatype xsd:string ;
             sh:description "The path of the file whose data dictionary row the question would fill." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 4 ;
+            sh:order 6 ;
             sh:path dd:gap_file ],
-        [ sh:datatype xsd:string ;
-            sh:description "The heading of the README section the question would fill, as the drafter wrote it." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path dd:gap_section ],
-        [ sh:datatype xsd:string ;
-            sh:description "Every file whose data dictionary cell the answer fills, gap_file among them, when the question asks once about a column that several files share by name, type and format. Absent when the question fills one cell." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 7 ;
-            sh:path dd:gap_files ],
         [ sh:datatype xsd:string ;
             sh:description "The data dictionary column the question would fill, such as unit." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 6 ;
+            sh:order 8 ;
             sh:path dd:gap_column ],
+        [ sh:description "How suggested_answer came about. Present exactly when suggested_answer is." ;
+            sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
+            sh:maxCount 1 ;
+            sh:order 12 ;
+            sh:path dd:suggestion_derivation ],
+        [ sh:datatype xsd:string ;
+            sh:description "Every file whose data dictionary cell the answer fills, gap_file among them, when the question asks once about a column that several files share by name, type and format. Absent when the question fills one cell." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 9 ;
+            sh:path dd:gap_files ],
         [ sh:datatype xsd:string ;
             sh:description "The metadata record value the question would fill, as a path into the record's JSON form: property names joined by dots, with a list entry's position in brackets, such as titles[0].title." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 8 ;
+            sh:order 10 ;
             sh:path dd:gap_property ],
         [ sh:datatype xsd:string ;
-            sh:description "Where a suggestion not made by a model came from: for one copied from the person's own words (suggestion_derivation `answer`), the kind of document whose question they answered, or `decision` for a fact people in the project decided; for one a drafter composed by rule from what the deployment's profile vouches for (suggestion_derivation `template`), `institution`. Present exactly then." ;
+            sh:description "The question, as a short line a person reads before the options." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:question_prompt ],
+        [ sh:datatype xsd:string ;
+            sh:description "The field whose data dictionary row the question would fill." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 12 ;
-            sh:path dd:suggested_from ;
-            sh:pattern "^(metadata_record|readme|data_dictionary|dmp|other|decision|institution)$" ] ;
+            sh:order 7 ;
+            sh:path dd:gap_field ],
+        [ sh:description "How a drafter's question is answered, so that a front end can show the fitting input. Absent means text." ;
+            sh:in ( "text" "list" ) ;
+            sh:maxCount 1 ;
+            sh:order 3 ;
+            sh:path dd:answer_kind ] ;
     sh:targetClass dd:DocumentQuestion .
 
 dd:DocumentVersionRef a sh:NodeShape ;

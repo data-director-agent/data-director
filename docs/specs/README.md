@@ -55,6 +55,7 @@ which gets one line that points to the code.
 | [Metadata standards](metadata-standards.md) | How a metadata record is written in any standard: standards as definitions, codecs, the pivot used to check and convert, and drafting in a standard. |
 | [Storage](storage.md) | The run and project storage protocols, their guarantees, the file backends and how another backend is added. |
 | [Disclosure](disclosure.md) | Model calls and their prompts, and the disclosure of how each approved document came about, as a statement and a PROV-O graph. |
+| [Case files](casefile.md) | One run, conversation or project exported for debugging: a filtered copy of the stores, its manifest, and how it is checked. |
 | [Provenance](provenance.md) | What "all actions" means for a project, how each event and run maps to PROV-O, the identifiers, and how the graph is checked complete. |
 | [Security baseline](security.md) | The controls behind C1 mapped to NIST SP 800-53, each with its status and evidence; secrets, audit streams and secure defaults. |
 | [Evaluation and conformance](evaluation.md) | Evaluation, assessment lanes, and how conformance to the Blueprint is reported. |

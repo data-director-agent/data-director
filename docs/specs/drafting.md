@@ -73,7 +73,9 @@ rule 20 and invariant 32).
    tables, and each field's name, type and format, and the summary values the command wrote
    after disclosure control (a range that leaves out the extremes, a mean, categories and
    missing-value codes with rounded counts). It opens no file. A data dictionary's missing-value
-   codes are inferred from them; a writer may describe a field with them but never says what a
+   codes are inferred from them, and a `missing_values` cell, inferred or supplied, is a JSON
+   array of strings, the form of a Frictionless Table Schema field's `missingValues`, which the
+   question asks for as a list (`answer_kind`); a writer may describe a field with them but never says what a
    code means, nor calls a range's bounds the minimum and maximum
    ([Personal data and disclosure control](personal-data.md), #571, #611). A data dictionary's
    `unit_code` is also inferred: it is worked out by rule (`dd-units`) from the unit the field
@@ -247,8 +249,10 @@ rule 20 and invariant 32).
     (`harness/tests/test_shared_answers_in_a_project.py`). The drafter offers it as the open
     question's `suggested_answer`, with `suggestion_derivation` `answer` and `suggested_from`
     naming the kind; where nobody answered, it offers a decided funder or licence
-    (`project_decisions`, invariant 9) with `suggested_from` `decision`
-    (`dd_sdk.shared_answers`). Such a suggestion copies the person's own words, so it may fill a
+    (`project_decisions`, invariant 9) with `suggested_from` `decision`; and for the creators,
+    the project's people who kept a name in their ORCID record (`researchers`), one per line,
+    with `suggested_from` `researchers` (`dd_sdk.shared_answers`). Who answers questions about the
+    data is not known, so the person says it. Such a suggestion copies the person's own words, so it may fill a
     field no model may suggest, a creator, date, place, funder or licence; but it is still only
     offered, kept out of the document's text, and recorded for that document only when the person
     accepts or saves it there, as any suggestion is (invariant 7). A person's words come before a
@@ -308,7 +312,10 @@ classes are in the core contract because the conductor, the app and an orchestra
 without knowing the drafter. A question may carry a suggested answer (`suggested_answer`) with
 how it was derived (`suggestion_derivation`); the one is present exactly when the other is. A
 question may name the shared value it asks for (`shared_field`), and a suggestion derived as
-`answer` names where it came from (`suggested_from`, invariant 11). A suggestion a drafter composed
+`answer` names where it came from (`suggested_from`, invariant 11). A question may say how it is
+answered (`answer_kind`: `text`, the default, or `list`, one string holding a JSON array of
+values, such as the values that mean a value is missing) and add a line of help
+(`question_help`), so that a front end shows the fitting input without naming a column. A suggestion a drafter composed
 by rule from what the deployment's profile vouches for is derived as `template` with
 `suggested_from` `institution`: the Documentation Editor offers the institution's storage
 services (`institution_storage`, which the conductor fills into every `DraftRequest`) to a Data

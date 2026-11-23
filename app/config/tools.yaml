@@ -28,3 +28,8 @@ servers:
     id_field: issn_l
     canonicalisation: dd-json-document-v1
     tools_sha256: "630132da04376125fb591cd85f978e4567e489e3bf36c151031278c3bfa3c51d"
+  - name: grants
+    url: http://127.0.0.1:8310/grants/mcp
+    id_field: id
+    canonicalisation: dd-json-document-v1
+    tools_sha256: "ed2489e6293259bd800767529a5f0413c87f0098cdcb78ab30b34976a008f9ee"

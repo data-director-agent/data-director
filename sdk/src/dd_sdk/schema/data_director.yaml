@@ -1182,10 +1182,14 @@ classes:
       (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied
       only when a person records it as their answer. A question that asks for a value every kind
       of document gives the same way names it in shared_field; a suggestion copied from a person's
-      own answer or decision elsewhere in the project says where, in suggested_from.
+      own answer or decision elsewhere in the project says where, in suggested_from. A question
+      whose answer is a list of values, such as the values that mean a value is missing, says so in
+      answer_kind, and may add a line of help in question_help.
     slots:
       - question_id
       - question_prompt
+      - question_help
+      - answer_kind
       - gap_section
       - gap_part
       - gap_file
@@ -1953,6 +1957,11 @@ slots:
   suggestion_derivation:
     description: How suggested_answer came about. Present exactly when suggested_answer is.
     range: Derivation
+  answer_kind:
+    description: >-
+      How a drafter's question is answered, so that a front end can show the fitting input. Absent
+      means text.
+    range: AnswerKind
   shared_field:
     description: >-
       The value a question asks for, or an answer gives, when every kind of document gives it the
@@ -1965,8 +1974,9 @@ slots:
       words (suggestion_derivation `answer`), the kind of document whose question they answered,
       or `decision` for a fact people in the project decided; for one a drafter composed by rule
       from what the deployment's profile vouches for (suggestion_derivation `template`),
-      `institution`. Present exactly then.
-    pattern: "^(metadata_record|readme|data_dictionary|dmp|other|decision|institution)$"
+      `institution`; for one made of the project's people by rule (derivation `answer`), `researchers`.
+      Present exactly then.
+    pattern: "^(metadata_record|readme|data_dictionary|dmp|other|decision|institution|researchers)$"
   answered_in:
     description: The kind of document whose question the answer was recorded to.
     range: DocumentKind
@@ -3061,6 +3071,18 @@ enums:
         description: >-
           Copied, as given, from a person's own answer to another document's question, or from a
           fact people in the project decided: offered for them to confirm, never placed.
+
+  AnswerKind:
+    description: >-
+      How a drafter's question about a gap is answered (docs/specs/drafting.md). The answer is
+      always one string, as a person's answer is recorded.
+    permissible_values:
+      text:
+        description: In the researcher's own words, over one or several lines.
+      list:
+        description: >-
+          A list of values, each written exactly as it appears in the data, recorded as a JSON
+          array of strings, such as ["-99","NA"].
 
   SharedField:
     description: >-

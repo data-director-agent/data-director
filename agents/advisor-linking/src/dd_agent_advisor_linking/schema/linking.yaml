@@ -9,7 +9,7 @@ title: advisor.linking classes
 description: >-
   Identifiers a researcher wants to link a dataset to, and the Linking Adviser's suggested
   related identifiers in reply, for the researcher to review.
-version: 0.2.0
+version: 0.3.0
 license: MIT
 
 prefixes:
@@ -36,8 +36,8 @@ classes:
   RelatedIdentifiers:
     description: >-
       The payload of advisor.linking: each identifier recognised, checked for form and put in
-      canonical form, with a suggested way to record it, and a DOI's title and type where it was
-      resolved. It suggests linking metadata for the
+      canonical form, with a suggested way to record it, what it names where it was resolved, and
+      every grant a grant number may name. It suggests linking metadata for the
       researcher to review; registering the links stays with the researcher and the repository
       (R11).
     mixins:
@@ -60,7 +60,21 @@ classes:
       - resolved
       - title
       - resource_type
+      - candidates
       - message
+
+  GrantCandidate:
+    description: >-
+      A grant that a grant number may name, as the source that holds it describes it. Where a
+      number names more than one, the researcher chooses; the adviser does not.
+    slots:
+      - id
+      - award
+      - title
+      - funder
+      - funder_identifier
+      - funding_stream
+      - source
 
 slots:
 
@@ -90,7 +104,9 @@ slots:
     description: The scheme it was recognised as, from schemes.yaml (doi, orcid, ror, grant), or unknown.
     required: true
   normalised:
-    description: The identifier's canonical https form, for a DOI, ORCID iD or ROR id.
+    description: >-
+      The identifier's canonical https form, for a DOI, ORCID iD or ROR id, or a grant number's
+      grant DOI where it names one grant that has one.
   relation:
     description: >-
       A suggested DataCite relationType, such as IsSupplementTo, for the researcher to confirm.
@@ -103,18 +119,43 @@ slots:
     required: true
   resolved:
     description: >-
-      Whether the identifier (a DOI, ORCID iD or ROR id) was found through the tool gateway. Absent
+      Whether the identifier (a DOI, ORCID iD, ROR id or grant number) was found through the tool
+      gateway. A grant number is found when it names at least one grant, listed in candidates. Absent
       when no lookup was made; false when it was made and found nothing or failed, with the reason
       in message.
     range: boolean
   title:
     description: >-
       What a resolved identifier names, as the source gives it: a DOI's title, a person's public
-      name or an organisation's name.
+      name, an organisation's name or a grant's title. Absent for a grant number that names more
+      than one grant.
   resource_type:
     description: >-
       The type of what a resolved identifier names, as the source gives it: a DOI's resource type,
-      Person for an ORCID iD, or an organisation's first ROR type.
+      Person for an ORCID iD, an organisation's first ROR type, or Grant for a grant number.
+  candidates:
+    description: >-
+      Every grant a resolved grant number may name, for the researcher to choose from where there
+      is more than one.
+    range: GrantCandidate
+    multivalued: true
+    inlined_as_list: true
   message:
     description: What the researcher should check or do with the identifier.
+    required: true
+  id:
+    description: >-
+      What the grant's record is cited by: its grant DOI as a URL, or its OpenAIRE project page.
+    required: true
+  award:
+    description: The award number, as the source gives it.
+  funder:
+    description: The funder's name.
+  funder_identifier:
+    description: >-
+      The funder's identifier as a URL, a Crossref Funder ID or ROR id, where the source gives one.
+  funding_stream:
+    description: The funder's scheme or programme the grant was made under.
+  source:
+    description: The source that holds the grant's record (Crossref or OpenAIRE).
     required: true

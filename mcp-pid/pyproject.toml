@@ -5,13 +5,13 @@ build-backend = "hatchling.build"
 [project]
 name = "data-director-mcp-pid"
 version = "0.1.0-alpha.2"
-description = "A read-only MCP server that resolves DOIs (DataCite, Crossref), ORCID iDs, ROR identifiers and ISSNs to small structured records"
+description = "A read-only MCP server that resolves DOIs (DataCite, Crossref), ORCID iDs, ROR identifiers, ISSNs and grant numbers to small structured records"
 readme = "README.md"
 requires-python = ">=3.14"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
-keywords = ["mcp", "persistent identifiers", "doi", "datacite", "crossref", "orcid", "ror", "issn", "research data"]
+keywords = ["mcp", "persistent identifiers", "doi", "datacite", "crossref", "orcid", "ror", "issn", "grant", "openaire", "research data"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",

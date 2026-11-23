@@ -6,10 +6,11 @@ form (R7) and suggests how to record it in DataCite metadata (R11). It produces 
 for the researcher to review; registering the links stays with the researcher and the repository.
 
 The adviser matches each identifier against `schemes.yaml` and checks an ORCID iD's checksum. Where
-the harness grants it lookup tools, it also looks each well-formed DOI, ORCID iD and ROR id up
-through the tool gateway (`resolve.py`: DataCite then Crossref, ORCID, ROR) and cites the record it
-found, suggesting a DOI's relation from the type of work its record names
-(`relations.yaml`). Grant numbers are checked by form only; resolving them is TODO(#953). Each
+the harness grants it lookup tools, it also looks each well-formed DOI, ORCID iD, ROR id and grant
+number up through the tool gateway (`resolve.py`: DataCite then Crossref, ORCID, ROR, and the
+grant resolver) and cites the record it found, suggesting a DOI's relation from the type of work
+its record names (`relations.yaml`). A grant number may name several funders' grants: each is
+listed as a candidate and cited, and the researcher chooses (`grants.py`). Each
 link is decided by rule; a summariser (`dd_sdk.summary`) then writes a short summary beside them:
 a model's by default, the rules' own with `DD_LINKING_SUMMARISER=template` (`factory.py`).
 """
@@ -50,10 +51,11 @@ SCHEMES = Path(__file__).with_name("schemes.yaml")
 UNKNOWN = "unknown"
 
 LIMITATIONS = (
-    "Grant numbers are checked by form only and were not resolved, so a well-formed one may not "
-    "exist or may belong to another funder.",
-    "It does not look up funders, grants or the relations between works; a resolved record says "
-    "what an identifier names, not how it relates to the dataset.",
+    "A grant number is looked up by the number alone, without its funder, so a number that "
+    "several funders use lists each of their grants for the researcher to choose from; the "
+    "adviser does not choose.",
+    "It does not look up the relations between works; a resolved record says what an identifier "
+    "names, not how it relates to the dataset.",
     "A DOI's relation is suggested from the type of work its record names; one not resolved, or "
     "of a type the adviser does not know, is given IsSupplementTo by default. Either way it is a "
     "suggestion for the researcher to confirm.",
@@ -121,15 +123,15 @@ def orcid_checksum_ok(orcid: str) -> bool:
 class LinkingAdviser:
     spec = AgentSpec(
         agent_id="advisor.linking",
-        version="0.2.0a1",
+        version="0.3.0a1",
         title="Linking Adviser",
         icon="🔗",
         description=(
             "Recognises DOIs, ORCID iDs, ROR ids and grant numbers, checks their form, gives "
-            "their canonical https form and suggests how to record each link. Looks DOIs, ORCID "
-            "iDs and ROR ids up through the tool gateway where it is granted; grant numbers are "
-            "checked by form only. Summarises what to do. The researcher and the repository "
-            "register the links."
+            "their canonical https form and suggests how to record each link. Looks each up "
+            "through the tool gateway where it is granted, and lists every grant a grant number "
+            "may name for the researcher to choose from. Summarises what to do. The researcher "
+            "and the repository register the links."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(LinkCandidates),),
@@ -143,6 +145,7 @@ class LinkingAdviser:
             "links.resolved": Derived(Derivation.REGISTRY),
             "links.title": Derived(Derivation.REGISTRY),
             "links.resource_type": Derived(Derivation.REGISTRY),
+            "links.candidates": Derived(Derivation.REGISTRY),
             "links.message": Derived(Derivation.TEMPLATE),
             "summary": Derived(Derivation.MODEL, recorded_in="summary_derivation"),
             "limitations": Derived(Derivation.TEMPLATE),
