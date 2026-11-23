@@ -150,8 +150,11 @@ PHASES: tuple[Phase, ...] = (
                 "setup.formats",
                 "Choose open formats to collect data in",
                 ("R3",),
-                label="Choose open file formats for your data",
-                prompt="Help me choose open file formats to collect my data in.",
+                label="Plan which open file formats to collect your data in",
+                prompt=(
+                    "Before I start collecting, help me choose open file formats to save my data "
+                    "in."
+                ),
             ),
         ),
         name="Plan your data management",
@@ -274,7 +277,7 @@ PHASES: tuple[Phase, ...] = (
                 "preparation.formats",
                 "Recommend open formats",
                 ("R3",),
-                label="Save your data in open formats",
+                label="Check your files are in open formats",
                 prompt=(
                     "Help me check whether my files are in open formats, "
                     "and what to save them as if not."

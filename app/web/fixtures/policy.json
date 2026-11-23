@@ -168,7 +168,7 @@
         "advisor.standards"
       ],
       "autonomy": "delegated",
-      "label": "Choose open file formats for your data",
+      "label": "Plan which open file formats to collect your data in",
       "phase_name": "Plan your data management",
       "phase_number": 1,
       "reason": null,
@@ -315,7 +315,7 @@
         "advisor.standards"
       ],
       "autonomy": "delegated",
-      "label": "Save your data in open formats",
+      "label": "Check your files are in open formats",
       "phase_name": "Get your data ready",
       "phase_number": 4,
       "reason": null,
