@@ -109,6 +109,39 @@
       "action_classes": [],
       "agent_ids": [],
       "autonomy": "not_offered",
+      "label": "Find out what your funder and institution require",
+      "phase_name": "Plan your data management",
+      "phase_number": 1,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "setup.requirements"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Write a Data Management Plan",
+      "phase_name": "Plan your data management",
+      "phase_number": 1,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "setup.dmp-create"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Review and update your Data Management Plan",
+      "phase_name": "Plan your data management",
+      "phase_number": 1,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "setup.dmp-review"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
       "label": "Plan how your data will be documented",
       "phase_name": "Plan your data management",
       "phase_number": 1,
@@ -141,28 +174,6 @@
       "reason": null,
       "refers_to": null,
       "step_id": "setup.formats"
-    },
-    {
-      "action_classes": [],
-      "agent_ids": [],
-      "autonomy": "not_offered",
-      "label": "Write a Data Management Plan",
-      "phase_name": "Plan your data management",
-      "phase_number": 1,
-      "reason": "no_agent",
-      "refers_to": null,
-      "step_id": "setup.dmp-create"
-    },
-    {
-      "action_classes": [],
-      "agent_ids": [],
-      "autonomy": "not_offered",
-      "label": "Review and update your Data Management Plan",
-      "phase_name": "Plan your data management",
-      "phase_number": 1,
-      "reason": "no_agent",
-      "refers_to": null,
-      "step_id": "setup.dmp-review"
     },
     {
       "action_classes": [],

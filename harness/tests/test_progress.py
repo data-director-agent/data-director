@@ -232,7 +232,13 @@ def test_the_store_suggests_a_step_the_deployments_agents_serve(store: ProjectSt
     store.serving = lambda: [{"agent_id": "advisor.standards", "serves": ["setup.formats"]}]
     assert store.progress(project)["suggested"] == "setup.formats"
     # The steps passed over are named, so the app can say why (#1377).
-    passed = ["setup.project", "setup.documentation", "setup.storage"]
+    passed = [
+        "setup.project",
+        "setup.requirements",
+        "setup.dmp-review",
+        "setup.documentation",
+        "setup.storage",
+    ]
     assert store.progress(project)["passed_over"] == passed
     assert store.intake(project)["progress"]["passed_over"] == passed
     assert store.summary(project)["progress"]["suggested"] == "setup.formats"

@@ -56,7 +56,9 @@ which existing data are reused; one that says only what is collected is placed a
 still asked. It asks first, as a README does, and every other gap is asked. Its sharing and
 preservation question asks for what is intended, since the repository and the licence are chosen
 later (Phases 3 and 5) and the plan is updated once they are (`setup.dmp-review`,
-`post.dmp-update`). No model writes a plan's text, so
+`post.dmp-update`). In Phase 1 the plan is written after the requirements are found out
+(`setup.requirements`) and before the documentation, storage and formats steps, so it asks those
+sections itself; sharing an answer given in one place with the other is TODO(#1537). No model writes a plan's text, so
 `document_derivation` is always `template`; where a model is configured, it suggests answers only
 from the documents the researcher attached and the project's decisions, beside the questions
 (invariant 7). The Data Management Planner (`advisor.dmp`) reviews a plan against the same
