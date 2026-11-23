@@ -21,6 +21,7 @@ export const KIND_LABELS: Record<FactKind, string> = {
   sharing_commitment: "Sharing commitment in the plan",
   standard: "Standard, vocabulary or format",
   data_management_plan: "Data Management Plan",
+  data_description: "The project's data",
 };
 
 export const FILE_DECISION_LABELS: Record<FileDecision, string> = {
@@ -100,6 +101,16 @@ function standardSentence(fact: ProjectFact): string {
   return `Use ${name} for ${target}.`;
 }
 
+function descriptionSentence(fact: ProjectFact): string {
+  const said = [
+    fact.data_collection_method && `Collected: ${fact.data_collection_method}`,
+    fact.data_reused && `Reused: ${fact.data_reused}`,
+    fact.data_formats && `Formats: ${fact.data_formats}`,
+    fact.data_volume && `Volume: ${fact.data_volume}`,
+  ].filter(Boolean);
+  return [fact.data_collected ?? fact.fact_subject, ...said].join(" ");
+}
+
 /** One sentence that says what `fact` decides. */
 export function describeFact(fact: ProjectFact): string {
   switch (fact.fact_kind) {
@@ -121,5 +132,7 @@ export function describeFact(fact: ProjectFact): string {
       return standardSentence(fact);
     case "data_management_plan":
       return "One attached document is the project's Data Management Plan; the Documents page shows which.";
+    case "data_description":
+      return descriptionSentence(fact);
   }
 }

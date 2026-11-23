@@ -192,6 +192,42 @@ describe("FactsPanel", () => {
     });
   });
 
+  it("records a description of the project's data, under the one subject a project has", async () => {
+    const decideFact = vi.fn<FactsApi["decideFact"]>(() =>
+      Promise.resolve(DECIDED),
+    );
+    renderPanel({ decideFact });
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: /Add a fact/ }));
+    const form = screen.getByRole("form", { name: "A fact nobody proposed" });
+    await user.selectOptions(
+      within(form).getByLabelText("What the fact is about"),
+      "data_description",
+    );
+    await user.type(
+      within(form).getByLabelText(/What data the project collects/),
+      "Interview recordings",
+    );
+    await user.type(
+      within(form).getByLabelText(/How they are collected/),
+      "Recorded interviews",
+    );
+    await user.click(
+      within(form).getByRole("button", { name: "Record this fact" }),
+    );
+
+    expect(decideFact).toHaveBeenCalledWith(PROJECT, {
+      verdict: "changed",
+      fact: {
+        fact_kind: "data_description",
+        fact_subject: "project",
+        data_collected: "Interview recordings",
+        data_collection_method: "Recorded interviews",
+      },
+    });
+  });
+
   it("removes a fact that stands by rejecting its kind and subject", async () => {
     const decideFact = vi.fn<FactsApi["decideFact"]>(() =>
       Promise.resolve(OFFERED),

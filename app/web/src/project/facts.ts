@@ -24,7 +24,8 @@ export type FactKind =
   | "licence"
   | "sharing_commitment"
   | "standard"
-  | "data_management_plan";
+  | "data_management_plan"
+  | "data_description";
 export type FileDecision = "include" | "exclude" | "undecided";
 export type SensitivityDecision = "publish" | "generalise" | "withhold" | "undecided";
 export type LocationPrecision = "exact" | "site" | "region" | "country";
@@ -49,6 +50,7 @@ export const FACT_KINDS: readonly FactKind[] = [
   "required_repository",
   "licence",
   "standard",
+  "data_description",
 ];
 export const FILE_DECISIONS: readonly FileDecision[] = ["include", "exclude", "undecided"];
 export const SENSITIVITY_DECISIONS: readonly SensitivityDecision[] = [
@@ -99,6 +101,13 @@ export interface ProjectFact {
   standard_target?: string;
   /** Which attached document is the project's Data Management Plan, by its text's SHA-256. */
   plan_document?: string;
+  /** What data the project collects, how, in which formats and volume, and what it reuses, in the
+   * researcher's words. */
+  data_collected?: string;
+  data_collection_method?: string;
+  data_formats?: string;
+  data_volume?: string;
+  data_reused?: string;
   /** Why an agent proposed it, for the person deciding; never given to an agent. */
   proposed_because?: string;
 }
@@ -153,6 +162,7 @@ export const FACT_NEEDS: Record<FactKind, readonly (keyof ProjectFact)[]> = {
   sharing_commitment: ["commitment_quote", "commitment_document"],
   standard: ["standard_name"],
   data_management_plan: ["plan_document"],
+  data_description: ["data_collected"],
 };
 
 /** The slot a fact's subject is copied from, so a person names the subject once. */
@@ -165,9 +175,11 @@ export const SUBJECT_OF: Record<FactKind, keyof ProjectFact | null> = {
   sharing_commitment: null,
   standard: "standard_name",
   data_management_plan: null,
+  data_description: null,
 };
 
-/** The one subject a Data Management Plan fact has, so a project has at most one current plan. */
+/** The one subject a Data Management Plan or data description fact has, so a project has at most
+ * one current plan and one description. */
 export const PLAN_SUBJECT = "project";
 
 /** The fact that marks the attached document whose text has `digest` as the project's plan. */

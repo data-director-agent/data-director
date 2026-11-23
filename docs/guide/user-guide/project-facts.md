@@ -30,6 +30,16 @@ decide, which agent proposed it and why. Nothing is sent until you send it, so y
 the question or remove the agent's reason first. Data Director can explain and advise, but it
 cannot decide the fact: come back to **Project facts** to confirm, change or reject it.
 
+## Describing your data
+
+When you tell Data Director what data your project collects or produces, how, in which formats
+or in what volume, it proposes a **description of the project's data** in your own words. Check
+it under **Proposed by agents** and confirm or correct it. Once it is decided, every agent in the
+project is given it, in this conversation and in any you start later. For example, the
+Documentation Editor writes it into your Data Management Plan's **Data description and
+collection** section, so you do not have to say it again. You can also add a description
+yourself with **Add a fact**.
+
 ## Changing what was decided
 
 Under **Decided**, you can change or remove a fact that stands. **Add a fact**

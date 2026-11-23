@@ -47,11 +47,15 @@ The Documentation Editor also drafts a Data Management Plan (`dmp`), an alpha th
 [`dd-dmp-template`](../../dmp-template/README.md), after Science Europe's, under a section of
 project details. A plan is drafted before data exist, so it needs no inventory: it infers nothing,
 and places only what is supplied (invariant 2): the funders, the required repository, the licence,
-the sensitive data and their handling, and the standards people in the project decided, as project
-facts give them, the inventory's files if the data already exist, and the researcher's answers. It
-asks first, as a README does, and every other gap is asked. Its sharing and preservation question
-asks for what is intended, since the repository and the licence are chosen later (Phases 3 and 5)
-and the plan is updated once they are (`setup.dmp-review`, `post.dmp-update`). No model writes a plan's text, so
+the sensitive data and their handling, the standards and the description of the data people in the
+project decided, as project facts give them, the inventory's files if the data already exist, and
+the researcher's answers. A confirmed data description (`data_description`) fills the plan's data
+section, in the researcher's words, and completes it when it says how the data are collected or
+which existing data are reused; one that says only what is collected is placed and the section is
+still asked. It asks first, as a README does, and every other gap is asked. Its sharing and
+preservation question asks for what is intended, since the repository and the licence are chosen
+later (Phases 3 and 5) and the plan is updated once they are (`setup.dmp-review`,
+`post.dmp-update`). No model writes a plan's text, so
 `document_derivation` is always `template`; where a model is configured, it suggests answers only
 from the documents the researcher attached and the project's decisions, beside the questions
 (invariant 7). The Data Management Plan Checker (`advisor.dmp`) reviews an attached plan against
@@ -399,7 +403,10 @@ as any other answer is.
   published as the researcher's, marked only by a column a reader may never look at.
 - **The orchestrator passing answers to the drafter.** A `DraftRequest` slot filled by the
   orchestrator would be simpler and would work with plain chat. But a model's interpretation of the
-  researcher's words would then become `supplied`, with only the approval to catch a mistake.
+  researcher's words would then become `supplied`, with only the approval to catch a mistake. What
+  the researcher says of their data in a conversation reaches a drafter instead as a
+  `data_description` fact the orchestrator proposes and a person confirms
+  ([Projects](projects.md), invariant 28): a person decides it before any drafter is given it.
 - **Answers only by editing the draft.** Editing still works, and its values become `supplied` on
   regeneration. As the only way, it leaves the researcher to find each gap themselves.
 - **A source marker on every README section.** It is more precise than marking only the gaps, but a

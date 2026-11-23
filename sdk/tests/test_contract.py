@@ -113,9 +113,15 @@ def test_a_class_schema_is_closed_self_contained_and_says_it_is_generated() -> N
     assert set(schema["$defs"]) == {
         "ChoiceOption",
         "Derivation",
+        "FactKind",
+        "FileDecision",
         "GroundingRef",
+        "LocationPrecision",
+        "ProjectFact",
         "Question",
         "QuestionKind",
+        "SensitivityDecision",
+        "StandardKind",
     }
     assert schema["properties"]["schema_class"]["enum"] == ["Reply"]
     assert {"schema_class", "grounded_on"} <= set(schema["required"])
@@ -135,7 +141,7 @@ def test_generated_properties_keep_the_linkml_slot_order() -> None:
     assert list(schema["properties"]) == slot_order("Envelope")
     reply = json.loads((SCHEMA / "generated" / "Reply.schema.json").read_text(encoding="utf-8"))
     assert list(reply["properties"]) == slot_order("Reply")
-    assert classes["Reply"]["mixins"] and list(reply["properties"])[-1] == "grounded_on"
+    assert classes["Reply"]["mixins"] and list(reply["properties"])[-1] == "proposed_facts"
 
 
 def test_the_core_input_and_payload_are_open_but_name_their_class() -> None:
