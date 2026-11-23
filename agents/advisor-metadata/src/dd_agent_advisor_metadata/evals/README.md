@@ -69,8 +69,9 @@ retrieved record gives, and catch one that no record gives.
 
 `baseline.json` holds the per-case scores of the accepted run and what produced it: the git
 revision, the configuration, the librarian's version, and the hashes of `cases.yaml`, DataCite's
-definition in `dd_metadata_records`, `shares.yaml` and `suggest_prompt.md`. `tests/test_metadata_evals.py` reruns the evaluation and
-fails on any difference from it, better or worse. To accept a change in the librarian's behaviour:
+definition in `dd_metadata_records`, `shares.yaml` and `suggest_prompt.md`.
+`tests/test_metadata_evals.py` reruns the evaluation and fails on any difference from it, better
+or worse. To accept a change in the librarian's behaviour:
 
 ```bash
 uv run inspect eval agents/advisor-metadata/src/dd_agent_advisor_metadata/evals/drafting.py --model none --log-dir /tmp/metadata
