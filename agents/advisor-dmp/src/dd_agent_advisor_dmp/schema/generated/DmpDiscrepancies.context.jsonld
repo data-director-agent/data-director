@@ -1,9 +1,6 @@
 {
    "@context": {
       "@vocab": "https://w3id.org/data-director/agents/dmp/",
-      "DecisionConflict": {
-         "@id": "https://w3id.org/data-director/agents/dmp/DecisionConflict"
-      },
       "Discrepancy": {
          "@id": "https://w3id.org/data-director/agents/dmp/Discrepancy"
       },
@@ -49,13 +46,6 @@
       "dcat": "http://www.w3.org/ns/dcat#",
       "dcterms": "http://purl.org/dc/terms/",
       "dd": "https://w3id.org/data-director/",
-      "decided": {
-         "@id": "https://w3id.org/data-director/agents/dmp/decided"
-      },
-      "decision_conflicts": {
-         "@id": "https://w3id.org/data-director/agents/dmp/decision_conflicts",
-         "@type": "@id"
-      },
       "discrepancies": {
          "@id": "https://w3id.org/data-director/agents/dmp/discrepancies",
          "@type": "@id"
@@ -105,9 +95,6 @@
       "finding": {
          "@id": "https://w3id.org/data-director/agents/dmp/finding"
       },
-      "finding_derivation": {
-         "@id": "https://w3id.org/data-director/agents/dmp/finding_derivation"
-      },
       "grounded_on": {
          "@id": "https://w3id.org/data-director/grounded_on",
          "@type": "@id"
@@ -130,9 +117,6 @@
       },
       "plan_document": {
          "@id": "https://w3id.org/data-director/plan_document"
-      },
-      "plan_heading": {
-         "@id": "https://w3id.org/data-director/agents/dmp/plan_heading"
       },
       "planned": {
          "@id": "https://w3id.org/data-director/agents/dmp/planned"

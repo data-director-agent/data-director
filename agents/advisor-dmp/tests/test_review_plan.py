@@ -1,6 +1,6 @@
-"""advisor.dmp reviews the plan a researcher attached (`setup.dmp-review`): by rule, against the
-core requirements and the decisions made in the project, with a model's reading that may only
-raise a finding (docs/specs/agents.md, Model-backed personas)."""
+"""advisor.dmp reviews the plan a researcher attached (`setup.dmp-review`): a model reads it
+against the core requirements, good practice and the decisions made in the project, and there is no
+rule behind the review (docs/specs/agents.md, Model-backed personas)."""
 
 from __future__ import annotations
 
@@ -20,14 +20,13 @@ from dd_agent_advisor_dmp.review_model import REVIEW_PROMPT, ModelReviewer
 from dd_dmp_template import SECTIONS
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.contract.facts import FactKind, ProjectDocument, ProjectFact, SensitivityDecision
-from dd_sdk.contract.models import Derivation, Envelope, GroundingMode, OutcomeStatus, ReasonCode
+from dd_sdk.contract.models import Envelope, GroundingMode, OutcomeStatus, ReasonCode
 from dd_sdk.model import declared
 from dd_sdk.testing import FakeModel
 
 PLANS = Path(__file__).parents[1] / "src" / "dd_agent_advisor_dmp" / "evals" / "data"
 STORAGE = SECTIONS[2]
 LEGAL = SECTIONS[3]
-COLLECTION = SECTIONS[0]
 
 
 def attached(name: str) -> ProjectDocument:
@@ -43,7 +42,7 @@ def attached(name: str) -> ProjectDocument:
 
 
 def run(runs_dir: Path, asked: DmpReviewRequest, agent: DmpChecker | None = None) -> Envelope:
-    conductor = make_conductor(runs_dir, agent or DmpChecker())
+    conductor = make_conductor(runs_dir, DmpChecker() if agent is None else agent)
     env = conductor.invoke(request("advisor.dmp", asked), acting_for=TEST_PRINCIPAL)
     if env.outcome.status == OutcomeStatus.SUCCEEDED:
         assert env.grounding_mode == GroundingMode.INPUT_ONLY
@@ -73,29 +72,49 @@ def readings(*items: tuple[str, str, str | None, str]) -> str:
     )
 
 
+def review_of(*items: tuple[str, str, str | None, str]) -> FakeModel:
+    return FakeModel(readings(*items))
+
+
+def every_requirement(answered: str = "not") -> list[tuple[str, str, str | None, str]]:
+    return [(s.id, answered, None, f"Nothing about {s.id}.") for s in SECTIONS]
+
+
+COMPLETE = attached("complete.md")
+BACKUP = "backed up nightly to a second site"
+
+
 @pytest.mark.requirement("DD-GROUNDING-MODE", "DD-GROUNDED-PAYLOAD")
-def test_a_plan_is_reviewed_by_rule_against_every_requirement(runs_dir: Path) -> None:
-    env = run(runs_dir, DmpReviewRequest(project_documents=[attached("complete.md")]))
+def test_a_model_reads_the_plan_against_every_requirement(runs_dir: Path) -> None:
+    items = [i for i in every_requirement() if i[0] != STORAGE.id]
+    model = review_of(
+        *items, (STORAGE.id, "partly", BACKUP, "It says nothing of security or who does it.")
+    )
+    env = run(runs_dir, DmpReviewRequest(project_documents=[COMPLETE]), reviewer(model))
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     found = by_section(env)
     assert list(found) == [s.heading for s in SECTIONS]
-    assert found[STORAGE.heading].finding == "covered"
-    quote = found[STORAGE.heading].quote
-    assert quote is not None
-    assert quote in " ".join(attached("complete.md").documentation_text.split())
+    assert found[STORAGE.heading].finding == "vague"
+    assert found[STORAGE.heading].quote == BACKUP
     assert found[LEGAL.heading].finding == "missing"
-    assert all(f.finding_derivation == Derivation.LEXICAL for f in found.values())
+    assert found[LEGAL.heading].quote is None
+    assert all(f.reason and f.message for f in found.values())
     payload = env.payload_as(DmpDiscrepancies)
-    assert payload.limitations and not payload.discrepancies
+    assert payload.limitations and not payload.discrepancies and not payload.dropped
+    (sent,) = model.sent
+    assert sent.system == REVIEW_PROMPT
 
 
-def test_a_partial_plan_is_missing_what_it_has_no_heading_for(runs_dir: Path) -> None:
-    found = by_section(run(runs_dir, DmpReviewRequest(project_documents=[attached("partial.md")])))
-    assert found[LEGAL.heading].finding == "covered"
-    assert found[STORAGE.heading].finding == "missing"
+def test_an_answer_that_is_full_is_covered(runs_dir: Path) -> None:
+    model = review_of(
+        (STORAGE.id, "fully", BACKUP, "Storage, backup and security are specific."),
+        *[i for i in every_requirement() if i[0] != STORAGE.id],
+    )
+    env = run(runs_dir, DmpReviewRequest(project_documents=[COMPLETE]), reviewer(model))
+    assert by_section(env)[STORAGE.heading].finding == "covered"
 
 
-def test_a_decision_the_plan_does_not_name_is_a_conflict(runs_dir: Path) -> None:
+def test_the_model_is_given_the_requirements_the_decisions_and_the_plan(runs_dir: Path) -> None:
     decisions = [
         ProjectFact(fact_kind=FactKind.LICENCE, fact_subject="licence", licence_id="CC-BY-4.0"),
         ProjectFact(fact_kind=FactKind.FUNDER, fact_subject="f", fact_funder_name="NERC"),
@@ -106,25 +125,26 @@ def test_a_decision_the_plan_does_not_name_is_a_conflict(runs_dir: Path) -> None
             sensitivity_decision=SensitivityDecision.WITHHOLD,
         ),
     ]
-    asked = DmpReviewRequest(
-        project_documents=[attached("complete.md")], project_decisions=decisions
-    )
-    conflicts = run(runs_dir, asked).payload_as(DmpDiscrepancies).decision_conflicts
-    kinds = {c.fact_kind for c in conflicts}
-    # The plan names NERC (its data centre) but not the licence, and has no legal section.
-    assert kinds == {FactKind.LICENCE, FactKind.SENSITIVITY}
-    assert all(c.message for c in conflicts)
+    model = review_of(*every_requirement())
+    asked = DmpReviewRequest(project_documents=[COMPLETE], project_decisions=decisions)
+    run(runs_dir, asked, reviewer(model))
+    (sent,) = model.sent
+    content = json.dumps(sent.messages)
+    for expected in (STORAGE.id, "CC-BY-4.0", "NERC", "Nest locations", "second site"):
+        assert expected in content
 
 
 def test_the_document_marked_as_the_plan_is_reviewed_rather_than_the_latest(
     runs_dir: Path,
 ) -> None:
     marked = attached("partial.md").model_copy(update={"documentation_is_plan": True})
-    asked = DmpReviewRequest(project_documents=[marked, attached("complete.md")])
-    found = by_section(run(runs_dir, asked))
-    # partial.md has an ethics section and no storage section; complete.md the reverse.
-    assert found[LEGAL.heading].finding == "covered"
-    assert found[STORAGE.heading].finding == "missing"
+    model = review_of(*every_requirement())
+    asked = DmpReviewRequest(project_documents=[marked, COMPLETE])
+    env = run(runs_dir, asked, reviewer(model))
+    (sent,) = model.sent
+    content = json.dumps(sent.messages)
+    assert "Ethics and consent" in content and "second site" not in content
+    assert "partial.md" in env.outcome.statement
 
 
 def test_no_plan_attached_abstains(runs_dir: Path) -> None:
@@ -133,45 +153,18 @@ def test_no_plan_attached_abstains(runs_dir: Path) -> None:
     assert env.outcome.reason_code == ReasonCode.INSUFFICIENT_INPUT
 
 
-@pytest.mark.requirement("DD-GROUNDING-MODE", "DD-GROUNDED-PAYLOAD")
-def test_a_model_may_raise_a_covered_finding_to_vague_with_a_quote_from_the_plan(
-    runs_dir: Path,
-) -> None:
-    quote = "backed up nightly to a second site"
-    model = FakeModel(readings((STORAGE.id, "partly", quote, "It says nothing of security.")))
-    env = run(
-        runs_dir, DmpReviewRequest(project_documents=[attached("complete.md")]), reviewer(model)
-    )
-    raised = by_section(env)[STORAGE.heading]
-    assert raised.finding == "vague"
-    assert raised.finding_derivation == Derivation.MODEL
-    assert raised.reason and raised.quote == quote
-    (sent,) = model.sent
-    assert sent.system == REVIEW_PROMPT
-
-
-def test_a_model_never_lowers_a_rules_finding(runs_dir: Path) -> None:
-    model = FakeModel(
-        readings(
-            (LEGAL.id, "fully", "take soil cores at twelve plots", "The fieldwork is described."),
-            (STORAGE.id, "fully", None, "Storage and backup are covered."),
-        )
-    )
-    env = run(
-        runs_dir, DmpReviewRequest(project_documents=[attached("complete.md")]), reviewer(model)
-    )
-    found = by_section(env)
-    # Pointed to, but still missing, for a person to judge.
-    assert found[LEGAL.heading].finding == "missing"
-    assert found[LEGAL.heading].reason
-    assert found[STORAGE.heading].finding == "covered"
-    assert found[STORAGE.heading].finding_derivation == Derivation.LEXICAL
+def test_without_a_model_there_is_no_review(runs_dir: Path) -> None:
+    env = run(runs_dir, DmpReviewRequest(project_documents=[COMPLETE]))
+    assert env.outcome.status == OutcomeStatus.ABSTAINED
+    assert env.outcome.reason_code == ReasonCode.CAPABILITY_NOT_IMPLEMENTED
+    assert "DD_DMP_MATCHER=template" in env.outcome.statement
 
 
 @pytest.mark.parametrize(
     "reading",
     [
-        (STORAGE.id, "not", "words that the plan never says", "Not there."),
+        (STORAGE.id, "partly", "words that the plan never says", "Not there."),
+        (STORAGE.id, "fully", None, "Said to answer it, with no quote."),
         ("no-such-requirement", "not", None, "Made up."),
         (STORAGE.id, "not", None, "  "),
     ],
@@ -179,18 +172,35 @@ def test_a_model_never_lowers_a_rules_finding(runs_dir: Path) -> None:
 def test_a_reading_that_fails_its_checks_is_dropped_and_said(
     runs_dir: Path, reading: tuple[str, str, str | None, str]
 ) -> None:
-    model = FakeModel(readings(reading))
-    env = run(
-        runs_dir, DmpReviewRequest(project_documents=[attached("complete.md")]), reviewer(model)
-    )
-    payload = env.payload_as(DmpDiscrepancies)
-    assert payload.dropped
-    assert by_section(env)[STORAGE.heading].finding == "covered"
-
-
-def test_an_unusable_reply_leaves_the_rules_review(runs_dir: Path) -> None:
-    model = FakeModel("not json")
-    env = run(runs_dir, DmpReviewRequest(project_documents=[attached("vague.md")]), reviewer(model))
+    others = [i for i in every_requirement() if i[0] != STORAGE.id]
+    model = review_of(reading, *others)
+    env = run(runs_dir, DmpReviewRequest(project_documents=[COMPLETE]), reviewer(model))
     assert env.outcome.status == OutcomeStatus.SUCCEEDED
-    assert all(f.finding_derivation == Derivation.LEXICAL for f in by_section(env).values())
-    assert COLLECTION.heading in by_section(env)
+    assert STORAGE.heading not in by_section(env)
+    assert any(d.startswith(STORAGE.id) for d in env.payload_as(DmpDiscrepancies).dropped)
+
+
+def test_a_requirement_read_twice_keeps_the_first_reading(runs_dir: Path) -> None:
+    model = review_of(
+        (STORAGE.id, "partly", BACKUP, "Only backup."),
+        (STORAGE.id, "not", None, "Nothing."),
+        *[i for i in every_requirement() if i[0] != STORAGE.id],
+    )
+    env = run(runs_dir, DmpReviewRequest(project_documents=[COMPLETE]), reviewer(model))
+    assert by_section(env)[STORAGE.heading].finding == "vague"
+    assert any("read twice" in d for d in env.payload_as(DmpDiscrepancies).dropped)
+
+
+def test_an_unusable_reply_abstains_and_says_why(runs_dir: Path) -> None:
+    model = FakeModel("not json")
+    env = run(runs_dir, DmpReviewRequest(project_documents=[COMPLETE]), reviewer(model))
+    assert env.outcome.status == OutcomeStatus.ABSTAINED
+    assert env.outcome.reason_code == ReasonCode.CAPABILITY_NOT_IMPLEMENTED
+    assert "schema" in env.outcome.statement
+
+
+def test_a_reply_with_no_usable_reading_abstains(runs_dir: Path) -> None:
+    model = review_of(("no-such-requirement", "not", None, "Made up."))
+    env = run(runs_dir, DmpReviewRequest(project_documents=[COMPLETE]), reviewer(model))
+    assert env.outcome.status == OutcomeStatus.ABSTAINED
+    assert "none of its readings" in env.outcome.statement

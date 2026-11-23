@@ -5,7 +5,7 @@ in `config/examples/agents.env`):
 
 - `DD_DMP_MATCHER`: `model` (default) has a model read what the rules leave over (`match.py`);
   `anthropic` names the same while `DD_MODEL_PROVIDER` is `anthropic`. `template` matches by rule
-  alone, calls no model and needs no key.
+  alone, calls no model and needs no key; it reads and reviews no plan.
 - The model's provider, id and key: as for every advisor (docs/guide/operations/ai-models.md).
 
 An unknown value, or an unusable model setting, is a configuration error (`ConfigError`).

@@ -5,26 +5,10 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 dmp:DmpDiscrepancies a sh:NodeShape ;
-    rdfs:comment "The payload of advisor.dmp: where the planned sharing differs from the plan's commitments, for a person to review (R8). It flags and never enforces; a reviewed decision not to share is a valid outcome. Where it has read an attached plan and nobody has confirmed its commitments yet, it proposes each commitment as a project fact for the researcher to confirm, quoting the passage it rests on, and compares nothing until they do. A review of an attached plan (setup.dmp-review) fills section_findings and decision_conflicts instead." ;
+    rdfs:comment "The payload of advisor.dmp: where the planned sharing differs from the plan's commitments, for a person to review (R8). It flags and never enforces; a reviewed decision not to share is a valid outcome. Where it has read an attached plan and nobody has confirmed its commitments yet, it proposes each commitment as a project fact for the researcher to confirm, quoting the passage it rests on, and compares nothing until they do. A review of an attached plan (setup.dmp-review) fills section_findings instead." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:class <https://w3id.org/data-director/GroundingRef> ;
-            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 7 ;
-            sh:path <https://w3id.org/data-director/grounded_on> ],
-        [ sh:datatype xsd:string ;
-            sh:description "What the model proposed that was not used, and why: a pairing or reconciliation naming something not in the input, or a second pairing for one output." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 5 ;
-            sh:path dmp:dropped ],
-        [ sh:class <https://w3id.org/data-director/ProjectFact> ;
-            sh:description "Facts the agent proposes for a person to confirm. A proposal is never a fact until a person decides it (docs/specs/projects.md)." ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 8 ;
-            sh:path <https://w3id.org/data-director/proposed_facts> ],
-        [ sh:class dmp:Discrepancy ;
+    sh:property [ sh:class dmp:Discrepancy ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 1 ;
             sh:path dmp:discrepancies ],
@@ -33,15 +17,16 @@ dmp:DmpDiscrepancies a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 3 ;
             sh:path dmp:section_findings ],
-        [ sh:class dmp:DecisionConflict ;
-            sh:description "The decisions people in the project made that the plan does not reflect." ;
+        [ sh:class <https://w3id.org/data-director/GroundingRef> ;
+            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
+            sh:minCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 4 ;
-            sh:path dmp:decision_conflicts ],
+            sh:order 6 ;
+            sh:path <https://w3id.org/data-director/grounded_on> ],
         [ sh:datatype xsd:string ;
             sh:description "What this checker does not yet do." ;
             sh:nodeKind sh:Literal ;
-            sh:order 6 ;
+            sh:order 5 ;
             sh:path dmp:limitations ],
         [ sh:class dmp:Reconciliation ;
             sh:description "Differences in repository, access or licence that a model judged to be the same thing, each with its reason, for a person to check. Empty when no model is configured." ;
@@ -49,12 +34,22 @@ dmp:DmpDiscrepancies a sh:NodeShape ;
             sh:order 2 ;
             sh:path dmp:reconciled ],
         [ sh:datatype xsd:string ;
+            sh:description "What the model proposed that was not used, and why: a pairing or reconciliation naming something not in the input, or a second pairing for one output." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dmp:dropped ],
+        [ sh:datatype xsd:string ;
             sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
-            sh:path <https://w3id.org/data-director/schema_class> ] ;
+            sh:path <https://w3id.org/data-director/schema_class> ],
+        [ sh:class <https://w3id.org/data-director/ProjectFact> ;
+            sh:description "Facts the agent proposes for a person to confirm. A proposal is never a fact until a person decides it (docs/specs/projects.md)." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 7 ;
+            sh:path <https://w3id.org/data-director/proposed_facts> ] ;
     sh:targetClass dmp:DmpDiscrepancies .
 
 <https://w3id.org/data-director/GroundingRef> a sh:NodeShape ;
@@ -237,38 +232,12 @@ dmp:DmpDiscrepancies a sh:NodeShape ;
             sh:path <https://w3id.org/data-director/standard_kind> ] ;
     sh:targetClass <https://w3id.org/data-director/ProjectFact> .
 
-dmp:DecisionConflict a sh:NodeShape ;
-    rdfs:comment "A decision people in the project made that the plan does not reflect, such as a licence or repository it does not name, for a person to review: the plan may need updating, or the decision may. Found by rule." ;
-    sh:closed true ;
-    sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
-            sh:description "What people in the project decided, as recorded." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dmp:decided ],
-        [ sh:datatype xsd:string ;
-            sh:description "The difference, said for a person to review." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path dmp:message ],
-        [ sh:description "What the fact is about, which says which value slots apply." ;
-            sh:in ( "funder" "required_repository" "file_inclusion" "sensitivity" "licence" "sharing_commitment" "standard" "data_management_plan" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 0 ;
-            sh:path <https://w3id.org/data-director/fact_kind> ] ;
-    sh:targetClass dmp:DecisionConflict .
-
 dmp:Discrepancy a sh:NodeShape ;
     rdfs:comment "One difference between what the plan committed to and what is planned. Found by rule (discrepancy_derivation lexical), or, for a renamed output, by a model pairing a committed output with a planned one (discrepancy_derivation model, with its reason). Either way it is for a person to review." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
-            sh:description "The model's short reason for a pairing or a reconciliation. Present exactly when a model found it." ;
+            sh:description "The model's short reason for a pairing, a reconciliation or a review finding. Present exactly when a model found it." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 6 ;
@@ -319,12 +288,6 @@ dmp:Reconciliation a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
-            sh:description "The model's short reason for a pairing or a reconciliation. Present exactly when a model found it." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path dmp:reason ],
-        [ sh:datatype xsd:string ;
             sh:description "What the plan committed to for this aspect, if anything." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -349,19 +312,26 @@ dmp:Reconciliation a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
-            sh:path dmp:planned ] ;
+            sh:path dmp:planned ],
+        [ sh:datatype xsd:string ;
+            sh:description "The model's short reason for a pairing, a reconciliation or a review finding. Present exactly when a model found it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dmp:reason ] ;
     sh:targetClass dmp:Reconciliation .
 
 dmp:SectionFinding a sh:NodeShape ;
-    rdfs:comment "How the plan meets one core requirement: covered, vague or missing, with the plan's heading and words it rests on. The rules decide the finding from the plan's headings (finding_derivation lexical); a model may only raise it, from covered to vague, never lower it (finding_derivation model, with its reason). Either way it is for a person to judge." ;
+    rdfs:comment "How the plan meets one core requirement: covered, vague or missing, with the plan's words the finding rests on and a model's reason. A model's reading, whose quote code checked is in the plan; for a person to judge." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
-            sh:description "The plan's heading that names the requirement, if one does." ;
+            sh:description "covered (a model read the plan as answering its questions specifically enough), vague (only in part, or in general terms) or missing (not at all)." ;
             sh:maxCount 1 ;
+            sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path dmp:plan_heading ],
+            sh:order 1 ;
+            sh:path dmp:finding ],
         [ sh:datatype xsd:string ;
             sh:description "The core requirement, by its heading, such as Storage and backup during the project." ;
             sh:maxCount 1 ;
@@ -370,36 +340,23 @@ dmp:SectionFinding a sh:NodeShape ;
             sh:order 0 ;
             sh:path dmp:section ],
         [ sh:datatype xsd:string ;
-            sh:description "The model's short reason for a pairing or a reconciliation. Present exactly when a model found it." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 6 ;
-            sh:path dmp:reason ],
-        [ sh:datatype xsd:string ;
             sh:description "The plan's own words the finding rests on, found in its text." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 3 ;
+            sh:order 2 ;
             sh:path dmp:quote ],
         [ sh:datatype xsd:string ;
             sh:description "The difference, said for a person to review." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 4 ;
+            sh:order 3 ;
             sh:path dmp:message ],
         [ sh:datatype xsd:string ;
-            sh:description "covered (a heading of the plan names it, with text under it), vague (it has a heading but nothing, or too little, under it to answer its questions) or missing (no heading names it)." ;
+            sh:description "The model's short reason for a pairing, a reconciliation or a review finding. Present exactly when a model found it." ;
             sh:maxCount 1 ;
-            sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dmp:finding ],
-        [ sh:description "How the finding was reached: lexical, by the rule reading the plan's headings, or model, by a model that read the plan as too vague to answer the requirement's questions." ;
-            sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 5 ;
-            sh:path dmp:finding_derivation ] ;
+            sh:order 4 ;
+            sh:path dmp:reason ] ;
     sh:targetClass dmp:SectionFinding .
 

@@ -49,7 +49,7 @@ the default home for anything.
 | `dd-units`, a library that turns a unit as a person writes it into a UCUM code | `units/` |
 | `dd-subjects`, subject classifications (OECD Fields of R&D, ANZSRC Fields of Research) to suggest a field of study from | `subjects/` |
 | `dd-formats`, file formats described from the records of a pinned PRONOM release | `formats/` |
-| `dd-dmp-template`, the core requirements of a Data Management Plan (after Science Europe's) and a rule that finds which of them a plan's headings cover | `dmp-template/` |
+| `dd-dmp-template`, the core requirements of a Data Management Plan (after Science Europe's) | `dmp-template/` |
 | The FAIRsharing server, an MCP server that looks up FAIRsharing records for agents through the tool gateway | `mcp-fairsharing/` |
 | The SPDX server, an MCP server that looks up licences in a pinned release of the SPDX licence list for agents through the tool gateway | `mcp-spdx/` |
 | Repository tooling and tests of the repository as a whole (scripts, shipped configuration, cross-package checks) | `scripts/`, `scripts/tests/` |
