@@ -43,6 +43,7 @@ steps = [
   "setup.documentation",
   "setup.formats",
   "setup.project",
+  "setup.requirements",
   "setup.storage",
   "setup.vocabularies",
 ]
