@@ -47,6 +47,7 @@ MODEL_BY_DEFAULT = {
     "advisor-documentation": "DD_DOCUMENTATION_WRITER",
     "advisor-dmp": "DD_DMP_MATCHER",
     "advisor-files": "DD_FILES_SUMMARISER",
+    "advisor-storage": "DD_STORAGE_SUMMARISER",
     "advisor-linking": "DD_LINKING_SUMMARISER",
     "advisor-quality": "DD_QUALITY_SUMMARISER",
     "advisor-rights": "DD_RIGHTS_INTERPRETER",

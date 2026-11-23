@@ -42,6 +42,10 @@
  * conversation with the step's prompt in the message box, unsent. A message already being written
  * is replaced only when the researcher confirms.
  *
+ * The message being written is kept with the open conversation, so leaving the page and coming
+ * back finds it in the box, shown even where the latest reply asks questions or the intake is
+ * open.
+ *
  * The page puts together hooks that each hold one part: the open conversation and its turns
  * (`useConversationTurns`), what a message carries (`useAttachments`), and the project's
  * documents, progress and intake (`useProjectDocuments`, `useProjectProgress`, `useIntake`), each
@@ -52,6 +56,7 @@
 
 import { useMemo, useRef, useState } from "react";
 
+import { useSessionState } from "../../conversation/session";
 import { documentReaders } from "../../conversation/documentation";
 import { type ReplyAnswers, replyQuestions } from "../../conversation/question";
 import type { Conversation } from "../../conversation/types";
@@ -96,7 +101,7 @@ import {
   workspaceReady,
 } from "./ConversationHomeParts";
 import { whyUnusable } from "./orchestrator";
-import { type Asking, type ReplyFocus, ReplyArea, useReplyMode } from "./ReplyArea";
+import { type Asking, type ReplyFocus, ReplyArea, useReplyMode, useShowDraft } from "./ReplyArea";
 import { nameOf } from "./Speaker";
 import { StartFromStep } from "./StartFromStep";
 import { Transcript } from "./Transcript";
@@ -112,7 +117,9 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const orchestrator = directory.agents.find((a) => a.id === named);
   const unusable = whyUnusable(named, orchestrator);
   const { projectId, projects, reloadProjects } = useActiveProject();
-  const [text, setText] = useState("");
+  // The message being written outlives the page, as the open conversation does, so leaving for
+  // another page and coming back loses nothing (conversation/session.tsx).
+  const [text, setText] = useSessionState("draft", "");
   const announce = useAnnounce();
   // A step whose prompt waits on the researcher's leave to replace the message being written.
   const [replacing, setReplacing] = useState<FlowStep | null>(null);
@@ -158,12 +165,14 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   });
   const { intake } = intakeRead;
   const mode = useReplyMode(asking, intakeOpen(projectId, intakeRead));
+  useShowDraft(text, intakeRead.settled, mode.setMode);
 
+  // A new conversation is not started while a reply is awaited.
+  const startConversation = busy ? undefined : (step: FlowStep) => startStep(step);
   const tracked = trackedProgress(projectId, progress, {
     projectApi,
     documents,
-    // A new conversation is not started while a reply is awaited.
-    startConversation: busy ? undefined : (step: FlowStep) => startStep(step),
+    startConversation,
     answerIntakeAgain: intakeRead.intake ? intakeRead.openAgain : undefined,
   });
 
@@ -371,6 +380,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             fairFeedback={directory.agents.some((a) => a.payload === FAIRNESS_CLASS)}
             refresh={turnCount}
             onAsk={(question) => askInBox(question, text, putText, reply)}
+            onStartStep={startConversation}
             onInventorySaved={() => void reloadProjects()}
           />
         }

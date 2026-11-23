@@ -4,6 +4,8 @@
 agents:
   - name: example-hello
     url: http://example-hello:8101
+  - name: advisor-storage
+    url: http://advisor-storage:8118
   - name: advisor-quality
     url: http://advisor-quality:8102
   - name: advisor-standards

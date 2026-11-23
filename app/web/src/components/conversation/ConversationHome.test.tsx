@@ -16,6 +16,7 @@ import {
   turnBody,
   Unreachable,
 } from "../../conversation/api";
+import { ConversationSessionProvider } from "../../conversation/session";
 import type { Conversation } from "../../conversation/types";
 import { type FlowApi, FlowApiContext } from "../../flow/api";
 import { ActiveProjectProvider } from "../../project/active";
@@ -843,6 +844,64 @@ describe("ConversationHome", () => {
     expect(
       screen.queryByRole("list", { name: "Conversation" }),
     ).not.toBeInTheDocument();
+  });
+
+  describe("keeps the message being written when the page is left", () => {
+    afterEach(() => history.replaceState(null, "", "/"));
+
+    /** The page inside the tab's session, drawn again by `back` after `leave`. */
+    async function renderLeavable(api: FakeApi) {
+      const app = (shown: boolean) => (
+        <AnnouncerProvider>
+          <FlowApiContext.Provider value={FLOW}>
+            <ProjectApiContext.Provider value={httpProjectApi}>
+              <ActiveProjectProvider>
+                <ConversationApiContext.Provider value={api}>
+                  <RunTransportContext.Provider value={api.turns}>
+                    <ConversationSessionProvider>
+                      {shown && <ConversationHome directory={withOrchestrator()} />}
+                    </ConversationSessionProvider>
+                  </RunTransportContext.Provider>
+                </ConversationApiContext.Provider>
+              </ActiveProjectProvider>
+            </ProjectApiContext.Provider>
+          </FlowApiContext.Provider>
+        </AnnouncerProvider>
+      );
+      const view = await opened(render(app(true)));
+      return {
+        leave: () => view.rerender(app(false)),
+        back: () => opened(view.rerender(app(true)) ?? view),
+      };
+    }
+
+    const messageBox = () => screen.getByRole("textbox", { name: "What would you like to do?" });
+
+    it("finds the unsent message in the box on coming back, and New conversation empties it", async () => {
+      const page = await renderLeavable(fakeApi());
+      await userEvent.type(messageBox(), "a half-written message");
+      page.leave();
+      expect(screen.queryByRole("textbox")).toBeNull();
+      await page.back();
+      expect(messageBox()).toHaveValue("a half-written message");
+      const history = screen.getByRole("region", { name: "Conversations" });
+      await userEvent.click(within(history).getByRole("button", { name: "New conversation" }));
+      expect(messageBox()).toHaveValue("");
+    });
+
+    it("shows the box with the message on coming back where the latest reply asks questions", async () => {
+      history.replaceState(null, "", "/?conversation=c9");
+      const page = await renderLeavable(fakeApi({ get: () => Promise.resolve(QUESTION) }));
+      await userEvent.click(
+        await screen.findByRole("button", { name: "Reply in my own words instead" }),
+      );
+      await userEvent.type(messageBox(), "my own words");
+      page.leave();
+      await page.back();
+      expect(await screen.findByRole("textbox", { name: "What would you like to do?" })).toHaveValue(
+        "my own words",
+      );
+    });
   });
 
   describe("keeps the open conversation in the address", () => {

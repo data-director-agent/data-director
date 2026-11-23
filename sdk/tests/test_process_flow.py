@@ -105,6 +105,29 @@ def test_the_constraints_check_sits_between_sensitive_data_and_the_embargo() -> 
     )
 
 
+def test_storage_is_planned_before_collection_and_before_the_plan_is_written() -> None:
+    # Our addition to Figure 1: where data live while the project runs, asked whether or not the
+    # researcher has a Data Management Plan.
+    setup = [s.id for s in PHASES[0].steps]
+    assert setup.index("setup.storage") < setup.index("setup.dmp-create")
+    step = next(s for s in PHASES[0].steps if s.id == "setup.storage")
+    assert not (step.optional or step.out_of_scope or step.person_decides)
+    assert step.requirements == ()
+
+
+def test_open_formats_are_chosen_before_collection_and_checked_once_files_exist() -> None:
+    # Our addition to Figure 1: formats chosen before collection, checked again in Phase 4.
+    order = [s.id for p in PHASES for s in p.steps]
+    assert (
+        order.index("setup.vocabularies")
+        < order.index("setup.formats")
+        < order.index("setup.dmp-create")
+        < order.index("preparation.formats")
+    )
+    step = next(s for s in PHASES[0].steps if s.id == "setup.formats")
+    assert not (step.optional or step.out_of_scope or step.person_decides)
+
+
 def test_a_fair_check_of_the_draft_comes_before_submission_and_never_gates_it() -> None:
     # Our addition to Figure 5: FAIR feedback while the researcher can still act on it. Figure 6's
     # check of the published object stays in Phase 6.
@@ -253,7 +276,12 @@ def test_the_steps_passed_over_for_a_served_one_are_named() -> None:
 
 def test_the_suggestion_passes_optional_and_out_of_scope_steps_and_ends_when_all_are_done() -> None:
     start = entry(1)
-    states = {"setup.documentation": "done", "setup.vocabularies": "done"}
+    states = {
+        "setup.documentation": "done",
+        "setup.vocabularies": "done",
+        "setup.storage": "done",
+        "setup.formats": "done",
+    }
     found = suggested_next(progress(start, states, []), start)
     # setup.dmp-create is optional; setup.dmp-review is the next required step.
     assert found is not None and found.step.id == "setup.dmp-review"

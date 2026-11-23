@@ -40,6 +40,9 @@ class SharedField(StrEnum):
 
 # Where a suggestion copied from a person's own words came from: a document kind, or a decision.
 SUGGESTED_FROM_DECISION = "decision"
+# A suggestion a drafter composed by rule from what the deployment's profile vouches for, such as
+# the institution's storage services (derived as `template`).
+SUGGESTED_FROM_INSTITUTION = "institution"
 
 
 class DocumentQuestion(Frozen):
@@ -64,17 +67,26 @@ class DocumentQuestion(Frozen):
     suggestion_derivation: Derivation | None = None
     # The value the question asks for, when every kind of document gives it the same way.
     shared_field: SharedField | None = None
-    # A document kind's value, or "decision": where a suggestion derived as `answer` came from.
+    # Where a suggestion not made by a model came from: a document kind or "decision" for one
+    # derived as `answer`, "institution" for one derived as `template` from the profile.
     suggested_from: str | None = Field(
-        default=None, pattern=r"^(metadata_record|readme|data_dictionary|dmp|other|decision)$"
+        default=None,
+        pattern=r"^(metadata_record|readme|data_dictionary|dmp|other|decision|institution)$",
     )
 
     @model_validator(mode="after")
     def _one_target(self) -> DocumentQuestion:
         if (self.suggested_answer is None) != (self.suggestion_derivation is None):
             raise ValueError("a suggested answer says how it was derived, and only then")
-        if (self.suggestion_derivation == Derivation.ANSWER) != (self.suggested_from is not None):
-            raise ValueError("a suggestion copied from a person's words says where, and only then")
+        institution = self.suggested_from == SUGGESTED_FROM_INSTITUTION
+        if (self.suggestion_derivation == Derivation.TEMPLATE) != institution or (
+            (self.suggestion_derivation == Derivation.ANSWER)
+            != (self.suggested_from is not None and not institution)
+        ):
+            raise ValueError(
+                "a suggestion copied from a person's words, or composed from the profile, says "
+                "where, and only then"
+            )
         cell = (self.gap_file, self.gap_field, self.gap_column)
         if self.gap_part is not None and self.gap_section is None:
             raise ValueError("a question targets a part only within a README section")

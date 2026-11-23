@@ -103,6 +103,7 @@ OWNED_PROFILE_KEYS = frozenset(
         "orchestrator",
         "model_accounts",  # from deployment.yaml; the example's own is not carried
         "institution_repositories",  # from deployment.yaml, as the instance's own institution's
+        "institution_storage",  # likewise
         "administrators",  # from deployment.yaml: deployment roles are the instance's own
         "stewardship",  # likewise
         "tool_servers",  # from the PID resolver
@@ -148,6 +149,8 @@ def profile(
         body["model_accounts"] = deployment.model_accounts
     if deployment.institution_repositories:
         body["institution_repositories"] = deployment.institution_repositories
+    if deployment.institution_storage:
+        body["institution_storage"] = deployment.institution_storage
     if deployment.administrators:
         body["administrators"] = deployment.administrators
     if deployment.stewardship is not None:

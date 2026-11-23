@@ -18,7 +18,7 @@
 import "./ContextPanel.css";
 
 import type { Conversation } from "../../conversation/types";
-import type { ProjectProgress } from "../../flow/types";
+import type { FlowStep, ProjectProgress } from "../../flow/types";
 import type { ProjectSummary } from "../../project/api";
 import type { DocumentsRead } from "../../project/drafted";
 import type { FlowLoad } from "./PhaseTracker";
@@ -41,6 +41,7 @@ export function ContextPanel({
   fairFeedback = false,
   refresh,
   onAsk,
+  onStartStep,
   onInventorySaved,
 }: {
   /** The project the workspace is in, or null before the first message starts one. */
@@ -59,6 +60,8 @@ export function ContextPanel({
   refresh?: unknown;
   /** Puts `text` in the message box, unsent, for the person to send or change. */
   onAsk?: ((text: string) => void) | undefined;
+  /** Starts a new conversation about a step, with its prompt in the message box, unsent. */
+  onStartStep?: ((step: FlowStep) => void) | undefined;
   /** Called once a revised inventory is saved, so that what reads the project reads it again. */
   onInventorySaved?: (() => void) | undefined;
 }) {
@@ -86,7 +89,7 @@ export function ContextPanel({
             projectId={projectId}
             flow={flow.state === "loaded" ? flow.flow : null}
             progress={progress ?? null}
-            onAsk={onAsk}
+            onStartStep={onStartStep}
           />
           {fairFeedback && (
             <FairFeedback

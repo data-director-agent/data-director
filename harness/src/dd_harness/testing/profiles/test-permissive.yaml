@@ -13,6 +13,7 @@ agents:
   stub.document: advise
   stub.facts: advise
   example.hello: advise
+  advisor.storage: advise
   advisor.ethics: advise
   advisor.files: advise
   advisor.dmp: advise

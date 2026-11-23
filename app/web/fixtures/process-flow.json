@@ -46,6 +46,28 @@
           "text": "Select controlled vocabularies and ontologies"
         },
         {
+          "id": "setup.storage",
+          "label": "Plan where your data will be stored and backed up",
+          "optional": false,
+          "out_of_scope": false,
+          "person_decides": false,
+          "prompt": "Help me plan where to store and back up my data while I work on it.",
+          "requirements": [],
+          "text": "Plan storage, backup and security during the project"
+        },
+        {
+          "id": "setup.formats",
+          "label": "Choose open file formats for your data",
+          "optional": false,
+          "out_of_scope": false,
+          "person_decides": false,
+          "prompt": "Help me choose open file formats to collect my data in.",
+          "requirements": [
+            "R3"
+          ],
+          "text": "Choose open formats to collect data in"
+        },
+        {
           "id": "setup.dmp-create",
           "label": "Write a Data Management Plan",
           "optional": true,

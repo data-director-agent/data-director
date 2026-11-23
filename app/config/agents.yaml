@@ -6,6 +6,8 @@
 agents:
   - name: example-hello
     url: http://127.0.0.1:8101
+  - name: advisor-storage
+    url: http://127.0.0.1:8118
   - name: advisor-quality
     url: http://127.0.0.1:8102
   - name: advisor-standards

@@ -176,7 +176,7 @@ def test_a_tool_says_which_steps_its_agent_serves(runs_dir: Path) -> None:
     invoke(conductor(runs_dir, model))
     tools = {t["name"]: t for t in model.sent[0]["tools"]}
     assert tools["advisor_standards"]["description"].endswith(
-        "Serves step(s) setup.vocabularies, preparation.formats."
+        "Serves step(s) setup.vocabularies, setup.formats, preparation.formats."
     )
     assert "Serves" not in tools["example_hello"]["description"]
     # No requirement ID reaches the model, so it has none to repeat (invariant 14).

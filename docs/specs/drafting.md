@@ -49,7 +49,9 @@ project details. A plan is drafted before data exist, so it needs no inventory: 
 and places only what is supplied (invariant 2): the funders, the required repository, the licence,
 the sensitive data and their handling, and the standards people in the project decided, as project
 facts give them, the inventory's files if the data already exist, and the researcher's answers. It
-asks first, as a README does, and every other gap is asked. No model writes a plan's text, so
+asks first, as a README does, and every other gap is asked. Its sharing and preservation question
+asks for what is intended, since the repository and the licence are chosen later (Phases 3 and 5)
+and the plan is updated once they are (`setup.dmp-review`, `post.dmp-update`). No model writes a plan's text, so
 `document_derivation` is always `template`; where a model is configured, it suggests answers only
 from the documents the researcher attached and the project's decisions, beside the questions
 (invariant 7). The Data Management Plan Checker (`advisor.dmp`) reviews an attached plan against
@@ -276,7 +278,14 @@ classes are in the core contract because the conductor, the app and an orchestra
 without knowing the drafter. A question may carry a suggested answer (`suggested_answer`) with
 how it was derived (`suggestion_derivation`); the one is present exactly when the other is. A
 question may name the shared value it asks for (`shared_field`), and a suggestion derived as
-`answer` names where it came from (`suggested_from`, invariant 11). A set
+`answer` names where it came from (`suggested_from`, invariant 11). A suggestion a drafter composed
+by rule from what the deployment's profile vouches for is derived as `template` with
+`suggested_from` `institution`: the Documentation Editor offers the institution's storage
+services (`institution_storage`, which the conductor fills into every `DraftRequest`) to a Data
+Management Plan's question on storage and backup. They say what is available, not what the
+project will use, so they are only offered, as any suggestion is (invariant 7), and the app says
+they come from the institution's own list, not a model
+(`agents/advisor-documentation/tests/test_dmp_storage.py`). A set
 of choices, as a reply's choice `Question` has, is added with the first drafter that
 sets one, TODO(#529).
 

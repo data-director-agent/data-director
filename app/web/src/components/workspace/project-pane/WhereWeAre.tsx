@@ -1,5 +1,6 @@
 /**
- * Where the project stands, in one line, and the step suggested next with a way to ask about it.
+ * Where the project stands, in one line, and the step suggested next, with a way to start a new
+ * conversation about it.
  * The phase strip above the conversation holds the whole journey and its controls (mark done,
  * skip), so they are not repeated here.
  */
@@ -7,9 +8,8 @@
 import { MessageSquarePlus } from "lucide-react";
 
 import { locate } from "../../../flow/journey";
-import type { ProcessFlow, ProjectProgress } from "../../../flow/types";
+import type { FlowStep, ProcessFlow, ProjectProgress } from "../../../flow/types";
 import { Link, journeyPath } from "../../../route";
-import { askAboutStep } from "../../conversation/useAskAbout";
 import { Button } from "../../ui/Button";
 
 /** The first step, in the flow's order, that the project has started and not finished. */
@@ -25,12 +25,13 @@ export function WhereWeAre({
   projectId,
   flow,
   progress,
-  onAsk,
+  onStartStep,
 }: {
   projectId: string;
   flow: ProcessFlow | null;
   progress: ProjectProgress | null;
-  onAsk?: ((text: string) => void) | undefined;
+  /** Starts a new conversation about a step; absent while a reply is awaited. */
+  onStartStep?: ((step: FlowStep) => void) | undefined;
 }) {
   const now = flow && progress ? locate(flow, currentStep(flow, progress)) : null;
   const next = flow && progress ? locate(flow, progress.suggested) : null;
@@ -68,8 +69,8 @@ export function WhereWeAre({
         </dl>
       )}
       <p className="pane-actions">
-        {next && onAsk && (
-          <Button size="small" icon={MessageSquarePlus} onPress={() => onAsk(askAboutStep(next))}>
+        {next && onStartStep && (
+          <Button size="small" icon={MessageSquarePlus} onPress={() => onStartStep(next.step)}>
             Ask about the next step
           </Button>
         )}

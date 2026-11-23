@@ -327,6 +327,32 @@ classes:
       guidance:
         description: The pages the deployment checked the facts it vouches for against.
 
+  InstitutionStorage:
+    description: >-
+      One storage service the deployment's profile names as its institution's, for keeping data
+      while a project runs (the profile's institution_storage, docs/specs/policy-and-identity.md).
+      It holds only what the deployment vouches for: the conductor fills it into the input of an
+      agent that mixes in GivenInstitutionStorage.
+    slots:
+      - storage_id
+      - profile_ref
+      - storage_name
+      - storage_description
+      - storage_kind
+      - approved_for_sensitive
+      - allows_external_collaborators
+      - allowance_gb
+      - charges_for_storage
+      - storage_backup
+      - guidance
+    slot_usage:
+      storage_id:
+        required: true
+      storage_name:
+        required: true
+      guidance:
+        description: The pages the deployment checked the facts it vouches for against.
+
   DocumentationSummary:
     description: >-
       What one document a researcher attached to a project is, without its text: the conductor
@@ -672,7 +698,11 @@ classes:
       as one of this draft's (shared_field), which a drafter may offer as a suggestion but never
       place. With revise, the drafter is asked to revise the current version as a person asked,
       in their words, and the conductor gives the current version the change they asked for
-      (revision_request).
+      (revision_request). The conductor fills institution_storage from the deployment's profile
+      (GivenInstitutionStorage), in a project or not: a Data Management Plan's storage question may
+      offer those services as a suggestion, never place them.
+    mixins:
+      - GivenInstitutionStorage
     slots:
       - schema_class
       - document_kind
@@ -918,6 +948,16 @@ classes:
       needs to know the input class; whatever a caller sent there is replaced.
     slots:
       - institution_repositories
+
+  GivenInstitutionStorage:
+    mixin: true
+    description: >-
+      Mixed into an agent's own input class when the agent reads the storage services the
+      deployment's profile names as its institution's. The conductor fills institution_storage by
+      this name from the profile, in a project or not, and never needs to know the input class;
+      whatever a caller sent there is replaced.
+    slots:
+      - institution_storage
 
   ProposesFacts:
     mixin: true
@@ -1828,10 +1868,12 @@ slots:
     range: SharedField
   suggested_from:
     description: >-
-      Where a suggestion copied from the person's own words came from: the kind of document whose
-      question they answered, or `decision` for a fact people in the project decided. Present
-      exactly when suggestion_derivation is `answer`.
-    pattern: "^(metadata_record|readme|data_dictionary|dmp|other|decision)$"
+      Where a suggestion not made by a model came from: for one copied from the person's own
+      words (suggestion_derivation `answer`), the kind of document whose question they answered,
+      or `decision` for a fact people in the project decided; for one a drafter composed by rule
+      from what the deployment's profile vouches for (suggestion_derivation `template`),
+      `institution`. Present exactly then.
+    pattern: "^(metadata_record|readme|data_dictionary|dmp|other|decision|institution)$"
   answered_in:
     description: The kind of document whose question the answer was recorded to.
     range: DocumentKind
@@ -1970,6 +2012,47 @@ slots:
       Whether the repository charges a fee to deposit. Unlike re3data, a deployment may say it
       charges none.
     range: boolean
+  institution_storage:
+    description: >-
+      The storage services the deployment's profile names as its institution's, filled by the
+      conductor from the profile and never by the caller. Absent when the profile names none.
+    range: InstitutionStorage
+    multivalued: true
+    inlined_as_list: true
+  storage_id:
+    description: >-
+      The deployment's own label for a storage service, such as research-filestore: lower case
+      letters, digits and hyphens.
+    pattern: "^[a-z0-9][a-z0-9-]*$"
+  storage_name:
+    description: The storage service's name, as the institution gives it to researchers.
+  storage_description:
+    description: What the service is for, in a sentence or two a researcher can read.
+  storage_kind:
+    description: What kind of storage service it is.
+    range: StorageKind
+  approved_for_sensitive:
+    description: >-
+      Whether the institution approves the service for personal or otherwise sensitive data.
+      Unknown when not given, which is never taken as approval.
+    range: boolean
+  allows_external_collaborators:
+    description: Whether people outside the institution can be given access to data held there.
+    range: boolean
+  allowance_gb:
+    # A float, and no minimum_value: an agent cites the entry as evidence, and A2A's protobuf
+    # Struct carries every number as a double, so an integer would not hash the same on both
+    # sides of the wire; a bound would break the card's schema digest (#333). The profile's
+    # loader refuses a negative allowance.
+    description: How many gigabytes a project may hold there without charge, where there is a limit.
+    range: float
+  charges_for_storage:
+    description: Whether the institution charges a project for storage there.
+    range: boolean
+  storage_backup:
+    description: >-
+      What the service does to keep copies, as the institution states it, such as nightly
+      snapshots replicated to a second site.
   proposed_facts:
     description: >-
       Facts the agent proposes for a person to confirm. A proposal is never a fact until a person
@@ -2631,6 +2714,18 @@ slots:
     required: true
 
 enums:
+
+  StorageKind:
+    description: The kinds of storage a deployment may name as its institution's.
+    permissible_values:
+      institutional_filestore:
+        description: Networked file storage the institution runs for research data.
+      institutional_cloud:
+        description: Cloud storage the institution provides under its own agreement.
+      managed_cloud:
+        description: A commercial cloud service the institution has approved but does not run.
+      secure_environment:
+        description: A trusted research environment or safe haven for sensitive data.
 
   PersonalDataKind:
     description: >-

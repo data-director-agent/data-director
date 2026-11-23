@@ -89,6 +89,18 @@ institution_repositories:    # optional: your institution's own repositories, ea
                              # to its researchers and suggested first; one no pinned registry
                              # holds stops start-up (docs/specs/deposit.md)
 
+institution_storage:         # optional: your institution's storage for data while a project runs,
+  - storage_id: research-filestore      # each by your own label (lower case, digits, hyphens),
+    storage_name: Research filestore    # with what you vouch for: `storage_kind`
+    storage_kind: institutional_filestore  # (institutional_filestore, institutional_cloud,
+    approved_for_sensitive: true        # managed_cloud, secure_environment),
+    allows_external_collaborators: false  # `approved_for_sensitive` (unknown is never taken as
+    allowance_gb: 10000                 # approval), `allows_external_collaborators`,
+    charges_for_storage: false          # `allowance_gb`, `charges_for_storage`, `storage_backup`
+    storage_backup: Nightly snapshots replicated to a second site   # and the pages you checked.
+    guidance: [https://example.ac.uk/research-storage]  # The storage adviser recommends from
+                             # them and cites them (docs/specs/policy-and-identity.md)
+
 administrators:              # optional: who administers the deployment, by principal identifier
   - https://orcid.org/0000-0002-1825-0097   # (an ORCID iD as a URL). A workbench that signs
                              # people in admits them and no one else. No access to any project
@@ -106,7 +118,7 @@ stewardship:                 # optional: the deployment's data steward teams
                              # (docs/specs/stewardship.md, invariant 1)
 ```
 
-Those seventeen keys are the whole vocabulary. A profile with any other key is refused when the
+Those eighteen keys are the whole vocabulary. A profile with any other key is refused when the
 workbench starts, so a misspelt or out-of-date key cannot look as if it were in force.
 
 ## How it is applied

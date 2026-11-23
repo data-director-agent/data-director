@@ -49,6 +49,8 @@ x-agent: &agent
 x-agents-healthy: &agents-healthy
   example-hello:
     condition: service_healthy
+  advisor-storage:
+    condition: service_healthy
   advisor-quality:
     condition: service_healthy
   advisor-standards:
@@ -128,6 +130,18 @@ services:
       - path: config/local/agents.env
         required: false
       - path: config/local/agents/example-hello.env
+        required: false
+
+  advisor-storage:
+    <<: *agent
+    command: uv run --no-sync dd-advisor-storage serve --host 0.0.0.0 --port 8118 --public-url http://advisor-storage:8118
+    environment:
+      <<: *python-env
+      PORT: "8118"
+    env_file:
+      - path: config/local/agents.env
+        required: false
+      - path: config/local/agents/advisor-storage.env
         required: false
 
   advisor-quality:
