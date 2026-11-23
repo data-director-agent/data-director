@@ -60,6 +60,21 @@ describe("makeScanner", () => {
     expect(await makeScanner({ base: BASE, fetcher }).available()).toBe(false);
   });
 
+  it("asks again after a no, so one failed fetch does not hide the browser route for good", async () => {
+    const { fetcher: served } = bundleServer();
+    let up = false;
+    const fetcher = vi.fn(async (url: string) => {
+      if (!up) throw new TypeError("Failed to fetch");
+      return served(url);
+    });
+    const scanner = makeScanner({ base: BASE, fetcher });
+    expect(await scanner.available()).toBe(false);
+    up = true;
+    expect(await scanner.available()).toBe(true);
+    expect(await scanner.available()).toBe(true);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
   it("fetches the bundle once and gives each scan a fresh worker", async () => {
     const { fetcher, asked } = bundleServer();
     const workers = [fakeWorker(), fakeWorker()];
