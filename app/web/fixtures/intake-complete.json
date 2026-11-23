@@ -42,7 +42,8 @@
     "entry": 1,
     "entry_source": "researcher",
     "passed_over": [
-      "setup.documentation"
+      "setup.documentation",
+      "setup.storage"
     ],
     "reasons": {
       "setup.dmp-review": {
@@ -56,7 +57,7 @@
     "steps": {
       "setup.dmp-review": "skipped"
     },
-    "suggested": "setup.vocabularies"
+    "suggested": "setup.formats"
   },
   "questions": [
     {
