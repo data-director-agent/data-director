@@ -45,7 +45,9 @@ The states ([Data stewards](../specs/stewardship.md), invariant 4) are `open`, `
 |---|---|---|
 | (new) | `open` | The researcher sends it (Flow A) or confirms an agent's offer (Flow B). |
 | `open` | `taken` | A steward takes it. |
-| `open` | `open` | No steward takes it within the time the profile sets (`stewardship.reroute_after`); it is sent to the same team again and the researcher is told ([Data stewards](../specs/stewardship.md), invariant 13). Moving it to another team is TODO(#1308). |
+| `open` | `open` | No steward takes it within the time the profile sets (`stewardship.reroute_after`); it is sent to the same team again and the researcher is told ([Data stewards](../specs/stewardship.md), invariant 13). |
+| `taken` | `taken` | A steward of the team reassigns it to a colleague in the same team, with an optional note (Flow G). |
+| `open`, `taken`, `waiting for researcher` | `open` | A steward of the team transfers it to another team, with a note; nobody holds it until a steward of that team takes it (Flow G). |
 | `taken` | `open` | The steward releases it without resolving it, so a colleague can take it. |
 | `taken` | `waiting for researcher` | The steward asks the researcher something. |
 | `waiting for researcher` | `taken` | The researcher replies. |
@@ -199,7 +201,8 @@ A steward has up to three views beyond the queue, each from the harness and none
 
 Stewards are scarce and are sometimes away (§3.1.1), so escalations belong to a team, not to one person.
 
-- **Release** hands an escalation back to the team's queue, with an optional note. **Reassign** gives it to a named colleague in the same team. **Transfer** moves it to another team, with a required note, and the researcher sees the new team's name.
+- **Release** hands an escalation back to the team's queue, with an optional note. **Reassign** gives a taken escalation to a named colleague in the same team, chosen from a list, with an optional note; any member of the team can do it, not only the steward who took it, so that one who is away is covered. **Transfer** moves a live escalation to another team, chosen from a list, with a required note: it is `open` again, the new team is told, and the researcher sees the new team's name.
+- Neither move offers a colleague who is a member of the project, and neither is offered where there is nobody to pass it to.
 - **Cover.** Any member of a team can lift a pause another member applied, so a hold never outlives a steward's availability.
 - **Conflict of interest.** A steward who is a member or owner of a project acts there only as a member: they cannot take its escalation, clear its gates, pause it or co-approve its deposit. The queue shows such an escalation without the **Take** action, with the reason.
 - Each move appears in the project's log for the researcher.

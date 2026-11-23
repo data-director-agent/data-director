@@ -244,7 +244,8 @@ intended design, and each part says where it is not built yet.
     `membership.member_roles` is the one fold of them (`Membership.add_member`, `change_role`,
     `remove_member`, `members`; `harness/tests/test_project_membership.py`). The project's support
     team (`support_team_chosen`) and its escalations to a data steward (`escalation_opened`, the
-    moves after it, and `escalation_rerouted` when nobody took one in time) are events of the log
+    moves after it, among them `escalation_reassigned` and `escalation_transferred`, and
+    `escalation_rerouted` when nobody took one in time) are events of the log
     too, which give no one a role
     ([Data stewards](stewardship.md), invariant 4), as are what a steward does in the project:
     `steward_viewed`, `steward_message`, `project_paused`, `project_resumed`, `gate_cleared`,

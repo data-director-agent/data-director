@@ -17,7 +17,7 @@ import { formatDateTime } from "../../format";
 import { Link, homePath } from "../../route";
 import { MoveControls } from "./MoveControls";
 import { type Noted, NotedAction } from "./NotedAction";
-import { MOVE_SAID, originSaid, stewardStateSaid } from "./wording";
+import { moveSaid, moveTarget, originSaid, stewardStateSaid } from "./wording";
 
 const WHEN = { dateStyle: "medium", timeStyle: "short" } as const;
 
@@ -63,7 +63,7 @@ export function StewardRequest({
           {escalation.history.map((h, index) => (
             <li key={`${h.move}-${String(index)}`}>
               <time dateTime={h.at}>{formatDateTime(h.at, WHEN)}</time>: {h.by.name}{" "}
-              {MOVE_SAID[h.move] ?? h.move}
+              {moveSaid(h.move, moveTarget(h))}
               {h.note ? `: ${h.note}` : ""}
             </li>
           ))}

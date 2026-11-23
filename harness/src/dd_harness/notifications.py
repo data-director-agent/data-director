@@ -3,11 +3,12 @@
 Nobody should have to watch a queue. Each event in a project's log that someone else must act on
 is a **notice**:
 
-- for the **steward team** the escalation is routed to: it was opened, sent again because nobody
-  took it, or the researcher replied, withdrew or re-opened it. A team is emailed at the address
-  the profile names for it (`StewardTeam.notify`), for the notices it chose (`notify_on`). The
-  deployment holds no person's email address (docs/specs/policy-and-identity.md, invariant 15), so
-  a team address, a shared mailbox or a helpdesk's intake, is the one recipient;
+- for the **steward team** the escalation is routed to: it was opened or transferred to the team,
+  sent again because nobody took it, or the researcher replied, withdrew or re-opened it. A team
+  is emailed at the address the profile names for it (`StewardTeam.notify`), for the notices it
+  chose (`notify_on`). The deployment holds no person's email address
+  (docs/specs/policy-and-identity.md, invariant 15), so a team address, a shared mailbox or a
+  helpdesk's intake, is the one recipient;
 - for the project's **researchers**: a steward asked them something, resolved or handed back the
   escalation, wrote to them, or the escalation was sent to its team again. These are read in the
   app (`for_person`), from the log, and need no address and no store.
@@ -36,6 +37,7 @@ from dd_harness.projects.rules import (
     ESCALATION_REPLIED,
     ESCALATION_REROUTED,
     ESCALATION_RESOLVED,
+    ESCALATION_TRANSFERRED,
     ESCALATION_WAITING,
     ESCALATION_WITHDRAWN,
     STEWARD_MESSAGE,
@@ -54,6 +56,8 @@ STEWARD_QUEUE_PATH = "/steward"
 # and the subject it is sent with; `{team}` is the team's name.
 _TEAM: Mapping[str, tuple[str, str]] = {
     ESCALATION_OPENED: ("opened", "A new request for {team}"),
+    # A transferred escalation is new to the team it is sent to, which hears of it as opened.
+    ESCALATION_TRANSFERRED: ("opened", "A request was passed to {team}"),
     ESCALATION_REROUTED: ("rerouted", "A request for {team} is still waiting for a steward"),
     ESCALATION_REPLIED: ("replied", "A researcher replied to a request for {team}"),
     ESCALATION_WITHDRAWN: ("withdrawn", "A researcher withdrew a request to {team}"),

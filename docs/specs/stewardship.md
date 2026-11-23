@@ -48,8 +48,11 @@ conversation page in the project, under a "Working as a data steward" banner. No
 sending an escalation again (invariant 13, #378): a team's email for each escalation opened, sent
 again, or moved by the researcher; the researcher's "Updates" in the app's banner; and the hourly
 sweep. A steward's list of the projects they may see (#232): `GET /api/steward/projects` and the
-**Projects** page beside the queue, each project listed recorded as read. Everything else in this
-spec is the intended design; each invariant names the issue that builds it.
+**Projects** page beside the queue, each project listed recorded as read. Team working (#1308):
+reassigning a taken escalation to a colleague, transferring one to another team, and the refusal
+of every steward move to a steward who is a member of the project (invariants 2, 4 and 8).
+Everything else in this spec is the intended design; each invariant names the issue that builds
+it.
 
 ## Invariants
 
@@ -101,8 +104,9 @@ spec is the intended design; each invariant names the issue that builds it.
 
 4. **An escalation is a record in the project's log, not a store of its own.** Its events are
    `escalation_opened`, `escalation_taken`, `escalation_released`, `escalation_waiting`,
-   `escalation_replied`, `escalation_resolved`, `escalation_handed_back`, `escalation_withdrawn`
-   and `escalation_reopened`, each naming whom it acted for and its cause like every project event.
+   `escalation_replied`, `escalation_resolved`, `escalation_handed_back`, `escalation_withdrawn`,
+   `escalation_reopened`, `escalation_reassigned` and `escalation_transferred`, each naming whom it
+   acted for and its cause like every project event.
    Its states and the moves between them are the table in
    [Steward escalation flows](../ui/steward-escalation-flows.md#escalation-states); the harness
    refuses any other move. `escalation_opened` records its **origin** (the researcher; the policy
@@ -112,20 +116,31 @@ spec is the intended design; each invariant names the issue that builds it.
    keeps its history. Every later event names the escalation by `escalation_id`, the `event_id` of
    its `escalation_opened`, and a steward's move also records `acting_as: steward`. Each move
    belongs to a side: the researcher's (reply, withdraw, re-open), open to any member of the
-   project, or the steward's (take, release, ask, resolve, hand back), open to a steward of the
-   team it is routed to who is not a member (invariant 2). Asking the researcher, replying,
-   resolving, handing back and re-opening each need a note.
+   project, or the steward's (take, release, ask, resolve, hand back, reassign, transfer), open to
+   a steward of the team it is routed to who is not a member (invariant 2). Asking the researcher,
+   replying, resolving, handing back, re-opening and transferring each need a note.
+
+   **Team working** (§3.1.1: support "availability cannot be assumed"; Flow G). Any steward of the
+   routed team, not only the one who took it, may **reassign** a taken escalation to a colleague
+   in the same team: `escalation_reassigned` names the steward who had it (`from_steward`) and the
+   colleague (`to_steward`), who must be in the team and not a member of the project, and it stays
+   `taken`. A steward of the routed team may **transfer** a live escalation to another of the
+   profile's teams, with a note: `escalation_transferred` names the team it leaves (`from_team`)
+   and the team it goes to (`team_id`); it becomes `open`, nobody holds it, and the new team is
+   told as of a new escalation (invariant 13). The researcher reads each move, with the
+   colleague's or team's name, in the request's history. The harness lists the colleagues and
+   teams each move may name (`permitted_moves[].targets`), so that the shell offers only those.
 
    **Routing.** An escalation goes to the project's **support team**, the steward team its owners
    chose (`support_team_chosen`). With none chosen, it goes to the profile's only team; where the
    profile names several, the sender picks one, and an owner's pick also becomes the project's
    support team. A deployment with no team refuses it (invariant 11). The listing index that finds
    a person's projects in one query ([Storage](storage.md)) also names the team that
-   `support_team_chosen` and `escalation_opened` route to, by a URN no principal signs in as, so
+   `support_team_chosen`, `escalation_opened` and `escalation_transferred` route to, by a URN no principal signs in as, so
    that a team's queue is one query too. A steward reaches an escalation's record and moves
    through `/api/steward/escalations`, and opens the project itself through the steward path
 (invariant 2). Built:
-   `dd_harness.projects.escalations`, `dd_harness.escalation_api`.
+   `dd_harness.projects.escalations`, `dd_harness.escalation_api`, `dd_harness.escalation_targets`.
 
 5. **The agent offers; a person confirms.** No escalation exists until a person confirms it, having
    seen what will be shared. An agent's `abstained` outcome offers an escalation and never raises
@@ -151,7 +166,7 @@ spec is the intended design; each invariant names the issue that builds it.
    | Clear or refuse a gated action | `gate_cleared` or `gate_refused`, naming the referred invocation and a reason | the steward (a §5.1 policy exception) |
    | Pause the project, or lift a pause | `project_paused`, `project_resumed`, each with a reason | the steward's team (invariant 8) |
    | Note on a deposit review item; co-approve a deposit | `steward_note`; `deposit_co_approved` | the researcher approves the deposit (invariant 7) |
-   | Take, release, ask, resolve or hand back an escalation | the escalation events (invariant 4), resolving and handing back with a note | — |
+   | Take, release, ask, resolve, hand back, reassign or transfer an escalation | the escalation events (invariant 4), resolving, handing back and transferring with a note | — |
 
    A steward cannot decide a project fact, approve or reject a version, approve a deposit, change
    membership, or delete or restore a project. A researcher cannot do any of the steward's
@@ -169,17 +184,21 @@ spec is the intended design; each invariant names the issue that builds it.
    behalf. A profile may add a check, never remove one: with `stewardship.deposit_co_approval:
    true`, a deposit also needs a `deposit_co_approved` event by a steward of the project's team,
    naming the package digest the researcher approved; a new package needs a new co-approval. A
-   steward who is a member of the project may not clear its gates or co-approve its deposit,
-   because the person checked would be checking themselves (C14). Not built yet,
-   TODO(#1306, #1308). Built: `gate_cleared` and `gate_refused` (`dd_harness.steward_api`).
+   steward who is a member of the project may not clear its gates, take or move its escalations,
+   or co-approve its deposit, because the person checked would be checking themselves (C14); the
+   queue lists such a steward's moves refused with `member-of-project`, and says why. Co-approval
+   is not built yet, TODO(#1306). Built: `gate_cleared` and `gate_refused`
+   (`dd_harness.steward_api`), and the member refusal of every steward action and move
+   (`dd_harness.steward_api.reach`, `dd_harness.escalation_api.move`).
 
 8. **A pause stops consequential steps until a steward lifts it** (P4, human on the loop). While
    a project is paused, the conductor refuses every run in it whose action class is not `advise`,
    and the harness refuses every deposit, each with the reason code `project_paused` and the
    pause's reason; the researcher can still read, converse with advisers, and write to the
    steward. A pause never lapses on its own: it is lifted only by the steward who applied it or a
-   member of that steward's team. The researcher withdrawing the escalation does not lift it, and
-   the team keeps access to the project until it is lifted. A run already in progress when the
+   member of that steward's team. The researcher withdrawing the escalation does not lift it, nor
+   does transferring the escalation to another team, and the team keeps access to the project
+   until it is lifted. A run already in progress when the
    pause is applied finishes and is recorded. `project_paused` is a new value of the reason-code
    vocabulary, a fixed format: [Contract](contract.md) gains it in the pull request that builds
    pause; a paused run ends `referred`, with `referred_to: data_steward`. Built:
@@ -260,7 +279,7 @@ spec is the intended design; each invariant names the issue that builds it.
     sweep (`dd-harness escalations sweep`, hourly in a deployment) records `escalation_rerouted`
     for the deployment, an accountable role no person signs in as, and the team is emailed and the
     researcher told. It is sent again once each period until someone takes it. Moving it to another
-    team is TODO(#1308). The free-text `response_time` stays what the researcher is told to expect.
+    team is a steward's transfer (invariant 4), never the sweep's. The free-text `response_time` stays what the researcher is told to expect.
     Built: `dd_harness.notifications`, `dd_harness.mail`, `dd_harness.escalation_api.sweep`.
 
 ## Boundaries and contracts
@@ -363,5 +382,4 @@ spec is the intended design; each invariant names the issue that builds it.
 - Mapping identity-provider group claims to teams, TODO(#936).
 - What happens to a project whose owners have all left, and whether a team may look after it,
   TODO(#1309).
-- Cover, reassigning and transferring escalations between stewards and teams, TODO(#1308).
 - The aggregate community and compliance overview (§4.1), TODO(#1307).

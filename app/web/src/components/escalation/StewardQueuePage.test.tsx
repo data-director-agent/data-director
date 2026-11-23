@@ -39,7 +39,7 @@ describe("a data steward's queue", () => {
     expect(await axe(container)).toHaveNoViolations();
 
     await userEvent.click(within(row).getByRole("button", { name: /^Take/ }));
-    expect(api.move).toHaveBeenCalledWith(ROW.project_id, ROW.escalation_id, "take", undefined);
+    expect(api.move).toHaveBeenCalledWith(ROW.project_id, ROW.escalation_id, "take", undefined, undefined);
     expect(api.queue).toHaveBeenCalledTimes(2);
   });
 
@@ -54,10 +54,78 @@ describe("a data steward's queue", () => {
     await userEvent.click(await screen.findByRole("button", { name: /^Resolve/ }));
     await userEvent.type(screen.getByRole("textbox"), "Yes, once anonymised.");
     await userEvent.click(screen.getByRole("button", { name: /^Resolve/ }));
-    expect(api.move).toHaveBeenCalledWith(ROW.project_id, ROW.escalation_id, "resolve", "Yes, once anonymised.");
+    expect(api.move).toHaveBeenCalledWith(
+      ROW.project_id,
+      ROW.escalation_id,
+      "resolve",
+      "Yes, once anonymised.",
+      undefined,
+    );
 
     await userEvent.selectOptions(screen.getByRole("combobox", { name: "Show" }), "resolved");
     expect(api.queue).toHaveBeenLastCalledWith(["resolved"], expect.anything());
+  });
+
+  it("passes a taken request to a colleague the harness lists", async () => {
+    const taken: QueuedEscalation = {
+      ...ROW,
+      state: "taken",
+      permitted_moves: [
+        {
+          move: "reassign",
+          note: "optional",
+          permitted: true,
+          targets: [
+            { id: "https://orcid.org/0000-0003-1415-9269", name: "Grace Example" },
+            { id: "https://orcid.org/0000-0001-5109-3700", name: "Alan Example" },
+          ],
+        },
+      ],
+    };
+    const api = fakeStewardApi(VIEW, [taken]);
+    const { container } = shown(api, <StewardQueuePage />);
+    await userEvent.click(await screen.findByRole("button", { name: /^Reassign/ }));
+    const colleague = screen.getByRole("combobox", { name: /Colleague/ });
+    expect(within(colleague).getAllByRole("option")).toHaveLength(2);
+    await userEvent.selectOptions(colleague, "https://orcid.org/0000-0001-5109-3700");
+    expect(await axe(container)).toHaveNoViolations();
+    await userEvent.click(screen.getByRole("button", { name: /^Reassign/ }));
+    expect(api.move).toHaveBeenCalledWith(
+      ROW.project_id,
+      ROW.escalation_id,
+      "reassign",
+      undefined,
+      "https://orcid.org/0000-0001-5109-3700",
+    );
+  });
+
+  it("transfers a request to another team, with the note it needs", async () => {
+    const open: QueuedEscalation = {
+      ...ROW,
+      permitted_moves: [
+        {
+          move: "transfer",
+          note: "required",
+          permitted: true,
+          targets: [{ id: "faculty", name: "Faculty Data Team" }],
+        },
+      ],
+    };
+    const api = fakeStewardApi(VIEW, [open]);
+    shown(api, <StewardQueuePage />);
+    await userEvent.click(await screen.findByRole("button", { name: /^Transfer/ }));
+    expect(screen.getByRole("combobox", { name: /Team/ })).toHaveValue("faculty");
+    await userEvent.click(screen.getByRole("button", { name: /^Transfer/ }));
+    expect(api.move).not.toHaveBeenCalled();
+    await userEvent.type(screen.getByRole("textbox"), "A matter for the faculty.");
+    await userEvent.click(screen.getByRole("button", { name: /^Transfer/ }));
+    expect(api.move).toHaveBeenCalledWith(
+      ROW.project_id,
+      ROW.escalation_id,
+      "transfer",
+      "A matter for the faculty.",
+      "faculty",
+    );
   });
 
   it("says why a move is refused, rather than hiding it", async () => {

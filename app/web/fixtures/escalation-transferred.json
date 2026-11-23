@@ -1,0 +1,52 @@
+{
+  "escalation_id": "019a0000-0000-7000-8000-0000000000e1",
+  "history": [
+    {
+      "at": "2026-01-01T00:00:00+00:00",
+      "by": {
+        "assurance": "asserted",
+        "name": "Ada Example",
+        "principal_id": "https://orcid.org/0000-0001-5000-0007",
+        "principal_kind": "person"
+      },
+      "event_id": "019a0000-0000-7000-8000-000000000000",
+      "move": "open",
+      "note": "Help, please"
+    },
+    {
+      "acting_as": "steward",
+      "at": "2026-01-01T00:00:00+00:00",
+      "by": {
+        "assurance": "asserted",
+        "name": "Josiah Carberry",
+        "principal_id": "https://orcid.org/0000-0002-1825-0097",
+        "principal_kind": "person"
+      },
+      "event_id": "019a0000-0000-7000-8000-000000000001",
+      "from_team": "library-rdm",
+      "move": "transfer",
+      "note": "A faculty matter",
+      "team_id": "faculty",
+      "team_name": "Faculty Data Team"
+    }
+  ],
+  "note": "Help, please",
+  "opened_at": "2026-01-01T00:00:00+00:00",
+  "opened_by": {
+    "assurance": "asserted",
+    "name": "Ada Example",
+    "principal_id": "https://orcid.org/0000-0001-5000-0007",
+    "principal_kind": "person"
+  },
+  "origin": {
+    "kind": "researcher"
+  },
+  "permitted_moves": [],
+  "routed_at": "2026-01-01T00:00:00+00:00",
+  "scope_shared": [],
+  "state": "open",
+  "taken_by": null,
+  "team_id": "faculty",
+  "team_name": "Faculty Data Team",
+  "updated_at": "2026-01-01T00:00:00+00:00"
+}
