@@ -15,6 +15,7 @@
 #   dmp-template/  data-director-dmp-template  the core requirements for a Data Management Plan
 #   subjects/    data-director-subjects   subject classifications to suggest a field of study from
 #   formats/     data-director-formats    file formats described from their PRONOM records
+#   journals/    data-director-journals   journals by ISSN and title, from a pinned OpenAlex snapshot
 #   mcp-fairsharing/  data-director-mcp-fairsharing  an MCP server for FAIRsharing records
 #   mcp-spdx/         data-director-mcp-spdx         an MCP server for a pinned SPDX licence list
 #   registry-cache/  data-director-registry-cache  a local cache in front of a slowly changing registry
@@ -69,6 +70,7 @@ dependencies = [
   "data-director-dmp-template",
   "data-director-subjects",
   "data-director-formats",
+  "data-director-journals",
   "data-director-mcp-fairsharing",
   "data-director-mcp-spdx",
 ]
@@ -127,7 +129,7 @@ mutation = [
 package = false
 
 [tool.uv.workspace]
-members = ["sdk", "harness", "workbench", "agents/*", "app", "admin", "broker", "deposit-broker", "inventory", "mcp-pid", "mcp-fairsharing", "mcp-spdx", "units", "subjects", "formats", "dmp-template", "registry-cache"]
+members = ["sdk", "harness", "workbench", "agents/*", "app", "admin", "broker", "deposit-broker", "inventory", "mcp-pid", "mcp-fairsharing", "mcp-spdx", "units", "subjects", "formats", "journals", "dmp-template", "registry-cache"]
 
 [tool.uv.sources]
 data-director-sdk = { workspace = true }
@@ -160,6 +162,7 @@ data-director-registry-cache = { workspace = true }
 data-director-dmp-template = { workspace = true }
 data-director-subjects = { workspace = true }
 data-director-formats = { workspace = true }
+data-director-journals = { workspace = true }
 data-director-mcp-fairsharing = { workspace = true }
 data-director-mcp-spdx = { workspace = true }
 
@@ -180,6 +183,7 @@ root_packages = [
   "dd_registry_cache",
   "dd_subjects",
   "dd_formats",
+  "dd_journals",
   "dd_dmp_template",
   "dd_mcp_fairsharing",
   "dd_mcp_spdx",
@@ -344,6 +348,12 @@ source_modules = ["dd_formats"]
 forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_units", "dd_subjects", "dd_dmp_template", "dd_registry_cache", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
 
 [[tool.importlinter.contracts]]
+name = "the journals library imports no other member"
+type = "forbidden"
+source_modules = ["dd_journals"]
+forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_units", "dd_subjects", "dd_formats", "dd_dmp_template", "dd_registry_cache", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
+
+[[tool.importlinter.contracts]]
 name = "the FAIRsharing server imports no other member"
 type = "forbidden"
 source_modules = ["dd_mcp_fairsharing"]
@@ -437,7 +447,7 @@ max-args = 7
 max-returns = 6
 
 [tool.ruff.lint.isort]
-known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_units", "dd_subjects", "dd_formats", "dd_dmp_template", "dd_registry_cache"]
+known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_units", "dd_subjects", "dd_formats", "dd_journals", "dd_dmp_template", "dd_registry_cache"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/*" = ["ANN", "C90", "PLR09", "FBT", "S110"]
@@ -456,7 +466,7 @@ known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hell
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-testpaths = ["sdk/tests", "harness/tests", "workbench/tests", "agents", "app/tests", "admin/tests", "broker/tests", "deposit-broker/tests", "inventory/tests", "mcp-pid/tests", "mcp-fairsharing/tests", "mcp-spdx/tests", "units/tests", "subjects/tests", "formats/tests", "dmp-template/tests", "registry-cache/tests", "scripts/tests"]
+testpaths = ["sdk/tests", "harness/tests", "workbench/tests", "agents", "app/tests", "admin/tests", "broker/tests", "deposit-broker/tests", "inventory/tests", "mcp-pid/tests", "mcp-fairsharing/tests", "mcp-spdx/tests", "units/tests", "subjects/tests", "formats/tests", "journals/tests", "dmp-template/tests", "registry-cache/tests", "scripts/tests"]
 # Test directories are not packages, so every test module is imported by its basename: keep the
 # basenames unique across the workspace. Shared doubles live in `dd_harness.testing` and
 # `dd_agent_advisor_standards.testing`, not in a test directory.
@@ -487,7 +497,7 @@ markers = [
 # and the generated schema are not what is being measured.
 [tool.coverage.run]
 branch = true
-source_pkgs = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_units", "dd_subjects", "dd_formats", "dd_dmp_template", "dd_registry_cache"]
+source_pkgs = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_units", "dd_subjects", "dd_formats", "dd_journals", "dd_dmp_template", "dd_registry_cache"]
 relative_files = true
 
 [tool.coverage.report]
@@ -506,7 +516,7 @@ python_version = "3.14"
 files = [
   "conftest.py", "sdk/src", "sdk/tests", "harness/src", "harness/tests", "harness/scripts", "workbench/src", "workbench/tests",
   "workbench/browser_tests", "workbench/scripts", "agents/*/src", "agents/*/tests", "agents/advisor-standards/scripts", "agents/advisor-repository/scripts", "agents/advisor-policy/scripts",
-  "app/src", "app/tests", "admin/src", "admin/tests", "broker/src", "broker/tests", "deposit-broker/src", "deposit-broker/tests", "inventory/src", "inventory/tests", "mcp-pid/src", "mcp-pid/tests", "mcp-fairsharing/src", "mcp-fairsharing/tests", "mcp-spdx/src", "mcp-spdx/tests", "units/src", "units/tests", "subjects/src", "subjects/tests", "formats/src", "formats/tests", "formats/scripts", "dmp-template/src", "dmp-template/tests", "registry-cache/src", "registry-cache/tests", "scripts",
+  "app/src", "app/tests", "admin/src", "admin/tests", "broker/src", "broker/tests", "deposit-broker/src", "deposit-broker/tests", "inventory/src", "inventory/tests", "mcp-pid/src", "mcp-pid/tests", "mcp-fairsharing/src", "mcp-fairsharing/tests", "mcp-spdx/src", "mcp-spdx/tests", "units/src", "units/tests", "subjects/src", "subjects/tests", "formats/src", "formats/tests", "formats/scripts", "journals/src", "journals/tests", "dmp-template/src", "dmp-template/tests", "registry-cache/src", "registry-cache/tests", "scripts",
 ]
 explicit_package_bases = true
 mypy_path = [
@@ -514,7 +524,7 @@ mypy_path = [
   "agents/advisor-quality/src", "agents/advisor-standards/src", "agents/advisor-repository/src", "agents/advisor-policy/src",
   "agents/advisor-ethics/src", "agents/advisor-dmp/src", "agents/advisor-documentation/src", "agents/advisor-fairness/src",
   "agents/advisor-files/src", "agents/advisor-linking/src", "agents/advisor-metadata/src", "agents/advisor-rights/src",
-  "agents/orchestrator-stub/src", "agents/orchestrator-model/src", "app/src", "app/tests", "admin/src", "broker/src", "deposit-broker/src", "inventory/src", "mcp-pid/src", "units/src", "subjects/src", "formats/src", "dmp-template/src", "registry-cache/src",
+  "agents/orchestrator-stub/src", "agents/orchestrator-model/src", "app/src", "app/tests", "admin/src", "broker/src", "deposit-broker/src", "inventory/src", "mcp-pid/src", "units/src", "subjects/src", "formats/src", "journals/src", "dmp-template/src", "registry-cache/src",
   "agents/orchestrator-stub/src", "agents/orchestrator-model/src", "app/src", "app/tests", "admin/src", "broker/src", "deposit-broker/src", "inventory/src", "mcp-pid/src", "mcp-fairsharing/src", "mcp-spdx/src",
   "harness/tests", "sdk/tests", "broker/tests", "deposit-broker/tests", "scripts/tests",
 ]

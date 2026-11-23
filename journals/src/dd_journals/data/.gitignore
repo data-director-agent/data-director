@@ -1,0 +1,4 @@
+# Built by `uv run dd-journals fetch` from the pinned snapshot (manifest.json); not committed.
+journals.jsonl
+*.part
+archives/
