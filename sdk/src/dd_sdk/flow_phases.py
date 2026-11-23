@@ -20,7 +20,8 @@ controlled vocabularies and ontologies. Figure 1's selection of controlled vocab
 ontologies (R3) is moved to that Phase 4 step, `preparation.vocabularies`: a Data Management Plan
 does not need it, and the repository chosen in Phase 3 decides which vocabularies apply. Some steps
 are ours and in no figure: `setup.project`, describing the project and the data it will produce,
-which every later Phase 1 step plans from; `setup.storage`, planning where data are stored and
+which every later Phase 1 step plans from; `setup.requirements`, finding out what the funder and
+institution require before the plan is written; `setup.storage`, planning where data are stored and
 backed up while the project runs; `setup.formats`, choosing open formats before collection; and
 `deposit.fairness`, a FAIR check of the draft before submission.
 TODO(#245):
@@ -90,6 +91,41 @@ PHASES: tuple[Phase, ...] = (
                     "rest of the plan can build on it."
                 ),
             ),
+            # Not in Figure 1: our addition, before the plan. What the funder and institution
+            # require of a project's data decides what its plan must cover, and how, so it is
+            # found out before the plan is written or reviewed: the Blueprint addresses governance
+            # at the data management planning stage (§3) and confirms what is permitted before
+            # anything else (§5.2). Phase 2's `governance.policies` is still the full check, for a
+            # researcher who joins there and once the data exist.
+            Step(
+                "setup.requirements",
+                "Find out what the funder and institution require of the data plan",
+                label="Find out what your funder and institution require",
+                prompt=(
+                    "What do my funder and institution require me to plan for my data, and what "
+                    "must my Data Management Plan cover?"
+                ),
+            ),
+            # Figure 1: a decision, then create a plan where none exists (optional) or review
+            # and update the one that does. Figure 1 puts it last; here it comes before the
+            # documentation, storage and formats steps, which each work out a section of the plan
+            # in more detail and are placed into it as project facts once decided (#1534).
+            Step(
+                "setup.dmp-create",
+                "Create a Data Management Plan where none exists",
+                optional=True,
+                label="Write a Data Management Plan",
+                prompt=(
+                    "Help me write a Data Management Plan covering how my data will be "
+                    "collected, stored, shared and kept."
+                ),
+            ),
+            Step(
+                "setup.dmp-review",
+                "Review and update the Data Management Plan",
+                label="Review and update your Data Management Plan",
+                prompt="Help me review my Data Management Plan and keep it up to date.",
+            ),
             Step(
                 "setup.documentation",
                 "Draft the data documentation",
@@ -117,30 +153,13 @@ PHASES: tuple[Phase, ...] = (
                 label="Choose open file formats for your data",
                 prompt="Help me choose open file formats to collect my data in.",
             ),
-            # Figure 1: a decision, then create a plan where none exists (optional) or review
-            # and update the one that does.
-            Step(
-                "setup.dmp-create",
-                "Create a Data Management Plan where none exists",
-                optional=True,
-                label="Write a Data Management Plan",
-                prompt=(
-                    "Help me write a Data Management Plan covering how my data will be "
-                    "collected, stored, shared and kept."
-                ),
-            ),
-            Step(
-                "setup.dmp-review",
-                "Review and update the Data Management Plan",
-                label="Review and update your Data Management Plan",
-                prompt="Help me review my Data Management Plan and keep it up to date.",
-            ),
         ),
         name="Plan your data management",
         summary=(
-            "Start from what your project is and the data it will produce, then plan how your "
-            "data will be collected, documented, stored, protected, shared and kept, who looks "
-            "after them and at what cost, and keep the plan up to date."
+            "Start from what your project is, the data it will produce and what your funder and "
+            "institution require, then plan how your data will be collected, documented, stored, "
+            "protected, shared and kept, who looks after them and at what cost, and keep the "
+            "plan up to date."
         ),
     ),
     Phase(

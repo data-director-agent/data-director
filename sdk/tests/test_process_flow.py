@@ -76,7 +76,6 @@ def test_the_data_management_plan_steps_are_in_the_flow_and_in_scope() -> None:
     dmp_steps = {"setup.dmp-create", "setup.dmp-review", "governance.dmp", "post.dmp-update"}
     assert dmp_steps <= STEPS
     assert not dmp_steps & OUT_OF_SCOPE
-    assert [s.id for s in PHASES[0].steps][-2:] == ["setup.dmp-create", "setup.dmp-review"]
     text = describe_flow()
     line = next(x for x in text.splitlines() if "[post.dmp-update]" in x)
     assert "out of scope for now" not in line
@@ -109,11 +108,23 @@ def test_the_constraints_check_sits_between_sensitive_data_and_the_embargo() -> 
     )
 
 
-def test_storage_is_planned_before_collection_and_before_the_plan_is_written() -> None:
+def test_the_requirements_are_found_out_before_the_plan_and_the_plan_before_its_sections() -> None:
+    # Our addition to Figure 1 and our order (#1534): what the funder and institution require
+    # decides what the plan covers, and the plan comes before the steps that work out its sections.
+    setup = [s.id for s in PHASES[0].steps]
+    assert setup.index("setup.project") < setup.index("setup.requirements")
+    assert setup.index("setup.requirements") < setup.index("setup.dmp-create")
+    assert setup.index("setup.requirements") < setup.index("setup.dmp-review")
+    plan = max(setup.index("setup.dmp-create"), setup.index("setup.dmp-review"))
+    for section in ("setup.documentation", "setup.storage", "setup.formats"):
+        assert plan < setup.index(section)
+    step = next(s for s in PHASES[0].steps if s.id == "setup.requirements")
+    assert not (step.optional or step.out_of_scope or step.person_decides)
+
+
+def test_storage_is_planned_before_collection_whether_or_not_there_is_a_plan() -> None:
     # Our addition to Figure 1: where data live while the project runs, asked whether or not the
     # researcher has a Data Management Plan.
-    setup = [s.id for s in PHASES[0].steps]
-    assert setup.index("setup.storage") < setup.index("setup.dmp-create")
     step = next(s for s in PHASES[0].steps if s.id == "setup.storage")
     assert not (step.optional or step.out_of_scope or step.person_decides)
     assert step.requirements == ()
@@ -125,7 +136,6 @@ def test_open_formats_are_chosen_before_collection_and_checked_once_files_exist(
     assert (
         order.index("setup.documentation")
         < order.index("setup.formats")
-        < order.index("setup.dmp-create")
         < order.index("preparation.formats")
     )
     step = next(s for s in PHASES[0].steps if s.id == "setup.formats")
@@ -269,6 +279,8 @@ def test_the_steps_passed_over_for_a_served_one_are_named() -> None:
     found = suggested_next(steps, start)
     assert [s.step.id for s in passed_over(steps, found)] == [
         "setup.project",
+        "setup.requirements",
+        "setup.dmp-review",
         "setup.documentation",
         "setup.storage",
     ]
@@ -281,7 +293,13 @@ def test_the_steps_passed_over_for_a_served_one_are_named() -> None:
     assert passed_over(unserved, suggested_next(unserved, start)) == []
     done = progress(
         start,
-        {"setup.project": "done", "setup.documentation": "done", "setup.storage": "done"},
+        {
+            "setup.project": "done",
+            "setup.requirements": "done",
+            "setup.dmp-review": "done",
+            "setup.documentation": "done",
+            "setup.storage": "done",
+        },
         manifest,
     )
     assert passed_over(done, suggested_next(done, start)) == []
@@ -290,12 +308,7 @@ def test_the_steps_passed_over_for_a_served_one_are_named() -> None:
 
 def test_the_suggestion_passes_optional_and_out_of_scope_steps_and_ends_when_all_are_done() -> None:
     start = entry(1)
-    states = {
-        "setup.project": "done",
-        "setup.documentation": "done",
-        "setup.storage": "done",
-        "setup.formats": "done",
-    }
+    states = {"setup.project": "done", "setup.requirements": "done"}
     found = suggested_next(progress(start, states, []), start)
     # setup.dmp-create is optional; setup.dmp-review is the next required step.
     assert found is not None and found.step.id == "setup.dmp-review"

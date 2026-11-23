@@ -292,6 +292,16 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
     answers are read from the researcher's documents and confirmed like any fact, and are asked
     only once the researcher reaches planning: a researcher who joins at entry 2 or 3 is not
     asked them first.
+    The rest of Phase 1 runs in this order (#1534): what the funder and institution require of the
+    data plan (`setup.requirements`, our addition, served by the Policy Adviser as it serves
+    `governance.policies`), then Figure 1's Data Management Plan decision (`setup.dmp-create` or
+    `setup.dmp-review`), then documentation, storage and formats, which work out sections of the
+    plan in more detail. Figure 1 has the plan last; requirements come first because they decide
+    what the plan must cover, and the plan before its sections because it is what a funder asks
+    for at application. The plan does not move to a later phase: Entry 2 joins at Phase 2, after
+    collection, and `governance.dmp` (R8) checks sharing against a plan that must already exist.
+    The repository and licence chosen in Phases 3 and 5 enter the plan as intentions and are
+    updated later (`setup.dmp-review`, `post.dmp-update`).
     Answers are the researcher's own word, recorded in the project log and read like
     `step_marked` ([Projects](projects.md)). They can be changed at any time, from the phase tracker
     or by answering again. The researcher may skip a question, dismiss the intake, or type instead.

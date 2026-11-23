@@ -2,9 +2,10 @@
 Jisc Open Policy Finder's, DOAJ's and Crossref's journals.
 
 It serves the first step of Phase 2 (Figure 2), checking funder, journal and institutional data
-sharing policies, and the first step of Phase 3 (Figure 3), whether the funder, journal or
-institution mandates a repository. The repositories a policy requires are returned in the form
-`advisor.repository` takes as `RepositoryNeeds.mandated`.
+sharing policies; the same check in Phase 1, before the Data Management Plan is written
+(`setup.requirements`, #1534); and the first step of Phase 3 (Figure 3), whether the funder,
+journal or institution mandates a repository. The repositories a policy requires are returned in
+the form `advisor.repository` takes as `RepositoryNeeds.mandated`.
 
 Grounding invariant: retrieval precedes any model call, and a model's word is never taken alone.
 The first search is fixed rules (`match.py`, `discover.py`); the model advisor then reads what it
@@ -88,7 +89,7 @@ class PolicyAgent:
             "readings.stated.strength": Derived(Derivation.MODEL),
             "readings.stated.value": Derived(Derivation.MODEL),
         },
-        serves=("governance.policies", "repository.mandated"),
+        serves=("setup.requirements", "governance.policies", "repository.mandated"),
         reads_attached=(
             "to find what your institution's policy or your award letter asks of the data, "
             "alongside the published policies, quoting each passage for you to confirm"

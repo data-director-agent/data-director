@@ -5,10 +5,11 @@
 is `retrieval`.
 
 The policy advisor checks what the data and open access policies of a project's funders, journals
-and institution ask of it. It serves two steps of the Blueprint's process flow (§8.2):
+and institution ask of it. It serves three steps of the Blueprint's process flow (§8.2):
 
 | Step | What the agent does |
 |---|---|
+| `setup.requirements` (Phase 1, our addition to Figure 1, #1534) | The same check before data are collected, so that the Data Management Plan is written to what the funder and institution require. It needs only the project's funders, journals and institution, not its data. |
 | `governance.policies` (Phase 2, Figure 2) | Matches each funder, journal and institution to its policy records in FAIRsharing, Jisc Open Policy Finder and, for an open access journal, the Directory of Open Access Journals (DOAJ), and reports what each asks, quoted from the record, and where they differ. |
 | `repository.mandated` (Phase 3, Figure 3) | Reports the repositories a matched policy requires, in the form `advisor.repository` takes as `RepositoryNeeds.mandated`. |
 
