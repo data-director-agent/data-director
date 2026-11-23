@@ -270,6 +270,25 @@ def _cell(column: str, given: str, before: Mapping[str, str]) -> tuple[str, Sour
     return "", Source.UNKNOWN
 
 
+def supplied_definitions(text: str, columns: Sequence[str], limit: int) -> list[dict[str, str]]:
+    """The definitions and units a person gave, as a drafted dictionary's `text` holds them: for
+    each row with a `supplied` value in one of `columns`, its file, field and those values, at
+    most `limit` rows in the dictionary's order. A model is shown them as examples of the
+    researcher's own wording and naming, to suggest the rest from (docs/specs/drafting.md)."""
+    given: list[dict[str, str]] = []
+    for row in csv.DictReader(io.StringIO(text)):
+        values = {
+            c: row[c]
+            for c in columns
+            if row.get(f"{c}_source") == Source.SUPPLIED and (row.get(c) or "").strip()
+        }
+        if values:
+            given.append({"file": row["file"], "field": row["field"], **values})
+            if len(given) == limit:
+                break
+    return given
+
+
 def _earlier_rows(current: CurrentVersion | None) -> dict[tuple[str, str], dict[str, str]]:
     """The current version's rows by (file, field), if it is a CSV data dictionary."""
     if current is None or current.media_type != "text/csv" or not current.document_text:
