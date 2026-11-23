@@ -7,6 +7,7 @@
 import { expect, test } from "@playwright/test";
 
 import project from "../fixtures/project-documents.json" with { type: "json" };
+import answers from "../fixtures/project-answers.json" with { type: "json" };
 import development from "../fixtures/session-development.json" with { type: "json" };
 import { axeViolations, overflow, serveSession } from "./support";
 
@@ -61,5 +62,33 @@ for (const width of [1280, 320]) {
         "page",
       );
     }
+  });
+}
+
+for (const width of [1280, 320]) {
+  test(`a draft's open questions are a tab beside its text, counted, at ${width}px`, async ({
+    page,
+  }) => {
+    const [document] = answers.documents;
+    if (!document) throw new Error("The fixture holds no document.");
+    const asking = { ...answers, documents: [{ ...document, answers: [] }] };
+    await page.route(`/api/projects/${answers.project_id}/documents`, (route) =>
+      route.fulfill({ json: asking }),
+    );
+    await page.route(`/api/projects/${answers.project_id}/documentation`, (route) =>
+      route.fulfill({ json: [] }),
+    );
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`/projects/${answers.project_id}?doc=${document.document_id}`);
+
+    const tab = page.getByRole("tab", { name: "Questions 1 open" });
+    await expect(tab).toBeVisible();
+    await page.screenshot({ path: `test-results/questions-count-${width}.png` });
+    await tab.click();
+    const panel = page.getByRole("tabpanel", { name: /^Questions/ });
+    await expect(panel.getByText(/0 of 1 answered/)).toBeVisible();
+    expect(await axeViolations(page)).toEqual([]);
+    expect(await overflow(page)).toBeLessThanOrEqual(0);
+    await page.screenshot({ path: `test-results/questions-tab-${width}.png` });
   });
 }

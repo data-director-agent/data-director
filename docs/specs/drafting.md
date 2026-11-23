@@ -272,7 +272,7 @@ sets one, TODO(#529).
 researcher that a draft has questions and where to answer them, offers to redraft once they have,
 and says that the draft came from a mock when it did; it never accepts a suggestion for the
 researcher. The app shows the latest version's open questions on the draft's card in the
-conversation and in the Questions section of the project's documents page, each as a text box
+conversation and in the Questions tab of the project's documents page, each as a text box
 labelled by the question and described by what it fills. Those a model suggested an answer for come
 first, all at once, each box starting with the suggestion and saying where it came from, a model
 or the researcher's own answer for another document or a decision (invariant 11); the

@@ -127,6 +127,13 @@ async function pageStatus() {
   return region;
 }
 
+/** Opens the reader's Questions tab and answers its panel. */
+async function questionsTab(): Promise<HTMLElement> {
+  const tab = await screen.findByRole("tab", { name: /^Questions/ });
+  await userEvent.click(tab);
+  return screen.getByRole("tabpanel", { name: /^Questions/ });
+}
+
 describe("digestOf", () => {
   it("is the SHA-256 the harness records for the text", () => {
     expect(digestOf(DRAFT.text)).toBe(DRAFT.digest);
@@ -200,7 +207,11 @@ describe("ProjectPage", () => {
     const { unmount } = renderPage(
       fakeApi({ documents: () => Promise.resolve(unanswered) }),
     );
-    let questions = await screen.findByRole("region", { name: "Questions" });
+    // The tab counts the question still open, so it is found without scrolling past the draft.
+    expect(
+      await screen.findByRole("tab", { name: "Questions 1 open" }),
+    ).toBeVisible();
+    let questions = await questionsTab();
     expect(questions).toHaveTextContent(/0 of 1 answered/);
     expect(
       within(questions).getByRole("textbox", { name: asked.question_prompt }),
@@ -211,7 +222,10 @@ describe("ProjectPage", () => {
     unmount();
 
     renderPage(fakeApi({ documents: () => Promise.resolve(answered) }));
-    questions = await screen.findByRole("region", { name: "Questions" });
+    expect(
+      await screen.findByRole("tab", { name: "Questions" }),
+    ).toBeVisible();
+    questions = await questionsTab();
     expect(questions).toHaveTextContent(/1 of 1 answered/);
     // An answered question is folded away beneath the form, not asked again.
     expect(within(questions).getByText("Answered (1)")).toBeVisible();
@@ -248,7 +262,7 @@ describe("ProjectPage", () => {
     const { container } = renderPage(
       fakeApi({ documents: () => Promise.resolve(suggesting) }),
     );
-    const questions = await screen.findByRole("region", { name: "Questions" });
+    const questions = await questionsTab();
     expect(questions).toHaveTextContent(/0 of 1 answered/);
     expect(within(questions).getAllByText(asked.question_prompt)).toHaveLength(
       1,
@@ -282,6 +296,7 @@ describe("ProjectPage", () => {
       },
     });
     const { container } = renderPage(api);
+    await questionsTab();
     const box = await screen.findByRole("textbox", {
       name: asked.question_prompt,
     });
@@ -296,7 +311,7 @@ describe("ProjectPage", () => {
         [{ answered_question: asked.question_id, answer_text: "Soil cores" }],
       ],
     ]);
-    const questions = await screen.findByRole("region", { name: "Questions" });
+    const questions = screen.getByRole("tabpanel", { name: /^Questions/ });
     expect(questions).toHaveTextContent(/1 of 1 answered/);
     expect(
       screen.queryByRole("textbox", { name: asked.question_prompt }),
@@ -322,12 +337,49 @@ describe("ProjectPage", () => {
       fakeApi({ documents: () => Promise.resolve(twice) }),
       `doc=${document.document_id}&v=1`,
     );
-    const questions = await screen.findByRole("region", { name: "Questions" });
+    // An earlier version's questions cannot be answered, so none is counted as open.
+    expect(
+      await screen.findByRole("tab", { name: "Questions" }),
+    ).toBeVisible();
+    const questions = await questionsTab();
     expect(questions).toHaveTextContent(/asked of an earlier version/);
     expect(
       screen.queryByRole("textbox", {
         name: at(first.questions, 0).question_prompt,
       }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps an answer typed but not saved while another tab is read", async () => {
+    const answered = answersFixture as ProjectDocuments;
+    const document = at(answered.documents, 0);
+    const asked = at(at(document.versions, 0).questions, 0);
+    const unanswered = {
+      ...answered,
+      documents: [{ ...document, answers: [] }],
+    };
+    renderPage(fakeApi({ documents: () => Promise.resolve(unanswered) }));
+    await questionsTab();
+    await userEvent.type(
+      screen.getByRole("textbox", { name: asked.question_prompt }),
+      "Soil cores",
+    );
+    await userEvent.click(screen.getByRole("tab", { name: "Source" }));
+    expect(
+      screen.queryByRole("textbox", { name: asked.question_prompt }),
+    ).not.toBeInTheDocument();
+    await questionsTab();
+    expect(
+      screen.getByRole("textbox", { name: asked.question_prompt }),
+    ).toHaveValue("Soil cores");
+  });
+
+  it("has no Questions tab for a version that asks none", async () => {
+    renderPage(fakeApi());
+    await readme();
+    expect(screen.getByRole("tab", { name: "Preview" })).toBeVisible();
+    expect(
+      screen.queryByRole("tab", { name: /^Questions/ }),
     ).not.toBeInTheDocument();
   });
 
@@ -663,13 +715,32 @@ describe("ProjectPage", () => {
     const asking = {
       ...PROJECT,
       documents: [
-        { ...README, versions: [{ ...DRAFT, stage: "questions" as const }] },
+        {
+          ...README,
+          versions: [
+            {
+              ...DRAFT,
+              stage: "questions" as const,
+              questions: [
+                {
+                  question_id: "q-0000000000000000",
+                  question_prompt: "Who collected the cores?",
+                  gap_section: "Methods",
+                },
+              ],
+            },
+          ],
+        },
         DICTIONARY,
       ],
     };
     renderPage(fakeApi({ documents: () => Promise.resolve(asking) }));
     const article = await readme();
     expect(within(article).getByText(/not the README yet/)).toBeVisible();
+    // With no text yet, it opens on its questions.
+    expect(
+      within(article).getByRole("tab", { name: "Questions 1 open" }),
+    ).toHaveAttribute("aria-selected", "true");
     expect(
       within(article).queryByLabelText("Approve version 1 as it is"),
     ).toBeNull();
@@ -1050,13 +1121,20 @@ describe("ProjectPage, before a version with gaps is approved (#1282)", () => {
     const go = within(article).getByRole("button", {
       name: "Decide on version 1",
     });
-    expect(go.parentElement).toHaveTextContent(/3 gaps, 2 open questions/);
+    const bar = go.closest(".decision-bar") as HTMLElement;
+    expect(bar).toHaveTextContent(/3 gaps, 2 open questions/);
+    await user.click(
+      within(bar).getByRole("button", { name: "Answer 2 open questions" }),
+    );
+    const tab = within(article).getByRole("tab", { name: "Questions 2 open" });
+    expect(tab).toHaveAttribute("aria-selected", "true");
+    expect(tab).toHaveFocus();
     await user.click(go);
     expect(
       within(decisionGroup(article)).getAllByRole("radio")[0],
     ).toHaveFocus();
     // The draft's own headings are the preview's; what this change adds is checked here.
-    expect(await axe(go.parentElement as HTMLElement)).toHaveNoViolations();
+    expect(await axe(bar)).toHaveNoViolations();
     expect(
       await axe(submit.closest("form") as HTMLElement),
     ).toHaveNoViolations();

@@ -1,6 +1,6 @@
 /**
- * A version's Questions section on the project's documents page (docs/specs/drafting.md): one
- * heading, how many are answered, and then, on the latest version, the form (`children`, the same
+ * A version's questions in the Questions tab of the project's documents page
+ * (docs/specs/drafting.md), which the tab labels: how many are answered, and then, on the latest version, the form (`children`, the same
  * form as the draft's card in the conversation), which puts the questions still open and lists the
  * answered ones with their saved answers, folded away beneath it; on an earlier version, every
  * question listed read-only with its answer, since only the latest version's questions can be
@@ -19,14 +19,12 @@ export function QuestionList({
   document,
   version,
   isLatest,
-  headingId,
   children,
 }: {
   document: ProjectDocument;
   version: DocumentVersion;
   /** Whether this is the latest version, whose questions `children` answers. */
   isLatest: boolean;
-  headingId: string;
   /** The form for the latest version's questions, which lists the answered ones too. */
   children?: ReactNode;
 }) {
@@ -35,8 +33,7 @@ export function QuestionList({
   const answeredOnes = version.questions.filter((q) => answers.has(q.question_id));
   const total = version.questions.length;
   return (
-    <section className="question-list" aria-labelledby={headingId}>
-      <h3 id={headingId}>Questions</h3>
+    <div className="question-list">
       <p className="hint">
         {answeredOnes.length} of {total} answered.{" "}
         {isLatest
@@ -44,7 +41,7 @@ export function QuestionList({
           : "These were asked of an earlier version; answer the latest version's questions instead."}
       </p>
       {isLatest ? children : <Listed questions={version.questions} answers={answers} />}
-    </section>
+    </div>
   );
 }
 

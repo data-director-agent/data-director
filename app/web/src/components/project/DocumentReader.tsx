@@ -1,12 +1,17 @@
 /**
- * One document in the project's reader: its name and state, who drafted it, and its text in three
- * tabs (a preview read by its media type, the stored text exactly, and its versions), then one
- * Questions section: on the latest version, the form to answer those still open (the same form as
- * the draft's card in the conversation) with the answered ones folded beneath it, and on an earlier
- * version every question with its answer, read-only; then the form to decide on it while its
- * latest version is undecided. While it is, a bar that stays at the foot of the window says how
- * many gaps and open questions the version has, with a button that takes the focus to the decision,
- * so that a long draft need not be scrolled to its end to decide on it (#1282).
+ * One document in the project's reader: its name and state, who drafted it, and its text in tabs:
+ * a preview read by its media type, the stored text exactly, the version's questions, and its
+ * versions. The Questions tab is there while the version asks any, and its label counts those still
+ * open on the latest version, so that they are found without scrolling past a long draft. On the
+ * latest version it holds the form to answer them (the same form as the draft's card in the
+ * conversation) with the answered ones folded beneath it; on an earlier version, every question with
+ * its answer, read-only. The tab stays mounted while another is shown, so that answers typed and
+ * not yet saved are kept. A version that only asks questions, with no text yet, opens on it.
+ *
+ * Beneath the tabs is the form to decide on the document while its latest version is undecided.
+ * While it is, a bar that stays at the foot of the window says how many gaps and open questions the
+ * version has, with a button that opens the Questions tab and one that takes the focus to the
+ * decision, so that a long draft need not be scrolled to its end to decide on it (#1282).
  *
  * The preview is for reading. A decision names the stored text by its digest, which is what the
  * Source tab shows and what the deposit package will hold. While the person edits, the preview
@@ -41,6 +46,7 @@ import { DocumentPreview } from "./DocumentPreview";
 import { DocumentQuestions } from "./DocumentQuestions";
 import { QuestionList } from "./QuestionList";
 import { RevisionRequest } from "./RevisionRequest";
+import { OpenCount, useReaderTabs } from "./useReaderTabs";
 
 export function DocumentReader({
   projectId,
@@ -85,6 +91,8 @@ export function DocumentReader({
   const [copied, setCopied] = useState<string | null>(null);
   const onEditing = useCallback((text: string | null) => setEditing(text), []);
   const deciding = useRef<HTMLDivElement>(null);
+  const questionsTab = useRef<HTMLDivElement>(null);
+  const tabs = useReaderTabs(document, version, questionsTab);
 
   useEffect(() => {
     if (stale) alert.current?.focus();
@@ -93,7 +101,6 @@ export function DocumentReader({
   if (!latest || !version) return null;
   const isLatest = version.version === latest.version;
   const earlier = document.versions.length - 1;
-
   const decided = (value: ProjectDocuments, said: string) => {
     setStale(null);
     onDecided(value, said);
@@ -163,7 +170,7 @@ export function DocumentReader({
           )}
         </div>
       )}
-      <Tabs className="document-tabs">
+      <Tabs className="document-tabs" selectedKey={tabs.selected} onSelectionChange={tabs.choose}>
         <div className="document-tabs-bar">
           <TabList aria-label={`${name}, version ${version.version}`} className="document-tab-list">
             <Tab id="preview" className="document-tab">
@@ -172,6 +179,16 @@ export function DocumentReader({
             <Tab id="source" className="document-tab">
               Source
             </Tab>
+            {tabs.asks && (
+              <Tab
+                id="questions"
+                className="document-tab"
+                ref={questionsTab}
+                aria-label={tabs.questionsLabel}
+              >
+                Questions <OpenCount open={tabs.open} />
+              </Tab>
+            )}
             {earlier > 0 && (
               <Tab id="history" className="document-tab">
                 Versions ({document.versions.length})
@@ -212,33 +229,38 @@ export function DocumentReader({
           </p>
           <pre className="json-view document-text">{version.text}</pre>
         </TabPanel>
+        {tabs.asks && (
+          <TabPanel
+            id="questions"
+            className="document-tab-panel"
+            shouldForceMount
+            style={({ isInert }) => (isInert ? { display: "none" } : undefined)}
+          >
+            <QuestionList document={document} version={version} isLatest={isLatest}>
+              <DocumentQuestions
+                projectId={projectId}
+                document={document}
+                version={version}
+                name={name}
+                maxLength={answerMaxLength}
+                foldAnswered
+                onAnswered={onAnswered}
+              />
+            </QuestionList>
+          </TabPanel>
+        )}
         {earlier > 0 && (
           <TabPanel id="history" className="document-tab-panel">
             <DocumentHistory document={document} shown={version.version} hrefFor={hrefFor} />
           </TabPanel>
         )}
       </Tabs>
-      <QuestionList
-        document={document}
-        version={version}
-        isLatest={isLatest}
-        headingId={`${headingId}-questions`}
-      >
-        <DocumentQuestions
-          projectId={projectId}
-          document={document}
-          version={version}
-          name={name}
-          maxLength={answerMaxLength}
-          foldAnswered
-          onAnswered={onAnswered}
-        />
-      </QuestionList>
       {isLatest && version.state === "proposed" && (
         <Deciding name={name} version={version}>
           <DecisionBar
             version={version.version}
             gaps={versionGaps(document, version)}
+            onQuestions={tabs.openQuestions}
             onGo={() => deciding.current?.querySelector("input")?.focus()}
           />
           <div ref={deciding}>
@@ -290,17 +312,39 @@ function Deciding({
   );
 }
 
-/** What the version leaves open, kept in view at the foot of the window, and the way to the decision. */
-function DecisionBar({ version, gaps, onGo }: { version: number; gaps: VersionGaps; onGo: () => void }) {
+/**
+ * What the version leaves open, kept in view at the foot of the window, with the way to its open
+ * questions while it has any, and the way to the decision.
+ */
+function DecisionBar({
+  version,
+  gaps,
+  onQuestions,
+  onGo,
+}: {
+  version: number;
+  gaps: VersionGaps;
+  onQuestions: () => void;
+  onGo: () => void;
+}) {
   return (
     <div className={gaps.gaps > 0 ? "decision-bar status-warn" : "decision-bar"}>
       <p>
         Version {version}:{" "}
         {gaps.gaps > 0 ? `${gaps.gapWords}, ${gaps.openWords}` : "no gaps or open questions"}
       </p>
-      <Button size="small" variant="secondary" onPress={onGo}>
-        Decide on version {version}
-      </Button>
+      <p className="decision-bar-actions">
+        {gaps.open > 0 && (
+          <>
+            <Button size="small" variant="quiet" onPress={onQuestions}>
+              Answer {gaps.openWords}
+            </Button>{" "}
+          </>
+        )}
+        <Button size="small" variant="secondary" onPress={onGo}>
+          Decide on version {version}
+        </Button>
+      </p>
     </div>
   );
 }

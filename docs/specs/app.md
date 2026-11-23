@@ -356,8 +356,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     the server records them for the person signed in, refuses a malformed body with nothing
     recorded, and answers `409` for a version no longer the latest or a question it does not ask.
     The card then draws the documents the server read back and says in a status how many answers
-    were recorded. The project's documents page has one Questions section per version, saying how
-    many are answered: on the latest version it holds the same form, with the answered questions
+    were recorded. The project's documents page has a Questions tab beside a version's
+    text while the version asks any, its label counting those still open on the latest version,
+    and the bar beside an undecided version opens it. The tab says how many are answered and keeps
+    answers typed but not saved while another tab is read: on the latest version it holds the same
+    form, with the answered questions
     folded beneath it, each with its answer and "Change"; an earlier version's questions are
     listed only, each with the answer recorded, or saying in words that none is, with the
     suggestion while it is unanswered ([Drafting documents](drafting.md),
