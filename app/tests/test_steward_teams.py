@@ -20,6 +20,7 @@ from dd_app.governance import CREATED_BY_ROUTE, Governance
 from dd_app.routes.escalations import Escalation
 from dd_harness.projects.escalations import NewEscalation
 from dd_harness.storage import ProjectStorage
+from dd_harness.testing import FakeOrcidRegistry
 
 pytestmark = pytest.mark.requirement("C13.6")
 
@@ -35,7 +36,11 @@ def governance(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[Gove
 
 @pytest.fixture
 def client(governance: Governance, tmp_path: Path) -> TestClient:
-    return TestClient(build_app(governance, dist_dir(tmp_path)))
+    # No colleague has a public record here, so ORCID is a stand-in and the id names them.
+    registry = FakeOrcidRegistry(issuer="https://orcid.org", records={})
+    return TestClient(
+        build_app(governance, dist_dir(tmp_path), orcid_transport=registry.transport())
+    )
 
 
 @pytest.fixture
