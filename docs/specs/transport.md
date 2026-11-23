@@ -62,7 +62,13 @@ whom an invocation acts for, and how that is established, is in
     never OpenTelemetry SDK objects. Any other attribute on a span (such as `dd.tool_name`) is
     informational and nothing in Data Director depends on it.
 11. Every run's complete trace, the conductor's spans and the agent's, is written to the run store
-    as the run's `spans.jsonl` artifact, one JSON span per line ([Storage](storage.md)).
+    as the run's `spans.jsonl` artifact, one JSON span per line ([Storage](storage.md)). Before a
+    remote agent's spans join the trace, the harness drops every attribute of a span, its events,
+    links and resource that could hold a secret: a name with a segment such as `token`, `key` or
+    `authorization`, a bearer- or JSON Web Token-shaped value, or a value containing a grant the
+    harness sent for the invocation. Each drop is an `agent.span-secret-dropped` security event,
+    and the run goes on (`dd_harness.span_scrub`, [Security baseline](security.md), invariant 2;
+    `harness/tests/test_span_scrub.py`).
 12. An outcome the conductor decides, including a refusal by the input check or a grounding
     violation, is a completed task (or `RUN_FINISHED`) carrying an envelope. A failed task (or
     `RUN_ERROR`) means the harness could not make a run at all: a malformed request, an unknown

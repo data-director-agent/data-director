@@ -44,6 +44,7 @@ class SecurityEvent(StrEnum):
     BROKER_ENROLMENT_REFUSED = "broker.enrolment-refused"
     BROKER_ACCOUNT_REMOVED = "broker.account-removed"
     BROKER_CALL_REFUSED = "broker.call-refused"
+    SPAN_SECRET_DROPPED = "agent.span-secret-dropped"
 
 
 type Outcome = Literal["success", "failure"]

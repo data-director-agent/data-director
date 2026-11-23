@@ -35,8 +35,10 @@ reviewer reads the control table below against the code and the deployment.
    appear in an envelope, evidence, span, RO-Crate, project log, export or log line. This holds
    by construction: a secret goes only to the client that uses it, and the harness writes no
    secret-bearing attribute. It is checked by a sentinel test for each kind of secret, which runs
-   a real invocation with a recognisable value and searches everything stored. The exception is
-   spans imported from remote agents: the harness stores these as received (TODO(#885)).
+   a real invocation with a recognisable value and searches everything stored. Spans imported
+   from remote agents are the one place the harness does not control what is written, so it
+   drops any attribute there that could hold a secret before storing them
+   ([Transport and tracing](transport.md), invariant 11).
 3. **A secret is read from a file, not from configuration.** Each secret has a `NAME_FILE` form
    read by `dd_sdk.credentials.api_key`, relative to `$CREDENTIALS_DIRECTORY` under systemd
    `LoadCredential=`. A deployment's `.env` files hold no secret values. The harness refuses a
@@ -75,9 +77,9 @@ The status column uses four values:
 | IA-5, IA-5(7) | Secrets are read from credential files, never hard-coded or committed. Setting both a value and its file is an error. | Partial, TODO(#883) | `sdk/src/dd_sdk/credentials.py`, `sdk/tests/test_credentials.py`, `deploy/credentials.sh` |
 | SC-8 | TLS 1.3 from the browser to NGINX. Behind NGINX, traffic is plain HTTP on loopback. The broker requires `https` for a person's own provider. TLS to a remote PostgreSQL is not configured. | Partial, TODO(#887) | `deploy/nginx/data-director.conf`, `broker/src/dd_broker/guard.py` |
 | SC-12, SC-28 | People's own model keys are sealed by the broker with a key-encryption key. Other data at rest is encrypted by the deployment's disk or volume. | Partial; Deployment, TODO(#887) | `broker/src/dd_broker/seal.py`, [A person's own model account](model-accounts.md) |
-| SC-28, SI-12 | No secret reaches a stored record (invariant 2). | Partial, TODO(#885) | `agents/advisor-standards/tests/test_key_not_stored.py`, `agents/orchestrator-model/tests/test_orchestrator_key_not_stored.py`, `agents/advisor-documentation/tests/test_grant_not_stored.py`, `agents/advisor-rights/tests/test_rights_grant_not_stored.py`, `agents/advisor-fairness/tests/test_fairness_grant_not_stored.py`, `broker/tests/test_broker_key_not_leaked.py` |
+| SC-28, SI-12 | No secret reaches a stored record (invariant 2), including spans imported from remote agents. | Met | `harness/tests/test_span_scrub.py`, `agents/advisor-standards/tests/test_key_not_stored.py`, `agents/orchestrator-model/tests/test_orchestrator_key_not_stored.py`, `agents/advisor-documentation/tests/test_grant_not_stored.py`, `agents/advisor-rights/tests/test_rights_grant_not_stored.py`, `agents/advisor-fairness/tests/test_fairness_grant_not_stored.py`, `broker/tests/test_broker_key_not_leaked.py` |
 | AC-3, CM-7 | Store directories and files are private to the service. The shipped units set umask 0027 (0077 for the broker), and the installer creates state directories 0750 and credential directories 0700. The harness does not yet set modes itself. | Partial, TODO(#886) | `deploy/systemd/`, `deploy/install.sh` |
-| AU-2, AU-3, AU-12 | Run provenance records each invocation, the person it acted for and whose account paid (C13). Sign-in, sign-out, sessions ended for a person no longer admitted, the access policy in force, refused callers, minted grants, broker-bypass refusals and broker enrolment are security events: one JSON record each, with time, event, outcome, principal and reason code. Calls between the harness and its agents are not yet authenticated, so they raise no event. | Partial, TODO(#17) | `sdk/src/dd_sdk/security_log.py`, `sdk/tests/test_security_log.py`, `app/tests/test_sign_in.py`, `harness/tests/test_model_grants.py`, `broker/tests/test_broker_security_events.py` |
+| AU-2, AU-3, AU-12 | Run provenance records each invocation, the person it acted for and whose account paid (C13). Sign-in, sign-out, sessions ended for a person no longer admitted, the access policy in force, refused callers, minted grants, broker-bypass refusals, secrets dropped from an agent's spans and broker enrolment are security events: one JSON record each, with time, event, outcome, principal and reason code. Calls between the harness and its agents are not yet authenticated, so they raise no event. | Partial, TODO(#17) | `sdk/src/dd_sdk/security_log.py`, `sdk/tests/test_security_log.py`, `app/tests/test_sign_in.py`, `harness/tests/test_model_grants.py`, `broker/tests/test_broker_security_events.py` |
 | AU-9, AU-11 | A run is written once and never changed. Retention is not yet set. | Partial, TODO(#156) | [Storage](storage.md), invariant 2 |
 | CM-6 | An ambiguous identity configuration, an anonymous principal, and grant settings without keys all stop start-up. | Met | `harness/src/dd_harness/settings.py` and its tests |
 | SI-11 | An error names a setting, not its value (invariant 4). | Met | `harness/src/dd_harness/settings.py` (`redact_location`), `harness/tests/test_storage.py` |
@@ -118,6 +120,7 @@ each unit's `SyslogIdentifier`.
 | `steward.viewed` | harness | A data steward opens, reads or lists a project through the steward path, with its `project_id`; at most once a day for each steward and project, as `steward_viewed` in the project's log. | |
 | `steward.acted` | harness | A data steward takes an action of the closed list in a project, with its `project_id` and `action` (`message`, `pause`, `resume`, `clear_gate`, `refuse_gate`, `propose_edit`). A note's text is never recorded. A refused action is not a security event; it is answered as an outcome. | |
 | `grant.minted` | harness | A model grant is minted, with its agent, invocation, models and account. | |
+| `agent.span-secret-dropped` | harness | A remote agent's span carried an attribute that could hold a secret, and the harness dropped it before storing the span ([Transport and tracing](transport.md), invariant 11). One event per reason in a run, with its `agent_id` and `invocation_id`; never the attribute's name or value. | `dd_harness.span_scrub.Reason` |
 | `agent.broker-bypass-refused` | harness | An agent is refused because it does not call through the model broker. | `model-broker-bypassed` |
 | `broker.enrolled`, `broker.account-removed` | model-broker | A person adds, replaces or removes their own model account. | |
 | `broker.enrolment-refused`, `broker.call-refused` | model-broker | A request is refused for its ticket, grant, agent credential or base URL (`dd_broker.reasons.ACCESS`). A refusal about a provider or an account is not a security event. | `dd_broker.reasons.Reason` |
@@ -148,7 +151,7 @@ Invariant 2 relies on secrets never being handed to a writer, checked by sentine
 than on a redaction pass over records. A redaction pass can only remove values it recognises, so
 it hides a leak instead of preventing it. A sentinel test fails on any path the value takes. The
 one boundary where the harness does not control what is written, spans from another process, is
-where a scrubbing step belongs (TODO(#885)).
+where the scrubbing step is (`dd_harness.span_scrub`).
 
 Security events and run provenance are separate (invariant 5) because C1 scopes its audit trail
 to infrastructure and access control, and C13 scopes its trail to agent actions. The two are
@@ -180,7 +183,6 @@ kept for different lengths of time. A failed sign-in has no invocation to belong
   key-encryption key is kept apart from backups.
 - TODO(#882): refuse to serve beyond loopback with no sign-in unless explicitly allowed.
 - TODO(#883): the FAIRsharing password read from a credential file, and a sentinel test for it.
-- TODO(#885): keep secrets out of spans imported from remote agents.
 - TODO(#886): store directories and files private to the service whatever the umask.
 - TODO(#887): operations guidance on encryption at rest and TLS to a remote PostgreSQL.
 - TODO(#17): authentication between the harness and its agents.
