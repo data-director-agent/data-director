@@ -491,6 +491,45 @@ describe("ProjectPage", () => {
     ).toBeVisible();
   });
 
+  it("shows the inventory the project holds, and opens it", async () => {
+    const summary = projectSummary({
+      project_id: PROJECT.project_id,
+      title: "River loggers",
+      created_at: DRAFT.added_at,
+      created_by: DRAFT.added_by,
+      inventory: {
+        added_at: DRAFT.added_at,
+        digest: "sha256:abc",
+        file_count: 3,
+        inventory_made_at: "2026-03-01T10:00:00Z",
+        part_count: null,
+        revises: null,
+      },
+      repository: null,
+      documents: { proposed: 1, approved: 1, rejected: 0 },
+      conversations: [],
+    });
+    renderPage(fakeApi({ projects: () => Promise.resolve([summary]) }));
+    expect(await screen.findByText(/^Inventory:/)).toBeVisible();
+    expect(screen.getByRole("button", { name: "View inventory" })).toBeVisible();
+  });
+
+  it("shows no inventory chip when the project holds none", async () => {
+    const summary = projectSummary({
+      project_id: PROJECT.project_id,
+      title: "River loggers",
+      created_at: DRAFT.added_at,
+      created_by: DRAFT.added_by,
+      inventory: null,
+      repository: null,
+      documents: { proposed: 1, approved: 1, rejected: 0 },
+      conversations: [],
+    });
+    renderPage(fakeApi({ projects: () => Promise.resolve([summary]) }));
+    await screen.findByRole("heading", { level: 1, name: "River loggers" });
+    expect(screen.queryByText(/^Inventory:/)).toBeNull();
+  });
+
   it("renames the project and shows the name the server reads back", async () => {
     const user = userEvent.setup();
     const summary: ProjectSummary = projectSummary({
