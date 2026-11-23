@@ -1,5 +1,5 @@
 /**
- * A draft's questions, on its card in the conversation and in the Questions section of the
+ * A draft's questions, on its card in the conversation and in the Questions tab of the
  * project's documents page (docs/specs/drafting.md, docs/specs/app.md): what the drafter could not
  * read from the project's facts, such as a field's definition, its unit or its missing-value codes.
  *
