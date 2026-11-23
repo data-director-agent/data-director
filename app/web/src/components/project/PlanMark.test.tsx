@@ -125,4 +125,24 @@ describe("PlanMark", () => {
 
     expect(await screen.findByRole("alert")).toBeInTheDocument();
   });
+
+  it("offers the review on the marked plan only", () => {
+    const decideFact = vi.fn<FactsApi["decideFact"]>();
+    renderMark(held("dmp.docx", "b"), [held("dmp.docx", "b")], decideFact);
+    expect(
+      screen.queryByRole("button", { name: /review it/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens the conversation with a review of the plan ready", async () => {
+    const decideFact = vi.fn<FactsApi["decideFact"]>();
+    renderMark(held("dmp.docx", "b", true), [], decideFact);
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Ask the DMP Checker to review it" }),
+    );
+
+    expect(location.search).toBe("?dmp=review");
+    expect(decideFact).not.toHaveBeenCalled();
+  });
 });
