@@ -291,7 +291,7 @@ class Pages:
 
     def feedback_page(self, request: Request) -> Response:
         repo = self.admin.settings.feedback_repo
-        query = urlencode({"q": 'is:issue label:"area: app"', "sort": "created-desc"})
+        query = urlencode({"q": 'is:issue label:"source: feedback form"', "sort": "created-desc"})
         return self.page(
             request,
             "feedback.html",

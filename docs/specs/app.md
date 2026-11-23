@@ -875,7 +875,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   "Project privacy notice" so that it is not taken for the operator's. The address is deliberately not in the profile: it is not policy, and a change to it
   must not change the profile's digest, which every stored run records.
 - **Problem reports** go to one repository, named in the app's configuration, as an issue of type
-  Bug, Feature or Task with the label `area: app`; a Bug also carries `user report`, so that a
+  Bug, Feature or Task with the labels `area: app` and `source: feedback form` (the latter marks every issue the form
+  filed, whatever its kind); a Bug also carries `user report`, so that a
   report from a person using the app is easy to find and to pick out on the project board. The
   person needs no GitHub account. The app
   files them as a GitHub App (`DD_FEEDBACK_GITHUB_APP_ID` and
