@@ -3,10 +3,10 @@
     "agent_id": "advisor.metadata",
     "cases_sha256": "3da7ac55c0fe26d2e7244fde83e4619454a07b1be5e568f422b8d687ba5f2f69",
     "configuration": {},
-    "git_revision": "d11650bffea21c0826661ebdb7deb9a30b80e414",
-    "rule_table_sha256": "b308b055de79759eb87cc1f175a8252b42e75aed23c633fe05b284f154401543",
-    "spec_version": "0.2.0a2",
-    "system_prompt_sha256": "aacf243c0acde0f5ca6943bc8592cf927259324d54a9e5b85b6536d5704a7118"
+    "git_revision": "16f50f64429469a01234acdf679cc21c4df4d6d1",
+    "rule_table_sha256": "4f7e33cbfcf624ef1bb6ab45b3367309d36f24ac6fbf5925227a5fd0a9f79d49",
+    "spec_version": "0.3.0a0",
+    "system_prompt_sha256": "8c93f2f784cf427eb38e681579c9888ea7c858791e60a6b9b269df78da886bbe"
   },
   "scores": {
     "air-quality-sensors": {

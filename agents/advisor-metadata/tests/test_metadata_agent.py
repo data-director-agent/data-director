@@ -10,7 +10,8 @@ from typing import Any
 
 import pytest
 
-from dd_agent_advisor_metadata.agent import DATACITE, MetadataLibrarian
+from dd_agent_advisor_metadata.agent import MetadataLibrarian
+from dd_agent_advisor_metadata.scope import DATACITE
 from dd_harness import orcid
 from dd_harness.testing import SAMPLE_ID, TEST_PRINCIPAL, make_conductor, request, sample_record
 from dd_sdk.agent import describe
@@ -50,7 +51,7 @@ def test_drafts_a_datacite_record_with_every_property_the_repository_asks_for(
     asked = sample()
     env, grounded = draft(runs_dir, asked)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
-    assert env.grounding_mode == GroundingMode.INPUT_ONLY and grounded
+    assert env.grounding_mode == GroundingMode.RETRIEVAL and grounded
     document = env.payload_as(Document)
     assert document.document_kind == DocumentKind.METADATA_RECORD
     assert (document.media_type, document.conforms_to) == ("application/json", DATACITE)

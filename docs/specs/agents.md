@@ -409,6 +409,18 @@ packaged table under one `retrieval` span and says so. The local MCP server is `
 pinned SPDX release; no deployment runs it yet (TODO(#1478)). Still to build: the
 `licence-choice` Skill loaded into the model's prompt (TODO(#280)).
 
+**Worked example: `advisor.metadata`** (partly built, #703). An entry the repository asks for from a
+named subject classification, such as ORDA's categories from the ANZSRC Fields of Research, is
+chosen from that classification's fields. The librarian retrieves them through the gateway
+(`subjects.list_terms`, `advisor-metadata/categories.py`) before its model is called, so the model
+chooses a code from a closed set. Each code kept is retrieved again on its own
+(`subjects.get_term`), and the question's suggestion is that record's label, cited by the record
+the conductor recorded (`tool:subjects/<scheme>:<code>`, hashed whole under
+`dd-json-document-v1`). It has moved from `input_only` to `retrieval`: it records reading its input
+as a retrieval, and with no `subjects` server it suggests no category and says so. The server is
+`mcp-subjects`, over the schemes `dd-subjects` holds; no deployment runs it yet, as with `mcp-spdx`.
+Keywords from terminology services wait for the spike that chooses them (TODO(#956)).
+
 ## Rationale
 
 - **Separate services.** An agent can be written, versioned, deployed, scaled and restarted apart

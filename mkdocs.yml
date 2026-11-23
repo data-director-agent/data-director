@@ -209,6 +209,8 @@ nav:
           - /mcp-fairsharing/README.md
       - SPDX licence list server:
           - /mcp-spdx/README.md
+      - Subject classifications server:
+          - /mcp-subjects/README.md
       - DOAJ server:
           - /mcp-doaj/README.md
       - Agents:

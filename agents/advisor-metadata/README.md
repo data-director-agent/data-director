@@ -1,9 +1,10 @@
 # advisor.metadata
 
-**Model-backed alpha** (`0.2.0a1`): the Metadata Librarian persona
+**Model-backed alpha** (`0.3.0a0`): the Metadata Librarian persona
 ([Agents](../../docs/specs/agents.md), invariant 14), the drafter of a project's metadata record
 (#200). Its model is on by default (`DD_METADATA_SUGGESTER=template` turns it off), and it only
-suggests values beside the record's questions (#698).
+suggests values beside the record's questions (#698): a category only from the classification
+the repository names, citing the field's record (#703).
 
 The Metadata Librarian drafts a metadata record for a dataset, for the researcher to review before
 submission (R2). It serves two steps of the Blueprint's process flow (§8.2):
@@ -103,10 +104,31 @@ address or ORCID iD that the facts do not give. The outcome's statement says how
 offered and why any were dropped.
 
 It is never asked to suggest a creator, contributor, date, rights statement, funder, related
-identifier or place, which only the researcher can give, nor an entry the repository asks for from
-a named vocabulary, such as an ANZSRC field of research.
+identifier or place, which only the researcher can give.
 
-Its grounding mode is `input_only`: it cites only its input. The core `Document` has no
+### Categories from a named classification
+
+An entry the repository asks for from a named subject classification, such as ORDA's categories
+(`subjectScheme: ANZSRC Fields of Research`), is chosen from that classification's fields, never
+written freely (`categories.py`, #703):
+
+1. Before the model is called, the classification's fields are retrieved through the tool
+   gateway (`subjects.list_terms`, from [`mcp-subjects`](../../mcp-subjects/README.md)). The
+   question is offered to the model with those fields (`choose_from`), and the model answers with
+   one field's code.
+2. A code the classification does not hold, or one given to two entries of the same
+   classification, is dropped, and the statement says so.
+3. Each code kept is retrieved again on its own (`subjects.get_term`). The question's suggestion
+   is that record's label, such as "Soil sciences", and the payload cites the record
+   (`tool:subjects/anzsrc-for:4106`), with the record itself in the evidence. A code the gateway
+   does not return is not offered.
+
+With no `subjects` server granted to it, a classification the server does not know, or the
+template suggester, no category is suggested and the question is asked as before. The statement
+says why. Keywords from other vocabularies wait for the choice of terminology services, TODO(#956).
+
+Its grounding mode is `retrieval`: it records reading its input as its first retrieval, and cites
+its input and each classification record a suggestion rests on. The core `Document` has no
 `limitations` slot, so the outcome's statement says what it does not do (docs/specs/agents.md).
 
 ## Configuration
@@ -122,13 +144,19 @@ content. With the setting unset and no key, `dd-advisor-metadata serve` stops at
 set `DD_METADATA_SUGGESTER=template` to run without a model. Settings are described in
 `config/examples/agents.env`.
 
+Its card declares the `subjects` tool server (`list_terms`, `get_term`). The deployment lists the
+server (`DD_TOOLS_CONFIG`, with `id_field: id` and `canonicalisation: dd-json-document-v1`) and
+grants it in the institutional profile (`tool_servers: {advisor.metadata: [subjects]}`); see
+[`mcp-subjects`](../../mcp-subjects/README.md#running-it).
+
 ## What it does not do
 
 - It fills no property that only the researcher can, such as the title or licence, except from
   their recorded answers, and fills creators, subjects and funding only from what researchers kept
   from their ORCID records.
-- It takes no terms from a controlled vocabulary, even one the project chose, and does not split names into given and family names:
-  TODO(#703).
+- It takes terms only from the subject classifications `mcp-subjects` holds, and only for an entry
+  the repository asks for from one; no keywords from other vocabularies, even one the project
+  chose (TODO(#956)). It does not split names into given and family names: TODO(#703).
 - It does not map a record between schemas (R6): for requirements in another standard it
   abstains with `capability_not_implemented`. Conversion between standards, which reports each
   value it could not place, is TODO(#1363). Nor does it write Figshare's own item format (#383).

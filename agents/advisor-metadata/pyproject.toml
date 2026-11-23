@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-agent-advisor-metadata"
-version = "0.2.0a1"
+version = "0.3.0a0"
 description = "advisor.metadata: the Metadata Librarian persona (alpha)"
 requires-python = ">=3.14"
 license = "MIT"
@@ -22,7 +22,9 @@ dd-advisor-metadata = "dd_agent_advisor_metadata.factory:main"
 # What this package's tests import from the workspace (docs/specs/system.md, scripts/check_boundaries.py).
 [dependency-groups]
 dev = [
-  "data-director-harness",
+  "data-director-harness[gateway]",
+  # The subject classifications server, served in process behind the gateway in the tests.
+  "data-director-mcp-subjects",
 ]
 
 [tool.deptry.per_rule_ignores]

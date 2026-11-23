@@ -229,4 +229,7 @@ agents and the harness add the contract's parts, such as classes, evidence and o
   one explicitly, as for Croissant (#933): TODO(#1362).
 - Whether a conversion for a second repository is a derived package or a document a person approves:
   TODO(#1363).
-- How a standard's controlled vocabularies are reached and cited is not decided here: TODO(#703).
+- How a standard's controlled vocabularies are reached and cited is decided for the subject
+  classifications a repository names (ANZSRC, OECD): through the tool gateway, from
+  `mcp-subjects`, each suggested field citing its record ([Drafting documents](drafting.md),
+  invariant 7). Which terminology services keywords and other terms come from: TODO(#956).

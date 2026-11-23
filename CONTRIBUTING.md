@@ -54,6 +54,7 @@ the default home for anything.
 | `dd-dmp-template`, the core requirements of a Data Management Plan (after Science Europe's) | `dmp-template/` |
 | The FAIRsharing server, an MCP server that looks up FAIRsharing records for agents through the tool gateway | `mcp-fairsharing/` |
 | The SPDX server, an MCP server that looks up licences in a pinned release of the SPDX licence list for agents through the tool gateway | `mcp-spdx/` |
+| The subjects server, an MCP server that lists the fields of a subject classification (ANZSRC, OECD) for agents through the tool gateway | `mcp-subjects/` |
 | The DOAJ server, a client and MCP server that reads an open access journal's terms from the Directory of Open Access Journals | `mcp-doaj/` |
 | Repository tooling and tests of the repository as a whole (scripts, shipped configuration, cross-package checks) | `scripts/`, `scripts/tests/` |
 | What governs every package: the Blueprint, system overview, specifications, contract, glossary, requirements register, reviews | `docs/` |
