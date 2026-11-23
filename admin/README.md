@@ -15,9 +15,12 @@ what an operator otherwise reads from several commands:
 - **Configuration:** the settings files under `/etc/data-director`, with any value whose name says
   it is a secret hidden, and the command that changes each.
 - **Feedback:** where the app's feedback goes (GitHub issues).
+- **Cases:** a run, conversation or project downloaded as a case for debugging
+  ([Case files](../docs/specs/casefile.md)), with its content named by digest if it must leave the
+  institution, and the journal lines that name it.
 
-It changes nothing. Every change is still made on the VM's command line, and each page names the
-command.
+It changes nothing (a case download is recorded as a security event). Every change is still made
+on the VM's command line, and each page names the command.
 
 ## Who can reach it
 

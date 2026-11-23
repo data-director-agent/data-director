@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import run_table %}
+{% from "_macros.html" import run_table, case_download %}
 {% block title %}Runs{% endblock %}
 {% block heading %}Runs{% endblock %}
 {% block content %}
@@ -37,5 +37,8 @@
   <span>Page {{ number }} of {{ pages }}</span>
   {% if next %}<a href="{{ next }}" rel="next">Older →</a>{% endif %}
 </nav>
+{% endif %}
+{% if filters.conversation and total %}
+{{ case_download("conversation", filters.conversation, settings.systemd) }}
 {% endif %}
 {% endblock %}

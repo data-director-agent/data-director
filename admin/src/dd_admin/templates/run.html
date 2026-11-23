@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import status, person, cost as cost_of %}
+{% from "_macros.html" import status, person, case_download, cost as cost_of %}
 {% block title %}Run {{ envelope.invocation_id | short }}{% endblock %}
 {% block heading %}Run <span class="mono">{{ envelope.invocation_id }}</span>{% endblock %}
 {% block content %}
@@ -42,5 +42,6 @@
   </details>
 </section>
 {% endif %}
-<p class="muted">The workbench shows the run's trace and evidence in full.</p>
+{{ case_download("run", envelope.invocation_id, settings.systemd) }}
+<p class="muted">The workbench shows the run's trace and evidence in full; so does the case.</p>
 {% endblock %}

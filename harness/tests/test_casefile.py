@@ -6,13 +6,16 @@ from __future__ import annotations
 
 import json
 import logging
+import subprocess
 import zipfile
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from dd_harness import casefile
+from dd_harness.casefile.journal import journal_lines
 from dd_harness.conductor import Conductor
 from dd_harness.projects import ProjectStore
 from dd_harness.server import main
@@ -90,7 +93,13 @@ def world(tmp_path: Path) -> dict[str, Any]:
     }
 
 
-def _export(world: dict[str, Any], scope: str, ident: str, name: str = "case") -> Path:
+def _export(
+    world: dict[str, Any],
+    scope: str,
+    ident: str,
+    name: str = "case",
+    options: casefile.Options | None = None,
+) -> Path:
     target: Path = world["out"] / name
     casefile.export(
         target,
@@ -99,6 +108,7 @@ def _export(world: dict[str, Any], scope: str, ident: str, name: str = "case") -
         scope,
         ident,
         TEST_PRINCIPAL,
+        options,
     )
     return target
 
@@ -249,8 +259,13 @@ def test_the_cli_exports_and_verifies(
     monkeypatch.setenv("DD_PRINCIPAL_NAME", "An operator")
     target = world["out"] / "cli.zip"
     assert main(["case", "export", "--project", world["project"], "-o", str(target)]) == 0
-    assert "case.json sha256:" in capsys.readouterr().out
+    digest = capsys.readouterr().out.split("sha256:")[1].strip()
     assert main(["case", "verify", str(target)]) == 0
+    assert f"sha256:{digest}" in capsys.readouterr().out
+    named = world["out"] / "named.zip"
+    project = ["case", "export", "--project", world["project"], "--content-named"]
+    assert main([*project, "-o", str(named)]) == 0
+    assert casefile.verify(named).not_checked != casefile.verify(target).not_checked
     missing = world["out"] / "missing"
     assert (
         main(
@@ -259,3 +274,202 @@ def test_the_cli_exports_and_verifies(
         == 2
     )
     assert not missing.exists()
+
+
+# --- Content named, and the journal (#1581) ------------------------------------------------------
+
+SECRET = "Soil cores from plot 7 hold arsenic above the limit"
+
+
+def test_naming_keeps_structure_and_names_every_other_string() -> None:
+    value = {
+        "invocation_id": "0190a000-0000-7000-8000-000000000001",
+        "outcome": {"status": "failed", "reason_code": "R1", "statement": SECRET},
+        "payload": {"reply_text": SECRET, "items": [SECRET], "count": 3, "done": True},
+        "attributes": {"dd.input_hash": "abc", "gen_ai.input.messages": SECRET},
+    }
+    named = casefile.name_content(value)
+    assert named["invocation_id"] == value["invocation_id"]
+    assert named["outcome"]["status"] == "failed"
+    assert named["outcome"]["reason_code"] == "R1"
+    assert named["attributes"]["dd.input_hash"] == "abc"
+    assert (named["payload"]["count"], named["payload"]["done"]) == (3, True)
+    texts = [
+        named["outcome"]["statement"],
+        named["payload"]["reply_text"],
+        *named["payload"]["items"],
+        named["attributes"]["gen_ai.input.messages"],
+    ]
+    assert len(set(texts)) == 1
+    assert texts[0].startswith("ni:///sha-256;")
+
+
+def _source_texts(world: dict[str, Any]) -> list[bytes]:
+    """What a named case must not carry: a message, the statements runs made and the project's
+    content."""
+    store = world["conductor"].store
+    statements = [
+        e["outcome"]["statement"].encode()
+        for e in store.iter_envelopes(conversation_id=world["conversation"])
+        if len(e["outcome"].get("statement") or "") > 20
+    ]
+    blobs = world["projects"].log.root / world["project"] / "blobs"
+    content = [p.read_bytes() for p in blobs.rglob("*") if p.is_file()]
+    return [SECRET.encode(), *statements, *(c for c in content if len(c) > 20)]
+
+
+def test_a_named_case_carries_no_text_and_keeps_its_structure(world: dict[str, Any]) -> None:
+    conversation = world["conversation"]
+    _turn(world["conductor"], request("fake.delegation", message(SECRET)), conversation)
+    case = _export(world, "conversation", conversation, "named.zip", casefile.Options("named"))
+    with zipfile.ZipFile(case) as archive:
+        everything = b"".join(archive.read(name) for name in archive.namelist())
+    texts = _source_texts(world)
+    assert len(texts) > 2
+    for text in texts:
+        assert text not in everything
+    source = {
+        e["invocation_id"]: e
+        for e in world["conductor"].store.iter_envelopes(conversation_id=conversation)
+    }
+    with open_case(case) as (runs, projects):
+        found = {e["invocation_id"]: e for e in runs.iter_envelopes(conversation_id=conversation)}
+        assert projects is not None
+        events = projects.events(world["project"])
+    assert found.keys() == source.keys()
+    for invocation_id, envelope in found.items():
+        for key in ("status", "reason_code"):
+            assert envelope["outcome"].get(key) == source[invocation_id]["outcome"].get(key)
+    original = world["projects"].events(world["project"])
+    assert [e["event"] for e in events] == [e["event"] for e in original]
+    report = casefile.verify(case)
+    assert report.passed, report.summary()
+    assert [check.about for check in report.checks] == ["files"]
+
+
+def _entry(message: str, at: datetime) -> str:
+    return json.dumps(
+        {
+            "MESSAGE": message,
+            "__REALTIME_TIMESTAMP": str(int(at.timestamp() * 1_000_000)),
+            "_SYSTEMD_UNIT": "data-director-app.service",
+            "PRIORITY": "6",
+        }
+    )
+
+
+def _journal(world: dict[str, Any], asked: list[tuple[datetime, datetime]]) -> casefile.Journal:
+    run = world["delegated"].invocation_id
+
+    def journal(since: datetime, until: datetime) -> str:
+        asked.append((since, until))
+        at = since + (until - since) / 2
+        logged = {"event": "turn.failed", "invocation_id": run, "outcome": "failure"}
+        lines = [
+            _entry(f"turn {world['conversation']}: {SECRET}", at),
+            _entry(json.dumps(logged), at),
+            _entry("a line about something else", at),
+            "not a journal line",
+        ]
+        return "\n".join(lines)
+
+    return journal
+
+
+def _lines(path: Path) -> list[dict[str, Any]]:
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+
+
+def test_a_case_keeps_the_journal_lines_that_name_it(world: dict[str, Any]) -> None:
+    asked: list[tuple[datetime, datetime]] = []
+    options = casefile.Options(journal=_journal(world, asked))
+    case = _export(world, "run", world["delegated"].invocation_id, options=options)
+    [(since, until)] = asked
+    finished = datetime.fromisoformat(world["delegated"].completed_at.isoformat())
+    assert since < finished < until
+    lines = _lines(case / "journal.jsonl")
+    assert sorted(("record" in line, "message" in line) for line in lines) == [
+        (False, True),
+        (True, False),
+    ]
+    assert all("something else" not in json.dumps(line) for line in lines)
+    timeline = _lines(case / "timeline.jsonl")
+    assert "journal" in {line["kind"] for line in timeline}
+    assert casefile.verify(case).passed
+
+
+def test_a_named_case_names_its_journal_lines_too(world: dict[str, Any]) -> None:
+    options = casefile.Options("named", _journal(world, []))
+    case = _export(world, "run", world["delegated"].invocation_id, options=options)
+    lines = _lines(case / "journal.jsonl")
+    [said] = [line["message"] for line in lines if "message" in line]
+    [record] = [line["record"] for line in lines if "record" in line]
+    assert said.startswith("ni:///sha-256;")
+    assert record["invocation_id"] == world["delegated"].invocation_id
+    assert SECRET not in (case / "timeline.jsonl").read_text(encoding="utf-8")
+
+
+def test_the_journal_command_names_the_deployments_units_and_a_span() -> None:
+    since = datetime(2026, 11, 23, 9, 0, tzinfo=UTC)
+    command = casefile.journal_command(since, since + timedelta(hours=1))
+    assert command[0] == "journalctl"
+    assert command[command.index("--unit") + 1].startswith("data-director")
+    assert command[command.index("--output") + 1] == "json"
+
+
+def test_journal_lines_read_bytes_and_skip_what_is_not_a_line() -> None:
+    run = "0190a000-0000-7000-8000-000000000001"
+    text = "\n".join(
+        [
+            json.dumps({"MESSAGE": list(f"bytes {run}".encode()), "PRIORITY": "3"}),
+            json.dumps(["not", "an", "entry", run]),
+            json.dumps({"MESSAGE": f"{{not json {run}"}),
+            json.dumps({"MESSAGE": json.dumps([run])}),
+        ]
+    )
+    lines = list(journal_lines(text, [run, ""]))
+    assert [("message" in line, "record" in line) for line in lines] == [(True, False)] * 3
+    assert run in lines[0]["message"]
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        subprocess.CalledProcessError(1, "journalctl", stderr="No journal files were found."),
+        subprocess.TimeoutExpired("journalctl", 60),
+    ],
+)
+def test_a_journal_that_cannot_be_read_stops_the_export(
+    world: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    error: Exception,
+) -> None:
+    def fail(*_: object, **__: object) -> None:
+        raise error
+
+    monkeypatch.setattr(subprocess, "run", fail)
+    since = datetime(2026, 11, 23, 9, 0, tzinfo=UTC)
+    with pytest.raises(OSError, match="journalctl"):
+        casefile.read_journal(since, since)
+    monkeypatch.setenv("DD_RUNS_DIR", str(world["conductor"].store.root))
+    monkeypatch.setenv("DD_PRINCIPAL_ID", TEST_PRINCIPAL.principal_id)
+    monkeypatch.setenv("DD_PRINCIPAL_NAME", "An operator")
+    target = world["out"] / "journal.zip"
+    run = world["elsewhere"].invocation_id
+    assert main(["case", "export", "--run", run, "--journal", "-o", str(target)]) == 2
+    assert "journalctl" in capsys.readouterr().err
+    assert not target.exists()
+
+
+def test_the_journal_is_read_as_journalctl_prints_it(monkeypatch: pytest.MonkeyPatch) -> None:
+    asked: list[list[str]] = []
+
+    def run(command: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        asked.append(command)
+        return subprocess.CompletedProcess(command, 0, stdout="{}\n")
+
+    monkeypatch.setattr(subprocess, "run", run)
+    since = datetime(2026, 11, 23, 9, 0, tzinfo=UTC)
+    assert casefile.read_journal(since, since) == "{}\n"
+    assert asked == [casefile.journal_command(since, since)]

@@ -67,3 +67,15 @@
   <td class="num">{{ line.input_tokens | number }}</td><td class="num">{{ line.output_tokens | number }}</td>
   {% if priced %}<td class="num">{% if line.unpriced_tokens and not line.cost %}<span class="muted">unpriced</span>{% else %}{{ line.cost | money }}{% if line.unpriced_tokens %}<span class="muted">*</span>{% endif %}{% endif %}</td>{% endif %}
 {%- endmacro %}
+
+{% macro case_download(scope, ident, journal) -%}
+<section class="panel" aria-labelledby="case-heading">
+  <h2 id="case-heading">Case for debugging</h2>
+  <p>Everything recorded about this {{ scope }}, as a zip a developer can check with <code>dd-harness case verify</code> and open with any reader of the stores (<code>docs/specs/casefile.md</code>). It holds research content and personal data: hand it over privately, and name only its scope, identifier and <code>case.json</code> digest in a public issue. Downloading it is recorded as a security event.</p>
+  <form class="filters case-form" method="get" action="/case/{{ scope }}/{{ ident }}">
+    <label><input type="checkbox" name="content" value="named"> Name content by digest, for a case that must leave the institution</label>
+    {% if journal %}<label><input type="checkbox" name="journal" value="1"> Include the journal lines that name it</label>{% endif %}
+    <button type="submit">Download case</button>
+  </form>
+</section>
+{%- endmacro %}

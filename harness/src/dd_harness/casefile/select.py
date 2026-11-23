@@ -8,8 +8,9 @@ from dataclasses import dataclass
 from typing import Any
 
 from dd_harness.project_log import ProjectLog
+from dd_harness.projects import Projects
 from dd_harness.provenance_graph import project_runs
-from dd_harness.storage import RunStorage
+from dd_harness.storage import ProjectStorage, RunStorage
 
 SCOPES = ("run", "conversation", "project")
 
@@ -24,6 +25,11 @@ class Selection:
     ident: str
     runs: tuple[Mapping[str, Any], ...]
     project_id: str | None
+
+
+def project_log(store: ProjectStorage | None) -> ProjectLog | None:
+    """The log under a project store, which a case copies, if the deployment keeps projects."""
+    return store.log if isinstance(store, Projects) else None
 
 
 def _ordered(envelopes: Iterable[Mapping[str, Any]]) -> tuple[Mapping[str, Any], ...]:

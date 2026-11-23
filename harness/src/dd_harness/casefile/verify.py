@@ -6,6 +6,7 @@ Evidence that cites a source outside the case is not fetched again; the report s
 
 from __future__ import annotations
 
+import hashlib
 import json
 import tempfile
 import zipfile
@@ -24,7 +25,11 @@ from dd_sdk.contract.validate import ContractViolation, validate_envelope
 from dd_sdk.evidence import input_hash
 from dd_sdk.tracing import ATTR_INPUT_HASH, INVOKE_AGENT, SpanRecord, records_from_jsonl
 
-NOT_CHECKED = "evidence citing a source outside the case is not fetched again"
+NOT_FETCHED = "evidence citing a source outside the case is not fetched again"
+NAMED = (
+    "content is named, so no envelope is checked against the contract, no input hash against "
+    "its request and no grounding report against the linter"
+)
 
 
 @dataclass(frozen=True)
@@ -39,6 +44,10 @@ class Check:
 @dataclass
 class VerifyReport:
     checks: list[Check] = field(default_factory=list)
+    # What the case could not be checked for, and why.
+    not_checked: list[str] = field(default_factory=lambda: [NOT_FETCHED])
+    # The SHA-256 of its `case.json`, which names the whole case, once it is read.
+    digest: str | None = None
 
     @property
     def passed(self) -> bool:
@@ -50,8 +59,10 @@ class VerifyReport:
     def summary(self) -> str:
         failed = [c for c in self.checks if not c.passed]
         lines = [f"case: {'passed' if not failed else 'failed'} ({len(self.checks)} checks)"]
+        if self.digest is not None:
+            lines.append(f"  case.json sha256:{self.digest}")
         lines += [f"  failed: {c.about}: {c.detail}" for c in failed]
-        lines.append(f"  not checked: {NOT_CHECKED}")
+        lines += [f"  not checked: {reason}" for reason in self.not_checked]
         return "\n".join(lines)
 
 
@@ -132,12 +143,15 @@ def verify(path: Path) -> VerifyReport:
         if not manifest_path.is_file():
             report.add("manifest", f"no {MANIFEST}")
             return report
+        report.digest = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         if manifest.get("format") != FORMAT:
             report.add("manifest", f"format {manifest.get('format')!r} is not {FORMAT!r}")
             return report
         report.add("files", _files(root, manifest))
-        if (root / RUNS).is_dir():
+        if manifest.get("content") == "named":
+            report.not_checked = [NAMED]
+        elif (root / RUNS).is_dir():
             store = RunStore(root / RUNS)
             for envelope in store.iter_envelopes():
                 _envelope(store, envelope, report)

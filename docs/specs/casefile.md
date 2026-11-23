@@ -7,14 +7,17 @@ coding agent can see exactly what happened and reproduce a failure off the deplo
 report carries only identifiers ([The app](app.md)); a smoke test's findings are what a tester
 saw. A case is the record behind them.
 
-A case is exported by an operator on the deployment's command line (`dd-harness case export`) and
-checked by whoever receives it (`dd-harness case verify`). The test kit opens one as stores
+A case is exported by an operator, on the deployment's command line (`dd-harness case export`) or
+from the admin service's run, conversation and project pages ("Download case"), and checked by
+whoever receives it (`dd-harness case verify`). The test kit opens one as stores
 (`dd_harness.testing.open_case`), so a reported failure becomes a failing test, which is how a case
 reaches the conformance report and the only way it does ([Evaluation and conformance](evaluation.md)).
 
-Out of scope here: the admin service's download and a person's own download from the app (#1576),
-the service journal and content written as digests (TODO(#1581)), and the workbench's import of a
-case (#15).
+A case can carry the service journal's lines that name it, and a case that must leave the
+institution can name its content by digest instead of carrying it.
+
+Out of scope here: a person's own download from the app (TODO(#1586)), and the workbench's import
+of a case (#15).
 
 ## Invariants
 
@@ -32,7 +35,9 @@ case (#15).
      reads ([Provenance](provenance.md)).
 3. **`case.json` names every other file by its SHA-256**, with the format (`dd-case-1`), the
    scope, who exported it and when, the harness and contract versions, and the agents and policy
-   digests of its runs. Its own digest, which the export prints, names the whole case.
+   digests of its runs, and whether its content is `carried` or `named`. Its own digest, which
+   the export and `case verify` print and the admin service sends as `X-Case-Digest`, names the
+   whole case.
 4. **A case is checked, not trusted.** `case verify` checks:
    - every file against `case.json`;
    - every envelope against the contract;
@@ -40,14 +45,35 @@ case (#15).
    - the grounding linter over each run's stored trace against the report the run stored.
      The linter reads `withheld.json` where there is one, since that was what it linted.
 
-   It does not fetch a source outside the case again, and its report says so. Opening a case
-   writes nothing to it.
+   It does not fetch a source outside the case again, and its report says so. In a case whose
+   content is named it checks the files only, and its report says why. Opening a case writes
+   nothing to it.
 5. **`CASE.md` and `timeline.jsonl` are derived.** `CASE.md` lists the runs that did not succeed
-   first, with what to open for each. `timeline.jsonl` merges project events, stage records and
-   run completions by time, each naming its file. Neither is authoritative; the stores are.
+   first, with what to open for each. `timeline.jsonl` merges project events, stage records, run
+   completions and journal lines by time, each naming its file. Neither is authoritative; the
+   stores are.
 6. **Exporting is a security event**, `case.exported`, naming who exported which scope
    ([Security baseline](security.md)).
 7. **A zip depends on its content alone**: fixed entry times, entries in path order.
+8. **Named content fails safe** (`--content-named`; `dd_harness.casefile.naming`). Each record is
+   named on its way into the case, before the file backends write it, so every copy of it they
+   write (an envelope is in the index and in its run's directory) says the same. A string is kept
+   only when the key it sits under says it is structure: an identifier, a time, a status, a code,
+   a version, a digest, a schema, a title or a name, the checks' violations, and the trace's
+   `dd.*` attributes. Every other string is the RFC 6920 `ni:` URI of its UTF-8 bytes, so a field
+   added later is named, not carried. Numbers, booleans and keys are kept, and so are class
+   schemas, which are code, and the checks' text reports (`grounding.txt`, `sources.txt`). No
+   project blob is copied: the events name each by its digest. This follows
+   [Provenance](provenance.md), invariants 5 and 6: titles, file names and a principal's
+   identifier and display name are carried; text is not. `CASE.md` and `timeline.jsonl` are
+   derived from the named records. A named case opens as stores like any other, and the root
+   span's input hash lets whoever holds the original match a run to its request.
+9. **The journal is read, not trusted, and only what names the case is kept** (`--journal`;
+   `dd_harness.casefile.journal`). The lines of the deployment's units (`data-director*`) from
+   five minutes before the case's first record to five after its last that name one of its runs,
+   conversations, project or traces are kept in `journal.jsonl`, each as its time, unit, priority
+   and either its message or, for a line that is a JSON object (the security log), that object.
+   A journal that cannot be read stops the export rather than leaving the lines out silently.
 
 ## Boundaries and contracts
 
@@ -57,9 +83,11 @@ case (#15).
   alternatives). Secrets never reach a record, so none reaches a case, and the span-scrub
   sentinel checks a case too. A case travels **out of band**: the operator hands it to the
   developer privately, and a public issue names only its scope, identifier and `case.json` digest.
-- **Who may export.** Today only someone with the deployment's command line and its stores, who can
-  already read every record. A profile key decides who may export once another surface does
-  (#1576).
+- **Who may export.** Only someone with the deployment's command line and its stores, who can
+  already read every record. The admin service adds nobody: it has no sign-in and answers on
+  loopback only, so whoever reaches it has an SSH session on the VM. It names itself as the
+  exporter (`urn:dd:deployment:admin`). A profile key decides who may export once a surface that
+  people sign in to does, with a person's own download from the app (TODO(#1586)).
 - **Compatibility.** A case is read by the build that reads its stores. A change to the store
   layout or the manifest that an older reader would misread changes the format's version.
 
@@ -79,15 +107,19 @@ exports the same layout as a file one.
 - **A backup (`deploy/backup.sh`).** It holds every person's records and the deployment's
   secrets, not one case.
 - **A redaction step on export.** It would be a second, weaker version of the security baseline's
-  invariant 2, and would hide what a developer needs to see.
+  invariant 2, and would hide what a developer needs to see. Naming content by digest is not
+  redaction: it is all or nothing, decided by key, and `case.json` says so.
+- **Naming content by a list of the keys that hold it.** A field added to a record later would be
+  carried until someone added it to the list; an allow-list of structure fails safe.
 
 ## Non-functional requirements
 
 - Exporting a conversation reads its runs through the store's conversation filter. A project or a
   run outside any conversation may scan the run index once, which is acceptable for an operator
-  command.
+  command. The admin service builds a case in its private `/tmp` and removes it once sent.
+- Reading the journal for a case reads only the case's time span, padded.
 
 ## Open questions
 
-- TODO(#1581): the service journal lines that name a case's runs, and content written as digests
-  for a case that must leave the institution.
+- TODO(#1586): who may download a case from the app, as a profile key, and what such a case
+  leaves out (`withheld.json`).

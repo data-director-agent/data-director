@@ -44,6 +44,8 @@ BRANCH = "main"
 UNPUBLISHED = (
     # An agent's prompts are its code, read by the model rather than by people.
     "agents/*/src/*/*_prompt.md",
+    # A coding agent's Skill is likewise read by the model that follows it.
+    ".claude/skills/*/SKILL.md",
     # The licence of a third-party data snapshot, which travels with the data.
     "agents/*/data/*",
     # The licence of the pinned PRONOM signatures, which travels with the data.

@@ -39,6 +39,7 @@ elsewhere it would need a sign-in, which it does not have (#154).
 | Runs | Every run, newest first, by agent, outcome, person, project or conversation; a run's outcome, who it acted for, telemetry, estimated cost and envelope | The run store |
 | Spend | Spend this month against an optional budget; spend over the last 30 days by day, model and gateway key; the tokens runs recorded over 30 days by model, agent, person and project, with their estimated cost | The LLM gateway's `/spend/logs/v2` and `/model/info`; the run store |
 | Projects | Every project: who created it, its documents and repository; a project's event log and runs | The project store |
+| Download case | On a run, a project, and the runs of one conversation: everything recorded about it, as a case for a developer to debug | The run and project stores; the journal if asked |
 | Configuration | The files under `/etc/data-director`, each with the command that changes it; the stores' locations and the live profile | `/etc/data-director`; the app's `/api/about` |
 | Feedback | A link to the feedback issues | `DD_FEEDBACK_REPO` |
 
@@ -75,6 +76,26 @@ from.
 The service keeps no list of accounts: people are known only from the runs and projects that name
 them. Who may use the workbench is the profile's `administrators`, set in `deployment.yaml` ([Configuration](configuration.md)).
 
+### Downloading a case
+
+A run's page, a project's page and the runs page filtered to one conversation each end with
+**Download case**: a zip of everything recorded about it, which a developer checks with
+`dd-harness case verify` and opens with any reader of the stores, as
+[Case files](../../specs/casefile.md) describes. It is the same case `dd-harness case export`
+writes on the VM. Two options:
+
+- **Name content by digest**, for a case that must leave the institution: every message, prompt,
+  answer and draft is written as its digest; identifiers, times, outcomes, reason codes and titles
+  are kept, and the project's files are left out.
+- **Include the journal lines that name it**, from the deployment's units around the case's time,
+  when the service reads journals (`DD_ADMIN_SYSTEMD`).
+
+A case holds research content and personal data. Hand it to the developer privately, never in a
+public issue, which names only the case's scope, identifier and `case.json` digest (`case verify`
+prints it). Each download is recorded as a `case.exported` security event in the service's
+journal, naming the admin service, since the service has no sign-in. The case is built in the
+service's private `/tmp` and removed once sent.
+
 ### Secrets
 
 No secret is kept in a settings file, and the doctor reports one that is. The configuration page
@@ -102,8 +123,8 @@ journalctl -u data-director-admin -f
 sudo systemctl restart data-director-admin
 ```
 
-It writes nothing. Its unit leaves every directory read-only to it (`ProtectSystem=strict` with no
-`ReadWritePaths`), and it is in the `systemd-journal` group only to read the deployment's logs.
+It writes nothing but a case it is sending, in its private `/tmp`. Its unit leaves every directory
+read-only to it (`ProtectSystem=strict` with no `ReadWritePaths`), and it is in the `systemd-journal` group only to read the deployment's logs.
 
 ### Settings
 
