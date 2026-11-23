@@ -10,8 +10,12 @@ version is no longer the latest or does not ask them (docs/specs/drafting.md);
 `POST /api/projects/{id}/documents/{document_id}/revisions` records the person's request for
 changes to the latest version, in their words, and runs the agent that drafted the document to
 revise it, answering `201` with the run's outcome whether or not it drafted a version, and `409`
-if that version is no longer the latest or no agent drafted the document. Who decided, answered
-or asked is whom the authenticator names, never the body.
+if that version is no longer the latest or no agent drafted the document;
+`POST /api/projects/{id}/documents/{document_id}/drafts` runs the agent that drafted the document
+to draft it again from the project's recorded answers, at either stage and whether or not any
+question is left open, answering `201` with the run's outcome and `409` if the version named is
+no longer the latest or no agent drafted the document. Who decided, answered or asked is whom the
+authenticator names, never the body.
 """
 
 from __future__ import annotations
@@ -46,6 +50,7 @@ from dd_sdk.contract.models import DocumentKind, DraftRequest, InvocationRequest
 DECISION_REFUSED = "Data Director could not record this decision"
 ANSWERS_REFUSED = "Data Director could not record these answers"
 REVISION_REFUSED = "Data Director could not ask for these changes"
+DRAFT_REFUSED = "Data Director could not ask for a new draft"
 
 
 class DocumentDraftedBy(ResponseBody):
@@ -155,10 +160,13 @@ class ProjectDocuments(ResponseBody):
     """After answers: the version whose questions they answered."""
     revised: RevisionRun | MISSING = MISSING
     """After a request for changes: the run that revised the document, or declined to."""
+    drafted: RevisionRun | MISSING = MISSING
+    """After a request for a new draft: the run that drafted the document again, or declined to."""
 
 
 class RevisionRun(ResponseBody):
-    """The run asked to revise a document: its outcome, and the version it drafted, if any."""
+    """The run asked to revise or draft a document again: its outcome, and the version it
+    drafted, if any."""
 
     invocation_id: str
     status: Literal["succeeded", "abstained", "referred", "failed"]
@@ -179,6 +187,17 @@ class RevisionAsked(RequestBody):
     instruction: str = Field(min_length=1)
 
 
+class DraftAsked(RequestBody):
+    """A person's request that the drafter draft the document again from the project's answers,
+    naming the latest version they were shown."""
+
+    refusal: ClassVar[str] = (
+        "A request for a new draft gives `version`, the latest version shown, and never who asked."
+    )
+
+    version: int = Field(ge=1)
+
+
 def routes(deps: Deps) -> list[Route]:
     document = "/api/projects/{project_id}/documents"
     return [
@@ -196,6 +215,11 @@ def routes(deps: Deps) -> list[Route]:
         Route(
             f"{document}/{{document_id}}/revisions",
             in_project(deps, Action.CONTRIBUTE, revise),
+            methods=["POST"],
+        ),
+        Route(
+            f"{document}/{{document_id}}/drafts",
+            in_project(deps, Action.CONTRIBUTE, draft),
             methods=["POST"],
         ),
     ]
@@ -280,14 +304,56 @@ async def revise(request: Request, asker: Principal, deps: Deps) -> Response:
     asked = DraftRequest(
         document_kind=DocumentKind(kind), redraft_document=document_id, revise=True
     )
+    return await _run_drafter(
+        deps, asker, project_id, agent_id, asked, outcome="revised", title=REVISION_REFUSED
+    )
+
+
+async def draft(request: Request, asker: Principal, deps: Deps) -> Response:
+    """Run the document's drafter to draft it again from the project's recorded answers."""
+    project_id = request.path_params["project_id"]
+    document_id = request.path_params["document_id"]
+    body = await parse_body(request, DraftAsked, DRAFT_REFUSED)
+    if isinstance(body, Response):
+        return body
+    try:
+        agent_id, kind = await run_in_threadpool(
+            lambda: deps.projects.documents.drafter_of_latest(project_id, document_id, body.version)
+        )
+    except documents.NoDrafterError as exc:
+        return problem(409, "no-drafter", DRAFT_REFUSED, str(exc))
+    except documents.StaleDraftRequestError as exc:
+        if not exc.found:
+            return problem(404, Refusal.NO_DOCUMENT.value, "No such document", exc.detail)
+        return problem(409, Refusal.NOT_LATEST.value, "The document has moved on", exc.detail)
+    except ProjectError as exc:
+        return project_refused(exc, project_id, DRAFT_REFUSED)
+    asked = DraftRequest(document_kind=DocumentKind(kind), redraft_document=document_id)
+    return await _run_drafter(
+        deps, asker, project_id, agent_id, asked, outcome="drafted", title=DRAFT_REFUSED
+    )
+
+
+async def _run_drafter(
+    deps: Deps,
+    asker: Principal,
+    project_id: str,
+    agent_id: str,
+    asked: DraftRequest,
+    *,
+    outcome: Literal["revised", "drafted"],
+    title: str,
+) -> Response:
+    """Run `agent_id` on `asked` in the project, and answer with the documents and, under
+    `outcome`, the run's outcome and the version it drafted, if any."""
     try:
         envelope = await deps.governance.invoke(
             InvocationRequest(agent_id=agent_id, input=asked), asker, in_project=project_id
         )
     except ProjectError as exc:
-        return project_refused(exc, project_id, REVISION_REFUSED)
+        return project_refused(exc, project_id, title)
     shown = await run_in_threadpool(deps.projects.documents.documents, project_id)
-    drafted = next(
+    version = next(
         (
             {"document_id": v["document_id"], "version": v["version"]}
             for d in shown["documents"]
@@ -296,13 +362,13 @@ async def revise(request: Request, asker: Principal, deps: Deps) -> Response:
         ),
         None,
     )
-    revised = {
+    run = {
         "invocation_id": envelope.invocation_id,
         "status": envelope.outcome.status.value,
         "statement": envelope.outcome.statement,
-        "version": drafted,
+        "version": version,
     }
-    return respond(ProjectDocuments, {**shown, "revised": revised}, status_code=201)
+    return respond(ProjectDocuments, {**shown, outcome: run}, status_code=201)
 
 
 def _change_refused(exc: ProjectError, project_id: str, title: str) -> Response:

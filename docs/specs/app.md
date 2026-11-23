@@ -737,7 +737,13 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   words; it says that only the prose changes and that a fact they state counts as given by them,
   and after the run it says which version revises the one they read, or, in the agent's words, why
   none was drafted ([Drafting](drafting.md), invariant 12;
-  `app/web/src/components/project/RevisionRequest.test.tsx`). The list holds documents only.
+  `app/web/src/components/project/RevisionRequest.test.tsx`). Beneath the latest version of any
+  document an agent drafted, at either stage and with or without open questions, "Continue
+  drafting" asks that agent to draft it again from the answers recorded
+  (`POST /api/projects/{id}/documents/{document_id}/drafts`, naming the version shown); it says
+  beforehand whether questions left unanswered will stay open, and afterwards which version it
+  drafted or, in the agent's words, why none was ([Drafting](drafting.md), invariant 13;
+  `app/web/src/components/project/ContinueDrafting.test.tsx`). The list holds documents only.
 - **A project's pages are tabs.** Beneath the breadcrumb, each of a project's pages is a tab with
   an address of its own, in the order the work goes: Documents (`/projects/{id}`), Project facts
   (`/facts`), People (`/people`), Repository (`/repository`), Use of generative AI (`/ai-use`),

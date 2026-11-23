@@ -130,3 +130,32 @@ def drafter(store: ProjectDocuments, project_id: str, document_id: str) -> tuple
                 return version["drafted_by"]["agent_id"], document["document_kind"]
         raise NoDrafterError("No agent drafted this document, so none can revise it.")
     return "", ""
+
+
+class StaleDraftRequestError(ValueError):
+    """A request to draft a document again that names a document the project does not hold
+    (`found` False) or a version that is not its latest, so nothing runs and nothing is
+    recorded."""
+
+    def __init__(self, detail: str, *, found: bool) -> None:
+        super().__init__(detail)
+        self.detail = detail
+        self.found = found
+
+
+def drafter_of_latest(
+    store: ProjectDocuments, project_id: str, document_id: str, version: int
+) -> tuple[str, str]:
+    """The agent to draft `document_id` again and the document's kind, as `drafter` gives them,
+    once `version` is checked to be the latest the project holds: a person asks for the next
+    draft of what they were shown. Raises `StaleDraftRequestError` otherwise, and
+    `NoDrafterError` if no agent drafted the document."""
+    held = next((d for d in store.documents(project_id) if d["document_id"] == document_id), None)
+    if held is None:
+        raise StaleDraftRequestError("The project holds no such document.", found=False)
+    latest = held["versions"][-1]["version"]
+    if version != latest:
+        raise StaleDraftRequestError(
+            f"Version {version} is not the latest: version {latest} is.", found=True
+        )
+    return drafter(store, project_id, document_id)
