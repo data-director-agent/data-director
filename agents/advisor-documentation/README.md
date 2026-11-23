@@ -152,8 +152,8 @@ alone (`suggest_dmp_prompt.md`), checked as a README's suggestions are, and offe
 question, never placed. Without attached documents it is not asked.
 
 What it does not do: it follows one funder-neutral template, not a funder's own; it does not
-export a machine-actionable plan (RDA DMP Common Standard, #701); and updating a plan after
-publication (`post.dmp-update`) is out of scope.
+export a machine-actionable plan (RDA DMP Common Standard, #701); and it does not update a
+plan after publication (`post.dmp-update`), which no agent serves yet.
 
 ## Prose written by a model
 
@@ -247,8 +247,11 @@ drafted again (`tests/test_suggestions.py`; docs/specs/drafting.md, invariant 7)
 
 - **What it is given.** The same facts as the prose (above), the documents the researcher
   attached (the latest first, up to a fixed length, given as data and never as instructions), and
-  for each question its file, field and column. Never a field's description, the researcher's
-  answers or an earlier version.
+  for each question its file, field and column. Also, as examples, the definitions and units the
+  researcher already gave (`researcher_definitions`, up to 100 rows), so it can suggest the rest in
+  their wording and follow the naming conventions they show, and the project's decisions
+  (`project_decisions`), such as the standards and vocabularies chosen. Both reach a hosted model
+  only as the profile's `hosted_models` allows (`tests/test_dictionary_context.py`).
 - **What is offered.** Only a definition or unit, never a type, format or missing-value code. A
   suggestion is dropped if it is longer than 200 characters, is not one line of plain text, or
   names a link, DOI, email address or ORCID iD the facts do not give; the statement says how many

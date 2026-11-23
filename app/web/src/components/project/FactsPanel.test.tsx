@@ -15,8 +15,9 @@ import {
   factKey,
 } from "../../project/facts";
 import type { Problem } from "../../run/types";
-import { factsPath } from "../../route";
+import { factsPath, homePath } from "../../route";
 import { FactsPanel } from "./FactsPanel";
+import { KIND_LABELS } from "./factWording";
 
 // What the server says (app/tests/test_project_facts.py): two proposals from the files check, the
 // read-back once the duplicate's exclusion is confirmed, and a sensitivity decision refused to a
@@ -310,6 +311,19 @@ describe("FactsPanel", () => {
       fact: { ...kept, commitment_repository: "Zenodo" },
       reason: "We moved to Zenodo.",
     });
+  });
+
+  it("offers to discuss each proposal in a new conversation, and nothing decided", async () => {
+    renderPanel({ facts: () => Promise.resolve(DECIDED) });
+    const [proposal] = DECIDED.proposals;
+    if (!proposal) throw new Error("the fixture has no proposal left");
+    const card = await screen.findByRole("article", { name: new RegExp(KIND_LABELS[proposal.fact.fact_kind]) });
+    expect(within(card).getByRole("link", { name: /Discuss this with Data Director/ })).toHaveAttribute(
+      "href",
+      homePath({ fact: proposal.proposal }),
+    );
+    const decided = screen.getByRole("heading", { name: "Decided" }).nextElementSibling as HTMLElement;
+    expect(within(decided).queryByRole("link", { name: /Discuss this/ })).toBeNull();
   });
 
   describe("reached by a link to some of its facts", () => {

@@ -454,7 +454,7 @@
       "label": "Update your Data Management Plan with what you published",
       "phase_name": "After publication",
       "phase_number": 6,
-      "reason": "out_of_scope",
+      "reason": "no_agent",
       "refers_to": null,
       "step_id": "post.dmp-update"
     },

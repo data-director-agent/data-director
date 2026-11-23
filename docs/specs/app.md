@@ -513,7 +513,14 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     pane names links to it. Such a link names the facts by kind and subject
     (`/projects/{id}/facts?fact={kind}:{subject}`, repeated), and the panel marks them, brings the
     first into view and moves focus to it, or says that none of them is there any more
-    (`ProposedFacts.test.tsx`, `app/web/e2e/facts.spec.ts`). Nothing but the panel decides one.
+    (`ProposedFacts.test.tsx`, `app/web/e2e/facts.spec.ts`). Each proposal also offers **Discuss
+    this with Data Director**, a link to a new conversation (`/?fact={proposal}`) whose message
+    box holds, unsent, a request for help deciding it, in the researcher's voice: the fact in one
+    sentence, the plan's words for a sharing commitment, which agent proposed it and why. The app
+    never gives an agent the reason itself; the person passes it on by sending their message, and
+    may change or remove it first. The address then drops the proposal, and one no longer waiting
+    for a decision fills nothing (`useAskAboutFact.test.tsx`, `app/web/e2e/facts.spec.ts`).
+    Nothing but the panel decides one.
 30. **A person's own settings are on the Settings page.** `/settings`, reached from the cog
     labelled **Settings** in the banner on every page and from the profile page, holds what a
     person sets for themselves, in tabs (**AI account**, **Appearance**, **Dates and times** and

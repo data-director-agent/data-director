@@ -87,6 +87,8 @@ from dd_agent_advisor_documentation.suggestions import (
     Suggestions,
     how_suggested,
     section_asks,
+    with_decisions,
+    with_definitions,
     with_documents,
 )
 from dd_sdk import shared_answers
@@ -246,7 +248,10 @@ class DocumentationEditor:
             text, questions, counts = drafted.text, drafted.questions, drafted.counts
             record, _ = _record(asked.metadata_record)
             questions, suggested = self._suggest(
-                with_documents(_facts(inventory, None, record), asked),
+                with_definitions(
+                    with_decisions(with_documents(_facts(inventory, None, record), asked), asked),
+                    text,
+                ),
                 [
                     Ask(q.question_id, q.gap_file, q.gap_field, q.gap_column)
                     for q in questions
