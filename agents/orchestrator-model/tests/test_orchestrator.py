@@ -19,9 +19,8 @@ from dd_agent_example_hello.agent import HelloWorld
 from dd_agent_orchestrator_model.agent import (
     ModelOrchestrator,
     conversation,
-    tool_schema,
-    tools_from_manifest,
 )
+from dd_agent_orchestrator_model.delegations import tool_schema, tools_from_manifest
 from dd_agent_orchestrator_model.prompt import SYSTEM_PROMPT
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe

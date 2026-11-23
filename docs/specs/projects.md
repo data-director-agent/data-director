@@ -379,7 +379,14 @@ intended design, and each part says where it is not built yet.
     document's text that holds them in `commitment_document`, both required), or a standard,
     vocabulary, ontology or format chosen for the dataset or one field of its tables (`standard`:
     its name, required, its identifier, its kind and what it is for, #1391), or which attached
-    document is the project's Data Management Plan (`data_management_plan`, invariant 32). A succeeded run's proposals are
+    document is the project's Data Management Plan (`data_management_plan`, invariant 32), or
+    what data the project collects, produces or reuses (`data_description`: what, required, and
+    how, which existing data, in which formats and in what volume, each in the researcher's own
+    words; its subject is always `project`, so the last decision is the project's one
+    description, #160). An orchestrator proposes a data description from what the researcher said
+    in a conversation ([Orchestration](orchestration.md), invariant 8), so that once a person
+    confirms it every agent in the project is given it, whichever conversation it runs in, and
+    what the researcher said of their data is not lost with the conversation. A succeeded run's proposals are
     `fact_proposed` events, one each, caused by the run and naming its agent, from a payload of
     any class (`dd_harness.project_effects`); they are checked before anything is written and
     recorded only once the run's draft is kept, so a run that fails leaves none. A person decides each as a `fact_decided` event:

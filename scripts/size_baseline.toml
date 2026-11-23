@@ -5,10 +5,6 @@
 # a file to this list to make a new one pass.
 
 [[file]]
-path = "agents/orchestrator-model/src/dd_agent_orchestrator_model/agent.py"
-lines = 521
-
-[[file]]
 path = "app/web/src/components/inventory/InventoryView.tsx"
 lines = 523
 

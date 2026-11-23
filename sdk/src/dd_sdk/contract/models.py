@@ -355,9 +355,9 @@ class Reply(Grounded):
     )
     # A name for the conversation's project, which the conductor records unless a person named it.
     new_project_title: str | None = Field(default=None, pattern=NEW_PROJECT_TITLE_PATTERN)
-    # An entry point a model worked out, which the conductor records unless the researcher chose
-    # one. The bounds are not in the schema (#333).
+    # A model's entry point, recorded unless the researcher chose one; bounds not in schema (#333).
     new_project_entry: int | None = Field(default=None, ge=1, le=3)
+    proposed_facts: list[ProjectFact] | None = None  # for a person to confirm (ProposesFacts)
 
     @model_validator(mode="after")
     def _question_keys_are_unique(self) -> Reply:

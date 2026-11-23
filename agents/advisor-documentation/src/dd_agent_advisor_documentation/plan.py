@@ -4,9 +4,10 @@ answers (docs/specs/drafting.md). Serves `setup.dmp-create`.
 The plan's sections are the core requirements of `dd_dmp_template`, after Science Europe's, under
 a first section of project details. Each is drafted as a README section is (`outline.py`): what
 people in the project decided (the funders, the repository and licence chosen, how sensitive data
-are handled, the standards chosen) is placed as given, with the inventory's files if the data
-already exist, and what only the researcher can say is a gap with its question. As a README does,
-it asks first: before any answer is recorded, the version is a note that asks.
+are handled, the standards chosen, and the description of the data a person confirmed, from what
+the researcher said in any conversation in the project) is placed as given, with the inventory's
+files if the data already exist, and what only the researcher can say is a gap with its question.
+As a README does, it asks first: before any answer is recorded, the version is a note that asks.
 
 No model writes the plan's text. Where a model is configured, it may suggest answers to some
 sections' questions from the documents the researcher attached, such as a grant application or a
@@ -69,7 +70,11 @@ DETAILS: dict[str, Any] = {
 # from, whether a model may suggest an answer to it (always, or only from attached documents), and
 # the value it shares with other documents. Its heading and what it asks are the template's.
 SECTION_FACTS: dict[str, dict[str, Any]] = {
-    "data-collection": {"from": ["files"], "suggest": "documents"},
+    "data-collection": {
+        "from": ["data_description", "data_description_so_far", "files"],
+        "complete_from": "data_description",
+        "suggest": "documents",
+    },
     "documentation-quality": {"from": ["standards"], "suggest": "documents"},
     "storage-backup": {"suggest": "documents"},
     "legal-ethical": {"from": ["sensitivity"], "suggest": "documents"},

@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.26.0
+version: 0.27.0
 license: MIT
 
 prefixes:
@@ -751,7 +751,8 @@ classes:
       repository a funder or institution requires, whether a file is deposited, whether a
       sensitive field or file may be published and at what precision, the licence, an output a
       data management plan committed to share, a standard, vocabulary or format the researcher
-      chose for the dataset, or which attached document is the project's data management plan (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the
+      chose for the dataset, which attached document is the project's data management plan, or
+      what data the project collects and how (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the
       key a person's decision counts by, so the last decision on a subject stands. An agent's
       payload carries proposals in proposed_facts; only a person's decision makes one a fact, and
       the conductor gives the facts a person decided to every drafter and orchestrator in the
@@ -782,6 +783,11 @@ classes:
       - standard_kind
       - standard_target
       - plan_document
+      - data_collected
+      - data_collection_method
+      - data_formats
+      - data_volume
+      - data_reused
       - proposed_because
     rules:
       - description: A funder fact names the funder.
@@ -863,6 +869,19 @@ classes:
         postconditions:
           slot_conditions:
             plan_document:
+              required: true
+            fact_subject:
+              equals_string: project
+      - description: >-
+          A data description fact says what data the project collects or produces. Its subject is
+          the project, so a project has one current description.
+        preconditions:
+          slot_conditions:
+            fact_kind:
+              equals_string: data_description
+        postconditions:
+          slot_conditions:
+            data_collected:
               required: true
             fact_subject:
               equals_string: project
@@ -978,9 +997,12 @@ classes:
   Reply:
     description: >-
       The payload of a conversational agent: the text of its reply. An orchestrator's reply is
-      grounded on its input and on the envelopes of the invocations it delegated to.
+      grounded on its input and on the envelopes of the invocations it delegated to. An
+      orchestrator may propose a data description fact from what the researcher said, for a
+      person to confirm (docs/specs/orchestration.md).
     mixins:
       - Grounded
+      - ProposesFacts
     slots:
       - schema_class
       - reply_text
@@ -2058,6 +2080,25 @@ slots:
       For a data management plan fact, the digest of the attached document's text (its
       documentation_digest) that is the project's plan.
     pattern: "^[0-9a-f]{64}$"
+  data_collected:
+    description: >-
+      For a data description fact, what data the project collects, produces or reuses, and of
+      which types, in the researcher's words.
+  data_collection_method:
+    description: >-
+      For a data description fact, how the data are collected or produced, in the researcher's
+      words.
+  data_formats:
+    description: >-
+      For a data description fact, the file formats the data are kept in, in the researcher's
+      words.
+  data_volume:
+    description: >-
+      For a data description fact, how much data the project expects, in the researcher's words.
+  data_reused:
+    description: >-
+      For a data description fact, which existing data the project reuses, and how, in the
+      researcher's words.
   standard_name:
     description: >-
       For a standard fact, the name of the standard, vocabulary, ontology or format chosen, as its
@@ -2878,6 +2919,11 @@ enums:
         description: >-
           Which attached document is the project's data management plan. Its subject is always
           "project", so a project has at most one current plan (docs/specs/projects.md, #1447).
+      data_description:
+        description: >-
+          What data the project collects, produces or reuses, how, in which formats and in what
+          volume, in the researcher's words, for a project whose data may not exist yet. Its
+          subject is always "project" (docs/specs/projects.md, #160).
 
   FileDecision:
     description: Whether a file of the inventory is to be deposited.

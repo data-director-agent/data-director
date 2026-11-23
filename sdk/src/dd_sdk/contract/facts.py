@@ -107,6 +107,7 @@ class FactKind(StrEnum):
     SHARING_COMMITMENT = "sharing_commitment"
     STANDARD = "standard"
     DATA_MANAGEMENT_PLAN = "data_management_plan"
+    DATA_DESCRIPTION = "data_description"
 
 
 class FileDecision(StrEnum):
@@ -144,9 +145,12 @@ class LocationPrecision(StrEnum):
 STANDARD_TARGET_PATTERN = r"^(dataset|field:\S.*)$"
 DATASET_TARGET = "dataset"
 
-# The one subject a `data_management_plan` fact has, so that a project has at most one current
-# plan: the last decision on it stands (docs/specs/projects.md, invariant 32).
+# The one subject a `data_management_plan` or `data_description` fact has, so that a project has
+# at most one current plan and one description: the last decision on each stands
+# (docs/specs/projects.md, invariant 32).
 PLAN_SUBJECT = "project"
+# The kinds of fact whose subject is always `PLAN_SUBJECT`.
+PROJECT_WIDE = frozenset({FactKind.DATA_MANAGEMENT_PLAN, FactKind.DATA_DESCRIPTION})
 
 # The value slots each kind of project fact needs (the schema's rules on ProjectFact).
 FACT_NEEDS: dict[FactKind, tuple[str, ...]] = {
@@ -158,6 +162,7 @@ FACT_NEEDS: dict[FactKind, tuple[str, ...]] = {
     FactKind.SHARING_COMMITMENT: ("commitment_quote", "commitment_document"),
     FactKind.STANDARD: ("standard_name",),
     FactKind.DATA_MANAGEMENT_PLAN: ("plan_document",),
+    FactKind.DATA_DESCRIPTION: ("data_collected",),
 }
 
 
@@ -194,6 +199,12 @@ class ProjectFact(Frozen):
     standard_target: str | None = Field(default=None, pattern=STANDARD_TARGET_PATTERN)
     # Which attached document is the project's data management plan, by its text's digest.
     plan_document: str | None = Field(default=None, pattern=SHA256_PATTERN)
+    # What data the project collects and how, in the researcher's words (`data_description`).
+    data_collected: str | None = None
+    data_collection_method: str | None = None
+    data_formats: str | None = None
+    data_volume: str | None = None
+    data_reused: str | None = None
     # Shown to the person deciding; never given to an agent.
     proposed_because: str | None = None
 
@@ -202,8 +213,8 @@ class ProjectFact(Frozen):
         missing = [slot for slot in FACT_NEEDS[self.fact_kind] if getattr(self, slot) is None]
         if missing:
             raise ValueError(f"a {self.fact_kind} fact needs {', '.join(missing)}")
-        if self.fact_kind == FactKind.DATA_MANAGEMENT_PLAN and self.fact_subject != PLAN_SUBJECT:
-            raise ValueError(f"a data management plan fact's subject is {PLAN_SUBJECT!r}")
+        if self.fact_kind in PROJECT_WIDE and self.fact_subject != PLAN_SUBJECT:
+            raise ValueError(f"a {self.fact_kind} fact's subject is {PLAN_SUBJECT!r}")
         return self
 
 

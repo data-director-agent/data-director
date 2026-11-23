@@ -17,6 +17,7 @@ export const WORKING_KINDS: readonly FactKind[] = [
   "licence",
   "sharing_commitment",
   "standard",
+  "data_description",
 ];
 
 /** A fact's value in a few words where its kind has one; otherwise its sentence. */

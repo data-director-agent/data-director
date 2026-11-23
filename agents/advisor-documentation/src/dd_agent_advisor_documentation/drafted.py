@@ -2,8 +2,9 @@
 docs/specs/drafting.md): the inventory's files, the licences the repository offers, the approved
 metadata record's values, the standards, vocabularies and formats people in the project chose
 (`standard` project facts, docs/specs/projects.md, #1391), and, for a Data Management Plan, the
-funders, repository, licence and handling of sensitive data people decided. Each is placed as a
-person decided it: supplied, never inferred (invariant 2)."""
+funders, repository, licence and handling of sensitive data people decided, and the description of
+the data a person confirmed (`data_description`, #160). Each is placed as a person decided it:
+supplied, never inferred (invariant 2)."""
 
 from __future__ import annotations
 
@@ -15,6 +16,18 @@ from dd_sdk.contract.facts import DATASET_TARGET, FactKind, ProjectFact
 from dd_sdk.contract.models import DraftRequest
 
 FIELD = "field:"
+# The confirmed data description, when it says both what is collected and how, which completes
+# a plan's data section; and when it says only what, which leaves the section's question asked.
+DESCRIBED = "data_description"
+DESCRIBED_SO_FAR = "data_description_so_far"
+# Each value of a data description, by slot, and how it is labelled in the plan.
+_DESCRIPTION = (
+    ("data_collected", "Data"),
+    ("data_collection_method", "How they are collected or produced"),
+    ("data_reused", "Existing data reused"),
+    ("data_formats", "Formats"),
+    ("data_volume", "Volume"),
+)
 
 
 def drafted(source: str, asked: DraftRequest, record: Mapping[str, Any] | None) -> str | None:
@@ -37,9 +50,18 @@ def drafted(source: str, asked: DraftRequest, record: Mapping[str, Any] | None) 
             return None
         offered = ", ".join(f"`{licence}`" for licence in requirements.licences)
         return f"{requirements.repository_name} offers these licences: {offered}."
+    if source == "repository":
+        return repository(asked)
+    return from_decisions(source, asked.project_decisions)
+
+
+def from_decisions(source: str, decisions: Sequence[ProjectFact]) -> str | None:
+    """A section's text drafted from the facts people decided, or None if there is nothing."""
     if source == "standards":
-        return standards(asked.project_decisions)
-    return repository(asked) if source == "repository" else decided(source, asked.project_decisions)
+        return standards(decisions)
+    if source in (DESCRIBED, DESCRIBED_SO_FAR):
+        return data_description(decisions, complete=source == DESCRIBED)
+    return decided(source, decisions)
 
 
 def _funder(fact: ProjectFact) -> str:
@@ -120,6 +142,21 @@ def _target(target: str | None) -> str:
     if target is None or target == DATASET_TARGET:
         return "the dataset"
     return f"the field `{target.removeprefix(FIELD)}`"
+
+
+def data_description(decisions: Sequence[ProjectFact], *, complete: bool) -> str | None:
+    """The confirmed data description, one labelled line for each value, in the researcher's
+    words; None when none is confirmed, or when it is not as complete as `complete` asks: it is
+    complete when it says how the data are collected or which existing data are reused."""
+    fact = next((f for f in decisions if f.fact_kind == FactKind.DATA_DESCRIPTION), None)
+    if fact is None:
+        return None
+    if bool(fact.data_collection_method or fact.data_reused) != complete:
+        return None
+    lines = [
+        f"- **{label}:** {value}" for slot, label in _DESCRIPTION if (value := getattr(fact, slot))
+    ]
+    return "\n".join(lines)
 
 
 def file_format(media_type: str | None, pronom_ids: list[str]) -> str:
