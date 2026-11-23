@@ -27,6 +27,13 @@
       "origin": {
         "kind": "researcher"
       },
+      "permitted_moves": [
+        {
+          "move": "take",
+          "note": "none",
+          "permitted": true
+        }
+      ],
       "project_id": "019a0000-0000-7000-8000-0000000000a1",
       "project_title": "Peat",
       "scope_shared": [

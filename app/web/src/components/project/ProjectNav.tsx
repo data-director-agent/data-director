@@ -7,6 +7,9 @@
  * one shown marked as current. The same block on each
  * page, so moving between them is one press from any, and nothing moves when the page changes.
  *
+ * A data steward who opens the project sees the same tabs, under the steward's banner and the
+ * requests from the project (`StewardView`), in place of the control to ask a data steward.
+ *
  * Its conversations open on the conversation page, in this project: a project's page makes the
  * project the one the app is working in when it reads it (docs/specs/app.md).
  */
@@ -27,8 +30,11 @@ import {
 } from "lucide-react";
 
 import { Link, type ProjectTab, projectTabPath } from "../../route";
+import { asSteward } from "../../project/steward";
+import { useProjectView } from "../../project/view";
 import { StewardProvider } from "../escalation/StewardContext";
 import { AskStewardControl } from "../escalation/StewardSection";
+import { StewardView } from "../escalation/StewardView";
 
 export type { ProjectTab } from "../../route";
 
@@ -62,6 +68,7 @@ export function ProjectNav({
   name: string | null;
   current: ProjectTab;
 }) {
+  const steward = asSteward(useProjectView().view);
   const tabs = [
     ...TABS.map((t) => ({ ...t, to: projectTabPath(projectId, t.id) })),
     {
@@ -83,10 +90,13 @@ export function ProjectNav({
           </ol>
         </nav>
         {/* Reachable on every project page (docs/ui/steward-escalation-flows.md, flow A). */}
-        <StewardProvider projectId={projectId} project={{ title: name }}>
-          <AskStewardControl />
-        </StewardProvider>
+        {!steward && (
+          <StewardProvider projectId={projectId} project={{ title: name }}>
+            <AskStewardControl />
+          </StewardProvider>
+        )}
       </div>
+      <StewardView projectId={projectId} />
       <nav aria-label="Project" className="project-tabs">
         <ul>
           {tabs.map(({ id, to, label, icon: Icon }) => (

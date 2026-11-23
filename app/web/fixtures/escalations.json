@@ -26,6 +26,13 @@
       "origin": {
         "kind": "researcher"
       },
+      "permitted_moves": [
+        {
+          "move": "withdraw",
+          "note": "none",
+          "permitted": true
+        }
+      ],
       "scope_shared": [
         "The project's title"
       ],

@@ -3,12 +3,6 @@
 An **escalation** hands a matter from a researcher to your team. It is a record in the
 researcher's project. Everything that happens to it is kept there and shown to the researcher.
 
-!!! note "Partly built"
-    The escalation record, its routing and your queue are built and reached through the app's
-    API (`/api/steward/escalations`), and so is the researcher's side in the app
-    ([#375](https://github.com/data-director-agent/data-director/issues/375)). Your queue and its
-    controls are not built yet: [#376](https://github.com/data-director-agent/data-director/issues/376).
-
 ## Where escalations come from
 
 - **The researcher asks.** **Ask a data steward** is available on every project page.
@@ -29,8 +23,18 @@ and you cannot take it.
 
 ## The queue
 
-**Steward queue** lists the escalations routed to your team, oldest first, with the project,
-researcher, reason, age, state and who has taken each. You can filter it by state.
+**Requests**, in the main navigation of anyone the profile names a steward, lists the escalations
+routed to your teams, oldest first, with the project, researcher, request, age, state and who has
+taken each. By default it shows those still to finish (not taken, taken, or waiting for the
+researcher); **Show** filters it by one state.
+
+Each row offers the moves open to you on that request, such as **Take**. A move you may not make
+is explained in the row, not hidden. The project's name opens the project as its steward (see
+[Working in a project](working-in-a-project.md)).
+
+With the keyboard: Tab moves through the filter, the table and each row's project link and
+controls; Enter or Space presses a control. A move that needs a note opens a short form in the
+row; Enter on its button sends it, and **Cancel** closes it. What each move did is announced.
 
 ## What you do with one
 

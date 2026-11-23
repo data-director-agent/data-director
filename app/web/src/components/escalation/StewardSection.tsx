@@ -7,12 +7,14 @@
  */
 
 import { LifeBuoy, Undo2 } from "lucide-react";
-import { useId, useState } from "react";
+import { useState } from "react";
 
-import { type Escalation, LIVE_STATES, NOTE_MAX_LENGTH, type ResearcherMove } from "../../project/escalations";
+import type { Escalation, ResearcherMove } from "../../project/escalations";
+import { movesPermitted } from "../../project/steward";
 import { errorMessage } from "../../run/api";
 import { Button } from "../ui/Button";
 import { useAnnounce } from "../ui/Announcer";
+import { NoteField } from "./NoteField";
 import { useSteward } from "./StewardContext";
 import { stateSaid, statusLine } from "./wording";
 
@@ -68,17 +70,16 @@ const NEEDS_NOTE: Partial<Record<ResearcherMove, { label: string; field: string 
   reopen: { label: "Re-open", field: "Why you are re-opening it" },
 };
 
+/** The moves the harness lets the researcher make on `escalation`. */
 function movesOf(escalation: Escalation): ResearcherMove[] {
-  if (escalation.state === "waiting_for_researcher") return ["reply", "withdraw"];
-  if (LIVE_STATES.includes(escalation.state)) return ["withdraw"];
-  if (escalation.state === "resolved" || escalation.state === "handed_back") return ["reopen"];
-  return [];
+  return movesPermitted(escalation).filter((m): m is ResearcherMove =>
+    ["reply", "withdraw", "reopen"].includes(m),
+  );
 }
 
 function EscalationRow({ escalation }: { escalation: Escalation }) {
   const steward = useSteward();
   const announce = useAnnounce();
-  const id = useId();
   const [writing, setWriting] = useState<ResearcherMove | null>(null);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -116,17 +117,7 @@ function EscalationRow({ escalation }: { escalation: Escalation }) {
             if (note.trim()) void make(writing);
           }}
         >
-          <div className="field">
-            <label htmlFor={`${id}-note`}>{asked.field}</label>
-            <textarea
-              id={`${id}-note`}
-              required
-              rows={3}
-              maxLength={NOTE_MAX_LENGTH}
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-            />
-          </div>
+          <NoteField label={asked.field} value={note} onChange={setNote} />
           <Button type="submit" size="small" variant="primary" isPending={busy}>
             {asked.label}
           </Button>{" "}

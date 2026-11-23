@@ -47,6 +47,7 @@
   "origin": {
     "kind": "researcher"
   },
+  "permitted_moves": [],
   "scope_shared": [
     "The project's title"
   ],

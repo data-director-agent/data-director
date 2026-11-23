@@ -10,8 +10,12 @@ support team (`PUT /api/projects/{id}/support-team`).
 A steward reads the escalations routed to their teams (`GET /api/steward/escalations`, by default
 those still open, taken or waiting, or `?state=` each state wanted) and takes, releases, asks
 about, resolves or hands back one (`POST /api/steward/escalations/{project_id}/{escalation_id}`).
-A steward reaches an escalation only: opening the project itself is TODO(#374). A project whose
+A steward opens the project through its own routes (`dd_app.routes.stewarding`), and reads its
+escalations through `GET /api/projects/{id}/escalations`, recorded as a read. A project whose
 escalation the steward may not move is answered `404`, as for anyone with no role in it.
+
+Each escalation carries `permitted_moves`: the moves the reader may make on it, as the harness
+decides (`dd_harness.escalation_api.permitted_moves`).
 
 A move or an escalation the rules refuse is `409` with the refusal's slug
 (`dd_harness.projects.EscalationRefusal`). The shell renders what these answer and decides
@@ -87,6 +91,17 @@ class EscalationMove(ResponseBody):
     """Set for a move a steward made as a steward."""
 
 
+class PermittedMove(ResponseBody):
+    """A move the reader may make on an escalation, or one refused with why."""
+
+    move: Literal["take", "release", "wait", "reply", "resolve", "hand_back", "withdraw", "reopen"]
+    permitted: bool
+    note: Literal["required", "optional", "none"]
+    """Whether the move carries a note: required, optional, or none."""
+    refusal: Literal["member-of-project"] | MISSING = MISSING
+    """Why a move of the reader's side is refused."""
+
+
 class Escalation(ResponseBody):
     """A matter handed to a data steward team (docs/specs/stewardship.md, invariant 4)."""
 
@@ -104,6 +119,8 @@ class Escalation(ResponseBody):
     updated_at: str
     taken_by: contract.Principal | None
     history: list[EscalationMove]
+    permitted_moves: list[PermittedMove]
+    """The moves the reader may make on it now; empty for someone on neither side."""
 
 
 class SupportTeamOption(ResponseBody):
@@ -212,7 +229,9 @@ def routes(deps: Deps) -> list[Route]:
 
 async def list_escalations(request: Request, person: Principal, deps: Deps) -> Response:
     project_id = request.path_params["project_id"]
-    found = await run_in_threadpool(lambda: deps.projects.escalations.of_project(project_id))
+    found = await run_in_threadpool(
+        lambda: deps.projects.escalations.of_project(project_id, person)
+    )
     return respond(ProjectEscalations, found)
 
 

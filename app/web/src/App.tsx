@@ -21,8 +21,10 @@ import { Account } from "./components/session/Account";
 import { SessionTimeout } from "./components/session/SessionTimeout";
 import { SignedOutPage } from "./components/session/SignedOutPage";
 import { SignInPage } from "./components/session/SignInPage";
+import { StewardQueuePage } from "./components/escalation/StewardQueuePage";
 import { ConversationSessionProvider } from "./conversation/session";
 import { ActiveProjectProvider } from "./project/active";
+import { ProjectViewProvider } from "./project/view";
 import { RunActivityProvider } from "./run/activity";
 import { type ProjectTab, projectTabOf, useLocation } from "./route";
 import { type Directory, normalise } from "./manifest/normalise";
@@ -83,17 +85,23 @@ function navCurrent(path: string): string {
     "/settings",
     "/sign-in",
     "/signed-out",
+    "/steward",
   ];
   return pages.includes(path) ? path : "/";
 }
 
-/** The page for one of a project's tabs. */
+/** The page for one of a project's tabs, as the reader may see the project: as a member, or as
+ * its data steward (`project/view`). */
 function projectPage(
   projectId: string,
   tab: ProjectTab,
   query: string,
   directory: Directory | null,
 ) {
+  return <ProjectViewProvider projectId={projectId}>{projectTab(projectId, tab, query, directory)}</ProjectViewProvider>;
+}
+
+function projectTab(projectId: string, tab: ProjectTab, query: string, directory: Directory | null) {
   if (tab === "journey") return <JourneyPage projectId={projectId} query={query} />;
   if (tab === "documents") return <ProjectPage projectId={projectId} query={query} directory={directory} />;
   return <ProjectPanelPage key={`${projectId}/${tab}`} projectId={projectId} tab={tab} />;
@@ -106,6 +114,11 @@ function hasPage(path: string): boolean {
   return path === "/" || path === "/agents" || path === "/policy" || path in SESSION_PAGES;
 }
 
+/** Whether the profile names the person signed in a data steward, for the main navigation. */
+function isSteward(session: Session | null): boolean {
+  return session?.principal?.roles.includes("steward") ?? false;
+}
+
 /** The pages that need only the session and the query, by path. */
 const SESSION_PAGES: Record<string, (session: Session, query: string) => ReactNode> = {
   "/feedback": (_, query) => <FeedbackPage query={query} />,
@@ -115,6 +128,7 @@ const SESSION_PAGES: Record<string, (session: Session, query: string) => ReactNo
   "/project": () => <ProjectLanding />,
   "/projects": () => <ProjectsPage />,
   "/journey": () => <JourneyLanding />,
+  "/steward": () => <StewardQueuePage />,
 };
 
 /**
@@ -229,6 +243,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
       current={current}
       from={onFeedback ? (new URLSearchParams(query).get("from") ?? "/") : location}
       account={known && <Account session={known} />}
+      steward={isSteward(known)}
     >
       {known?.signsIn && known.principal && (
         <SessionTimeout session={known} onChange={updateSession} />
