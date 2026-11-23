@@ -15,7 +15,6 @@ from typing import Any
 import pytest
 
 from dd_harness import casefile
-from dd_harness.casefile import journal as journal_module
 from dd_harness.casefile.journal import journal_lines
 from dd_harness.conductor import Conductor
 from dd_harness.projects import ProjectStore
@@ -449,7 +448,7 @@ def test_a_journal_that_cannot_be_read_stops_the_export(
     def fail(*_: object, **__: object) -> None:
         raise error
 
-    monkeypatch.setattr(journal_module.subprocess, "run", fail)
+    monkeypatch.setattr(subprocess, "run", fail)
     since = datetime(2026, 11, 23, 9, 0, tzinfo=UTC)
     with pytest.raises(OSError, match="journalctl"):
         casefile.read_journal(since, since)
@@ -470,7 +469,7 @@ def test_the_journal_is_read_as_journalctl_prints_it(monkeypatch: pytest.MonkeyP
         asked.append(command)
         return subprocess.CompletedProcess(command, 0, stdout="{}\n")
 
-    monkeypatch.setattr(journal_module.subprocess, "run", run)
+    monkeypatch.setattr(subprocess, "run", run)
     since = datetime(2026, 11, 23, 9, 0, tzinfo=UTC)
     assert casefile.read_journal(since, since) == "{}\n"
     assert asked == [casefile.journal_command(since, since)]
