@@ -122,6 +122,9 @@ export type AppResponse =
   | RevisionRequested
   | RevisionRun
   | Role
+  | RorLinks
+  | RorName
+  | RorOrganisation
   | RunResult
   | RunRow
   | SavedInventory
@@ -1996,6 +1999,54 @@ export interface RepositoryTicket {
   deposit_broker_url: string;
   expires_at: string;
   ticket: string;
+}
+/**
+ * Where the organisation is identified, as addresses to open.
+ */
+export interface RorLinks {
+  /**
+   * Its Crossref Funder IDs, as doi.org addresses.
+   */
+  crossref_funders: string[];
+  /**
+   * Its record at ROR.
+   */
+  ror: string;
+}
+/**
+ * One of an organisation's names, with ROR's types for it.
+ */
+export interface RorName {
+  lang: string | null;
+  /**
+   * ROR's types for the name: `ror_display`, `label`, `acronym` or `alias`.
+   */
+  types: string[];
+  value: string;
+}
+/**
+ * An organisation as the pinned ROR dump records it.
+ */
+export interface RorOrganisation {
+  country_codes: string[];
+  crossref_funder_ids: string[];
+  crossref_funder_preferred: string | null;
+  links: RorLinks;
+  names: RorName[];
+  /**
+   * The organisations ROR names as its parents, by ROR identifier.
+   */
+  parents: string[];
+  /**
+   * Its ROR identifier, as an address.
+   */
+  ror_id: string;
+  /**
+   * The dump it was read from.
+   */
+  snapshot_ref: string;
+  status: string;
+  types: string[];
 }
 /**
  * A run that has ended, as `POST /api/runs` or a conversation's turn answers it.

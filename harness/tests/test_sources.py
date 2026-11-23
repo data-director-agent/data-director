@@ -300,3 +300,46 @@ def test_searching_with_no_export_built_is_a_configuration_error(tmp_path: Path)
     unbuilt = Sources(unbuilt=frozenset({"re3data:export:2026-11"}))
     with pytest.raises(SourceConfigError, match="not built"):
         unbuilt.repositories([ORDA["re3data_id"]])
+
+
+UKRI_ROR = "https://ror.org/001aqnf71"
+ROR_REGISTRY: list[dict[str, Any]] = [{"id": UKRI_ROR, "names": [], "status": "active"}]
+
+
+def _ror(tmp_path: Path, version: str = "v2.15") -> Sources:
+    path, pin = _pinned(tmp_path, ROR_REGISTRY)
+    return Sources({f"ror:dump:{version}": RecordsFile.load(path, "id", pin)})
+
+
+@pytest.mark.parametrize(
+    "given", ["001aqnf71", "001AQNF71", UKRI_ROR, "ror.org/001aqnf71", f" {UKRI_ROR}/ "]
+)
+def test_an_organisation_is_found_by_its_ror_identifier_in_any_form(
+    tmp_path: Path, given: str
+) -> None:
+    ref, record = _ror(tmp_path).organisation(given)
+    assert ref == "ror:dump:v2.15"
+    assert record is not None
+    assert record["id"] == UKRI_ROR
+
+
+@pytest.mark.parametrize("given", ["0zzzzzz99", "", "not-an-id", "https://example.org/001aqnf71"])
+def test_an_identifier_the_dump_does_not_hold_has_no_organisation(
+    tmp_path: Path, given: str
+) -> None:
+    assert _ror(tmp_path).organisation(given)[1] is None
+
+
+def test_the_latest_pinned_dump_is_read(tmp_path: Path) -> None:
+    (tmp_path / "old").mkdir()
+    (tmp_path / "new").mkdir()
+    old, new = _ror(tmp_path / "old", "v2.14"), _ror(tmp_path / "new", "v2.15")
+    both = Sources({**old.by_snapshot_ref, **new.by_snapshot_ref})
+    assert both.organisation("001aqnf71")[0] == "ror:dump:v2.15"
+
+
+def test_looking_up_an_organisation_with_no_dump_built_is_a_configuration_error() -> None:
+    with pytest.raises(SourceConfigError, match="pins no ROR dump"):
+        Sources().organisation("001aqnf71")
+    with pytest.raises(SourceConfigError, match="not built"):
+        Sources(unbuilt=frozenset({"ror:dump:v2.15"})).organisation("001aqnf71")

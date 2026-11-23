@@ -116,6 +116,12 @@ export function factsPath(projectId: string, keys: readonly string[] = []): stri
   return text ? `${base}?${text}` : base;
 }
 
+/** A project's facts, showing the funder given (`?funder=`, a funder fact's subject): the fact
+ * with the organisation behind it. */
+export function funderPath(projectId: string, subject: string): string {
+  return `${projectTabPath(projectId, "facts")}?${new URLSearchParams({ funder: subject })}`;
+}
+
 export function Link({
   to,
   children,
