@@ -16,6 +16,7 @@ import { Button } from "../ui/Button";
 import { useAnnounce } from "../ui/Announcer";
 import { NoteField } from "./NoteField";
 import { useSteward } from "./StewardContext";
+import { StewardRecord } from "./StewardRecord";
 import { stateSaid, statusLine } from "./wording";
 
 export function StewardSection() {
@@ -41,6 +42,7 @@ export function StewardSection() {
         </ul>
       )}
       <AskStewardControl />
+      <StewardRecord stewarding={steward.stewarding} />
     </section>
   );
 }

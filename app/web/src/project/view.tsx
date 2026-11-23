@@ -11,7 +11,8 @@
 import { createContext, type ReactNode, useCallback, useContext, useMemo } from "react";
 
 import { useResource } from "../useResource";
-import { type ProjectView, permits, useStewardApi } from "./steward";
+import { useActiveProject } from "./active";
+import { type ProjectView, asSteward, permits, stewardMay, useStewardApi } from "./steward";
 
 interface Held {
   view: ProjectView | null;
@@ -21,7 +22,7 @@ interface Held {
 
 const ProjectViewContext = createContext<Held>({ view: null, reload: () => undefined });
 
-export function ProjectViewProvider({ projectId, children }: { projectId: string; children: ReactNode }) {
+export function ProjectViewProvider({ projectId, children }: { projectId: string | null; children: ReactNode }) {
   const api = useStewardApi();
   const read = useResource(projectId, (id, signal) => api.view(id, signal));
   const { reload } = read;
@@ -40,4 +41,25 @@ export function useProjectView(): Held {
 export function Permitted({ action, children }: { action: string; children: ReactNode }) {
   const { view } = useProjectView();
   return permits(view, action) ? children : null;
+}
+
+/** `children`, where the reader is the project's data steward and the harness lets them take the
+ * steward's `action`; nothing for a member, or while the view is not known. */
+export function StewardPermitted({ action, children }: { action: string; children: ReactNode }) {
+  const { view } = useProjectView();
+  return stewardMay(view, action) ? children : null;
+}
+
+/** The view of the project the app is working in (`project/active`), as on the conversation page,
+ * where no project is in the address. */
+export function ActiveProjectViewProvider({ children }: { children: ReactNode }) {
+  const { projectId } = useActiveProject();
+  return <ProjectViewProvider projectId={projectId}>{children}</ProjectViewProvider>;
+}
+
+/** `projectId`, unless the reader is the project's data steward, for the parts of a page that
+ * only a researcher in their own project uses, such as asking a data steward. */
+export function useResearcherProject(projectId: string | null): string | null {
+  const { view } = useProjectView();
+  return asSteward(view) ? null : projectId;
 }

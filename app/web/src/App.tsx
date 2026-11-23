@@ -24,7 +24,7 @@ import { SignInPage } from "./components/session/SignInPage";
 import { StewardQueuePage } from "./components/escalation/StewardQueuePage";
 import { ConversationSessionProvider } from "./conversation/session";
 import { ActiveProjectProvider } from "./project/active";
-import { ProjectViewProvider } from "./project/view";
+import { ActiveProjectViewProvider, ProjectViewProvider } from "./project/view";
 import { RunActivityProvider } from "./run/activity";
 import { type ProjectTab, projectTabOf, useLocation } from "./route";
 import { type Directory, normalise } from "./manifest/normalise";
@@ -225,7 +225,13 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
       );
     }
     if (onPolicy) return <PolicyPage directory={state.value} />;
-    if (!onAgents) return <ConversationHome directory={state.value} />;
+    if (!onAgents) {
+      return (
+        <ActiveProjectViewProvider>
+          <ConversationHome directory={state.value} />
+        </ActiveProjectViewProvider>
+      );
+    }
     return (
       <>
         <PageHeader title="Agents: what Data Director can do here" titleHidden />

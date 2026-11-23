@@ -37,7 +37,7 @@ import type {
 import { dataUrl, fileName } from "../../project/media";
 import { type VersionGaps, versionGaps } from "../../project/gaps";
 import { documentName } from "../../project/name";
-import { Permitted } from "../../project/view";
+import { Permitted, StewardPermitted } from "../../project/view";
 import { Link } from "../../route";
 import { Button } from "../ui/Button";
 import { DecisionForm } from "./DecisionForm";
@@ -45,6 +45,7 @@ import { Provenance, State } from "./DocumentFacts";
 import { DocumentHistory } from "./DocumentHistory";
 import { DocumentPreview } from "./DocumentPreview";
 import { DocumentQuestions } from "./DocumentQuestions";
+import { ProposeEdit } from "./ProposeEdit";
 import { QuestionList } from "./QuestionList";
 import { RevisionRequest } from "./RevisionRequest";
 import { OpenCount, useReaderTabs } from "./useReaderTabs";
@@ -214,7 +215,7 @@ export function DocumentReader({
         <TabPanel id="preview" className="document-tab-panel">
           {editing !== null && (
             <p className="callout status-warn">
-              The preview shows your edited version. It is not saved until you approve it.
+              The preview shows your edited version. Nothing is saved until you send it.
             </p>
           )}
           <DocumentPreview
@@ -296,6 +297,18 @@ export function DocumentReader({
           onStale={refused}
         />
       </Permitted>
+      <StewardPermitted action="propose_edit">
+        <ProposeEdit
+          key={`${version.document_id}:${String(version.version)}`}
+          projectId={projectId}
+          name={name}
+          version={version}
+          isLatest={isLatest}
+          onEditing={onEditing}
+          onProposed={() => void onStale()}
+          onStale={refused}
+        />
+      </StewardPermitted>
     </article>
   );
 }

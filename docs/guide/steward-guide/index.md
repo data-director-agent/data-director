@@ -40,8 +40,8 @@ now; anything not built carries a note linking to its issue.
 | Steps referred to a data steward stop, with the reason shown | Works | — |
 | Being named as a steward in the profile | Works | [#154](https://github.com/data-director-agent/data-director/issues/154) |
 | Escalations and the queue | Works | [#373](https://github.com/data-director-agent/data-director/issues/373), [#376](https://github.com/data-director-agent/data-director/issues/376) |
-| Opening a project as a steward, and acting in it | Opening, writing to the researcher and pausing work; proposing an edit, running an agent and clearing a step have no screens yet | [#374](https://github.com/data-director-agent/data-director/issues/374), [#376](https://github.com/data-director-agent/data-director/issues/376) |
-| Clearing a referred step | Your decision is recorded; the step does not resume yet | [#16](https://github.com/data-director-agent/data-director/issues/16) |
+| Opening a project as a steward, and acting in it | Works | [#374](https://github.com/data-director-agent/data-director/issues/374), [#376](https://github.com/data-director-agent/data-director/issues/376) |
+| Clearing a referred step | Your decision is recorded and shown; the step does not resume yet | [#16](https://github.com/data-director-agent/data-director/issues/16) |
 | Pausing a project | Works | [#374](https://github.com/data-director-agent/data-director/issues/374), [#376](https://github.com/data-director-agent/data-director/issues/376) |
 | Notes and co-approval before deposit | Not built yet | [#1306](https://github.com/data-director-agent/data-director/issues/1306) |
 | Overviews | Not built yet | [#232](https://github.com/data-director-agent/data-director/issues/232), [#1307](https://github.com/data-director-agent/data-director/issues/1307) |

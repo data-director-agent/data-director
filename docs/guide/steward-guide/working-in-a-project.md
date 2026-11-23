@@ -4,11 +4,6 @@ While an escalation is open, or while a project is in your team's scope, you can
 researcher's project and help in it.
 
 !!! note "Partly built"
-    Opening a project as a steward, the banner, the requests beside it, writing to the researcher,
-    and pausing and lifting a pause work in the app. Proposing an edit, running an agent, and
-    clearing or refusing a stopped step are checked and recorded by the server
-    ([#374](https://github.com/data-director-agent/data-director/issues/374)) but have no
-    screens yet ([#376](https://github.com/data-director-agent/data-director/issues/376)).
     Clearing a step records your decision but does not yet resume it
     ([#16](https://github.com/data-director-agent/data-director/issues/16)), and the credit in the deposit
     package's provenance is [#1481](https://github.com/data-director-agent/data-director/issues/1481).
@@ -32,9 +27,9 @@ The app shows only the actions open to you, and explains any it refuses.
 | Action | What happens | Who decides |
 |---|---|---|
 | **Write to the researchers** | Your message appears in the project's conversation with your name, never as an agent's. | — |
-| **Propose an edit** | Your edit to a document becomes a new *proposed* version, marked as yours. | The researcher approves or rejects it. |
-| **Run an agent** | The same controls the researcher has, labelled as run by you. The run acts for you, and its drafts are proposed versions. | The researcher decides on the drafts. |
-| **Clear or refuse a stopped step** | For a step policy referred to a steward, you clear or refuse it with a reason. | You decide the exception; the researcher still approves the result. |
+| **Propose an edit** | On a document's latest version, **Propose an edit** opens its text. Your edit becomes a new *proposed* version, marked as yours. | The researcher approves or rejects it. |
+| **Ask an agent** | **Ask an agent in this project** opens the conversation page in the project, under a "Working as a data steward" banner. The run acts for you, and its drafts are proposed versions. | The researcher decides on the drafts. |
+| **Clear or refuse a stopped step** | A request that came from a step policy referred to a steward shows **Clear the step** and **Refuse the step**. Each asks for a reason, and the decision then shows on the request. | You decide the exception; the researcher still approves the result. |
 | **Pause the project** | See below. | Your team lifts it. |
 | **Resolve or hand back** the escalation | With a note to the researcher. | — |
 
@@ -45,6 +40,14 @@ Everything you do is recorded with your name and, where you have one, your ORCID
 credited with a CRediT role: *Data curation* for edits, runs and notes, and *Validation* for
 clearing a step, a review or a co-approval. This credit travels with the deposit package's
 provenance.
+
+With the keyboard: Tab reaches each control under the banner, each request's controls, and
+**Propose an edit** below the document; Enter or Space presses one. A step that needs a reason
+opens a short form: type it, then Tab to the button and press Enter, or press **Cancel**. What
+each step did is announced.
+
+The researcher sees, under **What data stewards did here** in the project pane, each time a
+steward opened the project and each decision on a referred step, with its reason.
 
 ## Pausing a project
 

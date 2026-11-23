@@ -42,8 +42,9 @@ actions, clearing or refusing a gate as a record, and pause (invariants 2, 3, 6,
 The steward's screens (#376): the queue of requests, with the moves the harness lists for each
 (`permitted_moves`); a project opened as its steward, under the "Viewing as a data steward"
 banner, with its requests beside it and without the controls the harness refuses; writing to the
-researchers, pausing and lifting a pause. Clearing or refusing a gate, proposing an edit and
-running an agent as a steward have their routes but no screens yet, TODO(#376). Everything else in
+researchers, pausing and lifting a pause; clearing or refusing a referred step beside the request
+it came from; proposing an edit to a document's latest version; and asking an agent, on the
+conversation page in the project, under a "Working as a data steward" banner. Everything else in
 this spec is the intended design; each invariant names the issue that builds it.
 
 ## Invariants
@@ -202,8 +203,10 @@ this spec is the intended design; each invariant names the issue that builds it.
     proposed version and run are always labelled with the steward's name. Built for the
     researcher (#375): each request's status line and moves in the project pane, and each steward
     message and move in the conversation between the turns it fell between, as "Data steward:
-    Name". The project's log view of reads and a steward's proposed versions and runs is
-    TODO(#376).
+    Name". Built for the steward's other steps (#376): the project pane's "What data stewards
+    did here" lists each read and each decision on a referred step, and a steward's proposed
+    version says "Edited by" the steward. Labelling a steward's runs in the conversation as theirs
+    waits on whether the envelope records the role a run was asked in, TODO(#1482).
 
 11. **A deployment without stewards still works** (C17). With no `stewardship` key, or no team
     for a project, the "Ask a data steward" control says so and shows the profile's contact if it

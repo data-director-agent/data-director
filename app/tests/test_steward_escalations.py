@@ -335,3 +335,14 @@ def test_a_gate_decision_must_name_a_referred_run(client: TestClient, theirs: st
         client, theirs, "gates/019a0000-0000-7000-8000-00000000ffff", verdict="cleared", note="OK"
     )
     assert refused.status_code == 409 and refused.json()["type"].endswith("run-not-referred")
+
+
+def test_a_steward_starts_a_conversation_only_in_a_project_with_a_request_for_their_team(
+    client: TestClient, store: ProjectStorage, theirs: str
+) -> None:
+    started = client.post("/api/conversations", json={"project_id": theirs}, headers=JSON_HEADERS)
+    assert started.status_code in (200, 201)
+    assert store.project_of(started.json()["conversation_id"]) == theirs
+    quiet = store.create(acted_for=OTHER, caused_by=CREATED_BY_ROUTE, title="Fen")
+    refused = client.post("/api/conversations", json={"project_id": quiet}, headers=JSON_HEADERS)
+    assert refused.status_code == 404

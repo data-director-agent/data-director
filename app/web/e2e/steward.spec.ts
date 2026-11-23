@@ -120,3 +120,65 @@ for (const width of [1280, 320]) {
     await page.screenshot({ path: `test-results/steward-view-${width}.png`, fullPage: false });
   });
 }
+
+for (const width of [1280, 320]) {
+  test(`a steward clears a referred step and proposes an edit with the keyboard alone, at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await serveSession(page, steward);
+    const [row] = queue.escalations;
+    const [readme] = project.documents;
+    const latest = readme?.versions.at(-1);
+    if (!row || !readme || !latest) throw new Error("no escalation or document in the fixtures");
+    const invocation = "019a0000-0000-7000-8000-0000000000r1";
+    const referred = {
+      ...row,
+      state: "taken",
+      origin: { kind: "policy_gate", invocation_id: invocation },
+      permitted_moves: [{ move: "resolve", note: "required", permitted: true }],
+    };
+    const sent: Record<string, unknown> = {};
+    const base = `/api/projects/${row.project_id}`;
+    await page.route(base, (route) => route.fulfill({ json: view }));
+    await page.route(`${base}/documents`, (route) => route.fulfill({ json: project }));
+    await page.route(`${base}/stewarding`, (route) =>
+      route.fulfill({ json: { ...stewarding, paused: null } }),
+    );
+    await page.route(`${base}/escalations`, (route) =>
+      route.fulfill({ json: { ...escalations, escalations: [referred] } }),
+    );
+    await page.route(`${base}/steward/gates/${invocation}`, (route) => {
+      sent.gate = route.request().postDataJSON();
+      return route.fulfill({ json: { ...stewarding, paused: null } });
+    });
+    await page.route(`${base}/steward/documents/${readme.document_id}/versions`, (route) => {
+      sent.edit = route.request().postDataJSON();
+      return route.fulfill({ json: { document_id: readme.document_id, version: latest.version + 1 } });
+    });
+    await page.goto(`/projects/${row.project_id}?doc=${readme.document_id}`);
+
+    await page.getByRole("button", { name: "Clear the step" }).focus();
+    await page.keyboard.press("Enter");
+    await page.getByRole("textbox", { name: /clearing/ }).focus();
+    await page.keyboard.type("Consent forms checked");
+    expect(await axeViolations(page)).toEqual([]);
+    await page.keyboard.press("Tab");
+    await page.keyboard.press("Enter");
+    await expect.poll(() => sent.gate).toEqual({ verdict: "cleared", note: "Consent forms checked" });
+
+    await page.getByRole("button", { name: /^Propose an edit/ }).focus();
+    await page.keyboard.press("Enter");
+    const text = page.getByRole("textbox", { name: "Your version of the text" });
+    await text.focus();
+    await page.keyboard.press("End");
+    await page.keyboard.type(" Edited.");
+    expect(await axeViolations(page)).toEqual([]);
+    expect(await overflow(page)).toBeLessThanOrEqual(0);
+    await page.getByRole("button", { name: "Propose this version" }).focus();
+    await page.keyboard.press("Enter");
+    await expect.poll(() => sent.edit).toMatchObject({ version: latest.version });
+    expect((sent.edit as { text: string }).text).toContain("Edited.");
+    await page.screenshot({ path: `test-results/steward-actions-${width}.png`, fullPage: false });
+  });
+}

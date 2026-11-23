@@ -2,38 +2,14 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { axe } from "jest-axe";
 import type { ReactNode } from "react";
-import { type Mock, vi } from "vitest";
 
-import queueFixture from "../../../fixtures/steward-queue.json";
-import viewFixture from "../../../fixtures/project-steward-view.json";
 import { EscalationsApiContext, type ProjectEscalations } from "../../project/escalations";
-import {
-  type ProjectView,
-  type QueuedEscalation,
-  type StewardApi,
-  StewardApiContext,
-} from "../../project/steward";
+import { type QueuedEscalation, type StewardApi, StewardApiContext } from "../../project/steward";
 import { fakeEscalationsApi } from "../../test/escalations";
+import { QUEUE, ROW, VIEW, fakeStewardApi } from "../../test/steward";
 import { AnnouncerProvider } from "../ui/Announcer";
 import { StewardQueuePage, ageSaid } from "./StewardQueuePage";
 
-const QUEUE = queueFixture.escalations as QueuedEscalation[];
-function firstOf(queue: QueuedEscalation[]): QueuedEscalation {
-  const [row] = queue;
-  if (!row) throw new Error("no escalation in the fixture");
-  return row;
-}
-const ROW = firstOf(QUEUE);
-const VIEW = viewFixture as ProjectView;
-
-function fakeStewardApi(view: ProjectView = VIEW, queue: QueuedEscalation[] = QUEUE) {
-  return {
-    queue: vi.fn<StewardApi["queue"]>(() => Promise.resolve(queue)),
-    move: vi.fn<StewardApi["move"]>(() => Promise.resolve({ ...ROW, state: "taken" })),
-    view: vi.fn<StewardApi["view"]>(() => Promise.resolve(view)),
-    step: vi.fn<StewardApi["step"]>(() => Promise.resolve()),
-  } satisfies Record<keyof StewardApi, Mock>;
-}
 
 function shown(api: StewardApi, children: ReactNode, escalations?: ProjectEscalations) {
   return render(
