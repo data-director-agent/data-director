@@ -48,18 +48,26 @@ def sent_text(model: ScriptedModel) -> str:
     return str(model.sent[-1]["messages"][-1]["content"])
 
 
-def test_the_consent_question_is_shown_with_its_fixed_options(runs_dir: Path) -> None:
-    """Whatever options the model writes, the researcher is offered the fixed ones, so the
-    answer can be read by its value."""
-    own = {
+OWN_OPTIONS = {
+    "question_options": [
+        {"option_value": "yes", "option_label": "Yes"},
+        {"option_value": "no", "option_label": "No"},
+    ],
+    "question_other": True,
+}
+
+
+@pytest.mark.parametrize("given", [{}, OWN_OPTIONS], ids=["no options", "its own options"])
+def test_the_consent_question_is_shown_with_its_fixed_options(
+    runs_dir: Path, given: dict[str, object]
+) -> None:
+    """Whatever options the model writes, or none, since the harness supplies them, the
+    researcher is offered the fixed ones, so the answer can be read by its value."""
+    own: dict[str, object] = {
         "question_key": CONSENT_KEY,
         "question_kind": "choice",
         "question_prompt": "Go on?",
-        "question_options": [
-            {"option_value": "yes", "option_label": "Yes"},
-            {"option_value": "no", "option_label": "No"},
-        ],
-        "question_other": True,
+        **given,
     }
     model = ScriptedModel([asks(PAUSED, ("ask_questions", {"questions": [own]}))])
     message = Message(message_text="I don't know yet whether consent covers sharing")
