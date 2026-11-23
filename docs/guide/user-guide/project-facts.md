@@ -35,6 +35,16 @@ cannot decide the fact: come back to **Project facts** to confirm, change or rej
 Under **Decided**, you can change or remove a fact that stands. **Add a fact**
 records one of your own, such as a funder no agent found.
 
+## Funders and their identifiers
+
+When the Policy Adviser checks a funder's policy, it looks the funder up in ROR, the Research
+Organization Registry. If the name means exactly one organisation there, it proposes the funder
+as a fact with its ROR identifier and its Crossref Funder ID, both from ROR's record, so you do
+not need to type them. ROR now holds the Crossref Funder Registry's identifiers. If a name could
+mean more than one organisation, such as "NERC", the adviser asks which you mean instead of
+proposing one. If you added a funder by name only, its proposal fills in the identifiers for that
+same fact when you confirm it.
+
 ## Who decides
 
 Anyone working on the project may decide which files go in, the funders and the repositories

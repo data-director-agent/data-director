@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from dd_agent_advisor_policy import assess
+from dd_agent_advisor_policy import assess, propose
 from dd_agent_advisor_policy.classes import (
     Actor,
     ActorRole,
@@ -29,7 +29,14 @@ from dd_agent_advisor_policy.retrieve import SourceRecord
 from dd_agent_advisor_policy.search import FirstSearch
 from dd_mcp_pid.ror_records import Organisation
 from dd_sdk.agent import AgentResult, abstain
-from dd_sdk.contract.models import Derivation, EvidenceItem, Outcome, OutcomeStatus, ReasonCode
+from dd_sdk.contract.models import (
+    Derivation,
+    EvidenceItem,
+    Outcome,
+    OutcomeStatus,
+    ProjectFact,
+    ReasonCode,
+)
 
 Advised = list[tuple[Item, Rationale]]
 
@@ -242,6 +249,8 @@ class Report:
     explanation: Explanation
     advised: Advised
     use: dict[str, Any]
+    # The facts people in the project decided, so a funder already decided is not proposed.
+    decisions: Sequence[ProjectFact] = ()
 
     def __post_init__(self) -> None:
         self.labels = self.found.labels()
@@ -300,6 +309,9 @@ class Report:
                 readings=self.texts.readings,
                 ambiguous=self.unresolved,
                 limitations=list(LIMITATIONS),
+                proposed_facts=propose.proposals(
+                    found.resolved, self.decisions, found.ror.where or ""
+                ),
                 searched=SearchedSummary(
                     queries=found.queries(),
                     snapshot_ref="; ".join(self.labels),
