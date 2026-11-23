@@ -141,7 +141,8 @@ since a plan is written before data are collected. Its sections are a first sect
 details (the title, the researchers and the funding, each asked part by part, and not asked when
 the approved metadata record gives it), then the six core requirements of
 [`dd-dmp-template`](../../dmp-template/README.md), after Science Europe's, each asking the
-template's one-sentence summary. Each is drafted from the project's decided facts, as given
+template's one-sentence summary, which also asks how long the data will be kept and how the plan
+will be kept up to date. Each is drafted from the project's decided facts, as given
 (`drafted.py`):
 
 | Section | Drafted from |

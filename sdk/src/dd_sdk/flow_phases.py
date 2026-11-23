@@ -95,17 +95,23 @@ PHASES: tuple[Phase, ...] = (
                 "Create a Data Management Plan where none exists",
                 optional=True,
                 label="Write a Data Management Plan",
-                prompt="Help me write a Data Management Plan for my project.",
+                prompt=(
+                    "Help me write a Data Management Plan covering how my data will be "
+                    "collected, stored, shared and kept."
+                ),
             ),
             Step(
                 "setup.dmp-review",
                 "Review and update the Data Management Plan",
-                label="Review your Data Management Plan",
-                prompt="Help me review my Data Management Plan.",
+                label="Review and update your Data Management Plan",
+                prompt="Help me review my Data Management Plan and keep it up to date.",
             ),
         ),
-        name="Plan ahead",
-        summary="Before you collect any data: decide how it will be described.",
+        name="Plan your data management",
+        summary=(
+            "Plan how your data will be collected, documented, stored, protected, shared and "
+            "kept, who looks after them and at what cost, and keep the plan up to date."
+        ),
     ),
     Phase(
         2,
