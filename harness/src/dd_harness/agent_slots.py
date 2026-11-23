@@ -55,8 +55,7 @@ def agent_slots(spec: AgentSpec | None, schema_class: Any) -> frozenset[str]:
     """The core slots (`AGENT_INPUT_SLOTS`) the card's schema for an agent's own input class
     declares, from the mixins `GivenProjectDocuments`, `GivenProjectDecisions`,
     `GivenProjectRepository`, `GivenProjectMetadataRecord` and `GivenProjectPlan`; empty for a
-    core class, which
-    `give` fills by name, or one the agent does not accept."""
+    core class, which `give` fills by name, or one the agent does not accept."""
     if spec is None or schema_class in CORE_CLASSES:
         return frozenset()
     accepted = spec.accepted(str(schema_class))
