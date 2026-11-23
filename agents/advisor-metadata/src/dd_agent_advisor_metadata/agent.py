@@ -23,7 +23,9 @@ project chose for the dataset (`chosen.py`, #1391).
 It reads the DataCite JSON form from `datacite.yaml`. It consults no source, uses no controlled
 vocabulary and maps nothing between schemas (R6), so its grounding mode is `input_only` and it
 cites only its input. Regenerating a record drafts it afresh, and names the version it replaces
-in `revises`. Controlled vocabularies and schema mapping are TODO(#703).
+in `revises`. Controlled vocabularies are TODO(#703). It does not convert a record to another
+standard (R6): it abstains with `capability_not_implemented` for requirements in any standard but
+DataCite. Conversion through a shared pivot is TODO(#1363).
 """
 
 from __future__ import annotations
@@ -197,7 +199,8 @@ class MetadataLibrarian:
         if requirements.conforms_to != DATACITE:
             return abstain(
                 ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
-                f"The librarian drafts DataCite records only, not {requirements.conforms_to}.",
+                f"The librarian drafts DataCite records only, not {requirements.conforms_to}, "
+                "and does not convert a record to another standard.",
             )
 
         record, filled = self._record(requirements, asked.inventory)

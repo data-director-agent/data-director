@@ -1,6 +1,6 @@
 # advisor.metadata's rule table: how a DataCite property is written in DataCite's JSON form, the
 # form of the DataCite REST API's attributes (docs/specs/deposit.md), and what the researcher is
-# asked about it. Controlled vocabularies and other schemas are TODO(#703).
+# asked about it. Controlled vocabularies are TODO(#703); other standards are TODO(#1355).
 #
 # `value` is the key that holds the value in each entry of a property whose value is a list of
 # objects. A property in the requirements that this table does not name is written as null.

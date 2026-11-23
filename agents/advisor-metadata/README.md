@@ -129,12 +129,14 @@ set `DD_METADATA_SUGGESTER=template` to run without a model. Settings are descri
   from their ORCID records.
 - It takes no terms from a controlled vocabulary, even one the project chose, and does not split names into given and family names:
   TODO(#703).
-- It does not map a record between schemas (R6), or write Figshare's own item format (#383):
-  TODO(#703).
+- It does not map a record between schemas (R6): for requirements in another standard it
+  abstains with `capability_not_implemented`. Conversion between standards, which reports each
+  value it could not place, is TODO(#1363). Nor does it write Figshare's own item format (#383).
 - It does not use metadata extracted from the files themselves: TODO(#789).
 - It does not check that a value is correct. Validating the record is the harness's work (#19).
 - It does not read an earlier version, or the reason a person gave for a decision on it.
-- It has no evaluation set; it leaves alpha only with one (docs/specs/agents.md), TODO(#703).
+- Its evaluation set is hand-written; a labelled corpus of ORDA records is to replace it
+  (`src/dd_agent_advisor_metadata/evals/README.md`, TODO(#22)).
 
 The fully designed librarian, which drafts against controlled vocabularies and maps between
 schemas, is TODO(#357).

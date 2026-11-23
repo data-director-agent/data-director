@@ -129,7 +129,16 @@ def test_abstains_without_a_repository_or_for_another_kind_or_standard(runs_dir:
     asked = sample()
     assert asked.requirements is not None
     other = asked.requirements.model_copy(update={"conforms_to": "http://example.org/ddi"})
+    # A repository asking for Dublin Core: the librarian neither drafts in it nor maps a DataCite
+    # record to it (R6), and says so rather than drafting DataCite (TODO(#1363)).
+    dublin_core = asked.requirements.model_copy(
+        update={"conforms_to": "http://purl.org/dc/elements/1.1/"}
+    )
     cases = [
+        (
+            asked.model_copy(update={"requirements": dublin_core}),
+            ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
+        ),
         (asked.model_copy(update={"requirements": None}), ReasonCode.INSUFFICIENT_INPUT),
         (
             asked.model_copy(update={"document_kind": DocumentKind.README}),

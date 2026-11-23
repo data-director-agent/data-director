@@ -14,7 +14,7 @@ from inspect_ai.scorer import NOANSWER, Score, Scorer, Target, scorer
 from inspect_ai.solver import TaskState
 
 from dd_agent_advisor_rights import agent
-from workbench.evaluation import envelope_of, expectation_of, mean_applicable
+from workbench.evaluation import envelope_of, expectation_of, mean_applicable, recall
 
 # A kind of question a case can require, and the adviser's question of that kind.
 QUESTIONS = {
@@ -62,12 +62,6 @@ def questions_asked() -> Scorer:
             return Score(value=NOANSWER, explanation="the case names no question it must ask")
         asked = {" ".join(q["text"].split()) for q in _payload(state).get("questions", [])}
         missing = [k for k in wanted if " ".join(QUESTIONS[k].split()) not in asked]
-        found = len(wanted) - len(missing)
-        return Score(
-            value=found / len(wanted),
-            answer=f"{found}/{len(wanted)}",
-            explanation="missing: " + ", ".join(missing) if missing else "all asked",
-            metadata={"missing": missing},
-        )
+        return recall(wanted, missing, "all asked")
 
     return score
