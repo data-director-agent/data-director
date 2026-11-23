@@ -14,8 +14,11 @@ from pathlib import Path
 
 import httpx
 
+from dd_journals import Journal
+from dd_journals import Registry as JournalIndex
 from dd_mcp_pid.dois import Crossref, DataCite
 from dd_mcp_pid.http import Http
+from dd_mcp_pid.journals import JournalSource, journal_registry
 from dd_mcp_pid.orcid import Orcid
 from dd_mcp_pid.ror import RorApi, RorIndex
 from dd_mcp_pid.ror_records import from_ror_json
@@ -57,11 +60,52 @@ def built_registry(directory: Path) -> Path:
     return path
 
 
+STOTEN = "0048-9697"
+STOTEN_ONLINE = "1879-1026"
+
+
+def journal(issn_l: str, title: str, works: int, *issns: str, **extra: object) -> Journal:
+    fields: dict[str, object] = {
+        "issn_l": issn_l,
+        "issns": tuple(sorted({issn_l, *issns})),
+        "title": title,
+        "alternate_titles": (),
+        "abbreviated_title": None,
+        "publisher": None,
+        "country": None,
+        "homepage": None,
+        "is_in_doaj": False,
+        "is_oa": False,
+        "openalex_id": f"https://openalex.org/S{issn_l.replace('-', '')}",
+        "works_count": works,
+    }
+    return Journal(**{**fields, **extra})  # type: ignore[arg-type]
+
+
+JOURNALS = [
+    journal(
+        STOTEN, "Science of The Total Environment", 90000, STOTEN_ONLINE, publisher="Elsevier BV"
+    ),
+    journal("0028-0836", "Nature", 400000, "1476-4687", publisher="Springer Nature"),
+    journal("1758-678X", "Nature Climate Change", 5000),
+    journal("2052-4463", "Scientific Data", 3000, alternate_titles=("Sci Data",), is_oa=True),
+]
+
+
+def built_journals(directory: Path) -> Path:
+    """A journal registry of a few journals, indexed as `dd-journals` indexes the real one."""
+    path = directory / "journals.sqlite"
+    JournalIndex.build(JOURNALS, path, "pinned", "OpenAlex test snapshot")
+    return path
+
+
 def registries(
     registry: Path | None = None,
     handler: Callable[[httpx.Request], httpx.Response] = recorded,
+    journals: Path | None = None,
 ) -> list[Registry]:
-    """All four registries, answering from the recorded files (and `registry`, for ROR)."""
+    """Every registry, answering from the recorded files (`registry` for ROR, and `journals` for
+    the journal registry; a registry not given is not built)."""
     return [
         doi_registry("DataCite", DataCite(http("DataCite", handler))),
         doi_registry("Crossref", Crossref(http("Crossref", handler))),
@@ -73,4 +117,5 @@ def registries(
                 index_label="ROR dump test",
             )
         ),
+        journal_registry(JournalSource(journals or Path("/nonexistent/journals.sqlite"))),
     ]

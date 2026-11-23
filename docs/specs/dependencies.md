@@ -100,7 +100,7 @@ no runtime dependency.
 | FAIRsharing | Standards, repository and policy advisers; `mcp-fairsharing` | Committed snapshots; the live REST API, behind a local cache in each adviser (`dd_registry_cache`, [Grounding](grounding.md) invariant 16) | A search term or a record identifier | CC BY-SA 4.0, kept with each snapshot (`LICENCE.md`); the cache keeps records for the adviser's own runs | An expired cached copy, then the snapshot |
 | re3data | Repository adviser (`registry`) | The monthly export, pinned and built locally | Nothing at run time | CC0 | — |
 | DataCite repositories | Repository adviser | Committed snapshot | Nothing at run time | CC0 | — |
-| OpenAlex Sources (journals) | `dd-journals` (#1514) | One quarterly snapshot's Sources parts, pinned by SHA-256 and built locally (`dd-journals fetch`) | Nothing at run time | CC0 | — |
+| OpenAlex Sources (journals) | `dd-journals` (#1514); `mcp-pid`'s `journals` server | One quarterly snapshot's Sources parts, pinned by SHA-256 and built locally, with a SQLite index (`dd-journals fetch`, or `dd-sources prepare` through the policy adviser) | Nothing at run time | CC0 | — |
 | ROR | Policy adviser (`ror`); `mcp-pid` | The pinned dump; the live API if chosen | An identifier or an organisation name | CC0 | The dump answers |
 | DataCite and Crossref REST (works) | `mcp-pid` | Live, through the tool gateway | A DOI | CC0; facts | The run says the resolver is unavailable |
 | ORCID public API | `dd_harness.orcid`; `mcp-pid` | Live, anonymous | An iD | Nothing kept; ORCID's API licence is for non-commercial use | As above |

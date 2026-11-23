@@ -45,7 +45,12 @@ def serialise(journals: Iterable[Journal]) -> bytes:
     return "".join(lines).encode("utf-8")
 
 
-def build(parts: Iterable[Path]) -> tuple[bytes, int]:
-    """`journals.jsonl` built from the snapshot's parts, and how many journals it holds."""
+def build(parts: Iterable[Path]) -> tuple[bytes, list[Journal]]:
+    """`journals.jsonl` built from the snapshot's parts, and the journals it holds."""
     journals = merged(j for part in parts for j in journals_in(part))
-    return serialise(journals), len(journals)
+    return serialise(journals), journals
+
+
+def parse(data: bytes) -> list[Journal]:
+    """The journals in `journals.jsonl`."""
+    return [Journal.from_dict(json.loads(line)) for line in data.decode().splitlines() if line]

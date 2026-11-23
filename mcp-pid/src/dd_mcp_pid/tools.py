@@ -103,7 +103,7 @@ ORGANISATION = {
 }
 
 
-def _records(record: dict[str, Any], *, at_most_one: bool = True) -> dict[str, Any]:
+def records_schema(record: dict[str, Any], *, at_most_one: bool = True) -> dict[str, Any]:
     items: dict[str, Any] = {"type": "array", "items": record}
     if at_most_one:
         items["maxItems"] = 1
@@ -115,7 +115,7 @@ def _records(record: dict[str, Any], *, at_most_one: bool = True) -> dict[str, A
     }
 
 
-def _input(name: str, description: str) -> dict[str, Any]:
+def string_input(name: str, description: str) -> dict[str, Any]:
     return {
         "type": "object",
         "properties": {name: {"type": "string", "description": description}},
@@ -132,8 +132,8 @@ def get_doi_tool(agency: str) -> Tool:
             f"year, first 25 creators and landing URL. A DOI that {agency} did not register is "
             "not found here: no records."
         ),
-        input_schema=_input("doi", "A DOI, bare (10.xxxx/...) or as a doi.org URL."),
-        output_schema=_records(DOI_RECORD),
+        input_schema=string_input("doi", "A DOI, bare (10.xxxx/...) or as a doi.org URL."),
+        output_schema=records_schema(DOI_RECORD),
     )
 
 
@@ -143,8 +143,10 @@ GET_ORCID = Tool(
         "The public name on an ORCID record: given names, family name and published name. A name "
         "the person keeps private is null. No records if ORCID has no such iD."
     ),
-    input_schema=_input("orcid", "An ORCID iD, bare (0000-0000-0000-0000) or as an orcid.org URL."),
-    output_schema=_records(ORCID_RECORD),
+    input_schema=string_input(
+        "orcid", "An ORCID iD, bare (0000-0000-0000-0000) or as an orcid.org URL."
+    ),
+    output_schema=records_schema(ORCID_RECORD),
 )
 
 GET_ORGANISATION = Tool(
@@ -153,8 +155,8 @@ GET_ORGANISATION = Tool(
         "An organisation by its ROR identifier: its names, types, status, countries, Crossref "
         "Funder IDs and parent organisations. No records if ROR has no such identifier."
     ),
-    input_schema=_input("id", "A ROR identifier, bare (0xxxxxxNN) or as a ror.org URL."),
-    output_schema=_records(ORGANISATION),
+    input_schema=string_input("id", "A ROR identifier, bare (0xxxxxxNN) or as a ror.org URL."),
+    output_schema=records_schema(ORGANISATION),
 )
 
 SEARCH_ORGANISATIONS = Tool(
@@ -164,8 +166,8 @@ SEARCH_ORGANISATIONS = Tool(
         "case and spacing. More than one means the name is ambiguous; none means ROR has no such "
         "name."
     ),
-    input_schema=_input("name", "An organisation's name, acronym or alias."),
-    output_schema=_records(ORGANISATION, at_most_one=False),
+    input_schema=string_input("name", "An organisation's name, acronym or alias."),
+    output_schema=records_schema(ORGANISATION, at_most_one=False),
 )
 
 

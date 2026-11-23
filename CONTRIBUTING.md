@@ -45,7 +45,7 @@ the default home for anything.
 | The deposit broker, which holds people's own repository tokens and makes draft deposits for them ([Deposit](docs/specs/deposit.md)) | `deposit-broker/` |
 | The development client for agent authors: the `workbench` CLI, viewer and its development configuration | `workbench/` |
 | `dd-inventory`, which a researcher runs where their data live to describe a dataset's files ([Projects](docs/specs/projects.md)) | `inventory/` |
-| The PID resolver, an MCP server that resolves DOIs, ORCID iDs and ROR identifiers for agents through the tool gateway | `mcp-pid/` |
+| The PID resolver, an MCP server that resolves DOIs, ORCID iDs, ROR identifiers and ISSNs for agents through the tool gateway | `mcp-pid/` |
 | `dd-units`, a library that turns a unit as a person writes it into a UCUM code | `units/` |
 | `dd-subjects`, subject classifications (OECD Fields of R&D, ANZSRC Fields of Research) to suggest a field of study from | `subjects/` |
 | `dd-formats`, file formats described from the records of a pinned PRONOM release | `formats/` |

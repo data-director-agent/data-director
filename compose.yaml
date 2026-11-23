@@ -354,6 +354,7 @@ services:
     environment:
       <<: *python-env
       DD_PID_ROR_REGISTRY: /workspace/agents/advisor-policy/data/ror/registry.jsonl
+      DD_PID_JOURNALS_REGISTRY: /workspace/journals/src/dd_journals/data/journals.sqlite
       # The name the app reaches it by; any other Host header is refused.
       DD_PID_HOSTS: mcp-pid
       # Your operators' contact address for DataCite and Crossref (mcp-pid/README.md); blank: none.
