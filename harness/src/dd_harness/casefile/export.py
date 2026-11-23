@@ -67,8 +67,7 @@ def write_zip(root: Path, target: Path) -> None:
         for path in sorted(root.rglob("*")):
             if path.is_file():
                 info = zipfile.ZipInfo(path.relative_to(root).as_posix(), date_time=ZIP_TIME)
-                info.compress_type = zipfile.ZIP_DEFLATED
-                archive.writestr(info, path.read_bytes())
+                archive.writestr(info, path.read_bytes(), compress_type=zipfile.ZIP_DEFLATED)
 
 
 def _record(selection: Selection, exported_by: Principal) -> None:
