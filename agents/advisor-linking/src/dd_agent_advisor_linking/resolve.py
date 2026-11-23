@@ -8,15 +8,19 @@ tool each offers:
 - a DOI: `datacite.get_doi`, then `crossref.get_doi`, since each agency holds only the DOIs it
   registered, so a DOI DataCite does not hold is asked of Crossref;
 - an ORCID iD: `orcid.get_orcid`;
-- a ROR id: `ror.get_organisation`.
+- a ROR id: `ror.get_organisation`;
+- a grant number: `grants.resolve_grant`, with the number alone. It answers every grant the number
+  may name, from Crossref's grant records and the OpenAIRE Graph; the link lists each as a
+  candidate and cites each record, and where there is more than one, the researcher chooses: the
+  adviser never does.
 
 A DOI once found is given the relation that suits the type of work its record names
 (`relations.yaml`); one not found keeps the scheme's default.
 
 Of those the gateway lists for the invocation, each is called with the identifier and answers
-`{"records": [...]}`: one record when found, none when not. The conductor records each record, and
-the link cites exactly the one it was resolved against. A lookup that fails, errors or finds
-nothing is noted on the link and never raised.
+`{"records": [...]}`: one record when found (one or more for a grant number), none when not. The
+conductor records each record, and the link cites exactly the ones it was resolved against. A
+lookup that fails, errors or finds nothing is noted on the link and never raised.
 """
 
 from __future__ import annotations
@@ -25,13 +29,14 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from dd_agent_advisor_linking import relations
+from dd_agent_advisor_linking import grants, relations
 from dd_agent_advisor_linking.classes import RelatedLink
 from dd_sdk.tools import ToolGatewayError, ToolRecord, Tools, ToolUse, split_name
 
 DOI_TOOL = "get_doi"
 ORCID_TOOL = "get_orcid"
 ROR_TOOL = "get_organisation"
+GRANT_TOOL = "resolve_grant"
 DOI_PREFIX = "https://doi.org/"
 
 FORM_ONLY = "Recognised by form only, not resolved."
@@ -67,18 +72,25 @@ ROUTES = (
     ),
     Route("orcid", "ORCID iDs", ("orcid",), ORCID_TOOL, "orcid", "this is the person you mean"),
     Route("ror", "ROR ids", ("ror",), ROR_TOOL, "id", "this is the organisation you mean"),
+    Route("grant", "grant numbers", ("grants",), GRANT_TOOL, "award", "this is your grant"),
 )
 BY_SCHEME = {route.scheme: route for route in ROUTES}
 TOOLS = tuple(ToolUse(server, (r.tool,)) for r in ROUTES for server in r.servers)
-NAMES = {"datacite": "DataCite", "crossref": "Crossref", "orcid": "ORCID", "ror": "ROR"}
+NAMES = {
+    "datacite": "DataCite",
+    "crossref": "Crossref",
+    "orcid": "ORCID",
+    "ror": "ROR",
+    "grants": "the grant resolver (Crossref and OpenAIRE)",
+}
 
 
 @dataclass(frozen=True)
 class Lookup:
-    """What looking up one identifier came to: the link updated, and the record it cites."""
+    """What looking up one identifier came to: the link updated, and the records it cites."""
 
     link: RelatedLink
-    record: ToolRecord | None = None
+    records: tuple[ToolRecord, ...] = ()
 
 
 def available(tools: Tools | None) -> dict[str, tuple[str, ...]]:
@@ -106,8 +118,7 @@ def available(tools: Tools | None) -> dict[str, tuple[str, ...]]:
 def lookup(tools: Tools, servers: tuple[str, ...], link: RelatedLink) -> Lookup:
     """`link`, a well-formed identifier, asked of each of `servers` in turn until one finds it."""
     route = BY_SCHEME[link.scheme]
-    assert link.normalised is not None
-    value = link.normalised.removeprefix(DOI_PREFIX) if route.scheme == "doi" else link.normalised
+    value = _value(route, link)
     failed: list[str] = []
     for server in servers:
         try:
@@ -118,12 +129,25 @@ def lookup(tools: Tools, servers: tuple[str, ...], link: RelatedLink) -> Lookup:
         if outcome.is_error:
             failed.append(server)
             continue
+        if outcome.records and route.scheme == "grant":
+            return Lookup(
+                grants.found(link, NAMES.get(server, server), outcome.records), outcome.records
+            )
         if outcome.records:
             record = outcome.records[0]
-            return Lookup(_found(link, route, server, record.content), record)
+            return Lookup(_found(link, route, server, record.content), (record,))
     if failed and len(failed) == len(servers):
         return Lookup(_noted(link, FAILED.format(servers=_names(failed, "and"))))
     return Lookup(_noted(link, NOT_FOUND.format(servers=_names(servers, "or"))))
+
+
+def _value(route: Route, link: RelatedLink) -> str:
+    """What the route's tool is asked with: a DOI bare, a grant number as given, and any other
+    identifier in its canonical form."""
+    if route.scheme == "grant":
+        return link.given.strip()
+    assert link.normalised is not None
+    return link.normalised.removeprefix(DOI_PREFIX) if route.scheme == "doi" else link.normalised
 
 
 def _found(link: RelatedLink, route: Route, server: str, content: Mapping[str, Any]) -> RelatedLink:
@@ -192,6 +216,6 @@ def _text(value: Any) -> str | None:
 def cited(lookups: list[Lookup]) -> list[ToolRecord]:
     """The records the lookups found, once each."""
     by_hash: Mapping[str, ToolRecord] = {
-        lk.record.content_hash: lk.record for lk in lookups if lk.record is not None
+        record.content_hash: record for lk in lookups for record in lk.records
     }
     return list(by_hash.values())

@@ -96,7 +96,7 @@ def test_start_gives_the_server_the_pinned_registries() -> None:
 @pytest.mark.parametrize("config", [TOOLS, ROOT / "docker" / "tools.yaml"], ids=["app", "docker"])
 def test_each_tools_config_pins_the_tools_the_server_lists(config: Path) -> None:
     servers = {s.name: s for s in load_servers(config)}
-    assert list(servers) == ["datacite", "crossref", "orcid", "ror", "journals"]
+    assert list(servers) == ["datacite", "crossref", "orcid", "ror", "journals", "grants"]
     for registry in registries({}):
         listed = [
             t.model_dump(mode="json", by_alias=True, exclude_none=True) for t in registry.tools

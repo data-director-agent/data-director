@@ -122,7 +122,7 @@ def _sse_events(text: str) -> list[dict[str, Any]]:
 
 
 @pytest.mark.requirement("C5.1")
-def test_agui_run_and_replay_start_and_finish_with_the_envelope(runs_dir: Path) -> None:
+def test_agui_run_and_replay_stream_the_same_events(runs_dir: Path) -> None:
     _, app = _app(runs_dir)
 
     async def go() -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
@@ -149,7 +149,8 @@ def test_agui_run_and_replay_start_and_finish_with_the_envelope(runs_dir: Path) 
     envelope = live[-1]["result"]
     assert envelope["outcome"]["status"] == "succeeded"
     assert envelope["payload"]["schema_class"] == "QualityReview"
-    assert [e["type"] for e in replay] == ["RUN_STARTED", "RUN_FINISHED"]
+    # A replay streams what the live run did, from the run's stored stages.
+    assert [e["type"] for e in replay] == [e["type"] for e in live]
     assert replay[-1]["result"] == envelope
     assert index[0]["status"] == "succeeded"
     # The viewer renders the payload with the schema it was checked against, by digest.

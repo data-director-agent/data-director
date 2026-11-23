@@ -43,6 +43,7 @@ import {
   type DocumentVersion,
   useProjectApi,
 } from "../../project/api";
+import { isList, listAnswer } from "../../project/listAnswer";
 import { byAModel } from "../../project/suggestion";
 import { errorMessage } from "../../run/api";
 import { Button } from "../ui/Button";
@@ -146,7 +147,10 @@ export function DocumentQuestions({
 
   const given = (questions: DocumentQuestion[]): GivenAnswer[] =>
     questions
-      .map((q) => ({ answered_question: q.question_id, answer_text: drafts.value(q).trim() }))
+      .map((q) => {
+        const text = drafts.value(q).trim();
+        return { answered_question: q.question_id, answer_text: isList(q) ? listAnswer(text) : text };
+      })
       .filter((a) => a.answer_text !== "");
 
   const isChanging = (q: DocumentQuestion) => changing.has(q.question_id);

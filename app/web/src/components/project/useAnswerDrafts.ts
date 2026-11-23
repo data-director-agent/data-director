@@ -11,10 +11,16 @@ import { useEffect, useState } from "react";
 
 import type { DocumentQuestion, DocumentVersion, ProjectDocument } from "../../project/api";
 import { openQuestions } from "../../project/gaps";
+import { isList, listText } from "../../project/listAnswer";
 
-/** A question's suggested answer, or "" when it has none. */
+/** What a question's box holds for an answer: a list's values one on each line, other text as it is. */
+function boxText(q: DocumentQuestion, answer: string): string {
+  return isList(q) ? listText(answer) : answer;
+}
+
+/** A question's suggested answer, as its box holds it, or "" when it has none. */
 export function suggestion(q: DocumentQuestion): string {
-  return q.suggested_answer ?? "";
+  return boxText(q, q.suggested_answer ?? "");
 }
 
 function without(record: Record<string, string>, ids: readonly string[]): Record<string, string> {
@@ -45,8 +51,11 @@ export function useAnswerDrafts(document: ProjectDocument, version: DocumentVers
   const [changing, setChanging] = useState<ReadonlySet<string>>(new Set());
   const answers = new Map(document.answers.map((a) => [a.question_id, a.answer_text]));
 
-  const start = (q: DocumentQuestion) =>
-    (changing.has(q.question_id) ? answers.get(q.question_id) : undefined) ?? suggestion(q);
+  const savedText = (q: DocumentQuestion) => {
+    const answer = changing.has(q.question_id) ? answers.get(q.question_id) : undefined;
+    return answer === undefined ? undefined : boxText(q, answer);
+  };
+  const start = (q: DocumentQuestion) => savedText(q) ?? suggestion(q);
   const value = (q: DocumentQuestion) => words[q.question_id] ?? start(q);
   const unsaved = (q: DocumentQuestion) => {
     const typed = words[q.question_id];

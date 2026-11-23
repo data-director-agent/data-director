@@ -1,6 +1,9 @@
 {
    "@context": {
       "@vocab": "https://w3id.org/data-director/agents/linking/",
+      "GrantCandidate": {
+         "@id": "https://w3id.org/data-director/agents/linking/GrantCandidate"
+      },
       "GroundingRef": {
          "@id": "https://w3id.org/data-director/GroundingRef"
       },
@@ -10,18 +13,37 @@
       "RelatedLink": {
          "@id": "https://w3id.org/data-director/agents/linking/RelatedLink"
       },
+      "award": {
+         "@id": "https://w3id.org/data-director/agents/linking/award"
+      },
+      "candidates": {
+         "@id": "https://w3id.org/data-director/agents/linking/candidates",
+         "@type": "@id"
+      },
       "content_hash": {
          "@id": "https://w3id.org/data-director/content_hash"
       },
       "dcat": "http://www.w3.org/ns/dcat#",
       "dcterms": "http://purl.org/dc/terms/",
       "dd": "https://w3id.org/data-director/",
+      "funder": {
+         "@id": "https://w3id.org/data-director/agents/linking/funder"
+      },
+      "funder_identifier": {
+         "@id": "https://w3id.org/data-director/agents/linking/funder_identifier"
+      },
+      "funding_stream": {
+         "@id": "https://w3id.org/data-director/agents/linking/funding_stream"
+      },
       "given": {
          "@id": "https://w3id.org/data-director/agents/linking/given"
       },
       "grounded_on": {
          "@id": "https://w3id.org/data-director/grounded_on",
          "@type": "@id"
+      },
+      "id": {
+         "@id": "https://w3id.org/data-director/agents/linking/id"
       },
       "limitations": {
          "@id": "https://w3id.org/data-director/agents/linking/limitations"
@@ -56,6 +78,9 @@
          "@id": "https://w3id.org/data-director/agents/linking/scheme"
       },
       "shex": "http://www.w3.org/ns/shex#",
+      "source": {
+         "@id": "https://w3id.org/data-director/agents/linking/source"
+      },
       "source_id": {
          "@id": "https://w3id.org/data-director/source_id"
       },

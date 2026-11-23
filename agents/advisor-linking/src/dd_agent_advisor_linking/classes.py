@@ -18,6 +18,16 @@ class LinkCandidates(Frozen):
     identifiers: list[str] = Field(default_factory=list)
 
 
+class GrantCandidate(Frozen):
+    id: str
+    award: str | None = None
+    title: str | None = None
+    funder: str | None = None
+    funder_identifier: str | None = None
+    funding_stream: str | None = None
+    source: str
+
+
 class RelatedLink(Frozen):
     given: str
     scheme: str
@@ -27,6 +37,7 @@ class RelatedLink(Frozen):
     resolved: bool | None = None
     title: str | None = None
     resource_type: str | None = None
+    candidates: list[GrantCandidate] = Field(default_factory=list)
     message: str
 
 

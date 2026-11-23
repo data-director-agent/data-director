@@ -128,8 +128,11 @@ whom an invocation acts for, and how that is established, is in
     AG-UI messages, so every transport gives an agent the same input.
   - `POST /agui/runs/{runId}/cancel` cancels the caller's run of that AG-UI `runId` while its
     stream is open, and answers 404 for any other.
-  - `GET /agui/runs/{invocationId}` replays a stored run as `RUN_STARTED` then `RUN_FINISHED`
-    with its envelope. A run's stages and reports are not stored as events, so a replay has none.
+  - `GET /agui/runs/{invocationId}` replays a stored run as it streamed: `RUN_STARTED`, the
+    events of its `stages.jsonl`, then `RUN_FINISHED` with its envelope. Live and replayed events
+    are made by one mapping from a stage record (`dd_harness.transport.agui.event_from_stage`), so
+    the two agree. A run stored before its stages were kept replays as `RUN_STARTED` then
+    `RUN_FINISHED`.
   - `dd_harness.transport.agui.stream_run` makes the events of any run started through
     `Conductor.ainvoke`, so a way in that wraps the conductor (the app's conversation turns)
     streams the same binding. Such a way in names the refusals of its own it makes once the

@@ -80,12 +80,17 @@ class Http:
             )
         return self._client
 
-    def get(self, url: str, params: dict[str, str] | None = None) -> httpx.Response:
+    def get(
+        self,
+        url: str,
+        params: dict[str, str] | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> httpx.Response:
         """The answer to `GET url`, after retrying a busy or failing service. Raises
         `UnavailableError` when the service cannot be reached or keeps failing."""
         for pause in (*self.pauses, None):
             try:
-                resp = self.client().get(url, params=params)
+                resp = self.client().get(url, params=params, headers=headers)
             except httpx.HTTPError as exc:
                 if pause is None:
                     raise UnavailableError(f"{self.name}: {type(exc).__name__}") from None

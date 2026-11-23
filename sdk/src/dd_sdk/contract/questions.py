@@ -26,6 +26,13 @@ class Derivation(StrEnum):
     ANSWER = "answer"
 
 
+class AnswerKind(StrEnum):
+    """How a drafter's question is answered, so that a front end shows the fitting input."""
+
+    TEXT = "text"
+    LIST = "list"
+
+
 class SharedField(StrEnum):
     """A value every kind of project document gives the same way (docs/specs/drafting.md)."""
 
@@ -53,6 +60,10 @@ class DocumentQuestion(Frozen):
 
     question_id: str = Field(pattern=QUESTION_ID_PATTERN)
     question_prompt: str
+    # A line of help shown under the question.
+    question_help: str | None = None
+    # How the question is answered; None means text.
+    answer_kind: AnswerKind | None = None
     gap_section: str | None = None
     # The part of the section, when the drafter asks a section part by part.
     gap_part: str | None = None

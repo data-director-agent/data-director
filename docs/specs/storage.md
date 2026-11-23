@@ -45,9 +45,15 @@ It does not cover what a run or a project contains ([Contract](contract.md), [Pr
    and `has` may report it.
 5. **Everything else a run keeps is a named artifact.** Beside the envelope, the request, the
    prompts and the class schemas, the conductor keeps `spans.jsonl`, `grounding.txt`,
-   `sources.txt`, `validation-report.jsonld` when the payload's class carries shapes
-   ([Contract](contract.md)) and, unless `DD_WRITE_CRATE=0`, the Process Run Crate as one artifact per file
-   under `crate/`. An artifact belongs to a stored run, is written once, and is read back byte for
+   `sources.txt`, `stages.jsonl` (what the run's watchers were told, in order:
+   `dd_harness.observe.StageRecorder`), `validation-report.jsonld` when the payload's class carries
+   shapes ([Contract](contract.md)), `withheld.json` when a check or the project withheld the
+   agent's result, and, unless `DD_WRITE_CRATE=0`, the Process Run Crate as one artifact per file
+   under `crate/`. `withheld.json` is the envelope as the agent's result made it, before
+   `dd_harness.pipeline.withhold` failed it. Only operator surfaces read it (the admin service and
+   the export of a case for debugging, #1576); the app, the workbench, the envelope, the crate and
+   the deposit package never carry it, since showing a person what the checks withheld would undo
+   the withholding ([Evidence and grounding](grounding.md)). An artifact belongs to a stored run, is written once, and is read back byte for
    byte. A run's artifacts are kept together, in one transaction where the backend has them, so a failure keeps none. Its name is a relative path of plain segments and cannot name the run's own files, in
    every backend, including those whose keys could hold any string.
 6. **A class schema is kept once under its digest**, and its bytes never change

@@ -136,18 +136,18 @@ dd:Affiliation a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 4 ;
             sh:path dd:organisation_identifier_scheme ],
-        [ sh:datatype xsd:string ;
-            sh:description "The department within the organisation." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 5 ;
-            sh:path dd:department ],
         [ sh:description "What kind of affiliation the item is." ;
             sh:in ( "employment" "education" "qualification" "invited_position" "distinction" "membership" "service" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 1 ;
             sh:path dd:affiliation_kind ],
+        [ sh:datatype xsd:string ;
+            sh:description "The department within the organisation." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:department ],
         [ sh:datatype xsd:string ;
             sh:description "The organisation's identifier, where ORCID gives one: a URL for ROR, else as given." ;
             sh:maxCount 1 ;
@@ -229,6 +229,12 @@ dd:CurrentVersion a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
             sh:path dd:decision_reason ],
+        [ sh:description "Whether a person has approved or rejected the version, or not yet decided." ;
+            sh:in ( "proposed" "approved" "rejected" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 4 ;
+            sh:path dd:version_state ],
         [ sh:datatype xsd:string ;
             sh:description "The media type of document_text, such as text/markdown or application/json." ;
             sh:maxCount 1 ;
@@ -236,12 +242,6 @@ dd:CurrentVersion a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path dcterms:format ],
-        [ sh:description "Whether a person has approved or rejected the version, or not yet decided." ;
-            sh:in ( "proposed" "approved" "rejected" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 4 ;
-            sh:path dd:version_state ],
         [ sh:class dd:DocumentVersionRef ;
             sh:description "The version, by its document and number." ;
             sh:maxCount 1 ;
@@ -1405,7 +1405,13 @@ dd:PersonalDataFinding a sh:NodeShape ;
     rdfs:comment "Where the inventory command found what may be personal data, and how sure it is (docs/specs/personal-data.md). It never holds a matched value, any part of one, an offset into a file, a row number or an example: a kind, a place, bands and the detector only. A finding is a prompt for a person, never a decision." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:description "How much was examined: the sampled, non-empty values of a column, or the characters of a text file. Absent for a name." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path dd:finding_examined ],
+        [ sh:datatype xsd:string ;
             sh:description "The detector, its version and its configuration, such as the recognisers that ran, so that a reader knows what was looked for." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -1448,12 +1454,6 @@ dd:PersonalDataFinding a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 5 ;
-            sh:path dd:finding_confidence ],
-        [ sh:datatype xsd:integer ;
-            sh:description "How much was examined: the sampled, non-empty values of a column, or the characters of a text file. Absent for a name." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 7 ;
-            sh:path dd:finding_examined ] ;
+            sh:path dd:finding_confidence ] ;
     sh:targetClass dd:PersonalDataFinding .
 

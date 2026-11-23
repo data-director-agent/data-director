@@ -4,8 +4,8 @@
 # https form; `relation` is the DataCite relationType suggested by default, or null where the adviser
 # cannot tell, and a resolved DOI's record can replace it (relations.yaml); `advice` says how the researcher might record it. `grant` has no canonical form and
 # is tried last: a string is taken for a grant number only when it matches no other scheme, has no
-# spaces or colons, and contains a digit. The table decides form only; DOIs, ORCID iDs and ROR ids
-# are resolved through the tool gateway (resolve.py), and grant numbers are TODO(#953).
+# spaces or colons, and contains a digit. The table decides form only; each scheme but unknown is
+# resolved through the tool gateway (resolve.py), a grant number to every grant it may name.
 doi:
   pattern: '(?:https?://(?:dx\.)?doi\.org/|doi:\s*)?(10\.\d{4,9}/\S+)'
   prefix: https://doi.org/
