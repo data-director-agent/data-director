@@ -8,7 +8,7 @@ from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
-from test_orchestrator import ScriptedModel, asks, conductor
+from test_orchestrator import ScriptedModel, asks, call, conductor
 
 from dd_agent_orchestrator_model.steward_offer import NOT_NOW, SEND, STEWARD_KEY, STEWARD_QUESTION
 from dd_harness.testing import TEST_PRINCIPAL, request
@@ -75,3 +75,95 @@ def test_the_prompt_says_when_to_offer_a_steward() -> None:
         Path(__file__).parents[1] / "src" / "dd_agent_orchestrator_model" / "system_prompt.md"
     ).read_text(encoding="utf-8")
     assert f"`{STEWARD_KEY}`" in prompt
+
+
+STEWARD = {"question_key": STEWARD_KEY, "question_kind": "choice", "question_prompt": "Ask?"}
+GREET = ("example_hello", {"greeted_name": "Ada"})
+
+
+def replied(runs_dir: Path, model: ScriptedModel, **kwargs: object) -> Reply:
+    env = conductor(runs_dir, model, **kwargs).invoke(
+        request("orchestrator.model", Message(message_text="How will my data get a DOI?")),
+        acting_for=TEST_PRINCIPAL,
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    reply: Reply = env.payload_as(Reply)
+    return reply
+
+
+def test_an_offer_without_a_reply_after_an_agent_answered_is_sent_back(runs_dir: Path) -> None:
+    """A bare offer would hide what the agent found: the model is asked to write its reply first,
+    and the offer is shown beside it."""
+    model = ScriptedModel(
+        [
+            call(GREET),
+            call(("ask_questions", {"questions": [STEWARD]})),
+            asks("The agent found part of it.", ("ask_questions", {"questions": [STEWARD]})),
+        ]
+    )
+
+    reply = replied(runs_dir, model)
+
+    [refused] = model.sent[2]["messages"][-1]["results"]
+    assert refused["is_error"] is True
+    assert reply.reply_text == "The agent found part of it."
+    assert reply.reply_questions == [STEWARD_QUESTION]
+
+
+def test_an_offer_without_a_reply_is_sent_back_even_without_an_agent(runs_dir: Path) -> None:
+    model = ScriptedModel(
+        [
+            call(("ask_questions", {"questions": [STEWARD]})),
+            asks("No agent can help with this.", ("ask_questions", {"questions": [STEWARD]})),
+        ]
+    )
+
+    reply = replied(runs_dir, model)
+
+    assert len(model.sent) == 2
+    assert reply.reply_text == "No agent can help with this."
+
+
+def test_a_preamble_to_a_delegation_is_not_the_reply(runs_dir: Path) -> None:
+    model = ScriptedModel(
+        [
+            asks("Let me ask an agent.", GREET),
+            call(("ask_questions", {"questions": [STEWARD]})),
+            asks("It could not help.", ("ask_questions", {"questions": [STEWARD]})),
+        ]
+    )
+
+    assert replied(runs_dir, model).reply_text == "It could not help."
+
+
+def test_text_beside_the_models_own_tool_is_kept_for_the_reply(runs_dir: Path) -> None:
+    """Text written beside recording the entry point, before the questions, is the reply."""
+    model = ScriptedModel(
+        [
+            asks("The agent found that figshare assigns DOIs.", ("set_entry_point", {"entry": 1})),
+            call(("ask_questions", {"questions": [STEWARD]})),
+        ]
+    )
+    project = Message(
+        message_text="How will my data get a DOI?",
+        project_title_by_researcher=True,
+        project_entry_by_researcher=False,
+    )
+    env = conductor(runs_dir, model).invoke(
+        request("orchestrator.model", project), acting_for=TEST_PRINCIPAL
+    )
+
+    reply = env.payload_as(Reply)
+    assert len(model.sent) == 2
+    assert reply.reply_text == "The agent found that figshare assigns DOIs."
+    assert reply.reply_questions == [STEWARD_QUESTION]
+
+
+def test_at_the_limit_a_bare_offer_is_shown_and_the_run_ends(runs_dir: Path) -> None:
+    model = ScriptedModel([call(GREET), call(("ask_questions", {"questions": [STEWARD]}))])
+
+    reply = replied(runs_dir, model, max_delegations=1)
+
+    assert len(model.sent) == 2
+    assert reply.reply_questions == [STEWARD_QUESTION]
+    assert reply.reply_text == STEWARD_QUESTION.question_prompt
