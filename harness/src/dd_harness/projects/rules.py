@@ -83,6 +83,10 @@ ESCALATION_WITHDRAWN = "escalation_withdrawn"
 ESCALATION_REOPENED = "escalation_reopened"
 # Sent to its team again because nobody took it in time (docs/specs/stewardship.md, invariant 13).
 ESCALATION_REROUTED = "escalation_rerouted"
+# Passed by a steward to a colleague in the same team, or to another team
+# (docs/specs/stewardship.md, invariant 4; docs/ui/steward-escalation-flows.md, Flow G).
+ESCALATION_REASSIGNED = "escalation_reassigned"
+ESCALATION_TRANSFERRED = "escalation_transferred"
 # What a data steward does in a project they reach as its steward (docs/specs/stewardship.md,
 # invariants 3, 6 to 8; dd_harness.projects.stewarding).
 STEWARD_VIEWED = "steward_viewed"
@@ -298,6 +302,8 @@ EVENT_TYPES: Final = frozenset(
         ESCALATION_WITHDRAWN,
         ESCALATION_REOPENED,
         ESCALATION_REROUTED,
+        ESCALATION_REASSIGNED,
+        ESCALATION_TRANSFERRED,
         ENTRY_CHOSEN,
         STEP_MARKED,
         INTAKE_ANSWERED,

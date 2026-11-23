@@ -31,9 +31,12 @@ from typing import Any
 _PROJECT_CREATED = "project_created"
 # `dd_harness.projects.MEMBER_ADDED`, `MEMBER_ROLE_CHANGED` and `MEMBER_REMOVED`.
 _MEMBERSHIP = frozenset({"member_added", "member_role_changed", "member_removed"})
-# `dd_harness.projects.SUPPORT_TEAM_CHOSEN`, `ESCALATION_OPENED` and `PROJECT_PAUSED`, which name a
-# team: a team that holds a pause keeps the project until it lifts it.
-_ROUTING = frozenset({"support_team_chosen", "escalation_opened", "project_paused"})
+# `dd_harness.projects.SUPPORT_TEAM_CHOSEN`, `ESCALATION_OPENED`, `ESCALATION_TRANSFERRED` and
+# `PROJECT_PAUSED`, which name a team: a team that holds a pause keeps the project until it lifts
+# it, and a team an escalation is transferred to finds the project as one it was opened to.
+_ROUTING = frozenset(
+    {"support_team_chosen", "escalation_opened", "escalation_transferred", "project_paused"}
+)
 TEAM_KEY_PREFIX = "urn:dd:steward-team:"
 
 

@@ -28,6 +28,7 @@ from dd_app.app import build_app
 from dd_app.config import EXAMPLE_PROFILE, settings_from_env
 from dd_app.governance import CREATED_BY_ROUTE, Governance
 from dd_app.routes.escalations import Notices
+from dd_harness.escalation_storage import MoveAsked
 from dd_harness.testing import TEST_PRINCIPAL
 from dd_harness.testing.notifications import RecordingNotifier
 from dd_sdk.credentials import ConfigError
@@ -116,9 +117,8 @@ def test_a_researcher_reads_what_a_steward_did_in_their_project(
     store.move_escalation(
         owned,
         escalation_id,
-        "wait",
+        MoveAsked("wait", "Which consent form?"),
         side="steward",
-        note="Which consent form?",
         acted_for=OTHER,
         caused_by="test",
     )

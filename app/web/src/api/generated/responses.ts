@@ -71,6 +71,7 @@ export type AppResponse =
   | ListedProject
   | LiveEscalation
   | MoveName
+  | MoveTarget
   | Notice
   | Notices
   | OriginKind
@@ -80,6 +81,7 @@ export type AppResponse =
   | PermittedAction
   | PermittedActions
   | PermittedMove
+  | PermittedMoveName
   | Policy
   | PolicyAgent
   | PolicyProfile
@@ -145,8 +147,21 @@ export type AppResponse =
 export type StepState = "started" | "done" | "skipped";
 export type OutcomeStatus = "succeeded" | "abstained" | "referred" | "failed" | "suspended";
 export type MoveName =
-  "open" | "take" | "release" | "wait" | "reply" | "resolve" | "hand_back" | "withdraw" | "reopen" | "reroute";
+  | "open"
+  | "take"
+  | "release"
+  | "wait"
+  | "reply"
+  | "resolve"
+  | "hand_back"
+  | "withdraw"
+  | "reopen"
+  | "reassign"
+  | "transfer"
+  | "reroute";
 export type OriginKind = "researcher" | "policy_gate" | "agent" | "orchestrator";
+export type PermittedMoveName =
+  "take" | "release" | "wait" | "reply" | "resolve" | "hand_back" | "withdraw" | "reopen" | "reassign" | "transfer";
 export type EscalationState = "open" | "taken" | "waiting_for_researcher" | "resolved" | "handed_back" | "withdrawn";
 export type IntakeState = "pending" | "complete" | "dismissed";
 export type Role = "owner" | "member";
@@ -938,8 +953,28 @@ export interface EscalationMove {
    * The project event that made the move.
    */
   event_id: string;
+  /**
+   * For `reassign`: the steward who had taken it.
+   */
+  from_steward?: Principal | null;
+  /**
+   * For `transfer`: the team it was with.
+   */
+  from_team?: string;
   move: MoveName;
   note?: string;
+  /**
+   * For `transfer`: the team it was sent to.
+   */
+  team_id?: string;
+  /**
+   * For `transfer`: the name of the team it was sent to.
+   */
+  team_name?: string;
+  /**
+   * For `reassign`: the colleague in the same team who takes it over.
+   */
+  to_steward?: Principal;
 }
 /**
  * Where an escalation came from: the researcher, or a run of the project that ended in a
@@ -957,7 +992,7 @@ export interface EscalationOrigin {
  * A move the reader may make on an escalation, or one refused with why.
  */
 export interface PermittedMove {
-  move: "take" | "release" | "wait" | "reply" | "resolve" | "hand_back" | "withdraw" | "reopen";
+  move: PermittedMoveName;
   /**
    * Whether the move carries a note: required, optional, or none.
    */
@@ -967,6 +1002,21 @@ export interface PermittedMove {
    * Why a move of the reader's side is refused.
    */
   refusal?: "member-of-project";
+  /**
+   * For `reassign`, the colleagues in the team it may go to; for `transfer`, the other teams.
+   * A move that names a target is listed only where there is one.
+   */
+  targets?: MoveTarget[];
+}
+/**
+ * A colleague or a team a move may pass the escalation to.
+ */
+export interface MoveTarget {
+  /**
+   * The colleague's principal identifier, or the team's id.
+   */
+  id: string;
+  name: string;
 }
 /**
  * An example input the shell offers (`GET /api/examples`).

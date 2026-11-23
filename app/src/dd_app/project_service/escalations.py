@@ -15,6 +15,7 @@ from typing import Any
 from dd_app.project_service._area import Area
 from dd_harness import escalation_api, notifications
 from dd_harness.escalation_api import Confirmed, Requested
+from dd_harness.escalation_targets import NamesOf
 from dd_sdk.contract.models import Principal, now
 
 # How far back a person's notices go (`notices`): what the shell shows, not what is kept.
@@ -22,10 +23,12 @@ NOTICE_WINDOW = timedelta(days=30)
 
 
 class Escalations(Area):
-    def of_project(self, project_id: str, reader: Principal) -> dict[str, Any]:
+    def of_project(
+        self, project_id: str, reader: Principal, names: NamesOf | None = None
+    ) -> dict[str, Any]:
         """The project's escalations, each with the moves `reader` may make, the teams it may send
-        to, and where one would go."""
-        return escalation_api.for_project(self._store, self._profile, project_id, reader)
+        to, and where one would go. `names` names the colleagues a steward may reassign to."""
+        return escalation_api.for_project(self._store, self._profile, project_id, reader, names)
 
     def open(
         self, project_id: str, confirmed: Confirmed, *, acted_for: Principal, caused_by: str
@@ -54,20 +57,20 @@ class Escalations(Area):
         project_id: str,
         requested: Requested,
         *,
-        as_steward: bool,
         acted_for: Principal,
         caused_by: str,
+        names: NamesOf | None = None,
     ) -> dict[str, Any]:
-        """Make a move on an escalation, and tell its team of a researcher's move; returns the
-        escalation as it then stands."""
+        """Make a move on an escalation, and tell its team of a researcher's move, or the team an
+        escalation is transferred to; returns the escalation as it then stands."""
         moved = escalation_api.move(
             self._store,
             self._profile,
             project_id,
             requested,
-            as_steward=as_steward,
             acted_for=acted_for,
             caused_by=caused_by,
+            names=names,
         )
         self._tell(project_id, moved)
         return moved
@@ -86,11 +89,13 @@ class Escalations(Area):
         )
         return self.of_project(project_id, acted_for)
 
-    def queue(self, steward: Principal, states: Sequence[str]) -> list[dict[str, Any]]:
+    def queue(
+        self, steward: Principal, states: Sequence[str], names: NamesOf | None = None
+    ) -> list[dict[str, Any]]:
         """The escalations routed to the steward's teams; none for someone in no team."""
         if self.governance.projects is None:
             return []
-        return escalation_api.queue(self._store, self._profile, steward, states or None)
+        return escalation_api.queue(self._store, self._profile, steward, states or None, names)
 
     def notices(self, person: Principal) -> list[dict[str, Any]]:
         """What data stewards have done in `person`'s projects lately, the newest first."""

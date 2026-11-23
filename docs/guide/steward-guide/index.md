@@ -47,6 +47,7 @@ now; anything not built carries a note linking to its issue.
 | Your teams' projects | Works | [#232](https://github.com/data-director-agent/data-director/issues/232) |
 | The community and compliance overview | Not built yet | [#1307](https://github.com/data-director-agent/data-director/issues/1307) |
 | Notifications: your team emailed, and a request nobody takes sent again | Works | [#378](https://github.com/data-director-agent/data-director/issues/378) |
+| Reassigning and transferring requests, and conflicts of interest | Works | [#1308](https://github.com/data-director-agent/data-director/issues/1308) |
 
 ## In this guide
 

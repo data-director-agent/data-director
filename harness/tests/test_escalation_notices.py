@@ -84,8 +84,7 @@ def move(
         projects,
         deployment,
         project_id,
-        Requested(escalation_id, name, NOTE),
-        as_steward=as_steward,
+        Requested(escalation_id, name, NOTE, as_steward=as_steward),
         acted_for=STEWARD if as_steward else TEST_PRINCIPAL,
         caused_by="test",
     )

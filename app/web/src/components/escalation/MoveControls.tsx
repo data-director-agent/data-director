@@ -3,6 +3,8 @@
  * (`permitted_moves`, docs/specs/stewardship.md, invariant 4): one control each, on whichever
  * side the reader is. A move that needs a note, or may carry one, opens a short form first; one
  * the harness refuses is said with why, not hidden (docs/ui/steward-escalation-flows.md, flow C).
+ * A move that names a target, `reassign` or `transfer`, asks whom to pass it to from the
+ * colleagues or teams the harness lists (flow G).
  * The shell derives no move from the state.
  *
  * A control is disabled, not pending, while its move is made: the move usually removes it, and a
@@ -17,7 +19,8 @@ import { errorMessage } from "../../run/api";
 import { Button } from "../ui/Button";
 import { useAnnounce } from "../ui/Announcer";
 import { NoteField } from "./NoteField";
-import { MOVE_CONTROL, moveRefusalSaid } from "./wording";
+import { TargetField } from "./TargetField";
+import { MOVE_CONTROL, MOVE_TARGET, moveRefusalSaid } from "./wording";
 
 export function MoveControls({
   escalation,
@@ -26,23 +29,24 @@ export function MoveControls({
 }: {
   escalation: Escalation;
   /** Makes the move; rejects with what went wrong. */
-  onMove(move: MoveName, note?: string): Promise<unknown>;
+  onMove(move: MoveName, note?: string, to?: string): Promise<unknown>;
   /** Names what the controls act on, for a screen reader, where several are on one page. */
   context?: string;
 }) {
   const announce = useAnnounce();
   const [writing, setWriting] = useState<PermittedMove | null>(null);
   const [note, setNote] = useState("");
+  const [to, setTo] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const permitted = escalation.permitted_moves.filter((m) => m.permitted);
   const refused = escalation.permitted_moves.filter((m) => !m.permitted);
 
-  async function make(move: MoveName, withNote?: string) {
+  async function make(move: MoveName, withNote?: string, target?: string) {
     setBusy(true);
     setError(null);
     try {
-      await onMove(move, withNote);
+      await onMove(move, withNote, target);
       setWriting(null);
       setNote("");
       announce(MOVE_CONTROL[move].done);
@@ -62,10 +66,25 @@ export function MoveControls({
             event.preventDefault();
             const text = note.trim();
             if (writing.note === "required" && !text) return;
-            void make(writing.move, text || undefined);
+            void make(writing.move, text || undefined, writing.targets ? to : undefined);
           }}
         >
-          <NoteField label={MOVE_CONTROL[writing.move].field} value={note} onChange={setNote} required={writing.note === "required"} />
+          {writing.targets && (
+            <TargetField
+              label={MOVE_TARGET[writing.move] ?? "Pass it to"}
+              targets={writing.targets}
+              value={to}
+              onChange={setTo}
+            />
+          )}
+          {writing.note !== "none" && (
+            <NoteField
+              label={MOVE_CONTROL[writing.move].field}
+              value={note}
+              onChange={setNote}
+              required={writing.note === "required"}
+            />
+          )}
           <Button type="submit" size="small" variant="primary" isDisabled={busy}>
             {MOVE_CONTROL[writing.move].label}
             {hidden}
@@ -83,7 +102,14 @@ export function MoveControls({
                 size="small"
                 variant={m.move === "take" ? "primary" : undefined}
                 isDisabled={busy}
-                onPress={() => (m.note === "none" ? void make(m.move) : setWriting(m))}
+                onPress={() => {
+                  if (m.note === "none" && !m.targets) {
+                    void make(m.move);
+                    return;
+                  }
+                  setTo(m.targets?.[0]?.id ?? "");
+                  setWriting(m);
+                }}
               >
                 {MOVE_CONTROL[m.move].label}
                 {hidden}

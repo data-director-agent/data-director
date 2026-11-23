@@ -79,7 +79,21 @@ type MoveName = Literal[
     "hand_back",
     "withdraw",
     "reopen",
+    "reassign",
+    "transfer",
     "reroute",
+]
+type PermittedMoveName = Literal[
+    "take",
+    "release",
+    "wait",
+    "reply",
+    "resolve",
+    "hand_back",
+    "withdraw",
+    "reopen",
+    "reassign",
+    "transfer",
 ]
 
 
@@ -105,15 +119,36 @@ class EscalationMove(ResponseBody):
     note: str | MISSING = MISSING
     acting_as: Literal["steward"] | MISSING = MISSING
     """Set for a move a steward made as a steward."""
+    from_steward: contract.Principal | MISSING | None = MISSING
+    """For `reassign`: the steward who had taken it."""
+    to_steward: contract.Principal | MISSING = MISSING
+    """For `reassign`: the colleague in the same team who takes it over."""
+    from_team: str | MISSING = MISSING
+    """For `transfer`: the team it was with."""
+    team_id: str | MISSING = MISSING
+    """For `transfer`: the team it was sent to."""
+    team_name: str | MISSING = MISSING
+    """For `transfer`: the name of the team it was sent to."""
+
+
+class MoveTarget(ResponseBody):
+    """A colleague or a team a move may pass the escalation to."""
+
+    id: str
+    """The colleague's principal identifier, or the team's id."""
+    name: str
 
 
 class PermittedMove(ResponseBody):
     """A move the reader may make on an escalation, or one refused with why."""
 
-    move: Literal["take", "release", "wait", "reply", "resolve", "hand_back", "withdraw", "reopen"]
+    move: PermittedMoveName
     permitted: bool
     note: Literal["required", "optional", "none"]
     """Whether the move carries a note: required, optional, or none."""
+    targets: list[MoveTarget] | MISSING = MISSING
+    """For `reassign`, the colleagues in the team it may go to; for `transfer`, the other teams.
+    A move that names a target is listed only where there is one."""
     refusal: Literal["member-of-project"] | MISSING = MISSING
     """Why a move of the reader's side is refused."""
 
@@ -221,10 +256,14 @@ class OpenEscalation(RequestBody):
 
 
 class MoveRequest(RequestBody):
-    refusal: ClassVar[str] = "`move` names a move, and `note` is the note it carries, if any."
+    refusal: ClassVar[str] = (
+        "`move` names a move, `note` is the note it carries, if any, and `to` the colleague's "
+        "principal identifier or the team's id that `reassign` or `transfer` names."
+    )
 
     move: str
     note: str | None = None
+    to: str | None = None
 
 
 class ChooseSupportTeam(RequestBody):
@@ -270,7 +309,7 @@ def routes(deps: Deps) -> list[Route]:
 async def list_escalations(request: Request, person: Principal, deps: Deps) -> Response:
     project_id = request.path_params["project_id"]
     found = await run_in_threadpool(
-        lambda: deps.projects.escalations.of_project(project_id, person)
+        lambda: deps.projects.escalations.of_project(project_id, person, deps.public_names.names)
     )
     return respond(ProjectEscalations, found)
 
@@ -302,15 +341,17 @@ async def _move(request: Request, person: Principal, deps: Deps, *, as_steward: 
     body = await parse_body(request, MoveRequest, MOVE_REFUSED)
     if isinstance(body, Response):
         return body
-    requested = Requested(request.path_params["escalation_id"], body.move, body.note)
+    requested = Requested(
+        request.path_params["escalation_id"], body.move, body.note, body.to, as_steward
+    )
     try:
         moved: dict[str, Any] = await run_in_threadpool(
             lambda: deps.projects.escalations.move(
                 project_id,
                 requested,
-                as_steward=as_steward,
                 acted_for=person,
                 caused_by=caused_by(request),
+                names=deps.public_names.names,
             )
         )
     except UnknownProjectError:
@@ -346,7 +387,9 @@ async def choose_support_team(request: Request, person: Principal, deps: Deps) -
 
 async def steward_queue(request: Request, person: Principal, deps: Deps) -> Response:
     states = request.query_params.getlist("state")
-    found = await run_in_threadpool(lambda: deps.projects.escalations.queue(person, states))
+    found = await run_in_threadpool(
+        lambda: deps.projects.escalations.queue(person, states, deps.public_names.names)
+    )
     return respond(StewardQueue, {"escalations": found})
 
 

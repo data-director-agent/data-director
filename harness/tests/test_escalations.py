@@ -125,8 +125,12 @@ def make(
         projects,
         found,
         project_id,
-        Requested(escalation["escalation_id"], move, note),
-        as_steward=by not in (TEST_PRINCIPAL, COLLEAGUE),
+        Requested(
+            escalation["escalation_id"],
+            move,
+            note,
+            as_steward=by not in (TEST_PRINCIPAL, COLLEAGUE),
+        ),
         acted_for=by,
         caused_by="test",
     )
@@ -299,8 +303,7 @@ def test_a_steward_who_is_a_member_of_the_project_acts_as_a_member(
             projects,
             found,
             project_id,
-            Requested(escalation["escalation_id"], "take"),
-            as_steward=True,
+            Requested(escalation["escalation_id"], "take", as_steward=True),
             acted_for=COLLEAGUE,
             caused_by="test",
         )
