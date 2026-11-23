@@ -1,6 +1,7 @@
 """Readers: what a dataset's field names suggest, beyond the keyword table (docs/specs/agents.md).
 
-A reader is given the field names, whether the data involve people and whether an embargo is
+A reader is given the names to check (the caller's field names and, in a project, the inventory's
+field, file and folder names, `names.py`), whether the data involve people and whether an embargo is
 intended, the categories it may use and the fields the keyword table has flagged already. It
 returns flags for other fields and any further questions. It cannot remove or change a keyword
 flag: the agent merges the two and keeps every keyword flag (`agent.py`, union only).
@@ -9,10 +10,10 @@ flag: the agent merges the two and keeps every keyword flag (`agent.py`, union o
 (`DD_ETHICS_READER=template`) adds nothing, so the flags are the keyword table's, and needs no key.
 `ModelReader` calls whichever model the agent's settings name through the SDK's model seam
 (`dd_sdk.model`, `dd_sdk.model_provider`), so this package imports no model provider's SDK
-(docs/specs/dependencies.md). It is sent the field names and the two context flags, never the
-title, the description or any data value. The model replies against a schema (`ReaderReply`), which
-the provider constrains it to; a reply that does not match, a refusal and a model that cannot be
-reached are reported and leave the keyword flags as they are.
+(docs/specs/dependencies.md). It is sent the names and the two context flags, never the title,
+the description, a file's path or any data value. The model replies against a schema
+(`ReaderReply`), which the provider constrains it to; a reply that does not match, a refusal and
+a model that cannot be reached are reported and leave the keyword flags as they are.
 
 What the model returns is checked before it is used (`check`): a flag naming a field not in the
 input or a category not in the table is dropped, and the reason is recorded.
@@ -94,6 +95,7 @@ class Reader(Protocol):
     def read(
         self,
         context: SensitivityContext,
+        names: Sequence[str],
         categories: Sequence[str],
         flagged: Sequence[str],
         ctx: RunContext,
@@ -108,6 +110,7 @@ class TemplateReader:
     def read(
         self,
         context: SensitivityContext,
+        names: Sequence[str],
         categories: Sequence[str],
         flagged: Sequence[str],
         ctx: RunContext,
@@ -127,13 +130,14 @@ class ModelReader:
     def read(
         self,
         context: SensitivityContext,
+        names: Sequence[str],
         categories: Sequence[str],
         flagged: Sequence[str],
         ctx: RunContext,
     ) -> Reading:
-        if not context.fields:
+        if not names:
             return Reading()
-        messages = [{"role": "user", "content": prompt(context, categories, flagged)}]
+        messages = [{"role": "user", "content": prompt(context, names, categories, flagged)}]
         try:
             reply = call(
                 self.model, ctx, system=SYSTEM_PROMPT, messages=messages, schema=ReaderReply
@@ -155,9 +159,7 @@ class ModelReader:
                     usage=got.usage,
                     calls=got.calls,
                 )
-            return _checked(
-                parsed, context, categories, flagged, got.model_id, got.usage, got.calls
-            )
+            return _checked(parsed, names, categories, flagged, got.model_id, got.usage, got.calls)
         if reply.refused or reply.parsed is None:
             return Reading(
                 unused="the model declined to read the field names",
@@ -166,16 +168,21 @@ class ModelReader:
                 calls=reply.calls,
             )
         return _checked(
-            reply.parsed, context, categories, flagged, reply.model_id, reply.usage, reply.calls
+            reply.parsed, names, categories, flagged, reply.model_id, reply.usage, reply.calls
         )
 
 
-def prompt(context: SensitivityContext, categories: Sequence[str], flagged: Sequence[str]) -> str:
-    """The user turn: the field names and the two context flags as JSON, never the title, the
-    description or a value."""
+def prompt(
+    context: SensitivityContext,
+    names: Sequence[str],
+    categories: Sequence[str],
+    flagged: Sequence[str],
+) -> str:
+    """The user turn: the names and the two context flags as JSON, never the title, the
+    description, a path or a value."""
     return json.dumps(
         {
-            "fields": list(context.fields),
+            "fields": list(names),
             "involves_people": context.involves_people,
             "embargo_intended": context.embargo_intended,
             "categories": list(categories),
@@ -233,14 +240,14 @@ def check(
 
 def _checked(
     reply: ReaderReply,
-    context: SensitivityContext,
+    names: Sequence[str],
     categories: Sequence[str],
     flagged: Sequence[str],
     model_id: str,
     usage: Usage,
     calls: ModelCallLog,
 ) -> Reading:
-    got = check(reply, context.fields, categories, flagged)
+    got = check(reply, names, categories, flagged)
     return Reading(got.flags, got.questions, got.dropped, None, model_id, usage, calls)
 
 

@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.14"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
@@ -1400,7 +1400,7 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-ethics"
-version = "0.1.0a1"
+version = "0.1.0a2"
 source = { editable = "agents/advisor-ethics" }
 dependencies = [
     { name = "data-director-sdk" },

@@ -10,6 +10,7 @@ from typing import Any
 from dd_sdk.agent import AgentSpec
 
 # The classes of project content an agent's own class may be given (invariant 8).
+INVENTORY = "inventory"
 DOCUMENTATION = "documentation"
 DECISIONS = "decisions"
 # The core input classes whose slots the conductor fills from a project by name.
@@ -19,7 +20,8 @@ MESSAGE = "Message"
 CORE_CLASSES = frozenset({DRAFT_REQUEST, FILE_INVENTORY, MESSAGE})
 # The core slots an agent's own input class may mix in, which the conductor fills by name
 # (`GivenProjectDocuments`, `GivenProjectDecisions`, `GivenProjectRepository`,
-# `GivenProjectMetadataRecord`, `GivenProjectPlan`) without the harness naming the class.
+# `GivenProjectMetadataRecord`, `GivenProjectPlan`, `GivenProjectInventory`) without the harness
+# naming the class.
 AGENT_INPUT_SLOTS = (
     "project_documents",
     "project_decisions",
@@ -27,6 +29,7 @@ AGENT_INPUT_SLOTS = (
     "project_metadata_draft",
     "project_metadata_approved",
     "project_plan_approved",
+    "project_file_inventory",
 )
 AGENT_CONTENT_SLOTS = (
     ("project_documents", DOCUMENTATION),
@@ -35,6 +38,7 @@ AGENT_CONTENT_SLOTS = (
     ("project_metadata_draft", DOCUMENTATION),
     ("project_metadata_approved", DOCUMENTATION),
     ("project_plan_approved", DOCUMENTATION),
+    ("project_file_inventory", INVENTORY),
 )
 
 
@@ -54,7 +58,8 @@ def chosen(recorded: Mapping[str, Any] | None) -> dict[str, Any] | None:
 def agent_slots(spec: AgentSpec | None, schema_class: Any) -> frozenset[str]:
     """The core slots (`AGENT_INPUT_SLOTS`) the card's schema for an agent's own input class
     declares, from the mixins `GivenProjectDocuments`, `GivenProjectDecisions`,
-    `GivenProjectRepository`, `GivenProjectMetadataRecord` and `GivenProjectPlan`; empty for a
+    `GivenProjectRepository`, `GivenProjectMetadataRecord`, `GivenProjectPlan` and
+    `GivenProjectInventory`; empty for a
     core class, which `give` fills by name, or one the agent does not accept."""
     if spec is None or schema_class in CORE_CLASSES:
         return frozenset()

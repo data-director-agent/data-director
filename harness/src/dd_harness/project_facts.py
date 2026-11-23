@@ -56,7 +56,9 @@ One that mixes in `GivenProjectMetadataRecord` is given the latest version of th
 metadata record, whatever its state, and the version a person approved last; both are
 documentation, as a `DraftRequest`'s `metadata_record` is, and neither is an attached document.
 One that mixes in `GivenProjectPlan` is given the version of the project's data management plan
-(a `dmp` document) a person approved last, which is documentation too.
+(a `dmp` document) a person approved last, which is documentation too. One that mixes in
+`GivenProjectInventory` is given the project's inventory as `project_file_inventory`, as a
+`DraftRequest`'s `inventory` is, and it is `inventory`.
 
 A `Message`'s project slots are the conductor's alone: outside a project they are removed. Any
 other input is left as it was sent. The conductor fills the input before hashing it, so the input
@@ -96,6 +98,7 @@ from dd_harness.agent_slots import (
     DOCUMENTATION,
     DRAFT_REQUEST,
     FILE_INVENTORY,
+    INVENTORY,
     MESSAGE,
     agent_slots,
     chosen,
@@ -132,7 +135,6 @@ MESSAGE_PROJECT_SLOTS = (
 )
 
 # The classes of project content (docs/specs/projects.md, invariant 8).
-INVENTORY = "inventory"
 RESEARCHER = "researcher"
 # The slots that hold researcher facts, of a `Message` and of a `DraftRequest`.
 RESEARCHER_SLOTS = ("project_researchers", "researchers")
@@ -287,6 +289,8 @@ def _agent_facts(
         facts["project_metadata_approved"] = store.metadata_record(project_id)
     if "project_plan_approved" in slots:
         facts["project_plan_approved"] = store.approved_plan(project_id)
+    if "project_file_inventory" in slots:
+        facts["project_file_inventory"] = store.inventory(project_id)
     return facts
 
 

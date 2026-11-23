@@ -11,11 +11,6 @@ clones = 1
 lines = 10
 
 [[pair]]
-files = ["agents/advisor-dmp/src/dd_agent_advisor_dmp/agent.py", "agents/advisor-ethics/src/dd_agent_advisor_ethics/agent.py"]
-clones = 1
-lines = 18
-
-[[pair]]
 files = ["agents/advisor-dmp/src/dd_agent_advisor_dmp/agent.py", "agents/advisor-linking/src/dd_agent_advisor_linking/agent.py"]
 clones = 1
 lines = 18

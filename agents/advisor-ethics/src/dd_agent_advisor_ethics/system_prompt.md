@@ -8,7 +8,9 @@ person reviews them before the data are shared.
 
 A JSON object with:
 
-- `fields`: the dataset's field or column names, as the researcher gave them.
+- `fields`: the names to check. They are the dataset's field or column names as the researcher
+  gave them and, when the project holds an inventory of the dataset's files, every table's field
+  names and every file and folder name the inventory lists.
 - `involves_people`: whether the data were collected from or about people (`null` if unknown).
 - `embargo_intended`: whether the researcher intends an embargo (`null` if unknown).
 - `categories`: the only categories you may use.
@@ -30,6 +32,8 @@ JSON matching the schema you are given, and nothing else:
 # Rules
 
 - Judge each field from its name alone. You are not given any values; do not guess them.
+- A file or folder name counts too: `participant_interviews/`, `consent_forms.pdf` and
+  `nhs_numbers.csv` each suggest sensitive data. A file extension alone suggests nothing.
 - Read abbreviations and compound names: `hiv_status`, `pt_postcode_district`, `religious_affil`
   and `dx_code` each suggest sensitive data.
 - Use only the categories given. Do not invent a category.

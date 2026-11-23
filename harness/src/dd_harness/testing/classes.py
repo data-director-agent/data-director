@@ -12,6 +12,7 @@ from typing import Literal
 from pydantic import Field
 
 from dd_sdk.contract.drafting import ApprovedPlan
+from dd_sdk.contract.inventory import FileInventory
 from dd_sdk.contract.models import (
     ApprovedMetadataRecord,
     ChosenRepository,
@@ -58,6 +59,7 @@ class ProbeReading(Frozen):
     project_metadata_draft: CurrentVersion | None = None
     project_metadata_approved: ApprovedMetadataRecord | None = None
     project_plan_approved: ApprovedPlan | None = None
+    project_file_inventory: FileInventory | None = None
 
 
 class ProbeReview(Grounded):
