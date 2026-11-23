@@ -21,6 +21,7 @@ import {
 import { AgentIcon, type AgentView, agentName, type Directory } from "../../manifest/normalise";
 import { AgentDetail } from "../agent/AgentDetail";
 import { ModelTag } from "./ModelDisclosure";
+import { ToolTag } from "./ToolDisclosure";
 
 /** The section heading over the orchestrator. */
 export const FRONT_SECTION = "You talk to";
@@ -41,6 +42,7 @@ function AgentOption({ agent, orchestrator }: { agent: AgentView; orchestrator?:
       {orchestrator && <span className="status agent-role">Orchestrator</span>}
       {orchestrator && " "}
       <ModelTag agent={agent} />
+      <ToolTag agent={agent} />
     </ListBoxItem>
   );
 }

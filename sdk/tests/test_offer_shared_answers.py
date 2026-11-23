@@ -70,3 +70,17 @@ def test_a_copied_suggestion_says_where_it_came_from_and_only_then() -> None:
                 "suggested_from": "readme",
             }
         )
+
+
+def test_a_suggestion_from_the_institutions_profile_is_a_template_and_says_so() -> None:
+    offered = {**FUNDING.model_dump(), "suggested_answer": "x"}
+    DocumentQuestion.model_validate(
+        {**offered, "suggestion_derivation": "template", "suggested_from": "institution"}
+    )
+    for wrong in (
+        {"suggestion_derivation": "template"},
+        {"suggestion_derivation": "model", "suggested_from": "institution"},
+        {"suggestion_derivation": "answer", "suggested_from": "institution"},
+    ):
+        with pytest.raises(ValidationError):
+            DocumentQuestion.model_validate({**offered, **wrong})

@@ -1,8 +1,9 @@
 /**
  * The open conversation, kept above the pages so that it outlives the Conversation page: someone
  * who leaves it while a reply is awaited, for the Activity log or a project, finds the
- * conversation, the message sent and its run still streaming when they come back, and a reply that
- * arrived meanwhile in its place (docs/specs/app.md, "The open conversation").
+ * conversation, the message sent and its run still streaming when they come back, a reply that
+ * arrived meanwhile in its place, and the message they were writing still in the box
+ * (docs/specs/app.md, "The open conversation").
  *
  * The page's hooks keep their state here, under a name, rather than in the component
  * (`useSessionState`, `useSessionRef`). A turn sent before the page was left goes on writing to

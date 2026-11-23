@@ -37,6 +37,9 @@
       "FileInventory": {
          "@id": "https://w3id.org/data-director/FileInventory"
       },
+      "InstitutionStorage": {
+         "@id": "https://w3id.org/data-director/InstitutionStorage"
+      },
       "InventoryFile": {
          "@id": "https://w3id.org/data-director/InventoryFile"
       },
@@ -89,6 +92,13 @@
          "@id": "https://w3id.org/data-director/affiliations",
          "@type": "@id"
       },
+      "allowance_gb": {
+         "@id": "https://w3id.org/data-director/allowance_gb",
+         "@type": "http://www.w3.org/2001/XMLSchema#float"
+      },
+      "allows_external_collaborators": {
+         "@id": "https://w3id.org/data-director/allows_external_collaborators"
+      },
       "answer_text": {
          "@id": "https://w3id.org/data-director/answer_text"
       },
@@ -97,6 +107,9 @@
       },
       "answered_question": {
          "@id": "https://w3id.org/data-director/answered_question"
+      },
+      "approved_for_sensitive": {
+         "@id": "https://w3id.org/data-director/approved_for_sensitive"
       },
       "award_identifier": {
          "@id": "https://w3id.org/data-director/award_identifier"
@@ -109,6 +122,9 @@
       },
       "category_value": {
          "@id": "https://w3id.org/data-director/category_value"
+      },
+      "charges_for_storage": {
+         "@id": "https://w3id.org/data-director/charges_for_storage"
       },
       "check_rounding_base": {
          "@id": "https://w3id.org/data-director/check_rounding_base"
@@ -373,6 +389,10 @@
       "identifier_value": {
          "@id": "https://w3id.org/data-director/identifier_value"
       },
+      "institution_storage": {
+         "@id": "https://w3id.org/data-director/institution_storage",
+         "@type": "@id"
+      },
       "inventory": {
          "@id": "https://w3id.org/data-director/inventory",
          "@type": "@id"
@@ -497,6 +517,9 @@
       },
       "plan_document": {
          "@id": "https://w3id.org/data-director/plan_document"
+      },
+      "profile_ref": {
+         "@id": "https://w3id.org/data-director/profile_ref"
       },
       "project_decisions": {
          "@id": "https://w3id.org/data-director/project_decisions",
@@ -624,6 +647,21 @@
       },
       "start_year": {
          "@id": "https://w3id.org/data-director/start_year"
+      },
+      "storage_backup": {
+         "@id": "https://w3id.org/data-director/storage_backup"
+      },
+      "storage_description": {
+         "@id": "https://w3id.org/data-director/storage_description"
+      },
+      "storage_id": {
+         "@id": "https://w3id.org/data-director/storage_id"
+      },
+      "storage_kind": {
+         "@id": "https://w3id.org/data-director/storage_kind"
+      },
+      "storage_name": {
+         "@id": "https://w3id.org/data-director/storage_name"
       },
       "summary_categories": {
          "@id": "https://w3id.org/data-director/summary_categories",

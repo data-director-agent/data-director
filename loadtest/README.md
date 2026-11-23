@@ -78,7 +78,7 @@ Then run `loadtest/collect.sh` alongside Locust. It writes `loadtest/out/contain
 1. In `agents.env`, add `ANTHROPIC_BASE_URL=http://127.0.0.1:8080`.
 2. Add `ANTHROPIC_API_KEY=load-test-not-a-key` to the own file, `agents/<name>.env`, of each model-backed agent:
    - `orchestrator-model`
-   - `advisor-dmp`, `advisor-documentation`, `advisor-ethics`, `advisor-fairness`, `advisor-files`, `advisor-linking`, `advisor-metadata`, `advisor-policy`, `advisor-quality`, `advisor-repository`, `advisor-rights`, `advisor-standards`
+   - `advisor-dmp`, `advisor-documentation`, `advisor-ethics`, `advisor-fairness`, `advisor-files`, `advisor-linking`, `advisor-metadata`, `advisor-policy`, `advisor-quality`, `advisor-repository`, `advisor-rights`, `advisor-standards`, `advisor-storage`
 
    The key must go in each agent's own file: `dd.py` refuses a key in the shared `agents.env`.
 3. Optionally set `orchestrator: model` in `deployment.yaml`.

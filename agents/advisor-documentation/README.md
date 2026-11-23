@@ -156,7 +156,13 @@ will be kept up to date. Each is drafted from the project's decided facts, as gi
 It asks first, as a README does: with no answers recorded and no current version, the version is
 a note (`document_stage` `questions`). Then each answer is placed as given, and every section left
 is a gap, marked and asked. A decided funder, the record's title and creators, and a decided
-licence are offered beside their questions as the researcher's own words (`shares`).
+licence are offered beside their questions as the researcher's own words (`shares`). The
+question on **Storage and backup during the project** is offered the institution's storage
+services, which the conductor gives from the deployment's profile (`institution_storage`): each
+by name, whether it is approved for personal or sensitive data, and its backup, the approved ones
+first when sensitive data were identified (`storage.py`). They say what is available, not what
+this project will use, so they are only offered (`suggestion_derivation` `template`,
+`suggested_from` `institution`), never placed, and a person's own words come first.
 
 No model writes a plan's text: `document_derivation` is always `template`. Where a model is
 configured and the researcher attached documents, such as a grant application or a protocol, it

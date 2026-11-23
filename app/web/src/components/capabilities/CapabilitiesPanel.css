@@ -4,4 +4,8 @@
   .panel {
     min-width: 0;
   }
+
+  .tool-list {
+    overflow-wrap: anywhere;
+  }
 }

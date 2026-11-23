@@ -41,13 +41,23 @@ The Data Director is the assistant you talk to, at every step from planning to d
 
 ### Standards Librarian (`advisor.standards`)
 
-The Standards Librarian suggests standard vocabularies, ontologies and file formats for your data, when you select vocabularies at setup and when you prepare your data in open formats.
+The Standards Librarian suggests standard vocabularies, ontologies and file formats for your data: when you select vocabularies at setup, when you choose open formats to collect your data in, and when you prepare your data in open formats.
 
-- **You give it** a short description of your dataset: title, description, keywords, themes, file types, and column names and types. It never needs your data values.
+- **You give it** a short description of your dataset: title, description, keywords, themes, file types, and column names and types. Before you collect anything, the file types you plan to use are enough. It never needs your data values.
 - **You get back** a short list from the FAIRsharing registry, each tied to the dataset or one column (for example ISO 8601 for a date column), with a reason and any doubt. Each is offered as a proposal in your project; nothing is adopted until you confirm it.
 - **It will not** choose for you. Its ranking matches words, and it tells vocabularies from ontologies by their names, so check its picks against your field's practice.
 - **The AI model** is on by default. It explains each pick, flags doubts and may search the registry for more; the agent checks what it adds against the registry's records. The model is sent your description, keywords, themes, file types and column names and types, not data values. A deployment can turn it off, and fixed rules then work alone.
 - **It abstains** when there is nothing to search on, the registry cannot be reached or returns nothing, or no record scores well enough. Ask your data steward then.
+
+### Storage Adviser (`advisor.storage`)
+
+The Storage Adviser helps you plan where to keep your data while you work on them, how they are backed up, and who can reach them.
+
+- **You give it** about how much data you expect, whether it involves personal data, and whether people outside your institution need access. It never needs your data.
+- **You get back** the storage services your institution has listed, the most suitable first, with what each offers and anything to check before choosing it, the services it leaves out for your data and why, and the questions a storage and backup plan answers.
+- **It will not** recommend storage your institution has not listed, such as a personal cloud account or a portable drive, and it does not set anything up. It does not advise on anonymisation.
+- **The AI model** is on by default. It writes a short summary beside the advice and changes none of it. It is sent what you said about your data and the advice, never data. A deployment can turn it off, and the rules' own summary is used instead.
+- **It abstains** when your institution has listed no storage, and refers you to a data steward when your data involve personal data and none of the listed services is approved for them.
 
 ## Phase 2: Governance and constraints
 

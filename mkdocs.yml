@@ -228,6 +228,7 @@ nav:
           - Metadata advisor: /agents/advisor-metadata/README.md
           - Metadata evaluation: /agents/advisor-metadata/src/dd_agent_advisor_metadata/evals/README.md
           - Rights advisor: /agents/advisor-rights/README.md
+          - Advisor Storage: /agents/advisor-storage/README.md
           - Rights evaluation: /agents/advisor-rights/src/dd_agent_advisor_rights/evals/README.md
   - Conformance:
       - Approach: /docs/conformance.md

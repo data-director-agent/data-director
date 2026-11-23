@@ -1,0 +1,170 @@
+{
+   "$comment": "Generated from storage.yaml by `uv run dd-gen-schema <path to storage.yaml>`. Do not edit.",
+   "$defs": {
+      "InstitutionStorage": {
+         "additionalProperties": false,
+         "description": "One storage service the deployment's profile names as its institution's, for keeping data while a project runs (the profile's institution_storage, docs/specs/policy-and-identity.md). It holds only what the deployment vouches for: the conductor fills it into the input of an agent that mixes in GivenInstitutionStorage.",
+         "properties": {
+            "storage_id": {
+               "description": "The deployment's own label for a storage service, such as research-filestore: lower case letters, digits and hyphens.",
+               "pattern": "^[a-z0-9][a-z0-9-]*$",
+               "type": "string"
+            },
+            "profile_ref": {
+               "description": "The reference of the profile that vouches for the facts, as profile:<id>@v<version>; an agent cites them under it.",
+               "pattern": "^profile:\\S+@v[0-9]+$",
+               "type": "string"
+            },
+            "storage_name": {
+               "description": "The storage service's name, as the institution gives it to researchers.",
+               "type": "string"
+            },
+            "storage_description": {
+               "description": "What the service is for, in a sentence or two a researcher can read.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "storage_kind": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/StorageKind"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "What kind of storage service it is."
+            },
+            "approved_for_sensitive": {
+               "description": "Whether the institution approves the service for personal or otherwise sensitive data. Unknown when not given, which is never taken as approval.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
+            },
+            "allows_external_collaborators": {
+               "description": "Whether people outside the institution can be given access to data held there.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
+            },
+            "allowance_gb": {
+               "description": "How many gigabytes a project may hold there without charge, where there is a limit.",
+               "type": [
+                  "number",
+                  "null"
+               ]
+            },
+            "charges_for_storage": {
+               "description": "Whether the institution charges a project for storage there.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
+            },
+            "storage_backup": {
+               "description": "What the service does to keep copies, as the institution states it, such as nightly snapshots replicated to a second site.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "guidance": {
+               "description": "The pages the deployment checked the facts it vouches for against.",
+               "items": {
+                  "format": "uri",
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "storage_id",
+            "profile_ref",
+            "storage_name"
+         ],
+         "title": "InstitutionStorage",
+         "type": "object"
+      },
+      "PersonalDataAnswer": {
+         "description": "",
+         "enum": [
+            "yes",
+            "no",
+            "unknown"
+         ],
+         "title": "PersonalDataAnswer",
+         "type": "string"
+      },
+      "StorageKind": {
+         "description": "The kinds of storage a deployment may name as its institution's.",
+         "enum": [
+            "institutional_filestore",
+            "institutional_cloud",
+            "managed_cloud",
+            "secure_environment"
+         ],
+         "title": "StorageKind",
+         "type": "string"
+      }
+   },
+   "$id": "https://w3id.org/data-director/agents/storage/StorageNeeds",
+   "$schema": "http://json-schema.org/draft-07/schema#",
+   "additionalProperties": false,
+   "description": "What the researcher says about the data the project will hold while it runs: about how much, whether it involves personal data, and whether people outside the institution need access. The conductor fills institution_storage from the deployment's profile (GivenInstitutionStorage).",
+   "properties": {
+      "schema_class": {
+         "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
+         "enum": [
+            "StorageNeeds"
+         ],
+         "type": "string"
+      },
+      "expected_volume_gb": {
+         "description": "About how many gigabytes the project expects to hold, where the researcher knows.",
+         "type": [
+            "integer",
+            "null"
+         ]
+      },
+      "involves_personal_data": {
+         "anyOf": [
+            {
+               "$ref": "#/$defs/PersonalDataAnswer"
+            },
+            {
+               "type": "null"
+            }
+         ],
+         "description": "Whether the data involve personal or otherwise sensitive data, as the researcher says."
+      },
+      "external_collaborators": {
+         "description": "Whether people outside the institution need access to the data while it runs.",
+         "type": [
+            "boolean",
+            "null"
+         ]
+      },
+      "institution_storage": {
+         "description": "The storage services the deployment's profile names as its institution's, filled by the conductor from the profile and never by the caller. Absent when the profile names none.",
+         "items": {
+            "$ref": "#/$defs/InstitutionStorage"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      }
+   },
+   "required": [
+      "schema_class"
+   ],
+   "title": "StorageNeeds",
+   "type": "object"
+}

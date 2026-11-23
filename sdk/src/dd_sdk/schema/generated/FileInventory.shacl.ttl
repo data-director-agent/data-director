@@ -72,18 +72,18 @@ dd:CategoryCount a sh:NodeShape ;
     rdfs:comment "One category of a field and how many rows hold it, rounded." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path dd:category_value ],
-        [ sh:datatype xsd:integer ;
+    sh:property [ sh:datatype xsd:integer ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
-            sh:path dd:category_count ] ;
+            sh:path dd:category_count ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:category_value ] ;
     sh:targetClass dd:CategoryCount .
 
 dd:DisclosureCheck a sh:NodeShape ;

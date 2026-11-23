@@ -8,6 +8,7 @@
 # See ../harness/docs/registry.md.
 agents:
   - url: http://127.0.0.1:8101
+  - url: http://127.0.0.1:8118
   - url: http://127.0.0.1:8102
   - url: http://127.0.0.1:8105
   - url: http://127.0.0.1:8108

@@ -8,7 +8,12 @@ dmp:DmpDiscrepancies a sh:NodeShape ;
     rdfs:comment "The payload of advisor.dmp: where the planned sharing differs from the plan's commitments, for a person to review (R8). It flags and never enforces; a reviewed decision not to share is a valid outcome. Where it has read an attached plan and nobody has confirmed its commitments yet, it proposes each commitment as a project fact for the researcher to confirm, quoting the passage it rests on, and compares nothing until they do. A review of an attached plan (setup.dmp-review) fills section_findings instead." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:class dmp:Discrepancy ;
+    sh:property [ sh:class <https://w3id.org/data-director/ProjectFact> ;
+            sh:description "Facts the agent proposes for a person to confirm. A proposal is never a fact until a person decides it (docs/specs/projects.md)." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 7 ;
+            sh:path <https://w3id.org/data-director/proposed_facts> ],
+        [ sh:class dmp:Discrepancy ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 1 ;
             sh:path dmp:discrepancies ],
@@ -44,12 +49,7 @@ dmp:DmpDiscrepancies a sh:NodeShape ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
-            sh:path <https://w3id.org/data-director/schema_class> ],
-        [ sh:class <https://w3id.org/data-director/ProjectFact> ;
-            sh:description "Facts the agent proposes for a person to confirm. A proposal is never a fact until a person decides it (docs/specs/projects.md)." ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 7 ;
-            sh:path <https://w3id.org/data-director/proposed_facts> ] ;
+            sh:path <https://w3id.org/data-director/schema_class> ] ;
     sh:targetClass dmp:DmpDiscrepancies .
 
 <https://w3id.org/data-director/GroundingRef> a sh:NodeShape ;

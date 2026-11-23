@@ -31,6 +31,7 @@ The ones that most concern a steward:
 | `hosted_models` | Which kinds of project content may be sent to an agent that uses a hosted AI model. Read [AI models](../operations/ai-models.md) with your data protection officer before you widen it. |
 | `attached_documents` | Whether researchers may attach their own documents to a project. |
 | `model_accounts` | Whether people may, or must, pay for model calls with their own account. |
+| `institution_storage` | The storage services the storage adviser may recommend for data while a project runs, and which of them are approved for sensitive data. |
 | `stewardship` | Who the stewards are, and what they may see ([Becoming a steward](becoming-a-steward.md)). |
 | `administrators` | Who administers the instance. It gives no access to anyone's project. |
 

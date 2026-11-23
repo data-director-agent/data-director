@@ -109,7 +109,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     sent afterwards continues it. The open conversation outlives the Conversation page in the tab
     (`app/web/src/conversation/session.tsx`): someone who leaves it while a reply is awaited finds,
     on coming back by any link, the conversation in the address again, the message sent and its
-    run still streaming, or the reply that arrived meanwhile. The app gives the conductor the same project store, so a turn's runs belong to the
+    run still streaming, or the reply that arrived meanwhile, and a message they had begun to write
+    but not sent still in the message box. The app gives the conductor the same project store, so a turn's runs belong to the
     project and a drafter's documents are kept in it ([Projects](projects.md),
     `app/tests/test_app.py`).
 19. **An inventory is attached, never pasted into the message.** A turn may carry an `inventory`,

@@ -249,3 +249,20 @@ def test_table_field_types_drive_field_format_targets(runs_dir: Path) -> None:
         "field:when",
         "field:how_long",
     }
+
+
+def test_planned_media_types_get_data_formats_before_any_data_exist(runs_dir: Path) -> None:
+    # Before collection (`setup.formats`): no fields yet, only the formats the researcher plans
+    # to save the data in.
+    profile = DatasetProfile(
+        title="Soil cores",
+        keywords=["soil chemistry"],
+        media_types=["text/csv"],
+    )
+    env = make_conductor(runs_dir, crate=False).invoke(
+        request("advisor.standards", profile), acting_for=TEST_PRINCIPAL
+    )
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    kinds = {i.kind for i in env.payload_as(Recommendations).items}
+    assert RecommendationKind.DATA_FORMAT in kinds
+    assert RecommendationKind.FIELD_FORMAT not in kinds

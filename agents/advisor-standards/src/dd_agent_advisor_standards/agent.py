@@ -69,7 +69,8 @@ class StandardsAgent:
         version="0.4.0",
         description=(
             "Recommends controlled vocabularies, ontologies and data formats from FAIRsharing "
-            "for a dataset profile, grounded on the registry records it retrieved. Ranking rules "
+            "for a dataset profile, whether its data are collected or still being planned, "
+            "grounded on the registry records it retrieved. Ranking rules "
             "choose first; a model may add records it found and note doubts, never remove one. "
             "Each recommendation is proposed for the researcher to choose in their project."
         ),
@@ -85,7 +86,7 @@ class StandardsAgent:
             "items.notes": Derived(Derivation.TEMPLATE),
             "limitations": Derived(Derivation.TEMPLATE),
         },
-        serves=("setup.vocabularies", "preparation.formats"),
+        serves=("setup.vocabularies", "setup.formats", "preparation.formats"),
     )
 
     def __init__(

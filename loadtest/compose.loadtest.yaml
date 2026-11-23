@@ -68,6 +68,9 @@ services:
   advisor-repository:
     environment: *fake-model
     depends_on: *needs-fake-llm
+  advisor-storage:
+    environment: *fake-model
+    depends_on: *needs-fake-llm
   advisor-rights:
     environment: *fake-model
     depends_on: *needs-fake-llm
