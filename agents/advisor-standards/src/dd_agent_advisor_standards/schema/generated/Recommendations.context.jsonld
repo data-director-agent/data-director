@@ -102,6 +102,9 @@
       "file_decision": {
          "@id": "https://w3id.org/data-director/file_decision"
       },
+      "from_project_record": {
+         "@id": "https://w3id.org/data-director/agents/standards/from_project_record"
+      },
       "grounded_on": {
          "@id": "https://w3id.org/data-director/grounded_on",
          "@type": "@id"

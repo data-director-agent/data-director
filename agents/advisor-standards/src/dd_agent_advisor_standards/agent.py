@@ -25,6 +25,7 @@ from dd_agent_advisor_standards.classes import (
     Recommendations,
     SearchedSummary,
 )
+from dd_agent_advisor_standards.decided import filled, said
 from dd_agent_advisor_standards.explain import Explainer, Lookups, TemplateExplainer
 from dd_agent_advisor_standards.fairsharing.records import Record
 from dd_agent_advisor_standards.fairsharing.snapshot import SnapshotBackend
@@ -66,7 +67,7 @@ class StandardsAgent:
         agent_id="advisor.standards",
         title="Standards Librarian",
         icon="📚",
-        version="0.4.0",
+        version="0.5.0",
         description=(
             "Recommends controlled vocabularies, ontologies and data formats from FAIRsharing "
             "for a dataset profile, whether its data are collected or still being planned, "
@@ -85,6 +86,7 @@ class StandardsAgent:
             "items.concern": Derived(Derivation.MODEL),
             "items.notes": Derived(Derivation.TEMPLATE),
             "limitations": Derived(Derivation.TEMPLATE),
+            "searched.from_project_record": Derived(Derivation.TEMPLATE),
         },
         serves=("setup.formats", "preparation.formats", "preparation.vocabularies"),
     )
@@ -141,15 +143,18 @@ class StandardsAgent:
     def _run(
         self, request: InvocationRequest, ctx: RunContext, origins: provenance.Provenance
     ) -> AgentResult:
-        profile = request.input
-        assert isinstance(profile, DatasetProfile)  # the conductor checked spec.accepts
+        asked = request.input
+        assert isinstance(asked, DatasetProfile)  # the conductor checked spec.accepts
+        # What the input leaves empty is filled from what people in the project decided (#1529).
+        profile, from_record = filled(asked)
         queries = ranking.build_queries(profile)
         if not queries:
             return abstain(
                 ReasonCode.INSUFFICIENT_INPUT,
                 (
                     "The dataset profile has no title, keywords, themes, media types or "
-                    "temporal fields to search on, so no registry query was possible."
+                    "temporal fields to search on, and the project has no decided field of "
+                    "study, so no registry query was possible."
                 ),
             )
 
@@ -168,6 +173,7 @@ class StandardsAgent:
             snapshot_ref="; ".join(sorted({noted.ref(rid, ref).as_string() for rid in retrieved}))
             or ref.as_string(),
             candidates_retrieved=len(retrieved),
+            from_project_record=from_record,
         )
         if not retrieved:
             return abstain(
@@ -284,7 +290,7 @@ class StandardsAgent:
             if explanation.additions
             else ""
         )
-        remarks = "".join(f" {r}" for r in explanation.remarks)
+        remarks = "".join(f" {r}" for r in explanation.remarks) + said(from_record)
         payload = Recommendations(
             items=items,
             searched=searched,

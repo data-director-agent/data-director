@@ -431,7 +431,10 @@ intended design, and each part says where it is not built yet.
     recommends; a person confirms the ones they will use and rejects the others, and only those
     confirmed, or stated by a person, reach the Metadata Librarian, which names the vocabularies
     chosen for the dataset in its question about subjects, and the Documentation Editor, which
-    lists every standard chosen in the README's Variables section (`dd_harness.testing.storage`,
+    lists every standard chosen in the README's Variables section. The Standards Librarian is
+    itself given the decided field of study, description of the data and summary of the project,
+    and fills from them only what its input leaves empty, saying which values came from the
+    record (#1529) (`dd_harness.testing.storage`,
     `harness/tests/test_project_decisions.py`, `app/tests/test_project_facts.py`,
     `app/web/src/components/project/FactsPanel.test.tsx`).
 29. **Deleting a conversation is an event in its project's log, not a removal.** A conversation

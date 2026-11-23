@@ -177,6 +177,8 @@ confirms them, quoting the passage each rests on; its failure mode is a misreadi
 quote lets a person check. Describing the project was a step no persona served, and the Blueprint's
 Planning Agent is the role it fills. Writing a plan stays with the Documentation Editor, since a
 written plan is a project document (`Document`) and an agent returns one payload class.
+What it describes reaches the other personas as decided facts: the Standards Librarian, for one,
+searches on the decided field of study when its input names no subject (#1529).
 
 The Storage Adviser (`advisor.storage`) is the persona for where a project's data live while it
 runs: its own sources (the deployment's `institution_storage`, which no registry holds), its own
