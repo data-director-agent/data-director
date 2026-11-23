@@ -16,7 +16,6 @@ import {
   turnBody,
   Unreachable,
 } from "../../conversation/api";
-import { ConversationSessionProvider } from "../../conversation/session";
 import type { Conversation } from "../../conversation/types";
 import { type FlowApi, FlowApiContext } from "../../flow/api";
 import { ActiveProjectProvider } from "../../project/active";
@@ -955,7 +954,11 @@ describe("ConversationHome", () => {
 
       /** The page drawn, left and drawn again in one session, as on going to the journey map
        * and back; `back` is the address it comes back to. */
-      async function leaveAndComeBack(back: string, sendTurn: TurnSent, project: ProjectApi = httpProjectApi) {
+      async function leaveAndComeBack(
+        back: string,
+        sendTurn: TurnSent,
+        { project = httpProjectApi, writing = "" }: { project?: ProjectApi; writing?: string } = {},
+      ) {
         localStorage.setItem("dd-project", CONVERSATION.project_id ?? "p1");
         history.replaceState(null, "", "/?conversation=c9");
         const api = fakeApi({ sendTurn });
@@ -978,6 +981,7 @@ describe("ConversationHome", () => {
         );
         const rendered = await opened(render(page(true)));
         await screen.findByRole("list", { name: "Conversation" });
+        if (writing) await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), writing);
         rendered.rerender(page(false));
         history.replaceState(null, "", back);
         rendered.rerender(page(true));
@@ -1006,13 +1010,26 @@ describe("ConversationHome", () => {
         await leaveAndComeBack(
           homePath({ question: `${readme.document_id}/${question.question_id}` }),
           sendTurn,
-          { ...httpProjectApi, documents },
+          { project: { ...httpProjectApi, documents } },
         );
         const box = () => screen.getByRole("textbox", { name: "What would you like to do?" });
         await waitFor(() => expect(box()).toHaveValue(askAboutQuestion("README", question)));
         expect(screen.queryByRole("list", { name: "Conversation" })).not.toBeInTheDocument();
         expect(new URLSearchParams(location.search).has("question")).toBe(false);
         expect(sendTurn).not.toHaveBeenCalled();
+      });
+
+      it("asks before replacing a message being written, and replaces it only when told", async () => {
+        await leaveAndComeBack(homePath({ ask: asked.id }), vi.fn(() => Promise.resolve()), {
+          writing: "my own words",
+        });
+        const dialog = await screen.findByRole("dialog");
+        // The dialog is modal, so the box behind it is hidden from the accessibility tree meanwhile.
+        const box = (hidden = false) => screen.getByRole("textbox", { name: "What would you like to do?", hidden });
+        expect(box(true)).toHaveValue("my own words");
+        await userEvent.click(within(dialog).getByRole("button", { name: "Replace it" }));
+        await waitFor(() => expect(box()).toHaveValue(asked.prompt));
+        expect(screen.queryByRole("list", { name: "Conversation" })).not.toBeInTheDocument();
       });
 
       it("keeps the open conversation when the step is not in the flow", async () => {

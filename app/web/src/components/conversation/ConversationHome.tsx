@@ -122,7 +122,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const [text, setText] = useSessionState("draft", "");
   const announce = useAnnounce();
   // A step whose prompt waits on the researcher's leave to replace the message being written.
-  const [replacing, setReplacing] = useState<FlowStep | null>(null);
+  const [replacing, setReplacing] = useState<Pick<FlowStep, "label" | "prompt"> | null>(null);
   const params = new URLSearchParams(useLocation().split("?")[1]);
   const runId = params.get("run");
   // The open conversation is kept in the address, so a reload or a link reopens it.
@@ -179,8 +179,8 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const flow = useFlowLoad();
 
   const askInto = { setText: putText, box: reply, keep: { conversation: urlConversation, run: runId } };
-  useAskAbout(flow, askInto, beginWith);
-  useAskAboutQuestion(documents, askInto, beginWith);
+  useAskAbout(flow, askInto, startStep);
+  useAskAboutQuestion(documents, askInto, startStep);
   useAskForFairFeedback(askInto);
   useAskAboutFact(projectId, askInto);
 
@@ -241,13 +241,13 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   }
 
   /** Starts a new conversation about `step`, asking first if a message is being written. */
-  function startStep(step: FlowStep) {
+  function startStep(step: Pick<FlowStep, "label" | "prompt">) {
     if (writing) setReplacing(step);
     else beginWith(step);
   }
 
   /** A new conversation, with the step's (or question's) prompt in the box to edit and send. */
-  function beginWith(step: { label: string; prompt: string }) {
+  function beginWith(step: Pick<FlowStep, "label" | "prompt">) {
     setReplacing(null);
     turns.reset();
     putText(step.prompt);
