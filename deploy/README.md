@@ -735,6 +735,39 @@ Try this once on a spare VM before it is needed, and after any change to `backup
   applies the file as it stands. Both run from the clone as root and never from a release, so
   `deploy.sh` cannot run them. `apply --check` says what would change.
 
+## Removing access
+
+Who may sign in is `access` in `/etc/data-director/deployment.yaml`, which `apply` copies into the
+profile ([Configuration](../docs/guide/operations/configuration.md#who-may-sign-in)). Without it,
+`apply` writes `admit: listed`: only the iDs under `access.allow`, the steward teams' members and
+the administrators may sign in. Changing it needs no release.
+
+To stop one person using the instance:
+
+1. `sudo data-director edit`, and add their ORCID iD URL under `access.block` (and take it off
+   `access.allow`, `administrators` and any steward team).
+2. Let `edit` apply it, or run `sudo data-director apply`. The app restarts with the new profile.
+   Their session ends at their next request, and the sign-in page tells them that their account
+   cannot use this instance. A run they had already started finishes; their projects and runs are
+   kept.
+3. Check the journal for the `session.ended` or `sign-in.failed` record with reason
+   `not-admitted` (`journalctl -u data-director | grep not-admitted`).
+
+Signing in is not the only way in. Depending on what the person held, also:
+
+- **Their model account.** If they added their own, it stays sealed in the broker, and is used
+  only for runs that act for them, which they can no longer start.
+- **Keys you gave them.** Rotate any agent's model key, the problem-report token or GitHub App key
+  ([Problem reports](#problem-reports)), and any other secret they saw
+  (`sudo data-director secret set …`).
+- **The VM.** Remove their account and their key from `~/.ssh/authorized_keys`. SSH also reaches
+  the admin service, which shows everyone's runs ([The admin service](#the-admin-service)).
+- **The repository.** Revoke a deploy key they could read, and their GitHub access if they had it.
+
+To close an instance to everyone not listed, set `access.admit: listed` (or leave `access` out);
+to open it to anyone with an ORCID iD, set `access.admit: anyone`. An ORCID-only instance cannot
+require a second factor at sign-in (TODO(#293)).
+
 ## Moving a VM from the operator and password to sign-in
 
 Pull the repository, delete the `DD_PRINCIPAL_*` lines from `app.env`, set the ORCID client as in
@@ -742,6 +775,11 @@ step 3 and run `sudo deploy/install.sh --domain …`. It stops the services and 
 to `/var/lib/data-director/runs.before-sign-in-<date>`, because a store holds no run for a person
 who signed in beside runs recorded for an operator. Then remove the password file,
 `sudo rm /etc/nginx/data-director.htpasswd`.
+
+A VM signing people in before `access` existed admits anyone with an ORCID iD. Its next `apply`
+writes `admit: listed`, which admits only the listed iDs, stewards and administrators: before it,
+add `access` to `deployment.yaml` with the people who use it under `allow`, or `admit: anyone` to
+keep it open ([Removing access](#removing-access)). `apply` says which it will do.
 
 ## Container images
 

@@ -34,6 +34,7 @@ The ones that most concern a steward:
 | `institution_storage` | The storage services the storage adviser may recommend for data while a project runs, and which of them are approved for sensitive data. |
 | `stewardship` | Who the stewards are, and what they may see ([Becoming a steward](becoming-a-steward.md)). |
 | `administrators` | Who administers the instance. It gives no access to anyone's project. |
+| `access` | Who may sign in: anyone with an ORCID iD, or only the people listed, the stewards and the administrators. It can also block named people. |
 
 A key that nothing enforces is refused when the instance starts. A key that appears in the file
 is therefore always in force.

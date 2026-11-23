@@ -17,6 +17,8 @@ from typing import Any
 
 import yaml
 
+from dd_harness.access import Access
+from dd_harness.access import parse as parse_access
 from dd_harness.content_classes import CONTENT_CLASSES as CONTENT_CLASSES
 from dd_harness.content_classes import DEFAULT_HOSTED_MODELS, DEFAULT_REMOTE_TOOL_CONTENT, classes
 from dd_harness.content_classes import tool_servers as granted_servers
@@ -52,6 +54,7 @@ PROFILE_KEYS = frozenset(
         "institution_storage",
         "stewardship",
         "administrators",
+        "access",
     }
 )
 # Whether people may attach documents to a project (docs/specs/projects.md, Documentation).
@@ -121,6 +124,8 @@ class Profile:
     # (docs/specs/stewardship.md, invariant 1; dd_harness.stewardship). None unless written.
     stewardship: Stewardship = field(default_factory=Stewardship)
     administrators: frozenset[str] = frozenset()
+    # Whom a deployment that signs people in admits (dd_harness.access). Anyone, unless written.
+    access: Access = field(default_factory=Access)
 
     @property
     def refuses_documents(self) -> bool:
@@ -130,6 +135,17 @@ class Profile:
     def roles_of(self, principal_id: str) -> DeploymentRoles:
         """The deployment roles this profile gives `principal_id` (dd_harness.stewardship)."""
         return deployment_roles(self.stewardship, self.administrators, principal_id)
+
+    def admits(self, principal_id: str) -> bool:
+        """Whether this profile lets `principal_id` use the deployment (dd_harness.access): never
+        if `access` blocks them; otherwise if it admits anyone, lists them, or gives them a
+        deployment role beyond researcher."""
+        if principal_id in self.access.block:
+            return False
+        if self.access.admit == "anyone" or principal_id in self.access.allow:
+            return True
+        roles = self.roles_of(principal_id)
+        return roles.steward or roles.administrator
 
     @property
     def ref(self) -> str:
@@ -185,6 +201,7 @@ class Profile:
                 institution_storage=institution_storage(data.get("institution_storage"), ref),
                 stewardship=stewardship(data.get("stewardship")),
                 administrators=principals(data.get("administrators"), "administrators"),
+                access=parse_access(data.get("access")),
             )
         except (KeyError, TypeError, ValueError) as exc:
             raise PolicyError(f"profile {source!r} is malformed: {exc}") from exc

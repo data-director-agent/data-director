@@ -31,11 +31,12 @@ from dd_app.routes.common import (
     problem,
     requires_json,
     respond,
+    session_ended,
     signed_in,
 )
 from dd_harness.identity import RefusalReason, Unauthenticated
-from dd_harness.sessions import PENDING_S, SESSION_COOKIE, SIGN_IN_COOKIE, cookie
-from dd_harness.signin import CALLBACK_PATH, NotAdmitted, SignIn
+from dd_harness.sessions import PENDING_S, SESSION_COOKIE, SIGN_IN_COOKIE, NotAdmitted, cookie
+from dd_harness.signin import CALLBACK_PATH, SignIn
 from dd_harness.stewardship import TEAM_NOTICES, DeploymentRole, StewardTeam
 from dd_sdk.contract.models import Principal
 from dd_sdk.security_log import SecurityEvent, emit
@@ -45,6 +46,8 @@ log = logging.getLogger(__name__)
 # Why a sign-in came back to `/sign-in` without opening a session, for the shell to say.
 SIGN_IN_DECLINED = "declined"
 SIGN_IN_FAILED = "failed"
+# The provider vouched for the person, and the deployment does not admit them (dd_harness.access).
+SIGN_IN_NOT_ADMITTED = "not-admitted"
 
 # docs/specs/policy-and-identity.md: the session cookie is opaque, unreadable by script, sent only
 # over HTTPS, and `Lax` because the provider sends the person back across sites. A browser treats
@@ -197,7 +200,10 @@ async def get_session(request: Request, deps: Deps) -> Response:
                 **accounts,
             },
         )
-    session = sign_in.authenticator.session(request.headers, touch=request.method == "POST")
+    try:
+        session = sign_in.authenticator.session(request.headers, touch=request.method == "POST")
+    except NotAdmitted as exc:
+        return session_ended(exc)
     body: dict[str, Any] = {"signs_in": True, "issuer": sign_in.issuer, **accounts}
     if session is None:
         return respond(RawSession, {**body, "principal": None, "expires_at": None})
@@ -308,7 +314,9 @@ async def _open_session(request: Request, sign_in: SignIn) -> Response:
             principal=exc.principal.principal_id if isinstance(exc, NotAdmitted) else None,
             reason=exc.reason,
         )
-        return _back_to_sign_in(SIGN_IN_FAILED)
+        return _back_to_sign_in(
+            SIGN_IN_NOT_ADMITTED if isinstance(exc, NotAdmitted) else SIGN_IN_FAILED
+        )
     if (opened := sign_in.store.get(session_id, touch=False)) is not None:
         emit(
             SecurityEvent.SIGN_IN_SUCCEEDED,

@@ -153,3 +153,20 @@ def test_the_administrators_and_steward_teams_are_the_deployments_own(tmp_path: 
     assert body["stewardship"] == {"teams": [team]}
     loaded = load_profile(path)
     assert loaded.roles_of(admin).administrator and loaded.roles_of(admin).steward
+
+
+def test_a_deployment_is_closed_unless_its_deployment_file_opens_it(tmp_path: Path) -> None:
+    """docs/specs/policy-and-identity.md, Admission: a deployment admits only whom it lists, its
+    stewards and administrators, unless deployment.yaml says otherwise; access is its own."""
+    ada = "https://orcid.org/0000-0001-5000-0007"
+    josiah = "https://orcid.org/0000-0002-1825-0097"
+    example = example_with(tmp_path, {"access": {"admit": "anyone"}})
+    path, closed = generated(tmp_path, example=example)
+    assert closed["access"] == {"admit": "listed"}
+    assert not load_profile(path).admits(ada)
+
+    text = yaml.safe_dump({"name": "dev", "access": {"admit": "anyone", "block": [ada]}})
+    path, opened = generated(tmp_path, text, example=example)
+    assert opened["access"] == {"admit": "anyone", "block": [ada]}
+    loaded = load_profile(path)
+    assert loaded.admits(josiah) and not loaded.admits(ada)
