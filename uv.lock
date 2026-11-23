@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
@@ -33,6 +33,7 @@ members = [
     "data-director-app",
     "data-director-deposit-broker",
     "data-director-dmp-template",
+    "data-director-duo",
     "data-director-formats",
     "data-director-harness",
     "data-director-inventory",
@@ -1175,6 +1176,7 @@ dependencies = [
     { name = "data-director-app" },
     { name = "data-director-deposit-broker" },
     { name = "data-director-dmp-template" },
+    { name = "data-director-duo" },
     { name = "data-director-formats" },
     { name = "data-director-harness", extra = ["serve"] },
     { name = "data-director-inventory" },
@@ -1251,6 +1253,7 @@ requires-dist = [
     { name = "data-director-app", editable = "app" },
     { name = "data-director-deposit-broker", editable = "deposit-broker" },
     { name = "data-director-dmp-template", editable = "dmp-template" },
+    { name = "data-director-duo", editable = "duo" },
     { name = "data-director-formats", editable = "formats" },
     { name = "data-director-harness", extras = ["serve"], editable = "harness" },
     { name = "data-director-inventory", editable = "inventory" },
@@ -1924,6 +1927,11 @@ requires-dist = [
 name = "data-director-dmp-template"
 version = "0.1.0a1"
 source = { editable = "dmp-template" }
+
+[[package]]
+name = "data-director-duo"
+version = "0.1.0a0"
+source = { editable = "duo" }
 
 [[package]]
 name = "data-director-formats"

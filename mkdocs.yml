@@ -199,6 +199,8 @@ nav:
           - /subjects/README.md
       - Formats library:
           - /formats/README.md
+      - Data use ontology library:
+          - /duo/README.md
       - Journals library:
           - /journals/README.md
       - DMP template library:
