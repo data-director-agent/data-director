@@ -769,8 +769,9 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   each only where a set states it; what Data Director assumes (that the package is checked against
   those sets alone and deposited by hand), with the warnings and the sets' `unconfirmed` items;
   the documents and metadata they ask for; and the sets' `guidance`, the pages the values came
-  from. It also offers a way to choose one there (below); with none chosen it says so, and that a
-  shortlist can be asked for in the project's conversations. Whether a package meets them is the
+  from. It also offers a way to choose one there (below); with none chosen it says so. A button
+  starts a new chat to identify the target data repository (`?repository=identify`), with the
+  request in the message box, unsent; it is offered with or without a repository chosen. Whether a package meets them is the
   deposit check's to say. The Deposit package tab checks the project against its chosen repository's
   requirements ([Deposit](deposit.md)) when the person asks, and lists what must be fixed and
   what is worth fixing, each in the harness's words. It offers to build the package only after

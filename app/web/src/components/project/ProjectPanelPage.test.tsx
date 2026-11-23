@@ -145,6 +145,17 @@ describe("ProjectPanelPage", () => {
     ).toBeVisible();
   });
 
+  it("starts a new chat to identify the repository, with or without one chosen", async () => {
+    const user = userEvent.setup();
+    renderPage(fakeApi({ repository: () => Promise.resolve(null) }), "repository");
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Start a new chat to identify the target data repository",
+      }),
+    );
+    expect(location.search).toBe("?repository=identify");
+  });
+
   it("chooses a suggested repository on the tab and shows what it asks for", async () => {
     const user = userEvent.setup();
     const choose = vi

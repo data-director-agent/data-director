@@ -12,10 +12,11 @@
  * again whenever `revision` changes, and after a choice made in it.
  */
 
+import { MessageSquarePlus } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { type RepositoryRequirements, useProjectApi } from "../../project/api";
-import { Link } from "../../route";
+import { homePath, navigate } from "../../route";
 import { Button } from "../ui/Button";
 import { RepositoryDetails } from "./RepositoryDetails";
 import { RepositoryPicker } from "./RepositoryPicker";
@@ -53,6 +54,12 @@ export function RepositoryPanel({ projectId, revision }: { projectId: string; re
     return () => controller.abort();
   }, [api, projectId, revision]);
 
+  const identify = (
+    <Button icon={MessageSquarePlus} onPress={() => navigate(homePath({ repository: true }))}>
+      Start a new chat to identify the target data repository
+    </Button>
+  );
+
   const content = () => {
     if (load.state === "loading") return <p>Reading the chosen repository…</p>;
     if (load.state === "failed") {
@@ -65,10 +72,8 @@ export function RepositoryPanel({ projectId, revision }: { projectId: string; re
     if (load.value === null) {
       return (
         <>
-          <p>
-            No repository has been chosen yet. Choose one below, or ask for a shortlist in{" "}
-            <Link to="/">this project&apos;s conversations</Link>.
-          </p>
+          <p>No repository has been chosen yet. Choose one below, or start a new chat to identify it.</p>
+          {identify}
           <RepositoryPicker projectId={projectId} onChosen={chosen} />
         </>
       );
@@ -83,7 +88,9 @@ export function RepositoryPanel({ projectId, revision }: { projectId: string; re
             </Button>
           </>
         ) : (
-          <Button onPress={() => setChanging(true)}>Change repository</Button>
+          <>
+            <Button onPress={() => setChanging(true)}>Change repository</Button> {identify}
+          </>
         )}
         <RepositoryDetails choice={load.value} />
       </>
