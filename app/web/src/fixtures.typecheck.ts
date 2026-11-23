@@ -23,6 +23,7 @@
 
 import type {
   Escalation,
+  Notices,
   ProjectEscalations,
   ProjectRuns,
   ProjectStewarding,
@@ -57,6 +58,7 @@ import intakePending from "../fixtures/intake-pending.json";
 import modelAccount from "../fixtures/model-account.json";
 import modelAccountRejected from "../fixtures/model-account-rejected.json";
 import modelAccountNone from "../fixtures/model-account-none.json";
+import notices from "../fixtures/notices.json";
 import orcidRecord from "../fixtures/orcid-record.json";
 import projectMembers from "../fixtures/project-members.json";
 import projectMembersLastOwner from "../fixtures/project-members-last-owner.json";
@@ -122,6 +124,7 @@ void (projectMembersLastOwner satisfies Wide<Problem>);
 void (escalations satisfies Wide<ProjectEscalations>);
 void (escalationResolved satisfies Wide<Escalation>);
 void (stewardQueue satisfies Wide<StewardQueue>);
+void (notices satisfies Wide<Notices>);
 void (stewarding satisfies Wide<ProjectStewarding>);
 void (projectResearchers satisfies Wide<ResearcherRecord>[]);
 void (orcidRecord satisfies Wide<ResearcherRecord>);

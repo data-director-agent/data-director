@@ -213,6 +213,7 @@ def _changes(
         {"event": "escalation_replied", **escalation, "note": "Use CC BY.", "acting_as": "steward"},
         {"event": "escalation_handed_back", **escalation, "acting_as": "steward"},
         {"event": "escalation_resolved", **escalation, "acting_as": "steward"},
+        {"event": "escalation_rerouted", **escalation, "team_id": TEAM},
         {"event": "escalation_reopened", **escalation},
         {"event": "escalation_withdrawn", **escalation},
         {"event": "steward_viewed", "acting_as": "steward"},

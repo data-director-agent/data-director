@@ -216,6 +216,37 @@ With no administrator in the profile it does not start. Anyone else who signs in
 workbench without `DD_OIDC_ISSUER`, as on a developer's machine, signs nobody in and acts for the
 operator, as before.
 
+## Notifications
+
+A steward team is emailed when an escalation is routed to it, sent to it again or moved by the
+researcher, at the address the profile names for it (`stewardship.teams[].notify`), and a
+researcher is told in the app ([Data stewards](../../specs/stewardship.md), invariant 13). The
+profile decides whom to tell and about what; where the mail server is goes in `app.env`:
+
+| Variable | What it is |
+|---|---|
+| `DD_SMTP_URL` | `smtp://host:port` (STARTTLS, port 587 by default) or `smtps://host:port` (TLS, 465). Unset, nobody is emailed, and a profile that names a team's address stops the app at start-up. |
+| `DD_MAIL_FROM` | The address messages come from. |
+| `DD_SMTP_USERNAME` | Optional: the user to sign in to the mail server as. |
+| `DD_SMTP_PASSWORD_FILE` | Optional: a file that holds its password, relative to `$CREDENTIALS_DIRECTORY` under systemd (`DD_SMTP_PASSWORD` in development). |
+| `DD_APP_PUBLIC_URL` | Where the app is reached, which each message links to; already set where people sign in. |
+
+A message holds a subject and a link, never the note or the project's title. It is sent after the
+move is recorded, and one that cannot be sent is logged (`journalctl -u data-director`) and
+changes nothing. Where the server asks for a password, give it to both the app and the sweep as a
+credential, in a drop-in for each unit, such as
+`/etc/systemd/system/data-director-app.service.d/smtp.conf`:
+
+```ini
+[Service]
+LoadCredential=smtp-password:/etc/data-director/credentials/app/smtp-password
+Environment=DD_SMTP_PASSWORD_FILE=smtp-password
+```
+
+With `stewardship.reroute_after` in the profile (`P3D`, `PT48H`), `data-director-escalations.timer`
+runs `dd-harness escalations sweep` every hour, which sends each escalation nobody has taken in
+that time to its team again; `journalctl -u data-director-escalations` shows what it sent.
+
 ## What is stored
 
 | What | Where | Notes |
@@ -223,6 +254,7 @@ operator, as before.
 | Each run: input, output, spans, evidence and, by default, a Process Run Crate | `/var/lib/data-director/runs/` (`DD_RUNS_DIR`) | It outlives releases, so back it up with the rest of the host. `DD_WRITE_CRATE=0` stops the crate being written. |
 | Each conversation's turn lock | `locks/` under `DD_RUNS_DIR`, or an advisory lock in its database | Lets several app processes share one store. On PostgreSQL each running turn holds one database connection of its own, beside the pool (`DD_POSTGRES_POOL_SIZE`). |
 | Each workbench run | `/var/lib/data-director/workbench-runs/` | Apart from the app's runs. |
+| Which updates from a data steward a person has seen, and which they want shown | That person's browser, in `localStorage` | Never sent to the server. The updates themselves are read from the project log. |
 | Who is signed in | `/var/lib/data-director/app-sessions/`, `workbench-sessions/` (`DD_SESSIONS_FILE`) | A hash of each session identifier, the person's iD and name, and the session's times; no token. Not backed up. |
 | Model calls | In the run, as `chat` spans with token counts | No key is ever stored. |
 | Records read from a live registry route (FAIRsharing) | Each agent's cache, `/var/cache/data-director-agent-<name>/` (`DD_REGISTRY_CACHE_DIR`; in memory if unset) | Public records only; no token or credential. A record is read again after its time to live (`DD_REGISTRY_CACHE_TTL_RECORD`, `_SEARCH`, `_MISSING`, in seconds; [example](../../../config/examples/agents.env)), and an expired copy answers, marked stale, while the registry is down. Not backed up: `systemctl clean --what=cache data-director-agent@<name>` or `dd-registry-cache clear <file>` empties it. |

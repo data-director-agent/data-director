@@ -17,6 +17,10 @@ escalation the steward may not move is answered `404`, as for anyone with no rol
 Each escalation carries `permitted_moves`: the moves the reader may make on it, as the harness
 decides (`dd_harness.escalation_api.permitted_moves`).
 
+A person reads what data stewards have done in their projects lately
+(`GET /api/notices`): each notice a kind, a subject, the page to look at and when, and never the
+note itself (`dd_harness.notifications`, invariant 13).
+
 A move or an escalation the rules refuse is `409` with the refusal's slug
 (`dd_harness.projects.EscalationRefusal`). The shell renders what these answer and decides
 nothing.
@@ -66,7 +70,16 @@ type EscalationState = Literal[
 ]
 type OriginKind = Literal["researcher", "policy_gate", "agent", "orchestrator"]
 type MoveName = Literal[
-    "open", "take", "release", "wait", "reply", "resolve", "hand_back", "withdraw", "reopen"
+    "open",
+    "take",
+    "release",
+    "wait",
+    "reply",
+    "resolve",
+    "hand_back",
+    "withdraw",
+    "reopen",
+    "reroute",
 ]
 
 
@@ -81,9 +94,12 @@ class EscalationOrigin(ResponseBody):
 
 
 class EscalationMove(ResponseBody):
-    """One move in an escalation's history, the opening first."""
+    """One move in an escalation's history, the opening first. `reroute` is the deployment
+    sending it to its team again because nobody took it in time, which no person makes."""
 
     move: MoveName
+    event_id: str
+    """The project event that made the move."""
     by: contract.Principal
     at: str
     note: str | MISSING = MISSING
@@ -117,6 +133,8 @@ class Escalation(ResponseBody):
     opened_by: contract.Principal
     opened_at: str
     updated_at: str
+    routed_at: str
+    """When its team was last asked to take it: opened, released, re-opened or sent again."""
     taken_by: contract.Principal | None
     history: list[EscalationMove]
     permitted_moves: list[PermittedMove]
@@ -159,6 +177,27 @@ class StewardQueue(ResponseBody):
     """The escalations routed to the signed-in steward's teams, the oldest first."""
 
     escalations: list[QueuedEscalation]
+
+
+class Notice(ResponseBody):
+    """Something a data steward did in one of the person's projects (docs/specs/stewardship.md,
+    invariant 13): a subject and where to look, never research content."""
+
+    kind: Literal["waiting", "resolved", "handed_back", "rerouted", "message"]
+    project_id: str
+    event_id: str
+    """The project event it tells of, which the shell remembers as seen."""
+    at: str
+    subject: str
+    path: str
+    """The app's page to look at."""
+    escalation_id: str | MISSING = MISSING
+
+
+class Notices(ResponseBody):
+    """What data stewards did in the person's projects in the last 30 days, the newest first."""
+
+    notices: list[Notice]
 
 
 class OpenOrigin(RequestBody):
@@ -219,6 +258,7 @@ def routes(deps: Deps) -> list[Route]:
             methods=["PUT"],
         ),
         Route(steward, signed_in(deps, steward_queue), methods=["GET"]),
+        Route("/api/notices", signed_in(deps, notices), methods=["GET"]),
         Route(
             steward + "/{project_id}/{escalation_id}",
             signed_in(deps, steward_move),
@@ -308,3 +348,8 @@ async def steward_queue(request: Request, person: Principal, deps: Deps) -> Resp
     states = request.query_params.getlist("state")
     found = await run_in_threadpool(lambda: deps.projects.escalations.queue(person, states))
     return respond(StewardQueue, {"escalations": found})
+
+
+async def notices(request: Request, person: Principal, deps: Deps) -> Response:
+    found = await run_in_threadpool(lambda: deps.projects.escalations.notices(person))
+    return respond(Notices, {"notices": found})

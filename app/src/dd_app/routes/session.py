@@ -36,7 +36,7 @@ from dd_app.routes.common import (
 from dd_harness.identity import RefusalReason, Unauthenticated
 from dd_harness.sessions import PENDING_S, SESSION_COOKIE, SIGN_IN_COOKIE, cookie
 from dd_harness.signin import CALLBACK_PATH, NotAdmitted, SignIn
-from dd_harness.stewardship import DeploymentRole
+from dd_harness.stewardship import TEAM_NOTICES, DeploymentRole, StewardTeam
 from dd_sdk.contract.models import Principal
 from dd_sdk.security_log import SecurityEvent, emit
 
@@ -68,6 +68,10 @@ class RawStewardTeam(ResponseBody):
 
     team_id: str
     name: str
+    notify: str | MISSING = MISSING
+    """The address the team is emailed at, if the profile names one."""
+    notify_on: list[Literal["opened", "rerouted", "replied", "withdrawn", "reopened"]]
+    """What the team is told about at that address, in the profile's vocabulary."""
 
 
 class RawSessionPrincipal(PrincipalSummary):
@@ -153,7 +157,16 @@ def _principal(principal: Principal, deps: Deps) -> dict[str, Any]:
         "principal_id": principal.principal_id,
         **principal_summary(principal),
         "roles": sorted(found.roles, key=list(DeploymentRole).index),
-        "teams": [{"team_id": t.team_id, "name": t.name} for t in found.teams],
+        "teams": [_team(t) for t in found.teams],
+    }
+
+
+def _team(team: StewardTeam) -> dict[str, Any]:
+    return {
+        "team_id": team.team_id,
+        "name": team.name,
+        **({"notify": team.notify} if team.notify else {}),
+        "notify_on": [n for n in TEAM_NOTICES if n in team.notify_on],
     }
 
 

@@ -457,7 +457,8 @@ def test_the_session_names_the_roles_and_teams_the_profile_gives_the_person(
     browser = TestClient(build_app(governance, dist_dir(tmp_path)), base_url=PUBLIC_URL)
     principal = browser.get("/api/session").json()["principal"]
     assert principal["roles"] == ["researcher", "steward", "administrator"]
-    assert principal["teams"] == [{"team_id": "library-rdm", "name": "Library Research Data Team"}]
+    teams = [(t["team_id"], t["name"]) for t in principal["teams"]]
+    assert teams == [("library-rdm", "Library Research Data Team")]
 
 
 def test_a_provider_needs_the_sign_in(env: Path, monkeypatch: pytest.MonkeyPatch):

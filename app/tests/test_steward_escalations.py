@@ -94,7 +94,11 @@ def fixed(escalation: dict[str, Any]) -> dict[str, Any]:
         "escalation_id": "019a0000-0000-7000-8000-0000000000e1",
         "opened_at": FIXED,
         "updated_at": FIXED,
-        "history": [{**h, "at": FIXED} for h in escalation["history"]],
+        "routed_at": FIXED,
+        "history": [
+            {**h, "at": FIXED, "event_id": f"019a0000-0000-7000-8000-0000000000{index:02d}"}
+            for index, h in enumerate(escalation["history"])
+        ],
         **(
             {"project_id": "019a0000-0000-7000-8000-0000000000a1"}
             if "project_id" in escalation

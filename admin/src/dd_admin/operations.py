@@ -22,6 +22,8 @@ FIXED_UNITS = (
     "data-director-restart.path",
     "data-director-backup.timer",
     "data-director-backup.service",
+    "data-director-escalations.timer",
+    "data-director-escalations.service",
 )
 UNIT_PROPERTIES = (
     "Id",
