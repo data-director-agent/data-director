@@ -186,16 +186,27 @@ rule 20 and invariant 32).
    (`agents/advisor-documentation/tests/test_suggestion_batches.py`, #1318). The Metadata Librarian suggests only the values its rule
    table marks `suggest` (`agents/advisor-metadata/src/dd_agent_advisor_metadata/datacite.yaml`):
    a title, a description, a free keyword and a language; never a creator, contributor, date,
-   rights statement, funder, related identifier or place, which only the researcher can give,
-   and never an entry the repository asks for from a named vocabulary, TODO(#703). Its model is
+   rights statement, funder, related identifier or place, which only the researcher can give.
+   An entry the repository asks for from a named subject classification, such as ORDA's
+   categories from the ANZSRC Fields of Research, is suggested only from that classification's
+   fields, retrieved through the tool gateway before the model is called: the model gives the
+   code of one of them, a code the set does not hold is dropped, and the suggestion offered is
+   the label of the field's own record, which the payload cites
+   (`agents/advisor-metadata/tests/test_metadata_categories.py`, #703). With no tools grant, it
+   suggests no such entry and says so. Keywords from other vocabularies wait for the choice of
+   terminology services, TODO(#956). Its model is
    given the repository's requirements and the inventory's structure, never an answer, a
    description a person wrote, the researchers' records or an earlier version, and a suggestion
    is offered only if it is one line of plain text that names no link, DOI, email address or
    ORCID iD its input does not give (`agents/advisor-metadata/tests/test_suggestions.py`).
    A suggestion may instead copy the person's own words: see invariant 11.
-8. **A drafter rests on its input alone.** The grounding mode of the Documentation Editor and of
-   the Metadata Librarian is `input_only`, whichever way a particular version was drafted. The metadata record and the answers reach it in its input, never by retrieval, so it
-   cites only its input. `document_derivation` records how each version came about: `model`, or
+8. **A drafter rests on its input.** The grounding mode of the Documentation Editor is
+   `input_only`, whichever way a particular version was drafted: the document and the answers
+   reach it in its input, never by retrieval, so it cites only its input. The Metadata
+   Librarian's is `retrieval`, because a category it suggests rests on a classification's record
+   it retrieved through the tool gateway (invariant 7). It records reading its input as its first
+   retrieval and cites its input, and each such record beside it; the record and the answers
+   still reach it only in its input. `document_derivation` records how each version came about: `model`, or
    `template` when no model is configured or none of the model's draft was used. The manifest names it
    as the recorder of `document_text` (`recorded_in`, [Agents](agents.md)).
 

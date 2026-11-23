@@ -145,6 +145,13 @@
         "mcp-spdx/tests"
       ]
     },
+    "mcp-subjects": {
+      "component": "mcp-subjects",
+      "release-type": "python",
+      "exclude-paths": [
+        "mcp-subjects/tests"
+      ]
+    },
     "mcp-doaj": {
       "component": "mcp-doaj",
       "release-type": "python",

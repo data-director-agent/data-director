@@ -82,14 +82,17 @@ Commit the rewritten baseline on its own, saying which cases changed and why.
 
 ## Limits
 
-- **No vocabulary yet.** The librarian suggests no category from a controlled vocabulary, so the
-  baseline recalls none and `terms_cited` applies to no case. Which terminology services it is to
-  look terms up in is the spike #956; suggesting terms from them, each citing its record, is
-  TODO(#703).
+- **No categories in the evaluation yet.** With a model, the librarian suggests a category only
+  from the classification's fields retrieved through the tool gateway (`categories.py`). The
+  evaluation's conductor has no gateway, so even a run with a model suggests none: the baseline
+  recalls none and `terms_cited` applies to no case. Giving the evaluation the `subjects` server
+  is TODO(#703). `tests/test_metadata_categories.py` shows the path with a fake model, and
+  `tests/test_metadata_evals.py` shows the two category scorers on a hand-made draft. Keywords from
+  terminology services are the spike #956.
 - **The labels are provisional and hand-written.** The cases are written to look like ORDA
   deposits, but none is a real record, and no curator has reviewed the categories chosen. A
   labelled corpus of ORDA records is to replace them (TODO(#22)).
-- **The template path.** The baseline measures the rules. The model suggests no category, since a
-  model never suggests an entry from a named vocabulary (`datacite.yaml`).
+- **The template path.** The baseline measures the rules: the template suggester calls no model
+  and suggests nothing.
 - **One standard.** Every case drafts DataCite. Drafting in other standards is evaluated under
   TODO(#1364).

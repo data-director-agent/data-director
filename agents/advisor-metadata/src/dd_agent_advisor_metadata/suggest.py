@@ -15,7 +15,9 @@ an earlier version, or the data.
 (docs/specs/dependencies.md). The model replies against a schema (`SuggestionReply`); a reply that
 does not match is not used. Each suggestion is checked before it is offered (`check_suggestions`):
 it must answer a question the model was asked, once, in one short line of plain text that names no
-link, DOI, email address or ORCID iD the facts do not give."""
+link, DOI, email address or ORCID iD the facts do not give. A question that offers a closed set of
+choices, the fields of a named classification (`categories.py`), is answered with one of their
+codes, or not at all."""
 
 from __future__ import annotations
 
@@ -60,13 +62,15 @@ class SuggestionReply(_Reply):
 @dataclass(frozen=True)
 class Ask:
     """One question a suggester may suggest an answer to: the value at `path` in the record, of
-    the DataCite property `prop`, asked as `prompt`, with the qualifiers beside it."""
+    the DataCite property `prop`, asked as `prompt`, with the qualifiers beside it, and, for an
+    entry from a named classification, the (code, label) pairs it is answered from."""
 
     question_id: str
     path: str
     prop: str
     prompt: str
     qualifier: Mapping[str, Any] = field(default_factory=dict)
+    choices: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -157,6 +161,11 @@ def suggestion_prompt(facts: Mapping[str, Any], asks: Sequence[Ask]) -> str:
             "property": a.prop,
             "asks": a.prompt,
             **({"qualifier": dict(a.qualifier)} if a.qualifier else {}),
+            **(
+                {"choose_from": [{"code": c, "label": label} for c, label in a.choices]}
+                if a.choices
+                else {}
+            ),
         }
         for a in asks
     ]
@@ -184,23 +193,54 @@ def check_suggestions(
 ) -> Suggestions:
     """The suggestions of a model's reply that may be offered, and why any others were not."""
     known = json.dumps(facts, ensure_ascii=False, sort_keys=True)
-    asked = {a.question_id for a in asks}
+    by_id = {a.question_id: a for a in asks}
     kept: dict[str, str] = {}
     dropped: list[str] = []
     for suggested in reply.suggestions:
         question, answer = suggested.question_id, suggested.answer
         if answer is None or not answer.strip():
             continue
-        why = (
-            "suggested twice"
-            if question in kept
-            else _unsuggestable(question, answer, asked, known)
-        )
+        choices = by_id[question].choices if question in by_id else ()
+        chosen = _chosen(answer, choices) if choices else None
+        if question in kept:
+            why: str | None = "suggested twice"
+        elif choices:
+            why = None if chosen else "not one of the codes it was offered"
+        else:
+            why = _unsuggestable(question, answer, set(by_id), known)
         if why:
             dropped.append(f"{question}: {why}")
         else:
-            kept[question] = " ".join(answer.split())
+            kept[question] = chosen or " ".join(answer.split())
+    if any(a.choices for a in asks):
+        repeated = _repeated(kept, by_id)
+        dropped += [f"{q}: suggested for another entry too" for q in repeated]
+        kept = {q: a for q, a in kept.items() if q not in repeated}
     return Suggestions(kept, tuple(dropped))
+
+
+def _chosen(answer: str, choices: tuple[tuple[str, str], ...]) -> str | None:
+    """The code of the choice `answer` names, by its code or its label; None if none."""
+    given = " ".join(answer.split()).casefold()
+    for code, label in choices:
+        if given in {code.casefold(), label.casefold()}:
+            return code
+    return None
+
+
+def _repeated(kept: Mapping[str, str], by_id: Mapping[str, Ask]) -> set[str]:
+    """The later questions given a code an earlier entry of the same vocabulary was given."""
+    seen: set[tuple[str, str]] = set()
+    repeated: set[str] = set()
+    for question, code in kept.items():
+        ask = by_id[question]
+        if not ask.choices:
+            continue
+        key = (json.dumps(dict(ask.qualifier), sort_keys=True), code)
+        if key in seen:
+            repeated.add(question)
+        seen.add(key)
+    return repeated
 
 
 def _unsuggestable(question: str, answer: str, asked: set[str], known: str) -> str | None:

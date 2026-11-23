@@ -125,7 +125,8 @@ def test_only_the_properties_the_rule_table_marks_are_offered_to_the_model(
     questions = by_path(env.payload_as(Document))
     for never in ("creators[0].name", "rightsList[0].rights", "dates[0].date"):
         assert questions[never].suggested_answer is None
-    # An entry from a named vocabulary is chosen from it, not suggested (TODO(#703)).
+    # An entry from a named classification is chosen from its fields, retrieved through the
+    # gateway: with no grant here, it is not offered to the model (test_metadata_categories.py).
     scheme = next(
         q for p, q in questions.items() if p and "subjects" in p and "Scheme" in q.question_prompt
     )
