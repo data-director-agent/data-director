@@ -36,6 +36,7 @@ members = [
     "data-director-formats",
     "data-director-harness",
     "data-director-inventory",
+    "data-director-journals",
     "data-director-mcp-fairsharing",
     "data-director-mcp-pid",
     "data-director-mcp-spdx",
@@ -1176,6 +1177,7 @@ dependencies = [
     { name = "data-director-formats" },
     { name = "data-director-harness", extra = ["serve"] },
     { name = "data-director-inventory" },
+    { name = "data-director-journals" },
     { name = "data-director-mcp-fairsharing" },
     { name = "data-director-mcp-pid" },
     { name = "data-director-mcp-spdx" },
@@ -1250,6 +1252,7 @@ requires-dist = [
     { name = "data-director-formats", editable = "formats" },
     { name = "data-director-harness", extras = ["serve"], editable = "harness" },
     { name = "data-director-inventory", editable = "inventory" },
+    { name = "data-director-journals", editable = "journals" },
     { name = "data-director-mcp-fairsharing", editable = "mcp-fairsharing" },
     { name = "data-director-mcp-pid", editable = "mcp-pid" },
     { name = "data-director-mcp-spdx", editable = "mcp-spdx" },
@@ -1542,6 +1545,7 @@ name = "data-director-agent-advisor-policy"
 version = "0.1.0a3"
 source = { editable = "agents/advisor-policy" }
 dependencies = [
+    { name = "data-director-journals" },
     { name = "data-director-mcp-pid" },
     { name = "data-director-sdk" },
     { name = "httpx" },
@@ -1562,6 +1566,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "data-director-journals", editable = "journals" },
     { name = "data-director-mcp-pid", editable = "mcp-pid" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "data-director-sdk", extras = ["anthropic", "openai"], marker = "extra == 'model'", editable = "sdk" },
@@ -2037,6 +2042,11 @@ provides-extras = ["pii-ner"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "data-director-sdk", editable = "sdk" }]
+
+[[package]]
+name = "data-director-journals"
+version = "0.1.0a0"
+source = { editable = "journals" }
 
 [[package]]
 name = "data-director-mcp-fairsharing"
