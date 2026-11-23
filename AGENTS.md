@@ -23,7 +23,8 @@ Put code in the package whose job it is, not the one you have open; the full tab
   broker, its own service, which holds people's own model keys; depends only on `sdk/`.
 - `inventory/`: `dd-inventory`, depends on no other member. `mcp-pid/`: the PID resolver, an MCP
   server behind the tool gateway; depends on no other member. `mcp-spdx/`: the SPDX server, an
-  MCP server for a pinned SPDX licence list; depends on no other member. `units/`: `dd-units`, a unit as
+  MCP server for a pinned SPDX licence list; depends on no other member. `mcp-doaj/`: the DOAJ
+  server, a client and MCP server for open access journals' terms; depends on no other member. `units/`: `dd-units`, a unit as
   written into a UCUM code, by rule; depends on no other member. `subjects/`: `dd-subjects`,
   subject classifications to suggest a field of study from; depends on no other member.
   `formats/`: `dd-formats`, file formats described from a pinned PRONOM release's records;
