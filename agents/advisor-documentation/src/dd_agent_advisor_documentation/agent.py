@@ -1,13 +1,19 @@
 """advisor.documentation: the Documentation Editor persona (docs/specs/agents.md), the drafter
 of the project's README and data dictionary (docs/specs/drafting.md).
 
-Serves `preparation.documentation` (R5), not `setup.documentation` (no inventory yet, #1017).
-Given a `DraftRequest` for a `readme` or a `data_dictionary`, it drafts a project document
-(docs/specs/projects.md) from the project's inventory: the files and the tables' fields are
-drafted, and what only the researcher knows, such as the methods and each field's definition,
-unit and missing value codes, is marked for them. Each value in the data dictionary is marked
-with where it came from: inferred from the inventory or worked out by rule (a unit's UCUM code,
-`dictionary.py`), supplied by the researcher, or unknown.
+Serves `setup.documentation` and `preparation.documentation` (R5). Given a `DraftRequest` for a
+`readme` or a `data_dictionary`, it drafts a project document (docs/specs/projects.md) from the
+project's inventory: the files and the tables' fields are drafted, and what only the researcher
+knows, such as the methods and each field's definition, unit and missing value codes, is marked
+for them. Each value in the data dictionary is marked with where it came from: inferred from the
+inventory or worked out by rule (a unit's UCUM code, `dictionary.py`), supplied by the
+researcher, or unknown.
+
+Before the data are collected the project has no inventory (#1017). A README is then drafted as
+a plan of the documentation: the sections that ask something else before collection
+(`plan_ask` in `readme.yaml`) ask what the researcher expects to produce and record, under the
+same questions, so that their answers are placed in the README drafted once the data exist. A
+data dictionary still needs the inventory's tables, and without them the editor abstains.
 
 When a model is configured, which it is by default (`factory.py`), it may suggest an answer to a
 data dictionary's questions about a field's definition or unit, and to the questions of the README
@@ -62,7 +68,7 @@ from dd_agent_advisor_documentation.dictionary import (
     unit_codes_statement,
 )
 from dd_agent_advisor_documentation.drafted import drafted
-from dd_agent_advisor_documentation.notes import how_written, questions_note
+from dd_agent_advisor_documentation.notes import drafted_from, how_written, questions_note
 from dd_agent_advisor_documentation.outline import Outlined, outlined
 from dd_agent_advisor_documentation.plan import LIMITATIONS as PLAN_LIMITATIONS
 from dd_agent_advisor_documentation.plan import draft_plan, load_plan_sections
@@ -81,7 +87,7 @@ from dd_agent_advisor_documentation.revised import (
     revised_statement,
     unrevised,
 )
-from dd_agent_advisor_documentation.sections import Section, load_sections
+from dd_agent_advisor_documentation.sections import Section, before_collection, load_sections
 from dd_agent_advisor_documentation.suggestions import (
     Ask,
     Suggestions,
@@ -178,7 +184,7 @@ class DocumentationEditor:
                 Derivation.MODEL, recorded_in="suggestion_derivation"
             ),
         },
-        serves=("preparation.documentation", "setup.dmp-create"),
+        serves=("setup.documentation", "preparation.documentation", "setup.dmp-create"),
         reads_attached=(
             "to suggest answers to a draft's or a Data Management Plan's questions, for you to "
             "confirm or correct"
@@ -205,10 +211,12 @@ class DocumentationEditor:
             return self._revise(asked, ctx)
         if kind == DocumentKind.DMP:
             return self._result(asked, self._plan(asked, ctx), ctx)
-        if inventory is None or not inventory.inventory_files:
+        collected = inventory is not None and bool(inventory.inventory_files)
+        if not collected and kind != DocumentKind.README:
             return abstain(
                 ReasonCode.INSUFFICIENT_INPUT,
-                "Add the project's file inventory first: the draft is made from it.",
+                "Add the project's file inventory first: a data dictionary is drafted from its "
+                "tables.",
             )
 
         prose = Prose()
@@ -219,21 +227,9 @@ class DocumentationEditor:
             text, questions, statement, prose, stage = self._readme(asked, record, ctx)
             # The README is drafted first, so nothing the model suggests can reach its text.
             questions, suggested, offered = self._offer(asked, record, questions, ctx)
-            statement += offered
-            if asked.metadata_record is None:
-                statement += (
-                    " It was given no approved metadata record, so it drafts from the inventory "
-                    "alone."
-                )
-            else:
-                version = asked.metadata_record.version_ref.version
-                statement += (
-                    f" {unread}"
-                    if unread
-                    else f" It takes what it can from version {version} of the approved metadata "
-                    "record."
-                )
+            statement += offered + drafted_from(asked, unread, collected=collected)
         else:
+            assert inventory is not None  # checked above: only a README is drafted without one
             fields = sum(len(f.file_fields) for f in inventory.inventory_files)
             if not fields:
                 return abstain(
@@ -353,6 +349,13 @@ class DocumentationEditor:
             for q in questions
         ], suggested
 
+    def _sections(self, asked: DraftRequest) -> list[Section]:
+        """The README's sections, as asked before the data are collected when the project has no
+        file inventory yet (`setup.documentation`, #1017)."""
+        if asked.inventory is not None and asked.inventory.inventory_files:
+            return self.sections
+        return before_collection(self.sections)
+
     def _outline(self, asked: DraftRequest, record: Mapping[str, Any] | None) -> list[Outlined]:
         """The README's sections as the rules draft them, with their gaps and questions."""
         answers = _answers(asked.draft_answers)
@@ -367,7 +370,7 @@ class DocumentationEditor:
                 record,
                 answers,
             )
-            for section in self.sections
+            for section in self._sections(asked)
         ]
 
     def _offer(
@@ -379,11 +382,11 @@ class DocumentationEditor:
     ) -> tuple[list[DocumentQuestion], Suggestions, str]:
         """A README's questions with a person's own words offered first, from another document or
         a decision, then a model's suggestions, and what the statement says of them."""
-        assert asked.inventory is not None  # run checked it
         questions = shared_answers.offer(questions, asked.shared_answers, asked.project_decisions)
+        sections = self._sections(asked)
         questions, suggested = self._suggest(
             with_documents(_facts(asked.inventory, asked.requirements, record), asked),
-            section_asks(self.sections, questions, has_documents=bool(asked.project_documents)),
+            section_asks(sections, questions, has_documents=bool(asked.project_documents)),
             questions,
             ctx,
         )
@@ -436,7 +439,6 @@ class DocumentationEditor:
     ) -> tuple[str, list[DocumentQuestion], str, Prose, Stage]:
         """The README, or, before it is first written, the note that asks what it needs."""
         inventory, requirements = asked.inventory, asked.requirements
-        assert inventory is not None  # run checked it
         outline = self._outline(asked, record)
         questions = [q for planned in outline for q in planned.questions]
         title = (_title(record) if record is not None else None) or "README"
@@ -478,7 +480,7 @@ class DocumentationEditor:
             parts.extend(planned.lines)
             complete += planned.complete
         statement = (
-            f"A README of {len(self.sections)} sections, "
+            f"A README of {len(outline)} sections, "
             f"{sum(bool(p.bodies) for p in outline)} of them drafted from the project's facts "
             f"({complete} in full), and {answered} written from your answers"
             + (f" ({rewritten} of them in a model's words)" if rewritten else "")
