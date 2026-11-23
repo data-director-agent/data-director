@@ -20,6 +20,7 @@ import httpx
 
 from dd_journals import Journal
 from dd_journals import Registry as JournalIndex
+from dd_mcp_pid.caching import Lookups
 from dd_mcp_pid.dois import Crossref, DataCite
 from dd_mcp_pid.grant_server import GrantSources, grant_registry
 from dd_mcp_pid.grants import CrossrefGrants, OpenAireGraph
@@ -136,31 +137,38 @@ def registries(
     registry: Path | None = None,
     handler: Callable[[httpx.Request], httpx.Response] = recorded,
     journals: Path | None = None,
+    lookups: Lookups | None = None,
 ) -> list[Registry]:
     """Every registry, answering from the recorded files (`registry` for ROR, and `journals` for
-    the journal registry; a registry not given is not built)."""
+    the journal registry; a registry not given is not built). `lookups` is the cache they share,
+    a new one in memory by default; offline, ROR's API is not given."""
+    cached = lookups or Lookups()
     return [
-        doi_registry("DataCite", DataCite(http("DataCite", handler))),
-        doi_registry("Crossref", Crossref(http("Crossref", handler))),
-        orcid_registry(Orcid(http("ORCID", handler))),
+        doi_registry("DataCite", DataCite(http("DataCite", handler)), cached),
+        doi_registry("Crossref", Crossref(http("Crossref", handler)), cached),
+        orcid_registry(Orcid(http("ORCID", handler)), cached),
         ror_registry(
             RorSources(
                 index=RorIndex(registry) if registry else None,
-                api=RorApi(http("ROR", handler)),
+                api=None if cached.offline else RorApi(http("ROR", handler)),
                 index_label="ROR dump test",
+                lookups=cached,
             )
         ),
         journal_registry(JournalSource(journals or Path("/nonexistent/journals.sqlite"))),
-        grant_registry(grants(handler)),
+        grant_registry(grants(handler, offline=cached.offline)),
     ]
 
 
 def grants(
     handler: Callable[[httpx.Request], httpx.Response] = recorded,
     openaire: Callable[[httpx.Request], httpx.Response] | None = None,
+    *,
+    offline: bool = False,
 ) -> GrantSources:
     """The grant sources, answering from the recorded files (OpenAIRE from `openaire` if given)."""
     return GrantSources(
         CrossrefGrants(http("Crossref", handler)),
         OpenAireGraph(http("OpenAIRE", openaire or handler)),
+        offline=offline,
     )

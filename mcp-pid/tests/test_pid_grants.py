@@ -16,7 +16,7 @@ from pid_support import (
     recorded,
 )
 
-from dd_mcp_pid.cli import grant_sources
+from dd_mcp_pid.cli import cache, grant_sources
 from dd_mcp_pid.grant_server import grant_registry
 from dd_mcp_pid.grants import AccessToken, CrossrefGrants, OpenAireGraph, award_number
 
@@ -199,7 +199,7 @@ def test_openaire_is_asked_anonymously_when_no_token_can_be_issued() -> None:
 
 
 def test_the_refresh_token_is_a_setting_and_never_shown() -> None:
-    sources = grant_sources({"DD_OPENAIRE_REFRESH_TOKEN": " refresh-secret "}, None)
+    sources = grant_sources({"DD_OPENAIRE_REFRESH_TOKEN": " refresh-secret "}, None, cache({}))
     assert sources.openaire is not None and sources.openaire.token is not None
     assert "refresh-secret" not in repr(sources)
-    assert grant_sources({}, None).openaire.token is None  # type: ignore[union-attr]
+    assert grant_sources({}, None, cache({})).openaire.token is None  # type: ignore[union-attr]
