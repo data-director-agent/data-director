@@ -22,6 +22,7 @@ from dd_app.project_service._area import RepositoriesUnavailableError, TitleMism
 from dd_app.project_service.deposit import REPOSITORY_SEARCH_LIMIT, Deposit
 from dd_app.project_service.drafts import Documents, Facts
 from dd_app.project_service.escalations import Escalations
+from dd_app.project_service.funders import Funders
 from dd_app.project_service.lifecycle import Lifecycle
 from dd_app.project_service.materials import Materials
 from dd_app.project_service.members import Members
@@ -40,6 +41,7 @@ class ProjectService:
     progress: Progress
     documents: Documents
     facts: Facts
+    funders: Funders
     deposit: Deposit
     escalations: Escalations
     stewarding: Stewarding
@@ -53,6 +55,7 @@ class ProjectService:
             progress=Progress(governance),
             documents=Documents(governance),
             facts=Facts(governance),
+            funders=Funders(governance),
             deposit=Deposit(governance),
             escalations=Escalations(governance),
             stewarding=Stewarding(governance),

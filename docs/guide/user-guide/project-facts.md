@@ -55,6 +55,14 @@ mean more than one organisation, such as "NERC", the adviser asks which you mean
 proposing one. If you added a funder by name only, its proposal fills in the identifiers for that
 same fact when you confirm it.
 
+Each funder fact has a **View funder** link, whether it is proposed or decided. It opens a page
+that shows the fact and the organisation ROR records behind its identifier: its names, type,
+country, parent organisations and Crossref Funder IDs, with links to its ROR record and to each
+Crossref Funder ID. Use it to check that the identifier is the organisation you mean before you
+confirm it. The page reads a pinned copy of ROR, not the live registry, and says which copy, so a
+very recent change at ROR may not appear. If the copy holds no organisation at the identifier, the
+page says so; check the identifier. The page only shows: you still decide the fact on the facts page.
+
 ## Who decides
 
 Anyone working on the project may decide which files go in, the funders and the repositories

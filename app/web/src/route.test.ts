@@ -1,4 +1,4 @@
-import { FORMER_TABS, factsPath, projectTabOf } from "./route";
+import { FORMER_TABS, factsPath, funderPath, projectTabOf } from "./route";
 
 describe("projectTabOf", () => {
   it("names a tab, and sends a merged tab's old path to the tab it joined", () => {
@@ -21,5 +21,14 @@ describe("factsPath", () => {
     const href = new URL(factsPath("p", keys), location.origin);
     expect(href.pathname).toBe("/projects/p/facts");
     expect(href.searchParams.getAll("fact")).toEqual([keys[0], keys[1]]);
+  });
+});
+
+describe("funderPath", () => {
+  it("goes to the facts tab with the funder named, whatever characters its subject holds", () => {
+    const href = funderPath("p 1", "Wellcome & Co");
+    const url = new URL(href, "https://example.org");
+    expect(url.pathname).toBe("/projects/p%201/facts");
+    expect(url.searchParams.get("funder")).toBe("Wellcome & Co");
   });
 });

@@ -524,7 +524,15 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     never gives an agent the reason itself; the person passes it on by sending their message, and
     may change or remove it first. The address then drops the proposal, and one no longer waiting
     for a decision fills nothing (`useAskAboutFact.test.tsx`, `app/web/e2e/facts.spec.ts`).
-    Nothing but the panel decides one.
+    A funder fact, proposed or decided, also links to **View funder**
+    (`/projects/{id}/facts?funder={subject}`), a page on the same tab that shows the fact and the
+    organisation behind its ROR identifier: its names, types, status, country, parents and
+    Crossref Funder IDs, with links to its ROR record and to each Crossref Funder ID. It reads the
+    organisation from the latest pinned ROR dump through the harness (`GET /api/funders/ror/{id}`,
+    answering `404` for an identifier the dump does not hold and `503` while no dump is built), never
+    from the live registry, and says which dump it read. It only shows; a funder is still decided
+    in the panel (`FunderViewer.test.tsx`, `app/tests/test_funders.py`,
+    `app/web/e2e/funders.spec.ts`). Nothing but the panel decides one.
 30. **A person's own settings are on the Settings page.** `/settings`, reached from the cog
     labelled **Settings** in the banner on every page and from the profile page, holds what a
     person sets for themselves, in tabs (**AI account**, **Appearance**, **Dates and times** and

@@ -85,6 +85,12 @@ DATACITE_REPOSITORIES = "datacite:repositories:"
 # by the name re3data gives it (app/config/repositories/standards/datacite-4.yaml).
 DATACITE_STANDARD = "DataCite Metadata Schema"
 _RE3DATA_ID = re.compile(RE3DATA_ID_PATTERN)
+# The snapshot_ref prefix of a pinned ROR data dump, followed by its version (vX.Y). Its records are
+# keyed by the organisation's full ROR URL.
+ROR_DUMP = "ror:dump:"
+# A ROR identifier: a zero, six characters and two check digits; with or without the
+# https://ror.org/ prefix (as `dd_mcp_pid.ror_records.ROR_ID` reads one).
+_ROR_ID = re.compile(r"^(?:https?://)?(?:ror\.org/)?(0[a-z0-9]{6}[0-9]{2})/?$", re.IGNORECASE)
 # A query shorter than this, once trimmed, matches no name (it would match most of them).
 MIN_QUERY = 2
 _DOI_PREFIX = re.compile(r"^(?:https?://(?:dx\.)?doi\.org/|doi:)", re.IGNORECASE)
@@ -322,6 +328,23 @@ class Sources:
     def re3data_export_ref(self) -> str:
         """The `snapshot_ref` of the export `re3data` and `find_repositories` read."""
         return self._re3data_export()[0]
+
+    def organisation(self, ror_id: str) -> tuple[str, dict[str, Any] | None]:
+        """The latest pinned ROR dump's snapshot_ref and its record for `ror_id` (a ROR identifier,
+        with or without the https://ror.org/ prefix); the record is None if the dump has none, or
+        if `ror_id` is not a ROR identifier. Raises `SourceConfigError` if no dump is pinned or the
+        latest is not built."""
+        found = self._latest(ROR_DUMP)
+        if found is None:
+            raise SourceConfigError(
+                f"sources.yaml pins no ROR dump ({ROR_DUMP}vX.Y), so an organisation cannot be "
+                "looked up"
+            )
+        ref, resolver = found
+        match = _ROR_ID.fullmatch(ror_id.strip())
+        if match is None:
+            return ref, None
+        return ref, resolver.record(f"https://ror.org/{match.group(1).lower()}")
 
     def find_repositories(self, query: str, limit: int = 20) -> list[RepositoryMatch]:
         """The repositories in the latest pinned re3data export, and DataCite snapshot, that

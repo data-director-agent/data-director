@@ -112,6 +112,39 @@ def pin_export(root: Path, *, datacite: bool = False) -> Path:
     return config
 
 
+# A ROR dump pinned for a test: one funder, as the policy advisor's registry.jsonl holds it.
+ROR_DUMP = "ror:dump:v2.15"
+UKRI = "https://ror.org/001aqnf71"
+ROR_RECORDS = (
+    {
+        "id": UKRI,
+        "names": [
+            {
+                "value": "UK Research and Innovation",
+                "types": ["ror_display", "label"],
+                "lang": "en",
+            },
+            {"value": "UKRI", "types": ["acronym"], "lang": None},
+        ],
+        "types": ["funder", "government"],
+        "status": "active",
+        "country_codes": ["GB"],
+        "crossref_funder_ids": ["100014013"],
+        "crossref_funder_preferred": "100014013",
+        "parents": [],
+    },
+)
+
+
+def pin_ror(root: Path) -> Path:
+    """A `sources.yaml` pinning a ROR dump of `ROR_RECORDS`, as the policy advisor builds it."""
+    root.mkdir(parents=True, exist_ok=True)
+    entry = _pinned(root, "registry.jsonl", ROR_RECORDS, snapshot_refs=[ROR_DUMP], id_field="id")
+    config = root / "sources.yaml"
+    config.write_text(yaml.safe_dump({"sources": [entry]}), "utf-8")
+    return config
+
+
 def _rewrite_fixtures() -> bool:
     if "DD_WRITE_FIXTURES" in os.environ:
         return os.environ["DD_WRITE_FIXTURES"] == "1"

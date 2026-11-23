@@ -8,7 +8,7 @@
  * sensitive data may be published, and the licence, are an owner's to decide.
  */
 
-import { MessageCircle, Plus, Trash2 } from "lucide-react";
+import { Landmark, MessageCircle, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { formatDateTime } from "../../format";
@@ -19,11 +19,12 @@ import {
   factKey,
   useFactsApi,
 } from "../../project/facts";
-import { factsPath, homePath, Link, useLocation } from "../../route";
+import { factsPath, funderPath, homePath, Link, useLocation } from "../../route";
 import { Button } from "../ui/Button";
 import { TableScroll } from "../ui/TableScroll";
 import { loadInto, message, type PanelLoad } from "./panelLoad";
 import { FactDecisionForm } from "./FactDecisionForm";
+import { FunderViewer } from "./FunderViewer";
 import { blankFact } from "./FactFields";
 import { KIND_LABELS, OWNERS_KINDS, describeFact } from "./factWording";
 
@@ -39,6 +40,24 @@ function useLinkedFacts(): ReadonlySet<string> {
   const query = where.includes("?") ? where.slice(where.indexOf("?")) : "";
   const joined = new URLSearchParams(query).getAll("fact").join("\n");
   return useMemo(() => new Set(joined ? joined.split("\n") : []), [joined]);
+}
+
+/** The funder a link named (`?funder=`, see `funderPath`), whose page to show; null for none. */
+function useLinkedFunder(): string | null {
+  const where = useLocation();
+  const query = where.includes("?") ? where.slice(where.indexOf("?")) : "";
+  return new URLSearchParams(query).get("funder");
+}
+
+/** The link to a funder's page, for a funder fact; nothing for any other kind. */
+function FunderLink({ projectId, fact }: { projectId: string; fact: ProjectFact }) {
+  if (fact.fact_kind !== "funder") return null;
+  return (
+    <Link to={funderPath(projectId, fact.fact_subject)}>
+      <Landmark aria-hidden="true" size={16} /> View funder{" "}
+      <span className="visually-hidden">{fact.fact_funder_name ?? fact.fact_subject}</span>
+    </Link>
+  );
 }
 
 function OwnersNote({ fact }: { fact: ProjectFact }) {
@@ -94,6 +113,11 @@ function Proposal({
           <span className="visually-hidden">in a new conversation: {describeFact(fact)}</span>
         </Link>
       </p>
+      {fact.fact_kind === "funder" && (
+        <p className="hint">
+          <FunderLink projectId={projectId} fact={fact} />
+        </p>
+      )}
       <OwnersNote fact={fact} />
       <FactDecisionForm
         projectId={projectId}
@@ -133,6 +157,7 @@ function Decided({
         <td>
           {!changing && (
             <div className="actions">
+              <FunderLink projectId={projectId} fact={fact} />
               {/* Which document is the plan is changed on the Documents page (#1447). */}
               {fact.fact_kind !== "data_management_plan" && (
                 <Button size="small" onPress={() => setChanging(true)}>
@@ -201,6 +226,7 @@ export function FactsPanel({ projectId, revision = 0 }: { projectId: string; rev
   const [stating, setStating] = useState(false);
   const [busy, setBusy] = useState(false);
   const linked = useLinkedFacts();
+  const funder = useLinkedFunder();
   const section = useRef<HTMLElement>(null);
 
   useEffect(() => loadInto((signal) => api.facts(projectId, signal), setLoad), [api, projectId, revision]);
@@ -259,6 +285,7 @@ export function FactsPanel({ projectId, revision = 0 }: { projectId: string; rev
       );
     }
     const { proposals, decisions } = load.value;
+    if (funder) return <FunderViewer projectId={projectId} subject={funder} facts={load.value} />;
     return (
       <>
         <LinkedNote projectId={projectId} linked={linked} facts={load.value} />
@@ -337,7 +364,8 @@ export function FactsPanel({ projectId, revision = 0 }: { projectId: string; rev
         What agents found while checking this project, such as a duplicate file, coordinates that
         may need withholding or the funder, waits here for a person to confirm. Agents drafting the
         project's documents are given only what a person decided, never a proposal, so that a
-        draft leaves out a file you excluded and asks before naming a place you withheld.
+        draft leaves out a file you excluded and asks before naming a place you withheld. A funder
+        has a page of its own, with the organisation ROR records behind its identifier.
       </p>
       <div role="status" className={said ? `callout ${said.ok ? "status-ok" : "status-warn"}` : undefined}>
         {said && <p>{said.text}</p>}

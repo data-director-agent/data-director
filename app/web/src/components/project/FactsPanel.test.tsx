@@ -15,7 +15,7 @@ import {
   factKey,
 } from "../../project/facts";
 import type { Problem } from "../../run/types";
-import { factsPath, homePath } from "../../route";
+import { factsPath, funderPath, homePath, navigate } from "../../route";
 import { FactsPanel } from "./FactsPanel";
 import { KIND_LABELS } from "./factWording";
 
@@ -427,5 +427,37 @@ describe("FactsPanel", () => {
       expect(screen.getByText(/no longer here/)).toBeVisible();
       expect(document.querySelector(".fact-target")).toBeNull();
     });
+  });
+
+  it("links a funder fact to its page, and no other kind", async () => {
+    const funder = {
+      fact_kind: "funder",
+      fact_subject: "UKRI",
+      fact_funder_name: "UK Research and Innovation",
+    } as ProjectFact;
+    renderPanel({
+      facts: () => Promise.resolve({ ...DECIDED, decisions: [...DECIDED.decisions, funder] }),
+    });
+    const links = await screen.findAllByRole("link", { name: /View funder/ });
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAttribute("href", funderPath(PROJECT, "UKRI"));
+  });
+
+  it("shows a funder's page, not the lists, when a link names one", async () => {
+    const funder = {
+      fact_kind: "funder",
+      fact_subject: "UKRI",
+      fact_funder_name: "UK Research and Innovation",
+    } as ProjectFact;
+    navigate(funderPath(PROJECT, "UKRI"));
+    try {
+      renderPanel({
+        facts: () => Promise.resolve({ ...DECIDED, decisions: [funder] }),
+      });
+      expect(await screen.findByRole("heading", { name: /Funder: UK Research and Innovation/ })).toBeVisible();
+      expect(screen.queryByRole("heading", { name: "Decided" })).not.toBeInTheDocument();
+    } finally {
+      navigate("/");
+    }
   });
 });
