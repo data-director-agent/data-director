@@ -42,6 +42,10 @@
  * conversation with the step's prompt in the message box, unsent. A message already being written
  * is replaced only when the researcher confirms.
  *
+ * The message being written is kept with the open conversation, so leaving the page and coming
+ * back finds it in the box, shown even where the latest reply asks questions or the intake is
+ * open.
+ *
  * The page puts together hooks that each hold one part: the open conversation and its turns
  * (`useConversationTurns`), what a message carries (`useAttachments`), and the project's
  * documents, progress and intake (`useProjectDocuments`, `useProjectProgress`, `useIntake`), each
@@ -50,8 +54,9 @@
  * late never moves a button the researcher is about to press.
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
+import { useSessionState } from "../../conversation/session";
 import { documentReaders } from "../../conversation/documentation";
 import { type ReplyAnswers, replyQuestions } from "../../conversation/question";
 import type { Conversation } from "../../conversation/types";
@@ -105,7 +110,9 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const orchestrator = directory.agents.find((a) => a.id === named);
   const unusable = whyUnusable(named, orchestrator);
   const { projectId, projects, reloadProjects } = useActiveProject();
-  const [text, setText] = useState("");
+  // The message being written outlives the page, as the open conversation does, so leaving for
+  // another page and coming back loses nothing (conversation/session.tsx).
+  const [text, setText] = useSessionState("draft", "");
   const announce = useAnnounce();
   // A step whose prompt waits on the researcher's leave to replace the message being written.
   const [replacing, setReplacing] = useState<FlowStep | null>(null);
@@ -150,6 +157,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   });
   const { intake } = intakeRead;
   const mode = useReplyMode(asking, intakeOpen(projectId, intakeRead));
+  useShowDraft(text, intakeRead.settled, mode.setMode);
 
   const tracked = trackedProgress(projectId, progress, {
     projectApi,
@@ -367,6 +375,19 @@ export function ConversationHome({ directory }: { directory: Directory }) {
       </StewardProvider>
     </PageLoading>
   );
+}
+
+/**
+ * Shows the message box once, when the page is drawn again with a message being written, after
+ * the intake has been read so that its opening does not hide the box again.
+ */
+function useShowDraft(text: string, intakeSettled: boolean, show: (mode: "words") => void) {
+  const shown = useRef(false);
+  useEffect(() => {
+    if (shown.current || !intakeSettled) return;
+    shown.current = true;
+    if (text.trim()) show("words");
+  }, [text, intakeSettled, show]);
 }
 
 /** The questions the open conversation's latest turn asks, if it asks any. */
