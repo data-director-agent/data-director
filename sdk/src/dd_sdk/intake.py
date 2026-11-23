@@ -128,8 +128,8 @@ SENSITIVE_NOTICE = (
 )
 
 # What "No" to a Data Management Plan tells the researcher at once. Writing one is optional in
-# Figure 1 and comes after documentation and vocabularies, so it is never the suggested step; the
-# notice says it is still there.
+# Figure 1, so it is never the suggested step, though it comes early in Phase 1; the notice says it
+# is still there.
 DMP_NOTICE = (
     "Writing a Data Management Plan is optional in this process. You can start one at any time: "
     'choose "Write a Data Management Plan" in the phase tracker, or ask in the conversation.'

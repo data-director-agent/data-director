@@ -325,7 +325,11 @@ def test_a_failed_live_route_falls_back_to_the_snapshot_marked_stale(runs_dir: P
 @pytest.mark.requirement("DD-REGISTRY")
 def test_it_serves_the_policy_check_and_the_mandate() -> None:
     entry = describe(PolicyAgent.spec)
-    assert set(PolicyAgent.spec.serves) == {"governance.policies", "repository.mandated"}
+    assert set(PolicyAgent.spec.serves) == {
+        "setup.requirements",
+        "governance.policies",
+        "repository.mandated",
+    }
     assert set(PolicyAgent.spec.serves) <= STEPS
     assert entry["accepts"] == ["PolicyContext"]
     assert entry["grounding_mode"] == "retrieval"

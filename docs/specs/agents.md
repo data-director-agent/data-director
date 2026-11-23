@@ -177,13 +177,15 @@ confirms them, quoting the passage each rests on; its failure mode is a misreadi
 quote lets a person check. Describing the project was a step no persona served, and the Blueprint's
 Planning Agent is the role it fills. Writing a plan stays with the Documentation Editor, since a
 written plan is a project document (`Document`) and an agent returns one payload class.
+What it describes reaches the other personas as decided facts: the Standards Librarian, for one,
+searches on the decided field of study when its input names no subject (#1529).
 
 The Storage Adviser (`advisor.storage`) is the persona for where a project's data live while it
 runs: its own sources (the deployment's `institution_storage`, which no registry holds), its own
 failure modes (offering storage not approved for personal data) and its own step,
 `setup.storage`, our addition to Figure 1. No other persona covered it: the Documentation Editor
-drafts a plan's storage section from what the researcher says, and the Data Management Plan
-Checker reviews it, but neither knows the institution's services. It flags what the profile does
+drafts a plan's storage section from what the researcher says, and the Data Management Planner
+reviews it, but neither knows the institution's services. It flags what the profile does
 not vouch for and leaves how sensitive data are protected to the person who decides it.
 
 Some steps are deliberately served by no agent, and the orchestrators name them as steps with no
@@ -255,7 +257,7 @@ result, never trusted in place of one:
 - The Repository Adviser's only writes the rationale for a ranking its rules made, and a rationale
   that names an identifier it was not given is replaced by the template's.
 - The Ethics Adviser's only adds flags and questions to the keyword table's, never removing one.
-- The Rights Adviser's chooses only from its own licence table, and the DMP Checker's, the FAIR
+- The Rights Adviser's chooses only from its own licence table, and the Data Management Planner's, the FAIR
   Assessor's and the Metadata Librarian's only pair, tailor or suggest beside what their rules
   decided, checked before use.
 

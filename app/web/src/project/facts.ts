@@ -213,7 +213,7 @@ export const SUBJECT_OF: Record<FactKind, keyof ProjectFact | null> = {
  * one current plan and one description. */
 /** What the shell puts in the message box to ask for a review of the marked plan, unsent. */
 export const ASK_TO_REVIEW_PLAN =
-  "Please have the Data Management Plan Checker review the plan I marked for this project against the core requirements of a plan.";
+  "Please have the Data Management Planner review the plan I marked for this project against the core requirements of a plan.";
 
 export const PLAN_SUBJECT = "project";
 

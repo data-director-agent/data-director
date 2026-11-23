@@ -139,7 +139,7 @@ describe("PlanMark", () => {
     renderMark(held("dmp.docx", "b", true), [], decideFact);
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Ask the DMP Checker to review it" }),
+      screen.getByRole("button", { name: "Ask the Data Management Planner to review it" }),
     );
 
     expect(location.search).toBe("?dmp=review");

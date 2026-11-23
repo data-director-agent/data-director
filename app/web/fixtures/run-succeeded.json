@@ -17,7 +17,7 @@
       "principal_kind": "person"
     },
     "agent_id": "advisor.standards",
-    "agent_version": "0.4.0",
+    "agent_version": "0.5.0",
     "completed_at": "2026-01-01T00:00:00Z",
     "contract_version": "0.27.0",
     "evidence": [
@@ -442,7 +442,7 @@
       }
     ],
     "grounding_mode": "retrieval",
-    "input_schema": "7e282eef80b13338e071bc055f041ee02e4534010c93363f6bde6b045f7fd5e0",
+    "input_schema": "903cb789805c300303ecdc37a11a6035aa65bc7fbdc468f3d2b5448eb0a784f6",
     "invocation_id": "01900000-0000-7000-8000-000000000001",
     "outcome": {
       "statement": "16 recommendation(s) across controlled_vocabulary, data_format, field_format, ontology, terminology_unclassified, grounded in 14 FAIRsharing record(s) (snapshot:2026-09-04). Human review is required.",
@@ -927,6 +927,7 @@
       "searched": {
         "candidates_qualifying": 14.0,
         "candidates_retrieved": 27.0,
+        "from_project_record": [],
         "queries": [
           "terminologies: 'Soil science Environmental science Agriculture soil chemistry upland grassland organic carbon soil horizon Peak District Soil chemistry survey of upland grassland' [terminology_artefact]",
           "formats: 'Soil science Environmental science Agriculture soil chemistry upland grassland organic carbon soil horizon Peak District Soil chemistry survey of upland grassland' [model_and_format]",
@@ -936,9 +937,9 @@
         "snapshot_ref": "snapshot:2026-09-04"
       }
     },
-    "payload_schema": "74bc97621d7480a60ececc7285dcf3ebd333be400b35d6a5a7d06b17ac287a1a",
+    "payload_schema": "4cfb41082fa1d371756bcf6edf7643f9295777825f2a0756a69ffb9ff94d7c33",
     "policy_bundle_ref": "profile:data-director-app@v10",
-    "policy_digest": "4016460a25bd3570b2b5be9c3022c23842b890807a9137fa95f5fd32879899ce",
+    "policy_digest": "eb9e658efce29dcf9adfa72e72d07822201f108b0d5457687c94efc566ecbd47",
     "requires_human_review": true,
     "telemetry": {
       "energy_estimate_j": null,

@@ -32,6 +32,36 @@
           "text": "Describe the project and the data it will produce"
         },
         {
+          "id": "setup.requirements",
+          "label": "Find out what your funder and institution require",
+          "optional": false,
+          "out_of_scope": false,
+          "person_decides": false,
+          "prompt": "What do my funder and institution require me to plan for my data, and what must my Data Management Plan cover?",
+          "requirements": [],
+          "text": "Find out what the funder and institution require of the data plan"
+        },
+        {
+          "id": "setup.dmp-create",
+          "label": "Write a Data Management Plan",
+          "optional": true,
+          "out_of_scope": false,
+          "person_decides": false,
+          "prompt": "Help me write a Data Management Plan covering how my data will be collected, stored, shared and kept.",
+          "requirements": [],
+          "text": "Create a Data Management Plan where none exists"
+        },
+        {
+          "id": "setup.dmp-review",
+          "label": "Review and update your Data Management Plan",
+          "optional": false,
+          "out_of_scope": false,
+          "person_decides": false,
+          "prompt": "Help me review my Data Management Plan and keep it up to date.",
+          "requirements": [],
+          "text": "Review and update the Data Management Plan"
+        },
+        {
           "id": "setup.documentation",
           "label": "Plan how your data will be documented",
           "optional": false,
@@ -64,29 +94,9 @@
             "R3"
           ],
           "text": "Choose open formats to collect data in"
-        },
-        {
-          "id": "setup.dmp-create",
-          "label": "Write a Data Management Plan",
-          "optional": true,
-          "out_of_scope": false,
-          "person_decides": false,
-          "prompt": "Help me write a Data Management Plan covering how my data will be collected, stored, shared and kept.",
-          "requirements": [],
-          "text": "Create a Data Management Plan where none exists"
-        },
-        {
-          "id": "setup.dmp-review",
-          "label": "Review and update your Data Management Plan",
-          "optional": false,
-          "out_of_scope": false,
-          "person_decides": false,
-          "prompt": "Help me review my Data Management Plan and keep it up to date.",
-          "requirements": [],
-          "text": "Review and update the Data Management Plan"
         }
       ],
-      "summary": "Start from what your project is and the data it will produce, then plan how your data will be collected, documented, stored, protected, shared and kept, who looks after them and at what cost, and keep the plan up to date.",
+      "summary": "Start from what your project is, the data it will produce and what your funder and institution require, then plan how your data will be collected, documented, stored, protected, shared and kept, who looks after them and at what cost, and keep the plan up to date.",
       "title": "Pre-collection setup"
     },
     {

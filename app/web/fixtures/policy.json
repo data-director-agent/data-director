@@ -87,7 +87,7 @@
   ],
   "profile": {
     "description": "Reference profile for the Data Director app; enables every in-tree agent, requires approval for writes.",
-    "digest": "4016460a25bd3570b2b5be9c3022c23842b890807a9137fa95f5fd32879899ce",
+    "digest": "eb9e658efce29dcf9adfa72e72d07822201f108b0d5457687c94efc566ecbd47",
     "id": "data-director-app",
     "orchestrator": "orchestrator.stub",
     "ref": "profile:data-director-app@v10",
@@ -104,6 +104,39 @@
       "reason": "no_agent",
       "refers_to": null,
       "step_id": "setup.project"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Find out what your funder and institution require",
+      "phase_name": "Plan your data management",
+      "phase_number": 1,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "setup.requirements"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Write a Data Management Plan",
+      "phase_name": "Plan your data management",
+      "phase_number": 1,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "setup.dmp-create"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Review and update your Data Management Plan",
+      "phase_name": "Plan your data management",
+      "phase_number": 1,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "setup.dmp-review"
     },
     {
       "action_classes": [],
@@ -141,28 +174,6 @@
       "reason": null,
       "refers_to": null,
       "step_id": "setup.formats"
-    },
-    {
-      "action_classes": [],
-      "agent_ids": [],
-      "autonomy": "not_offered",
-      "label": "Write a Data Management Plan",
-      "phase_name": "Plan your data management",
-      "phase_number": 1,
-      "reason": "no_agent",
-      "refers_to": null,
-      "step_id": "setup.dmp-create"
-    },
-    {
-      "action_classes": [],
-      "agent_ids": [],
-      "autonomy": "not_offered",
-      "label": "Review and update your Data Management Plan",
-      "phase_name": "Plan your data management",
-      "phase_number": 1,
-      "reason": "no_agent",
-      "refers_to": null,
-      "step_id": "setup.dmp-review"
     },
     {
       "action_classes": [],
