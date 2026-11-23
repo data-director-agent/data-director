@@ -74,6 +74,7 @@ export type AppResponse =
   | PackageRefusedProblem
   | PermittedAction
   | PermittedActions
+  | PermittedMove
   | Policy
   | PolicyAgent
   | PolicyProfile
@@ -879,6 +880,10 @@ export interface Escalation {
   opened_by: Principal;
   origin: EscalationOrigin;
   /**
+   * The moves the reader may make on it now; empty for someone on neither side.
+   */
+  permitted_moves: PermittedMove[];
+  /**
    * What the researcher was told would be shared, as they saw it when they confirmed it.
    */
   scope_shared: string[];
@@ -912,6 +917,21 @@ export interface EscalationOrigin {
    */
   invocation_id?: string;
   kind: OriginKind;
+}
+/**
+ * A move the reader may make on an escalation, or one refused with why.
+ */
+export interface PermittedMove {
+  move: "take" | "release" | "wait" | "reply" | "resolve" | "hand_back" | "withdraw" | "reopen";
+  /**
+   * Whether the move carries a note: required, optional, or none.
+   */
+  note: "required" | "optional" | "none";
+  permitted: boolean;
+  /**
+   * Why a move of the reader's side is refused.
+   */
+  refusal?: "member-of-project";
 }
 /**
  * An example input the shell offers (`GET /api/examples`).
@@ -1608,6 +1628,10 @@ export interface QueuedEscalation {
   opened_at: string;
   opened_by: Principal;
   origin: EscalationOrigin;
+  /**
+   * The moves the reader may make on it now; empty for someone on neither side.
+   */
+  permitted_moves: PermittedMove[];
   project_id: string;
   project_title: string | null;
   /**

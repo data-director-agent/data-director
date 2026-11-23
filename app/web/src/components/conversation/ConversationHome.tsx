@@ -63,10 +63,12 @@ import type { Conversation } from "../../conversation/types";
 import type { FlowStep } from "../../flow/types";
 import type { Directory } from "../../manifest/normalise";
 import { useActiveProject } from "../../project/active";
+import { useResearcherProject } from "../../project/view";
 import { useProjectApi } from "../../project/api";
 import { homePath, navigate, useLocation } from "../../route";
 import type { Envelope } from "../../run/types";
 import { ContextPanel } from "../workspace/ContextPanel";
+import { StewardConversationBanner } from "../escalation/StewardConversationBanner";
 import { StewardProvider } from "../escalation/StewardContext";
 import { FAIRNESS_CLASS } from "../../project/fairness";
 import { PhaseTracker } from "../workspace/PhaseTracker";
@@ -180,6 +182,8 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     phases: <PhaseTracker load={flow} tracked={tracked} />,
   };
   const project = projectNamed(projects, projectId);
+  // A data steward working here is not offered to ask a data steward (`StewardConversationBanner`).
+  const asksSteward = useResearcherProject(projectId);
 
   // Drawn whole once what it reads on load has landed (#1328).
   const ready = workspaceReady({
@@ -263,7 +267,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
 
   return (
     <PageLoading ready={ready} said="Opening the project…">
-      <StewardProvider projectId={projectId} project={project} refresh={turnCount}>
+      <StewardProvider projectId={asksSteward} project={project} refresh={turnCount}>
       <Workspace
         {...frame}
         title="Talk to Data Director"
@@ -276,6 +280,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             <h2 id="conversation-heading" className="visually-hidden">
               Conversation
             </h2>
+            <StewardConversationBanner />
             {(turnCount > 0 || sent !== null) && (
               <Transcript
                 conversation={conversation}

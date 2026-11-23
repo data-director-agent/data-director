@@ -37,10 +37,15 @@ the people who do this work have a [Data Steward's Guide](../guide/steward-guide
 ([The app](app.md)). Deployment roles (invariant 1). The escalation record, its routing and a
 steward's queue (invariant 4). The researcher's side in the app: asking, the agents' offers, each
 request's status, withdrawing, replying and re-opening, and steward messages in the conversation
-(invariants 5, 10 and 11, #375); the steward's screens are TODO(#376). The steward path, recorded
-reads, the closed list of a steward's actions, clearing or refusing a gate as a record, and pause
-(invariants 2, 3, 6, 7 and 8), through the API and without the screens, TODO(#376). Everything
-else in this spec is the intended design; each invariant names the issue that builds it.
+(invariants 5, 10 and 11, #375). The steward path, recorded reads, the closed list of a steward's
+actions, clearing or refusing a gate as a record, and pause (invariants 2, 3, 6, 7 and 8, #374).
+The steward's screens (#376): the queue of requests, with the moves the harness lists for each
+(`permitted_moves`); a project opened as its steward, under the "Viewing as a data steward"
+banner, with its requests beside it and without the controls the harness refuses; writing to the
+researchers, pausing and lifting a pause; clearing or refusing a referred step beside the request
+it came from; proposing an edit to a document's latest version; and asking an agent, on the
+conversation page in the project, under a "Working as a data steward" banner. Everything else in
+this spec is the intended design; each invariant names the issue that builds it.
 
 ## Invariants
 
@@ -198,8 +203,10 @@ else in this spec is the intended design; each invariant names the issue that bu
     proposed version and run are always labelled with the steward's name. Built for the
     researcher (#375): each request's status line and moves in the project pane, and each steward
     message and move in the conversation between the turns it fell between, as "Data steward:
-    Name". The project's log view of reads and a steward's proposed versions and runs is
-    TODO(#376).
+    Name". Built for the steward's other steps (#376): the project pane's "What data stewards
+    did here" lists each read and each decision on a referred step, and a steward's proposed
+    version says "Edited by" the steward. Labelling a steward's runs in the conversation as theirs
+    waits on whether the envelope records the role a run was asked in, TODO(#1482).
 
 11. **A deployment without stewards still works** (C17). With no `stewardship` key, or no team
     for a project, the "Ask a data steward" control says so and shows the profile's contact if it
@@ -221,7 +228,12 @@ else in this spec is the intended design; each invariant names the issue that bu
   shell holds no policy ([The app](app.md)). Each project response gains `permitted_actions`, the
   actions the signed-in person may take there and why any is refused, so the shell shows only
   what is permitted and explains the rest, instead of learning its limits from a 403. Built
-  for `GET /api/projects/{project_id}`; the project list does not carry it yet, TODO(#376). The session response names the person's deployment roles and teams (built).
+  for `GET /api/projects/{project_id}`, which every project page reads; the project list does not
+  carry it yet, TODO(#232). Each escalation carries `permitted_moves`, the moves the reader may
+  make on it, with whether each needs a note and why one is refused
+  (`dd_harness.escalation_api.permitted_moves`), so neither side's controls are derived from the
+  state in the shell (built). The session response names the person's deployment roles and teams
+  (built).
 - **Routes.** A steward's routes are under `/api/steward/` (the queue, the overviews), the
   existing `/api/projects/{project_id}` routes, which serve a steward's reads through the steward
   path of invariant 2, and `/api/projects/{project_id}/steward/`, where a steward writes to the

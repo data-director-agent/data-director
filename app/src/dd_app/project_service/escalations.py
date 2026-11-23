@@ -18,9 +18,10 @@ from dd_sdk.contract.models import Principal
 
 
 class Escalations(Area):
-    def of_project(self, project_id: str) -> dict[str, Any]:
-        """The project's escalations, the teams it may send to, and where one would go."""
-        return escalation_api.for_project(self._store, self._profile, project_id)
+    def of_project(self, project_id: str, reader: Principal) -> dict[str, Any]:
+        """The project's escalations, each with the moves `reader` may make, the teams it may send
+        to, and where one would go."""
+        return escalation_api.for_project(self._store, self._profile, project_id, reader)
 
     def open(
         self, project_id: str, confirmed: Confirmed, *, acted_for: Principal, caused_by: str
@@ -35,7 +36,7 @@ class Escalations(Area):
             acted_for=acted_for,
             caused_by=caused_by,
         )
-        return self.of_project(project_id)
+        return self.of_project(project_id, acted_for)
 
     def move(
         self,
@@ -69,7 +70,7 @@ class Escalations(Area):
             acted_for=acted_for,
             caused_by=caused_by,
         )
-        return self.of_project(project_id)
+        return self.of_project(project_id, acted_for)
 
     def queue(self, steward: Principal, states: Sequence[str]) -> list[dict[str, Any]]:
         """The escalations routed to the steward's teams; none for someone in no team."""
