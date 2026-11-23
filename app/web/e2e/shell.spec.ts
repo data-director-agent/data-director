@@ -588,7 +588,7 @@ test("an inventory is checked, trimmed by keyboard and shown as a chip at 320px 
   });
 
   // It is checked first: nothing is attached until it is confirmed (#472).
-  const review = page.getByRole("dialog", { name: "Check the inventory before attaching it" });
+  const review = page.getByRole("dialog", { name: "Check the inventory" });
   await expect(review.getByText(/names of your files and folders/)).toBeVisible();
   await expect(page.getByText(/Inventory: 42 files/)).toHaveCount(0);
   expect(await overflow(page), "horizontal overflow while checking the inventory").toBeLessThanOrEqual(0);

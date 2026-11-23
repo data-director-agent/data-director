@@ -41,7 +41,7 @@ export function InventoryReviewDialog({
   const history = choice.for === pending ? choice.history : startHistory();
   return (
     <ReviewDialog
-      title="Check the inventory before attaching it"
+      title="Check the inventory"
       isOpen={pending !== null}
       onDiscard={onDiscard}
       attach={{
@@ -55,17 +55,13 @@ export function InventoryReviewDialog({
         <>
           <div className="callout">
             <p>
-              This is everything that will be stored in the project and sent to agents. It
-              includes the <strong>names of your files and folders</strong> and the{" "}
-              <strong>column headings</strong> of your tables, which can themselves be sensitive: a
-              person&rsquo;s name in a file name, or a heading such as <code>hiv_status</code>.
-              Agents may show it to an AI model hosted outside your institution.
+              This is stored in the project and sent to agents, including the{" "}
+              <strong>names of your files and folders</strong> and the{" "}
+              <strong>column headings</strong> of your tables. Agents may show it to an AI model
+              hosted outside your institution.
             </p>
             <p>
-              Untick anything that should not leave your computer. What you leave out is not named
-              anywhere; the inventory says only how many files and columns were left out. You can
-              also say what a file or column is, and what part a file plays: what you write is
-              kept and shown to agents in the same way.{" "}
+              Untick anything that should not leave your computer.{" "}
               <a href={INVENTORY_GUIDE}>What an inventory holds</a>
             </p>
           </div>

@@ -139,7 +139,7 @@ test("a folder is described in the browser and none of its content leaves it", a
   expect(await axeViolations(page)).toEqual([]);
   expect((await worker).headers()["content-security-policy"]).toBe(WORKER_POLICY);
 
-  const review = page.getByRole("dialog", { name: "Check the inventory before attaching it" });
+  const review = page.getByRole("dialog", { name: "Check the inventory" });
   await expect(review).toBeVisible({ timeout: 120_000 });
   await expect(review.getByText("canary.csv").first()).toBeVisible();
   await review.getByRole("button", { name: "Add this inventory" }).click();
