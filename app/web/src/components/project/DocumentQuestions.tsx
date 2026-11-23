@@ -188,7 +188,7 @@ export function DocumentQuestions({
       setSaid(
         onWrite
           ? `${recorded} Answer more, or write the ${name} now.`
-          : `${recorded} Ask for a new draft to put ${n === 1 ? "it" : "them"} into the ${name}.`,
+          : `${recorded} Continue drafting the ${name} to put ${n === 1 ? "it" : "them"} in.`,
       );
       drafts.saved(answers.map((a) => a.answered_question));
       setStart(0);

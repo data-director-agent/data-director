@@ -257,6 +257,16 @@ the same requirements (`setup.dmp-review`).
     `model`. If no model is configured, the document is not a README, or nothing usable changed,
     the editor abstains and drafts no version, saying why. A later redraft from the facts drafts
     the README afresh and does not keep a revision's wording, TODO(#1468).
+13. **A person asks for the next draft when they choose.** Nothing redrafts a document on its own
+    when answers are saved. A person may ask the agent that drafted a document to draft it again
+    from the project's recorded answers at any time: at either stage, and whether or not any
+    question is left open. The request names the latest version the person was shown and nothing
+    else; the app answers `409` and runs nothing if it is no longer the latest, or if no agent
+    drafted the document. The drafter is given `redraft_document` and not `revise`, so the
+    conductor fills `current_version`, `draft_answers` and `shared_answers` as for any redraft in a
+    project, and the drafter writes the document afresh, placing every answer recorded and asking
+    the gaps still open (invariants 6 and 10). The run is the request: no other event is recorded
+    (`app/tests/test_document_drafts.py`).
 
 ## Boundaries and contracts
 

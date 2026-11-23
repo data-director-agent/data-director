@@ -1336,6 +1336,10 @@ export interface ProjectDocuments {
    */
   decided?: DocumentVersionRef;
   documents: ProjectDocument[];
+  /**
+   * After a request for a new draft: the run that drafted the document again, or declined to.
+   */
+  drafted?: RevisionRun;
   project_id: string;
   /**
    * The longest request for changes the harness keeps, in characters.
@@ -1346,6 +1350,16 @@ export interface ProjectDocuments {
    * After a request for changes: the run that revised the document, or declined to.
    */
   revised?: RevisionRun;
+}
+/**
+ * The run asked to revise or draft a document again: its outcome, and the version it
+ * drafted, if any.
+ */
+export interface RevisionRun {
+  invocation_id: string;
+  statement: string;
+  status: "succeeded" | "abstained" | "referred" | "failed";
+  version: DocumentVersionRef | null;
 }
 /**
  * The harness's rule for when a decision needs a reason, which the form states.
@@ -1361,15 +1375,6 @@ export interface ReasonRequired {
   approved: boolean;
   edited_and_approved: boolean;
   rejected: boolean;
-}
-/**
- * The run asked to revise a document: its outcome, and the version it drafted, if any.
- */
-export interface RevisionRun {
-  invocation_id: string;
-  statement: string;
-  status: "succeeded" | "abstained" | "referred" | "failed";
-  version: DocumentVersionRef | null;
 }
 /**
  * A project's escalations, the teams it may send to, and where a new one would go.
