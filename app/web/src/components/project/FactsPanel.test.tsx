@@ -161,7 +161,7 @@ describe("FactsPanel", () => {
     ).toBeVisible();
   });
 
-  it("records a fact nobody proposed, named by the value that names it", async () => {
+  it("records a new fact, named by the value that names it", async () => {
     const decideFact = vi.fn<FactsApi["decideFact"]>(() =>
       Promise.resolve(DECIDED),
     );
@@ -169,7 +169,7 @@ describe("FactsPanel", () => {
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole("button", { name: /Add a fact/ }));
-    const form = screen.getByRole("form", { name: "A fact nobody proposed" });
+    const form = screen.getByRole("form", { name: "New fact" });
     await user.selectOptions(
       within(form).getByLabelText("What the fact is about"),
       "funder",
@@ -200,7 +200,7 @@ describe("FactsPanel", () => {
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole("button", { name: /Add a fact/ }));
-    const form = screen.getByRole("form", { name: "A fact nobody proposed" });
+    const form = screen.getByRole("form", { name: "New fact" });
     await user.selectOptions(
       within(form).getByLabelText("What the fact is about"),
       "data_description",
@@ -236,7 +236,7 @@ describe("FactsPanel", () => {
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole("button", { name: /Add a fact/ }));
-    const form = screen.getByRole("form", { name: "A fact nobody proposed" });
+    const form = screen.getByRole("form", { name: "New fact" });
     await user.selectOptions(
       within(form).getByLabelText("What the fact is about"),
       "project_summary",

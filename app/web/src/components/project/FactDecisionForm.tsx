@@ -48,7 +48,7 @@ function legend(
   const what =
     fact.fact_kind === "licence" ? kind : `${kind} ${fact.fact_subject}`;
   if (proposal) return `Your decision on the ${what}`;
-  return isNew ? "A fact nobody proposed" : `Change the ${what}`;
+  return isNew ? "New fact" : `Change the ${what}`;
 }
 
 export function FactDecisionForm({
