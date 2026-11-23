@@ -1,12 +1,14 @@
 """The admin service's route handlers, one method per page (docs/guide/operations/admin.md).
 
-Every handler is a GET and changes nothing. `dd_admin.app.build_app` mounts them behind
-`LoopbackHosts`.
+Every handler is a GET and changes nothing; downloading a case (`dd_admin.case`) is recorded as a
+security event. `dd_admin.app.build_app` mounts them behind `LoopbackHosts`.
 """
 
 from __future__ import annotations
 
+import functools
 import math
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -19,7 +21,7 @@ from starlette.routing import BaseRoute, Mount, Route
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 
-from dd_admin import config_files, operations, spend, usage
+from dd_admin import case, config_files, operations, spend, usage
 from dd_harness.projects import ProjectError
 from dd_harness.settings import redact_location
 
@@ -47,7 +49,7 @@ class Pages:
 
     def routes(self, static: Path) -> list[BaseRoute]:
         """Every page's route, and the static files from `static`."""
-        pages = {
+        pages: dict[str, Callable[[Request], Response]] = {
             "/": self.overview,
             "/operations": self.operations_page,
             "/operations/journal/{unit}": self.journal_page,
@@ -60,6 +62,7 @@ class Pages:
             "/spend": self.spend_page,
             "/projects": self.projects_page,
             "/projects/{project_id}": self.project_page,
+            "/case/{scope}/{ident}": functools.partial(case.download, self.admin),
             "/config": self.config_page,
             "/feedback": self.feedback_page,
             "/healthz": self.healthz,

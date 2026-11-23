@@ -50,8 +50,8 @@ It does not cover what a run or a project contains ([Contract](contract.md), [Pr
    shapes ([Contract](contract.md)), `withheld.json` when a check or the project withheld the
    agent's result, and, unless `DD_WRITE_CRATE=0`, the Process Run Crate as one artifact per file
    under `crate/`. `withheld.json` is the envelope as the agent's result made it, before
-   `dd_harness.pipeline.withhold` failed it. Only operator surfaces read it (the admin service and
-   the export of a case for debugging, #1576); the app, the workbench, the envelope, the crate and
+   `dd_harness.pipeline.withhold` failed it. Only operator surfaces read it, through a case exported for
+   debugging (`dd-harness case export`, or the admin service's download); the app, the workbench, the envelope, the crate and
    the deposit package never carry it, since showing a person what the checks withheld would undo
    the withholding ([Evidence and grounding](grounding.md)). A case exported for debugging copies
    a selection of runs and projects into this layout ([Case files](casefile.md)). An artifact belongs to a stored run, is written once, and is read back byte for

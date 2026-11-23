@@ -168,6 +168,7 @@ pre.small { font-size: 0.78rem; max-height: 40vh; }
 
 .filters { display: flex; flex-wrap: wrap; align-items: end; gap: 0.6rem 1rem; margin-bottom: 1rem; }
 .filters label { display: flex; flex-direction: column; font-size: 0.8rem; color: var(--muted); gap: 0.2rem; }
+.case-form label { flex-direction: row; align-items: center; font-size: 0.9rem; }
 select, button, .button {
   font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line);
   border-radius: 6px; padding: 0.35rem 0.6rem;

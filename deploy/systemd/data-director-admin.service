@@ -5,8 +5,9 @@
 #   ssh -N -L 8200:127.0.0.1:8200 you@<name>
 #
 # It reads the app's stores, the agents' cards, /etc/data-director, the releases, each unit's state
-# and journal, and what `data-director doctor --json` reports run as this user. It writes nothing:
-# ProtectSystem=strict with no ReadWritePaths leaves every store read-only to it.
+# and journal, and what `data-director doctor --json` reports run as this user. It writes nothing
+# but a case for debugging it is sending, in its PrivateTmp: ProtectSystem=strict with no
+# ReadWritePaths leaves every store read-only to it.
 #
 # It does not wait for the agents, unlike the app: it is most needed when something is down.
 [Unit]
@@ -47,7 +48,7 @@ TimeoutStartSec=30
 TimeoutStopSec=30
 SyslogIdentifier=data-director-admin
 
-# Hardening: it reads, and writes nowhere.
+# Hardening: it reads, and writes only its private /tmp.
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes

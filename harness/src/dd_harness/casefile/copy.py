@@ -1,6 +1,9 @@
 """A case's records: the selected runs and project, copied from any backend into the file layout,
 so `runs/` is a `DD_RUNS_DIR` and `projects/` a `DD_PROJECTS_DIR` every reader opens
 (docs/specs/casefile.md, Layout). Everything is written through the file backends, never by hand.
+A case whose content is named has each record named on its way in (`dd_harness.casefile.naming`),
+so every copy the backends write of it (an envelope is in the index and in its run's directory)
+says the same.
 """
 
 from __future__ import annotations
@@ -10,6 +13,7 @@ from collections.abc import Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
+from dd_harness.casefile.naming import Content, name_artifact, shaper
 from dd_harness.package_crate import CRATE_FILES
 from dd_harness.project_files import FileProjectLog
 from dd_harness.project_log import ProjectLog
@@ -52,20 +56,28 @@ def _schemas(source: RunStorage, envelope: Mapping[str, Any]) -> list[ClassSchem
     return found
 
 
-def copy_runs(source: RunStorage, envelopes: tuple[Mapping[str, Any], ...], out: Path) -> None:
-    """Each run as stored, with its request, prompts, class schemas and artifacts, in order."""
+def copy_runs(
+    source: RunStorage,
+    envelopes: tuple[Mapping[str, Any], ...],
+    out: Path,
+    content: Content = "carried",
+) -> None:
+    """Each run as stored, with its request, prompts, class schemas and artifacts, in order. A
+    class schema is code, not content, and is kept as it is."""
+    shape = shaper(content)
     target = RunStore(out / RUNS)
     for selected in envelopes:
         invocation_id = selected["invocation_id"]
         envelope = source.get(invocation_id) or dict(selected)
+        request = source.get_request(invocation_id)
         target.append(
-            envelope,
-            source.get_request(invocation_id),
+            shape(envelope),
+            None if request is None else shape(request),
             _schemas(source, envelope),
-            source.get_prompts(invocation_id),
+            shape(source.get_prompts(invocation_id)),
         )
         artifacts = {
-            name: data
+            name: data if content == "carried" else name_artifact(name, data)
             for name in ARTIFACTS
             if (data := source.get_artifact(invocation_id, name)) is not None
         }
@@ -84,17 +96,23 @@ def _strings(value: Any) -> Iterator[str]:
             yield from _strings(item)
 
 
-def copy_project(source: ProjectLog, project_id: str, out: Path) -> None:
+def copy_project(
+    source: ProjectLog, project_id: str, out: Path, content: Content = "carried"
+) -> None:
     """The project's log, every event in order, and every blob an event names. A blob is found by
     any digest in the log that the project keeps content under, so an event type added later needs
-    no change here."""
-    events = source.events(project_id)
+    no change here. Where content is named, no blob is copied: the events name each by its digest
+    already."""
+    shape = shaper(content)
+    events = [shape(event) for event in source.events(project_id)]
     target = FileProjectLog(out / PROJECTS)
     target.create(project_id, events[0])
     if events[1:]:
         with target.section(project_id) as section:
             section.append(events[1:])
+    if content == "named":
+        return
     digests = {s for event in events for s in _strings(event) if _DIGEST.fullmatch(s)}
     for digest in sorted(digests):
-        if (content := source.blob(project_id, digest)) is not None:
-            target.keep_blob(project_id, digest, content)
+        if (blob := source.blob(project_id, digest)) is not None:
+            target.keep_blob(project_id, digest, blob)

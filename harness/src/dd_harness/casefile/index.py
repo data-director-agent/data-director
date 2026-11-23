@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from dd_harness.casefile.copy import PROJECTS, RUNS
+from dd_harness.casefile.journal import JOURNAL
 from dd_harness.casefile.select import Selection
 from dd_harness.storage import GROUNDING, SOURCES, SPANS, STAGES, WITHHELD
 
@@ -66,8 +67,21 @@ def _run_lines(root: Path, envelope: Mapping[str, Any]) -> Iterator[dict[str, An
     }
 
 
+def _journal_lines(root: Path) -> Iterator[dict[str, Any]]:
+    for line in _jsonl(root / JOURNAL):
+        detail = {k: v for k, v in line.items() if k not in ("at", "unit")}
+        yield {
+            "at": _at(line["at"]),
+            "kind": "journal",
+            "what": line.get("unit"),
+            "detail": detail,
+            "file": JOURNAL,
+        }
+
+
 def timeline(root: Path, selection: Selection) -> list[dict[str, Any]]:
-    """Every project event, stage record and run completion in the case, by time."""
+    """Every project event, stage record, run completion and journal line in the case, by
+    time."""
     lines: list[dict[str, Any]] = []
     if selection.project_id is not None:
         where = f"{PROJECTS}/{selection.project_id}/events.jsonl"
@@ -84,6 +98,7 @@ def timeline(root: Path, selection: Selection) -> list[dict[str, Any]]:
             )
     for envelope in selection.runs:
         lines.extend(_run_lines(root, envelope))
+    lines.extend(_journal_lines(root))
     return sorted(lines, key=lambda line: line["at"])
 
 
@@ -126,6 +141,16 @@ def _run_row(envelope: Mapping[str, Any]) -> str:
     )
 
 
+def _named(manifest: Mapping[str, Any]) -> list[str]:
+    if manifest.get("content") != "named":
+        return []
+    return [
+        "",
+        "Content is named, not carried: every text is the `ni:` digest of its UTF-8 bytes, and the",
+        "project's files are left out. Identifiers, times, statuses, codes and titles are kept.",
+    ]
+
+
 def write_index(root: Path, selection: Selection, manifest: Mapping[str, Any]) -> None:
     """`CASE.md`: the case's scope and build, each run that did not succeed and what to open
     for it, then every run in order."""
@@ -141,7 +166,13 @@ def write_index(root: Path, selection: Selection, manifest: Mapping[str, Any]) -
         "",
         "Check the case before reading it: `dd-harness case verify <this directory or zip>`.",
         f"Open it with any reader: `DD_RUNS_DIR={RUNS} DD_PROJECTS_DIR={PROJECTS}`.",
-        f"Everything in time order is in `{TIMELINE}`.",
+        f"Everything in time order is in `{TIMELINE}`"
+        + (
+            f", with the service journal's lines from `{JOURNAL}`."
+            if (root / JOURNAL).exists()
+            else "."
+        ),
+        *_named(manifest),
         "",
         "## Runs that did not succeed",
         "",
