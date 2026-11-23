@@ -1,6 +1,7 @@
 /**
  * Deciding what check agents proposed about a project, on its page (docs/specs/app.md, rule 29):
- * the shell's API answered from the fixtures app/tests/test_project_facts.py keeps current.
+ * the shell's API answered from the fixtures app/tests/test_project_facts.py keeps current. A
+ * proposal may be talked through first, in a new conversation, but is still decided only here.
  */
 
 import AxeBuilder from "@axe-core/playwright";
@@ -9,8 +10,9 @@ import { expect, test } from "@playwright/test";
 import decided from "../fixtures/project-facts-decided.json" with { type: "json" };
 import offered from "../fixtures/project-facts.json" with { type: "json" };
 import project from "../fixtures/project-documents.json" with { type: "json" };
+import projects from "../fixtures/projects.json" with { type: "json" };
 import development from "../fixtures/session-development.json" with { type: "json" };
-import { serveSession } from "./support";
+import { axeViolations, overflow, serveConversation, serveSession } from "./support";
 
 test.beforeEach(async ({ page }) => {
   await serveSession(page, development);
@@ -74,5 +76,42 @@ for (const width of [1280, 320]) {
     );
     expect(scrolled).toBeLessThanOrEqual(0);
     await page.screenshot({ path: `test-results/facts-linked-${width}.png`, fullPage: false });
+  });
+}
+
+for (const width of [1280, 320]) {
+  test(`a proposal is discussed in a new conversation, its question unsent, at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await serveConversation(page);
+    const listed = [{ ...projects[0], project_id: project.project_id }];
+    await page.route("/api/projects", (route) => route.fulfill({ json: listed }));
+    await page.route(`/api/projects/${project.project_id}/**`, (route) =>
+      route.request().url().endsWith("/facts")
+        ? route.fulfill({ json: offered })
+        : route.request().url().endsWith("/documents")
+          ? route.fulfill({ json: project })
+          : route.fallback(),
+    );
+    await page.addInitScript((id) => localStorage.setItem("dd-project", id), project.project_id);
+    let sent = false;
+    await page.route("/api/conversations/*/turns/stream", (route) => {
+      sent = true;
+      return route.abort();
+    });
+    await page.goto(`/projects/${project.project_id}/facts`);
+
+    const duplicate = page.getByRole("article", { name: /readings \(copy\)\.csv/ });
+    await duplicate.getByRole("link", { name: /Discuss this with Data Director/ }).press("Enter");
+
+    const box = page.getByRole("textbox", { name: "What would you like to do?" });
+    await expect(box).toBeFocused();
+    await expect(box).toHaveValue(/readings \(copy\)\.csv/);
+    await expect(box).toHaveValue(new RegExp(offered.proposals[0]?.agent_id ?? "unreachable"));
+    await expect(page).toHaveURL(/\/$/);
+    expect(sent).toBe(false);
+    expect(await axeViolations(page)).toEqual([]);
+    expect(await overflow(page)).toBeLessThanOrEqual(0);
   });
 }

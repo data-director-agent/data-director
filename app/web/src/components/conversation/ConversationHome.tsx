@@ -67,6 +67,7 @@ import { FAIRNESS_CLASS } from "../../project/fairness";
 import { PhaseTracker } from "../workspace/PhaseTracker";
 import { useFlowLoad } from "../workspace/useFlowLoad";
 import { useAskAbout, useAskAboutQuestion, useAskForFairFeedback } from "./useAskAbout";
+import { useAskAboutFact } from "./useAskAboutFact";
 import { Workspace } from "../workspace/Workspace";
 import { ProjectSwitcher } from "../project/ProjectSwitcher";
 import { useAnnounce } from "../ui/Announcer";
@@ -160,18 +161,11 @@ export function ConversationHome({ directory }: { directory: Directory }) {
 
   const flow = useFlowLoad();
 
-  useAskAbout(flow, putText, reply, {
-    conversation: urlConversation,
-    run: runId,
-  });
-  useAskAboutQuestion(documents, putText, reply, {
-    conversation: urlConversation,
-    run: runId,
-  });
-  useAskForFairFeedback(putText, reply, {
-    conversation: urlConversation,
-    run: runId,
-  });
+  const askInto = { setText: putText, box: reply, keep: { conversation: urlConversation, run: runId } };
+  useAskAbout(flow, askInto);
+  useAskAboutQuestion(documents, askInto);
+  useAskForFairFeedback(askInto);
+  useAskAboutFact(projectId, askInto);
 
   const frame = {
     project: <ProjectSwitcher />,

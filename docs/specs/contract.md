@@ -160,6 +160,8 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     an output. Its `fact_kind`
     (`FactKind`) says which value slots it must hold, and its `fact_subject` is the key the last
     decision counts by; `proposed_because` says, for the person deciding, why it was proposed.
+    The harness and the app never give it to an agent; a person may quote it in a message of
+    their own.
     An agent's payload class proposes facts by mixing in `ProposesFacts` (`proposed_facts`), so
     the harness reads them without knowing the class. A `DraftRequest` and a `Message` may carry
     `project_decisions`, the facts a person decided, which only the conductor fills in a project

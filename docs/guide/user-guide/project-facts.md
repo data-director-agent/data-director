@@ -22,6 +22,16 @@ metadata record is given only what a person has decided, never a proposal. So yo
 4. Add a reason if a colleague should know why. It is kept in the project's record, and no
    agent is given it.
 
+## Talking a proposal through
+
+If you are not sure about a proposal, choose **Discuss this with Data Director** on its card. A
+new conversation opens with a question about the proposal in the message box: what it would
+decide, which agent proposed it and why. Nothing is sent until you send it, so you can change
+the question or remove the agent's reason first. Data Director can explain and advise, but it
+cannot decide the fact: come back to **Project facts** to confirm, change or reject it.
+
+## Changing what was decided
+
 Under **Decided**, you can change or remove a fact that stands. **Add a fact**
 records one of your own, such as a funder no agent found.
 
