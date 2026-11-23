@@ -32,6 +32,8 @@ class SecurityEvent(StrEnum):
     SIGN_IN_SUCCEEDED = "sign-in.succeeded"
     SIGN_IN_FAILED = "sign-in.failed"
     SIGN_OUT = "sign-out"
+    SESSION_ENDED = "session.ended"
+    ACCESS_LOADED = "access.loaded"
     CALLER_REFUSED = "caller.refused"
     PROFILE_LOADED = "profile.loaded"
     STEWARD_VIEWED = "steward.viewed"

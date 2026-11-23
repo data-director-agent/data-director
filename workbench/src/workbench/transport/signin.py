@@ -30,9 +30,9 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from dd_harness.identity import Unauthenticated
 from dd_harness.policy import Profile, load_profile
-from dd_harness.sessions import PENDING_S, cookie
+from dd_harness.sessions import PENDING_S, NotAdmitted, cookie
 from dd_harness.settings import Settings
-from dd_harness.signin import CALLBACK_PATH, NotAdmitted, SignIn, SignInSettings
+from dd_harness.signin import CALLBACK_PATH, SignIn, SignInSettings
 from dd_sdk.contract.models import Principal, to_document
 from dd_sdk.contract.problem import problem, unauthenticated
 from dd_sdk.credentials import ConfigError
@@ -85,9 +85,15 @@ class Admins:
 
     issuer: str
     principal_ids: frozenset[str]
+    blocked: frozenset[str] = frozenset()
+    """The people the profile's `access` key blocks, who are refused even if they are admins."""
 
     def __call__(self, principal: Principal) -> bool:
-        return principal.vouched_by == self.issuer and principal.principal_id in self.principal_ids
+        return (
+            principal.vouched_by == self.issuer
+            and principal.principal_id in self.principal_ids
+            and principal.principal_id not in self.blocked
+        )
 
 
 def _problem(status: int, document: Any) -> JSONResponse:
@@ -133,8 +139,22 @@ class AdminGate:
             await self.app(scope, receive, send)
             return
         request = Request(scope)
-        session = self.sign_in.authenticator.session(request.headers)
         response: Response
+        try:
+            session = self.sign_in.authenticator.session(request.headers)
+        except NotAdmitted as exc:
+            # Admitted at sign-in, and since taken off the list: the session has been ended.
+            response = _problem(
+                403,
+                problem(
+                    "forbidden",
+                    "Not an admin",
+                    f"{exc.principal.principal_id} is not an admin of this workbench",
+                    403,
+                ),
+            )
+            await response(scope, receive, send)
+            return
         if session is None:
             if _wants_page(request):
                 here = request.url.path + (f"?{request.url.query}" if request.url.query else "")
@@ -142,21 +162,20 @@ class AdminGate:
                 response = RedirectResponse(f"{SIGN_IN_PATH}?{query}", status_code=303)
             else:
                 response = _problem(401, unauthenticated("not signed in: sign in to the workbench"))
-        elif self.sign_in.admit is not None and not self.sign_in.admit(session.principal):
-            # Admitted at sign-in, and since taken off the list.
-            response = _problem(
-                403,
-                problem(
-                    "forbidden",
-                    "Not an admin",
-                    f"{session.principal.principal_id} is not an admin of this workbench",
-                    403,
-                ),
-            )
         else:
             await self.app(scope, receive, send)
             return
         await response(scope, receive, send)
+
+
+def _signed_in(sign_in: SignIn, request: Request) -> Principal | None:
+    """The admin the request's session is open for, without keeping it going; None if there is
+    none, or if the session has just been ended because they are no longer admitted."""
+    try:
+        found = sign_in.authenticator.session(request.headers, touch=False)
+    except NotAdmitted:
+        return None
+    return found.principal if found is not None else None
 
 
 def sign_in_routes(sign_in: SignIn) -> list[Route]:
@@ -211,8 +230,7 @@ def sign_in_routes(sign_in: SignIn) -> list[Route]:
         return response
 
     async def session(request: Request) -> Response:
-        found = sign_in.authenticator.session(request.headers, touch=False)
-        principal = found.principal if found is not None else None
+        principal = _signed_in(sign_in, request)
         return JSONResponse(
             {
                 "signs_in": True,
@@ -241,7 +259,8 @@ def admin_sign_in(env: Mapping[str, str], settings: Settings, base_url: str) -> 
     )
     if configured is None:
         return None
-    admins = Admins(configured.provider.issuer, administrators(load_profile(settings.profile)))
+    profile = load_profile(settings.profile)
+    admins = Admins(configured.provider.issuer, administrators(profile), profile.access.block)
     return SignIn(configured, session_cookie=SESSION_COOKIE, admit=admins)
 
 

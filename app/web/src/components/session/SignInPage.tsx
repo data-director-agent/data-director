@@ -19,6 +19,9 @@ const PROBLEMS: Record<string, string> = {
   failed:
     "Signing in did not work. The sign-in may have taken too long, or been started in another " +
     "browser. Please try again.",
+  "not-admitted":
+    "This deployment of Data Director does not let your account sign in, so you have been " +
+    "signed out. If you think it should, ask the people who run it.",
 };
 
 export function SignInPage({
@@ -41,19 +44,24 @@ export function SignInPage({
       )}
       <div className="session-page">
         <p>
-          Data Director records who each piece of work is done for. Sign in with your {provider}{" "}
-          iD so that the work you do here is recorded as yours.
+          Data Director records who each piece of work is done for. Sign in with
+          your {provider} iD so that the work you do here is recorded as yours.
         </p>
         <p>
-          You will go to {provider} to sign in, then come back here. Data Director asks {provider}{" "}
-          for your iD and your name only, not for your email address.
+          You will go to {provider} to sign in, then come back here. Data
+          Director asks {provider} for your iD and your name only, not for your
+          email address.
         </p>
         <p>
           <a className="button button-primary" href={signInHref(returnTo)}>
             {provider === "ORCID" ? (
               <OrcidIcon className="button-icon" size="1.25em" />
             ) : (
-              <LogIn className="button-icon" size="1.125em" aria-hidden="true" />
+              <LogIn
+                className="button-icon"
+                size="1.125em"
+                aria-hidden="true"
+              />
             )}
             Sign in with {provider}
           </a>

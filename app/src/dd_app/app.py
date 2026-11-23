@@ -79,14 +79,15 @@ from dd_app.routes import (
 from dd_app.routes.common import Deps, Feedback
 from dd_app.worker_policy import BundleCaching, WorkerPolicy
 from dd_harness import gateway
+from dd_harness.access import Admission
 from dd_harness.identity import IdentityError
 from dd_harness.model_grants import jwks_routes
 from dd_harness.orcid_names import PublicNames
-from dd_harness.policy import PolicyError
+from dd_harness.policy import PolicyError, load_profile
 from dd_harness.registry import RegistryError
 from dd_harness.requirements import RequirementsError
 from dd_harness.server import LOOPBACK
-from dd_harness.settings import SettingsError
+from dd_harness.settings import Settings, SettingsError
 from dd_harness.signin import SignIn, SignInSettings
 from dd_harness.sources import SourceConfigError
 from dd_harness.transport.a2a import a2a_routes
@@ -238,6 +239,13 @@ def _model_account_providers(
     ]
 
 
+def admitting_sign_in(configured: SignInSettings, settings: Settings) -> SignIn:
+    """The app's sign-in, admitting whom the deployment's profile admits (`dd_harness.access`),
+    at sign-in and on every request."""
+    admission = Admission(configured.provider.issuer, load_profile(settings.profile).admits)
+    return SignIn(configured, admit=admission)
+
+
 def main() -> int:
     """The `data-director` console script."""
     host = os.environ.get("DD_APP_HOST", DEFAULT_HOST)
@@ -248,7 +256,9 @@ def main() -> int:
         sign_in_settings = SignInSettings.from_env(
             os.environ, settings, base_url, public_url_variable=PUBLIC_URL_VARIABLE
         )
-        sign_in = SignIn(sign_in_settings) if sign_in_settings is not None else None
+        sign_in = (
+            admitting_sign_in(sign_in_settings, settings) if sign_in_settings is not None else None
+        )
         governance = Governance.create(
             settings, base_url, sign_in.authenticator if sign_in is not None else None
         )
@@ -285,6 +295,14 @@ def main() -> int:
             sys.stderr.write(UNTRUSTED_WARNING.format(host=host))
         security_log.configure()
         governance.conductor.profile.record_loaded("app")
+        if sign_in is not None:
+            # Which access policy is in force from now, so a block takes effect on the record.
+            security_log.emit(
+                security_log.SecurityEvent.ACCESS_LOADED,
+                outcome="success",
+                service="app",
+                profile_id=governance.conductor.profile.ref,
+            )
         webbrowser.open(f"{base_url}/")
         uvicorn.run(app, host=host, port=port)
     except (ShellNotBuiltError, ConfigError, ListingConfigError) as exc:

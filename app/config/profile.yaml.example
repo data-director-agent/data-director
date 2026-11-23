@@ -53,9 +53,10 @@ deposit_transports:
   - zenodo
 
 # The institution's own repositories (institution_repositories) and storage (institution_storage),
-# its administrators and its steward teams (stewardship) are each instance's, so `apply` copies
-# them from deployment.yaml (config/examples/deployment.yaml), not from this file. Steward teams:
-# docs/guide/operations/configuration.md, "Data steward teams".
+# its administrators, its steward teams (stewardship) and who may sign in (access) are each
+# instance's, so `apply` copies them from deployment.yaml (config/examples/deployment.yaml), not
+# from this file. Steward teams: docs/guide/operations/configuration.md, "Data steward teams";
+# access: the same guide, "Who may sign in". Without access, as here, anyone may sign in.
 
 actions_requiring_approval:
   - deposit

@@ -5,12 +5,15 @@
  * whether this server signs anyone in, who is signed in and when their session ends, and does not
  * keep the session going. `POST /api/session` keeps it going ("Stay signed in"). Any other API
  * call that answers `401` means the session has ended: `checkSignedIn` says so to the page, which
- * then shows the sign-in page.
+ * then shows the sign-in page. A `403` with the `not-admitted` problem means the deployment no
+ * longer admits the person and has ended their session: `checkAdmitted` sends the page to the
+ * sign-in page, which says so.
  */
 
 import { createContext, useContext } from "react";
 
 import type { RawSession } from "../api/generated/responses";
+import { navigate } from "../route";
 import { serverAnswered } from "../status";
 
 export type { RawSession } from "../api/generated/responses";
@@ -98,6 +101,12 @@ export function fromRaw(raw: RawSession): Session {
 }
 
 async function session(response: Response): Promise<Session> {
+  if (response.status === 403) {
+    checkAdmitted(
+      response.status,
+      (await response.json().catch(() => null)) as { type?: string } | null,
+    );
+  }
   if (!response.ok) throw new Error(serverAnswered(response.status));
   return fromRaw((await response.json()) as RawSession);
 }
@@ -142,6 +151,25 @@ export class SignedOut extends Error {
 /** Throws `SignedOut`, and tells the page, if `response` is a `401`. Every API call checks. */
 export function checkSignedIn(response: Response): void {
   if (response.status !== 401) return;
+  window.dispatchEvent(new Event(SIGNED_OUT));
+  throw new SignedOut();
+}
+
+/** The problem type the server answers with when the deployment does not admit the person. */
+export const NOT_ADMITTED =
+  "https://w3id.org/data-director/problems/not-admitted";
+
+/**
+ * Throws `SignedOut`, tells the page and goes to the sign-in page, which says why, if the server
+ * refused the request because the deployment does not admit the person
+ * (docs/specs/policy-and-identity.md, Admission). Their session has already ended.
+ */
+export function checkAdmitted(
+  status: number,
+  problem: { type?: string } | null,
+): void {
+  if (status !== 403 || problem?.type !== NOT_ADMITTED) return;
+  navigate("/sign-in?problem=not-admitted", true);
   window.dispatchEvent(new Event(SIGNED_OUT));
   throw new SignedOut();
 }

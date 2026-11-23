@@ -17,11 +17,16 @@ import httpx
 import pytest
 
 from dd_harness.identity import Unauthenticated
-from dd_harness.sessions import PENDING_S, SESSION_COOKIE, SessionAuthenticator, SessionStore
+from dd_harness.sessions import (
+    PENDING_S,
+    SESSION_COOKIE,
+    NotAdmitted,
+    SessionAuthenticator,
+    SessionStore,
+)
 from dd_harness.settings import Settings
 from dd_harness.signin import (
     CALLBACK_PATH,
-    NotAdmitted,
     SignIn,
     SignInSettings,
     safe_return_to,
@@ -151,3 +156,16 @@ def test_a_person_the_way_in_does_not_admit_gets_no_session() -> None:
         signed_in(sign_in, idp, "0000-0001-5000-0007")
     assert refused.value.principal.principal_id.endswith("0000-0001-5000-0007")
     assert len(sign_in.store.table) == 1
+
+
+def test_the_way_in_checks_admission_again_on_every_request() -> None:
+    idp = FakeIdentityProvider()
+    admitted = {JOSIAH}
+    sign_in = flow(idp, settings_for(idp), admit=lambda p: p.principal_id.endswith(tuple(admitted)))
+    session_id = signed_in(sign_in, idp, JOSIAH)
+    headers = {"cookie": f"{SESSION_COOKIE}={session_id}"}
+    assert sign_in.authenticator.principal_for(headers).principal_id.endswith(JOSIAH)
+    admitted.clear()
+    with pytest.raises(NotAdmitted):
+        sign_in.authenticator.principal_for(headers)
+    assert len(sign_in.store.table) == 0

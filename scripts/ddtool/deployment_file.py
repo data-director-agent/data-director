@@ -36,6 +36,7 @@ KEYS = {
     "institution_storage",
     "administrators",
     "stewardship",
+    "access",
     "pid_resolver",
 }
 # An absolute https URL with a host and no spaces. The app checks the same rule when it reads
@@ -56,6 +57,9 @@ class Deployment:
     # Deployment roles (docs/specs/stewardship.md, invariant 1), copied into the profile.
     administrators: list[str] | None = None
     stewardship: dict[str, Any] | None = None
+    # Whom a deployment that signs people in admits, copied into the profile; None admits only
+    # those listed, its stewards and its administrators (ddtool.deployment.profile).
+    access: dict[str, Any] | None = None
     pid_resolver: bool = False
 
     @property
@@ -89,8 +93,8 @@ def parse(text: str, label: str, agents: list[Agent]) -> Deployment:
     if not isinstance(data, dict):
         raise DevError(
             f"{label}: expected name, orchestrator, disabled, privacy_notice, model_accounts, "
-            "institution_repositories, institution_storage, administrators, stewardship and "
-            "pid_resolver"
+            "institution_repositories, institution_storage, administrators, stewardship, access "
+            "and pid_resolver"
         )
     if unknown := sorted(set(data) - KEYS):
         raise DevError(
@@ -120,8 +124,8 @@ def parse(text: str, label: str, agents: list[Agent]) -> Deployment:
 
 def _options(data: dict[str, Any], label: str) -> dict[str, Any]:
     """The optional keys, checked: privacy_notice, model_accounts, institution_repositories,
-    institution_storage, administrators, stewardship and pid_resolver. What the profile's keys hold is checked when the
-    harness loads the profile."""
+    institution_storage, administrators, stewardship, access and pid_resolver. What the profile's
+    keys hold is checked when the harness loads the profile."""
     privacy_notice = data.get("privacy_notice")
     if privacy_notice is not None and not (
         isinstance(privacy_notice, str) and PRIVACY_NOTICE.fullmatch(privacy_notice.strip())
@@ -146,6 +150,11 @@ def _options(data: dict[str, Any], label: str) -> dict[str, Any]:
     stewardship = data.get("stewardship")
     if stewardship is not None and not isinstance(stewardship, dict):
         raise DevError(f"{label}: stewardship is a mapping with teams, as in the profile")
+    access = data.get("access")
+    if access is not None and not isinstance(access, dict):
+        raise DevError(
+            f"{label}: access is a mapping with admit, allow and block, as in the profile"
+        )
     pid_resolver = data.get("pid_resolver", False)
     if not isinstance(pid_resolver, bool):
         raise DevError(f"{label}: pid_resolver is true or false")
@@ -156,6 +165,7 @@ def _options(data: dict[str, Any], label: str) -> dict[str, Any]:
         "institution_storage": storage,
         "administrators": administrators,
         "stewardship": stewardship,
+        "access": access,
         "pid_resolver": pid_resolver,
     }
 

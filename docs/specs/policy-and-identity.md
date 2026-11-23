@@ -121,6 +121,11 @@ them.
     not run. Otherwise the conductor sends the agent its card's defaults overlaid by the profile,
     and nothing else (`test_a_setting_the_card_does_not_offer_fails_and_the_agent_is_not_run`,
     `test_an_agent_is_sent_its_card_defaults_overlaid_by_the_profile`).
+23. **A way in serves only whom the profile admits, on every request.** A person the profile's
+    `access` key blocks, or does not list where it admits only those listed, gets no session; a
+    session of someone the profile has stopped admitting is deleted at its next request, which is
+    answered `403` `not-admitted` (Admission, below;
+    `test_a_person_blocked_after_signing_in_loses_their_session_at_their_next_request`).
 
 ## Boundaries and contracts
 
@@ -162,7 +167,8 @@ source; the conductor gives them to an agent whose input class mixes in `GivenIn
 Storage Adviser's input and every drafter's `DraftRequest` do, replacing whatever a caller sent, and the source check resolves what an agent cites of them under
 the profile's reference; `dd_harness.institution_storage`) and `stewardship` and `administrators` (the deployment's steward teams and
 its administrators, each person by principal identifier: deployment roles,
-[Data stewards](stewardship.md), invariant 1; `dd_harness.stewardship`). A setting is the agent's own
+[Data stewards](stewardship.md), invariant 1; `dd_harness.stewardship`) and `access` (whom a
+deployment that signs people in admits: Admission, below; `dd_harness.access`). A setting is the agent's own
 option, chosen by the steward: the conductor checks it against the card and sends it, and the agent
 applies it. It is not a way to grant an agent anything the other keys withhold. A deployment's generated profile is the release's example with the keys `deployment.yaml` sets, and carries every other key of the
 example as it stands. A change to which orchestrator is
@@ -201,11 +207,46 @@ calling a hosted model is held to both lists (`dd_harness.policy.withheld`).
 Each sign-in callback and the bearer authenticator verify a token with the one function in
 `dd_harness.identity`, so every way in agrees on what a valid token is.
 
-**Admins.** A deployed workbench admits only the administrators its profile names
-(`administrators`, [Data stewards](stewardship.md), invariant 1), each by principal identifier
-and vouched for by the deployment's issuer. The flow refuses anyone else after verifying their
-token and before opening a session, and every request is checked against the list. A profile with
-no administrator stops a workbench that signs people in at start-up.
+**Admission.** A way in that signs people in admits only whom the deployment's profile admits,
+and checks it twice: after verifying a person's token and before opening a session, and again on
+every request their session makes. The profile's `access` key says whom:
+
+- `admit: anyone`, the default, admits anyone the deployment's issuer vouches for. `admit: listed`
+  admits only the people `allow` lists and the deployment's stewards and administrators
+  ([Data stewards](stewardship.md), invariant 1). `allow` is refused under `anyone`, where nothing
+  would read it.
+- `block` refuses the people it lists whatever else lists them, administrators and stewards
+  included. A person in both `allow` and `block` stops start-up.
+- People are matched on their principal identifier and the issuer that vouched for them, never on
+  a name. A bare ORCID iD is refused at load, as it names no principal.
+
+A person refused at sign-in gets no session, and the sign-in page says that their account cannot
+use this deployment. A person refused on a later request, because the profile has changed since
+they signed in, has their session deleted at that request and is answered `403` with the
+`not-admitted` problem type; the shell then shows the same message. Their next request is `401`.
+A run already going finishes for whoever started it, as `acting_for` is fixed when the conductor is
+invoked, and their stored runs, conversations and projects are kept as they are (retention is
+TODO(#156)). A profile change takes effect when the app is restarted with it, which is what
+`data-director apply` does; no release is needed. The app records which profile is in force at
+start-up (`access.loaded`), and each refusal (`sign-in.failed` and `session.ended`, both with the
+reason `not-admitted` and the principal; [Security](security.md), Security events).
+
+`data-director apply` writes `admit: listed` into a deployment's profile unless its
+`deployment.yaml` gives `access`, so a deployment is closed until its operator opens it. The
+release's example profile, development servers and tests admit anyone: a development server signs
+nobody in, so admission does not arise.
+
+**Admins.** A deployed workbench admits, of the people the profile admits, only the administrators
+it names (`administrators`), each by principal identifier and vouched for by the deployment's
+issuer, and checks every request in the same way. A profile with no administrator stops a
+workbench that signs people in at start-up.
+
+**Multi-factor authentication.** An ORCID-only deployment cannot require a second factor through a
+free public API client: ORCID's 2-step verification is each person's choice, and ORCID tells only a
+Member API client whether a person has it turned on, in the ID token's `amr` claim. Requiring
+`mfa` in `amr` through a Member API client, with a fresh sign-in, is TODO(#293); an institutional
+provider that signals MFA through `acr` is TODO(#936). Until then a deployment can say who may
+sign in, but not how strongly they did.
 
 **The admin service.** The admin service (`admin/`) shows an operator every person's runs and
 projects, and the deployment's settings with secret values hidden. It has no sign-in of its own:

@@ -939,7 +939,7 @@
     },
     "payload_schema": "4cfb41082fa1d371756bcf6edf7643f9295777825f2a0756a69ffb9ff94d7c33",
     "policy_bundle_ref": "profile:data-director-app@v10",
-    "policy_digest": "eb9e658efce29dcf9adfa72e72d07822201f108b0d5457687c94efc566ecbd47",
+    "policy_digest": "5693bc178414ae39ea19c9c1935c6f64daa787215d71d067241798e06db6c11c",
     "requires_human_review": true,
     "telemetry": {
       "energy_estimate_j": null,
