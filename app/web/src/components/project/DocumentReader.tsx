@@ -37,6 +37,7 @@ import type {
 import { dataUrl, fileName } from "../../project/media";
 import { type VersionGaps, versionGaps } from "../../project/gaps";
 import { documentName } from "../../project/name";
+import { Permitted, StewardPermitted } from "../../project/view";
 import { Link } from "../../route";
 import { Button } from "../ui/Button";
 import { DecisionForm } from "./DecisionForm";
@@ -44,6 +45,7 @@ import { Provenance, State } from "./DocumentFacts";
 import { DocumentHistory } from "./DocumentHistory";
 import { DocumentPreview } from "./DocumentPreview";
 import { DocumentQuestions } from "./DocumentQuestions";
+import { ProposeEdit } from "./ProposeEdit";
 import { QuestionList } from "./QuestionList";
 import { RevisionRequest } from "./RevisionRequest";
 import { OpenCount, useReaderTabs } from "./useReaderTabs";
@@ -213,7 +215,7 @@ export function DocumentReader({
         <TabPanel id="preview" className="document-tab-panel">
           {editing !== null && (
             <p className="callout status-warn">
-              The preview shows your edited version. It is not saved until you approve it.
+              The preview shows your edited version. Nothing is saved until you send it.
             </p>
           )}
           <DocumentPreview
@@ -255,40 +257,58 @@ export function DocumentReader({
           </TabPanel>
         )}
       </Tabs>
+      {/* A data steward reads the document; deciding on it and asking for changes are the
+          researchers' (docs/specs/stewardship.md, invariant 2). */}
       {isLatest && version.state === "proposed" && (
-        <Deciding name={name} version={version}>
-          <DecisionBar
-            version={version.version}
-            gaps={versionGaps(document, version)}
-            onQuestions={tabs.openQuestions}
-            onGo={() => deciding.current?.querySelector("input")?.focus()}
-          />
-          <div ref={deciding}>
-            <DecisionForm
-              key={`${version.document_id}:${version.version}`}
-              projectId={projectId}
-              name={name}
-              version={version}
+        <Permitted action="decide">
+          <Deciding name={name} version={version}>
+            <DecisionBar
+              version={version.version}
               gaps={versionGaps(document, version)}
-              rules={rules}
-              onDecided={decided}
-              onStale={refused}
-              onEditing={onEditing}
+              onQuestions={tabs.openQuestions}
+              onGo={() => deciding.current?.querySelector("input")?.focus()}
             />
-          </div>
-        </Deciding>
+            <div ref={deciding}>
+              <DecisionForm
+                key={`${version.document_id}:${version.version}`}
+                projectId={projectId}
+                name={name}
+                version={version}
+                gaps={versionGaps(document, version)}
+                rules={rules}
+                onDecided={decided}
+                onStale={refused}
+                onEditing={onEditing}
+              />
+            </div>
+          </Deciding>
+        </Permitted>
       )}
-      <RevisionRequest
-        key={document.document_id}
-        projectId={projectId}
-        name={name}
-        kind={document.document_kind}
-        version={version}
-        isLatest={isLatest}
-        maxLength={requestMaxLength}
-        onRevised={onAnswered}
-        onStale={refused}
-      />
+      <Permitted action="contribute">
+        <RevisionRequest
+          key={document.document_id}
+          projectId={projectId}
+          name={name}
+          kind={document.document_kind}
+          version={version}
+          isLatest={isLatest}
+          maxLength={requestMaxLength}
+          onRevised={onAnswered}
+          onStale={refused}
+        />
+      </Permitted>
+      <StewardPermitted action="propose_edit">
+        <ProposeEdit
+          key={`${version.document_id}:${String(version.version)}`}
+          projectId={projectId}
+          name={name}
+          version={version}
+          isLatest={isLatest}
+          onEditing={onEditing}
+          onProposed={() => void onStale()}
+          onStale={refused}
+        />
+      </StewardPermitted>
     </article>
   );
 }
