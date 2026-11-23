@@ -47,6 +47,8 @@ class SharedField(StrEnum):
 
 # Where a suggestion copied from a person's own words came from: a document kind, or a decision.
 SUGGESTED_FROM_DECISION = "decision"
+# A suggestion made of the project's people, from what they kept of their own ORCID records.
+SUGGESTED_FROM_RESEARCHERS = "researchers"
 # A suggestion a drafter composed by rule from what the deployment's profile vouches for, such as
 # the institution's storage services (derived as `template`).
 SUGGESTED_FROM_INSTITUTION = "institution"
@@ -82,7 +84,7 @@ class DocumentQuestion(Frozen):
     # derived as `answer`, "institution" for one derived as `template` from the profile.
     suggested_from: str | None = Field(
         default=None,
-        pattern=r"^(metadata_record|readme|data_dictionary|dmp|other|decision|institution)$",
+        pattern=r"^(metadata_record|readme|data_dictionary|dmp|other|decision|institution|researchers)$",
     )
 
     @model_validator(mode="after")

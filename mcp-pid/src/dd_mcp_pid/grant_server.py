@@ -25,6 +25,7 @@ from typing import Any
 
 from mcp_types import CallToolResult, Tool
 
+from dd_mcp_pid.caching import OfflineError
 from dd_mcp_pid.dois import bare_doi
 from dd_mcp_pid.grants import CrossrefGrants, GrantRecord, OpenAireGraph, award_number
 from dd_mcp_pid.http import UnavailableError
@@ -152,9 +153,16 @@ class Answer:
 class GrantSources:
     crossref: CrossrefGrants
     openaire: OpenAireGraph | None
+    offline: bool = False
+    """Ask neither source (`DD_PID_OFFLINE`): grants are searches, which are not cached."""
 
     def resolve(self, award: str, funder: str | None) -> Answer:
         """Every candidate for `award`, by the rules above."""
+        if self.offline:
+            raise OfflineError(
+                "Grants: this server is offline (DD_PID_OFFLINE), so Crossref and OpenAIRE "
+                "were not asked"
+            )
         doi = bare_doi(award)
         if doi is not None:
             record = self.crossref.by_doi(doi)

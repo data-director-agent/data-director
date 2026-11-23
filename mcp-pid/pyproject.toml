@@ -21,8 +21,9 @@ classifiers = [
   "Typing :: Typed",
 ]
 
-# Framework-neutral (docs/specs/system.md): the one workspace member imported is dd-journals, a
-# standard-library-only library published on its own, so publishing this server is a copy. The MCP SDK is pinned to a minor version like the harness's gateway,
+# Framework-neutral (docs/specs/system.md): the workspace members imported are dd-journals and
+# dd-registry-cache, standard-library-only libraries each published on its own, so publishing this
+# server is a copy. The MCP SDK is pinned to a minor version like the harness's gateway,
 # whose client this server is written against.
 dependencies = [
   "mcp>=2.3,<2.4",
@@ -34,6 +35,8 @@ dependencies = [
   "anyio>=4",
   # The journal registry and its index, from a pinned OpenAlex snapshot (the `journals` server).
   "data-director-journals",
+  # The cache of the registries' answers, which the offline mode answers from.
+  "data-director-registry-cache",
 ]
 
 [project.scripts]

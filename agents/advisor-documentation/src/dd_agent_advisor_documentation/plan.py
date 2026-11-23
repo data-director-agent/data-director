@@ -143,7 +143,9 @@ def draft_plan(
     ]
     questions = [q for planned in outline for q in planned.questions]
     # A person's own words, from another document or a decision, come before a model's.
-    questions = shared_answers.offer(questions, asked.shared_answers, asked.project_decisions)
+    questions = shared_answers.offer(
+        questions, asked.shared_answers, asked.project_decisions, asked.researchers
+    )
     # Then the institution's storage, by rule; a model is asked only about what is left.
     questions = storage.offer(questions, asked)
     questions, suggested = suggest(

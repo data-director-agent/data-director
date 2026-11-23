@@ -70,10 +70,12 @@ class RorIndex:
 
 class RorApi:
     """ROR's REST API. Any transport failure, or an answer that cannot be read, raises
-    `UnavailableError`."""
+    `UnavailableError`. A `client_id`, ROR's free client ID, is sent as the `Client-Id` header,
+    which raises ROR's rate limit for this server."""
 
-    def __init__(self, http: Http | None = None) -> None:
-        self.http = http or Http("ROR")
+    def __init__(self, http: Http | None = None, client_id: str | None = None) -> None:
+        headers = {"Client-Id": client_id} if client_id else {}
+        self.http = http or Http("ROR", headers=headers)
 
     def find(self, name: str) -> list[Organisation]:
         """The active organisations with this name, acronym or alias, from the first page of

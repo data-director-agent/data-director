@@ -22,7 +22,7 @@ Put code in the package whose job it is, not the one you have open; the full tab
   only; it reads the stores and runs nothing, and nothing depends on it. `broker/`: the model
   broker, its own service, which holds people's own model keys; depends only on `sdk/`.
 - `inventory/`: `dd-inventory`, depends on no other member. `mcp-pid/`: the PID resolver, an MCP
-  server behind the tool gateway; depends only on `dd-journals`. `mcp-spdx/`: the SPDX server, an
+  server behind the tool gateway; depends only on `dd-journals` and `dd-registry-cache`. `mcp-spdx/`: the SPDX server, an
   MCP server for a pinned SPDX licence list; depends on no other member. `mcp-subjects/`: the
   subjects server, an MCP server for the subject classifications of `dd-subjects`; depends only
   on `dd-subjects`. `mcp-doaj/`: the DOAJ
