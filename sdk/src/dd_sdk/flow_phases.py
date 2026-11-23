@@ -25,10 +25,16 @@ FAIR check of the draft before submission.
 TODO(#245):
 check the rest against Figures 1 to 6 themselves, which may show other steps or decisions the
 captions leave out.
+
+A step's `id` is stored: a researcher's `step_marked` names it in the project log, which outlives
+any release. So an id is never deleted or reused. A step taken out of the flow is retired in
+`RETIRED_STEPS`, with the step that replaces it where one does, and readers of the log resolve a
+stored id through `dd_sdk.process_flow.current_step` (docs/specs/projects.md).
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 
@@ -400,3 +406,11 @@ PHASES: tuple[Phase, ...] = (
         summary="Follow how your data are used and keep their records up to date.",
     ),
 )
+
+# The step ids an earlier release had and this one does not, each with the step that replaces it,
+# or None where none does, so that a project log naming one still reads. Never remove an entry.
+RETIRED_STEPS: Mapping[str, str | None] = {
+    # Figure 1's selection of vocabularies, moved to Phase 4 (#1512). Starting a list before
+    # collection is not choosing the terms for a repository, so a mark of it is not carried over.
+    "setup.vocabularies": None,
+}
