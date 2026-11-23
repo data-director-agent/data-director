@@ -55,6 +55,7 @@ describe("normalise", () => {
       { path: "items.rationale", how: "model", recordedIn: "rationale_derivation" },
       { path: "items.target", how: "lexical", recordedIn: "selection_derivation" },
       { path: "limitations", how: "template" },
+      { path: "searched.from_project_record", how: "template" },
     ]);
   });
 
