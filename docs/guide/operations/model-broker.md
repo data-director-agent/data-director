@@ -73,6 +73,9 @@ default ([AI models](ai-models.md#which-agents-call-a-model)), so name all nine,
 sudo deploy/broker-credentials.sh advisor-standards advisor-policy advisor-repository advisor-documentation advisor-dmp advisor-rights advisor-fairness advisor-ethics advisor-metadata orchestrator-model
 ```
 
+With no agent named, it covers every deployed agent, including any that never call a model; their
+credentials go unused.
+
 For each agent it makes a credential, stores it as the agent's `dd-model-broker-credential` secret
 (restarting the agent if it is running; see [The agents](#the-agents-calling-through-the-broker)),
 and writes the credential's digest into `agent-credentials`, readable by root alone. Then restart
