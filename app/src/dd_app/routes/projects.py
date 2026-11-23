@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from typing import ClassVar, Literal
 
-from pydantic import ConfigDict
+from pydantic import MISSING, ConfigDict
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import Response
@@ -152,6 +152,31 @@ class ProjectSummary(ProjectDetails):
     conversations: list[ProjectConversation]
 
 
+class PermittedAction(ResponseBody):
+    """One thing a person may ask to do in a project, and why not if they may not."""
+
+    action: str
+    permitted: bool
+    refusal: str | MISSING = MISSING
+    """Why it is refused, as a code; absent where it is permitted."""
+
+
+class PermittedActions(ResponseBody):
+    """What a person may do in a project, as a member or as its steward, and why the rest is
+    refused (`dd_harness.steward_api.permitted_actions`)."""
+
+    acting_as: Literal["member", "steward"]
+    """Whether the person is in the project as a member or as its steward."""
+    actions: list[PermittedAction]
+
+
+class ListedProject(ProjectSummary):
+    """One project the person may read, as `GET /api/projects` lists it, with what they may do
+    there."""
+
+    permitted_actions: PermittedActions
+
+
 class DeletedProject(ProjectDetails):
     """A deleted project, as `GET /api/projects/deleted` lists it and deleting answers."""
 
@@ -194,7 +219,7 @@ async def list_projects(request: Request, reader: Principal, deps: Deps) -> Resp
     )
     if isinstance(page, Response):
         return page
-    return await run_in_threadpool(respond_page, request, page, ProjectSummary)
+    return await run_in_threadpool(respond_page, request, page, ListedProject)
 
 
 async def list_deleted_projects(request: Request, owner: Principal, deps: Deps) -> Response:

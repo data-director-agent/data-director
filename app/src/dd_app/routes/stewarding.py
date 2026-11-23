@@ -46,7 +46,7 @@ from dd_app.routes.common import (
     respond,
     signed_in,
 )
-from dd_app.routes.projects import ProjectDetails
+from dd_app.routes.projects import PermittedActions, ProjectDetails
 from dd_harness.project_access import Action
 from dd_harness.projects import (
     ChangeRefusedError,
@@ -62,21 +62,6 @@ from dd_sdk.contract.models import Principal
 STEWARD_REFUSED = "Data Director could not do this as the project's steward"
 # Refusals of whom the steward is, not of the project's state.
 _FORBIDDEN = frozenset({StewardRefusal.MEMBER_OF_PROJECT, StewardRefusal.NOT_PERMITTED})
-
-
-class PermittedAction(ResponseBody):
-    """One thing a person may ask to do in a project, and why not if they may not."""
-
-    action: str
-    permitted: bool
-    refusal: str | pydantic.MISSING = pydantic.MISSING
-    """Why it is refused, as a code; absent where it is permitted."""
-
-
-class PermittedActions(ResponseBody):
-    acting_as: Literal["member", "steward"]
-    """Whether the person is in the project as a member or as its steward."""
-    actions: list[PermittedAction]
 
 
 class ProjectView(ProjectDetails):

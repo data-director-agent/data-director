@@ -23,11 +23,13 @@
 
 import type {
   Escalation,
+  ListedProject,
   Notices,
   ProjectEscalations,
   ProjectRuns,
   ProjectStewarding,
   RunResult,
+  StewardProject,
   StewardQueue,
 } from "./api/generated/responses";
 import type { Conversation } from "./conversation/types";
@@ -70,6 +72,7 @@ import projectDrafted from "../fixtures/project-drafted.json";
 import projectFacts from "../fixtures/project-facts.json";
 import projectFactsDecided from "../fixtures/project-facts-decided.json";
 import projectFactsForbidden from "../fixtures/project-facts-forbidden.json";
+import stewardProjects from "../fixtures/steward-projects.json";
 import stewardQueue from "../fixtures/steward-queue.json";
 import stewarding from "../fixtures/stewarding.json";
 import projectFairnessRuns from "../fixtures/project-fairness-runs.json";
@@ -110,7 +113,7 @@ void (runAbstained satisfies Wide<RunResult>);
 
 // Projects (principals, document questions, facts, intake questions), and the contract classes
 // the app sends as they are.
-void (projects satisfies Wide<ProjectSummary>[]);
+void (projects satisfies Wide<ListedProject>[]);
 void (projectCreated satisfies Wide<ProjectSummary>);
 void (projectsDeleted satisfies Wide<DeletedProject>[]);
 void (projectDocuments satisfies Wide<ProjectDocuments>);
@@ -126,6 +129,7 @@ void (projectMembersLastOwner satisfies Wide<Problem>);
 void (escalations satisfies Wide<ProjectEscalations>);
 void (escalationResolved satisfies Wide<Escalation>);
 void (stewardQueue satisfies Wide<StewardQueue>);
+void (stewardProjects satisfies Wide<StewardProject>[]);
 void (notices satisfies Wide<Notices>);
 void (stewarding satisfies Wide<ProjectStewarding>);
 void (projectResearchers satisfies Wide<ResearcherRecord>[]);

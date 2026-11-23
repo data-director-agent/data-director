@@ -73,6 +73,9 @@ def run_summary(envelope: dict[str, Any]) -> dict[str, Any]:
         "completed_at": envelope["completed_at"],
         # Runs stored before docs/specs/policy-and-identity.md name no principal.
         "acting_for": (envelope.get("acting_for") or {}).get("name"),
+        "project_id": envelope.get("project_id"),
+        # Why a run that did not succeed ended as it did, as the outcome gives it.
+        "reason_code": envelope["outcome"].get("reason_code"),
     }
 
 

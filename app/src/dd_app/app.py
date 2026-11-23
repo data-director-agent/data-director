@@ -73,6 +73,7 @@ from dd_app.routes import (
     projects,
     runs,
     session,
+    steward_projects,
     stewarding,
 )
 from dd_app.routes.common import Deps, Feedback
@@ -121,6 +122,7 @@ AREAS = (
     drafts,
     escalations,
     stewarding,
+    steward_projects,
 )
 
 
