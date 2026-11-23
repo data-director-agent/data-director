@@ -346,9 +346,13 @@ spec is the intended design; each invariant names the issue that builds it.
 
 - **Accessibility.** Every steward action and every escalation control works by keyboard and
   screen reader, and each state change is announced (#74).
-- **Security.** A steward's access, each `steward_viewed`, each pause and each gate decision is
-  also a security-log event ([Security baseline](security.md)). The steward path is the access
-  control AC-3 and AC-6 rely on for deployment roles.
+- **Security.** Each steward read recorded as `steward_viewed` is also a `steward.viewed`
+  security event, and each steward action, a pause, a lifted pause and a gate decision among
+  them, a `steward.acted` one naming the action; a note's text never is. The roles a person held
+  when they signed in are on `sign-in.succeeded`, and each service records the profile it loaded,
+  and so any change of roles, as `profile.loaded` ([Security baseline](security.md), Security
+  events). Built: `dd_harness.steward_api`. The steward path is the access control AC-3 and AC-6
+  rely on for deployment roles.
 - **Scale.** A team's queue is one indexed query, like a person's project list ([Storage](storage.md)),
   and runs in the listing pool.
 - **Personal data.** An escalation holds the researcher's note and the scope they chose to share,

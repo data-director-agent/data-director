@@ -284,6 +284,7 @@ def main() -> int:
         if host not in LOOPBACK and sign_in is None:
             sys.stderr.write(UNTRUSTED_WARNING.format(host=host))
         security_log.configure()
+        governance.conductor.profile.record_loaded("app")
         webbrowser.open(f"{base_url}/")
         uvicorn.run(app, host=host, port=port)
     except (ShellNotBuiltError, ConfigError, ListingConfigError) as exc:

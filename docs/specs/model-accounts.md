@@ -562,7 +562,7 @@ model call and whether the person's own account or the deployment's paid for it
 
 - TODO(#40): whether a profile may refuse a person's own provider for a given class of data, such
   as a conversation's text, beyond `hosted_models` for project content.
-- TODO(#154): whether a steward may require own accounts for some people or groups and not
+- TODO(#936): whether a steward may require own accounts for some people or groups and not
   others.
 - TODO(#37): where the broker's key-encryption key is kept and how it is rotated, in the threat
   model; the baseline records the sealing itself ([Security baseline](security.md)).
