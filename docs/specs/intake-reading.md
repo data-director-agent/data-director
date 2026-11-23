@@ -29,6 +29,10 @@ them, when the researcher can see why: whether an embargo is required (Figure 2)
 repository assigns identifiers automatically (Figure 3), whether a data dictionary was created
 before collection (Figure 4) and the two decisions about a related article (Figure 6).
 
+Nor does it ask what the project is or the data it will produce. Figure 1 has no box for them;
+they are the first planning step, `setup.project`, our addition, so that the documentation and
+the plan that follow are drafted from facts the researcher confirmed rather than asked again.
+
 ## Decisions
 
 1. **"Yes" to sensitive data says something at once.** The card says not to paste or upload the

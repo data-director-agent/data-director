@@ -1,4 +1,4 @@
-"""The Data Management Plan Checker's evaluation, as an Inspect task: reading a free-text plan's
+"""The Data Management Planner's evaluation, as an Inspect task: reading a free-text plan's
 sharing commitments, and comparing the ones a researcher confirmed (#962).
 
     uv run inspect eval ${READING} --model none

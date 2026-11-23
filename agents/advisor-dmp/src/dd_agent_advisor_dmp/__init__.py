@@ -1,1 +1,1 @@
-"""advisor.dmp: the Data Management Plan Checker persona (docs/specs/agents.md). A mock."""
+"""advisor.dmp: the Data Management Planner persona (docs/specs/agents.md). A mock."""

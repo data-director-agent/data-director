@@ -12,6 +12,8 @@ from dd_harness import progress
 from dd_harness.projects import (
     DOCUMENT_VERSION_ADDED,
     DOCUMENT_VERSION_DECIDED,
+    FACT_DECIDED,
+    FACT_PROPOSED,
     INVENTORY_ADDED,
     PACKAGE_BUILT,
     PROJECT_VALIDATED,
@@ -35,6 +37,28 @@ def marked(step_id: str, mark: str) -> dict[str, Any]:
     return {"event": progress.STEP_MARKED, "step_id": step_id, "mark": mark}
 
 
+def summary(event: str, verdict: str | None = None) -> dict[str, Any]:
+    fact = {"fact_kind": "project_summary", "fact_subject": "project", "summary_text": "Drought."}
+    return {"event": event, "fact": fact, **({"verdict": verdict} if verdict else {})}
+
+
+def test_the_project_is_described_once_a_person_decides_its_summary() -> None:
+    proposed = summary(progress.FACT_PROPOSED)
+    assert progress.step_states([proposed]) == {"setup.project": "started"}
+    confirmed = summary(progress.FACT_DECIDED, "confirmed")
+    assert progress.step_states([proposed, confirmed]) == {"setup.project": "done"}
+    # A later proposal does not undo the decision; a later rejection does.
+    assert progress.step_states([proposed, confirmed, proposed]) == {"setup.project": "done"}
+    rejected = summary(progress.FACT_DECIDED, "rejected")
+    assert progress.step_states([proposed, confirmed, rejected]) == {"setup.project": "started"}
+
+
+def test_a_fact_of_another_kind_does_not_describe_the_project() -> None:
+    funder = {"fact_kind": "funder", "fact_subject": "NERC", "fact_funder_name": "NERC"}
+    event = {"event": progress.FACT_DECIDED, "verdict": "confirmed", "fact": funder}
+    assert progress.step_states([event]) == {}
+
+
 def test_the_event_names_are_the_project_logs() -> None:
     assert progress.INVENTORY_ADDED == INVENTORY_ADDED
     assert progress.REPOSITORY_CHOSEN == REPOSITORY_CHOSEN
@@ -42,6 +66,8 @@ def test_the_event_names_are_the_project_logs() -> None:
     assert progress.DOCUMENT_VERSION_DECIDED == DOCUMENT_VERSION_DECIDED
     assert progress.PROJECT_VALIDATED == PROJECT_VALIDATED
     assert progress.PACKAGE_BUILT == PACKAGE_BUILT
+    assert progress.FACT_PROPOSED == FACT_PROPOSED
+    assert progress.FACT_DECIDED == FACT_DECIDED
 
 
 def test_an_empty_log_shows_every_step_open() -> None:
@@ -201,12 +227,12 @@ def test_the_store_suggests_a_step_the_deployments_agents_serve(store: ProjectSt
     all suggest the Phase 1 step an agent serves, not the one none does (#1377)."""
     project = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
     store.choose_entry(project, 1, acted_for=TEST_PRINCIPAL, caused_by="test")
-    assert store.progress(project)["suggested"] == "setup.documentation"
+    assert store.progress(project)["suggested"] == "setup.project"
     assert store.progress(project)["passed_over"] == []
     store.serving = lambda: [{"agent_id": "advisor.standards", "serves": ["setup.formats"]}]
     assert store.progress(project)["suggested"] == "setup.formats"
     # The steps passed over are named, so the app can say why (#1377).
-    passed = ["setup.documentation", "setup.storage"]
+    passed = ["setup.project", "setup.documentation", "setup.storage"]
     assert store.progress(project)["passed_over"] == passed
     assert store.intake(project)["progress"]["passed_over"] == passed
     assert store.summary(project)["progress"]["suggested"] == "setup.formats"

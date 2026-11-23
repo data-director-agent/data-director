@@ -225,7 +225,7 @@ ignore_imports = [
   "dd_agent_advisor_standards.testing -> workbench.*",
   # The Documentation Editor's evaluation declares the workbench in its `eval` extra.
   "dd_agent_advisor_documentation.evals.* -> workbench.*",
-  # So does the Data Management Plan Checker's.
+  # So does the Data Management Planner's.
   "dd_agent_advisor_dmp.evals.* -> workbench.*",
   # And the repository advisor's.
   "dd_agent_advisor_repository.evals.* -> workbench.*",

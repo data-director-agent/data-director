@@ -115,41 +115,81 @@ class TemplateReader:
         return Reading()
 
 
-class ModelReader:
-    """Reads a plan's commitments with the model the agent's settings name, or a
+@dataclass(frozen=True)
+class Asked[T: BaseModel]:
+    """A model's reply about the attached documents, as `ask` got it: parsed, or why not."""
+
+    parsed: T | None
+    why: str | None
+    model_id: str | None
+    names: tuple[str, ...]
+    calls: ModelCallLog
+    usage: Usage = field(default_factory=Usage)
+
+
+def ask[T: BaseModel](
+    model: Model,
+    ctx: RunContext,
+    system: str,
+    documents: Sequence[ProjectDocument],
+    cut: set[str],
+    schema: type[T],
+) -> Asked[T]:
+    """One call asking `model` about `documents`, numbered as `prompt` gives them, with its reply
+    parsed into `schema`, or the reason it could not be: not reached, declined, or not in form."""
+    names = tuple(d.documentation_name for d in documents)
+    log = ModelCallLog(model.provider)
+    messages = [{"role": "user", "content": prompt(documents, cut)}]
+    try:
+        reply = call(
+            model,
+            ctx,
+            system=system,
+            messages=messages,
+            schema=schema,
+            options=CallOptions(calls=log),
+        )
+    except ModelCallError as error:
+        return Asked(None, f"the model could not be reached ({error})", model.model_id, names, log)
+    except ModelOutputError as error:
+        got = error.reply
+        try:
+            parsed = schema.model_validate_json(_unfenced(got.text))
+        except ValidationError:
+            why = "the model's reply did not match its schema"
+            return Asked(None, why, got.model_id, names, got.calls, got.usage)
+        return Asked(parsed, None, got.model_id, names, got.calls, got.usage)
+    if reply.parsed is None:
+        return Asked(None, "the model declined", reply.model_id, names, reply.calls, reply.usage)
+    return Asked(reply.parsed, None, reply.model_id, names, reply.calls, reply.usage)
+
+
+class DocumentModel:
+    """A model that reads the attached documents: the one the agent's settings name, or a
     `dd_sdk.testing.FakeModel` in tests."""
 
     def __init__(self, model: Model) -> None:
         self.model = model
         self.model_id: str | None = model.model_id
 
-    def read(self, documents: Sequence[ProjectDocument], ctx: RunContext) -> Reading:
+    def asked[T: BaseModel](
+        self, documents: Sequence[ProjectDocument], ctx: RunContext, system: str, schema: type[T]
+    ) -> tuple[Asked[T], list[ProjectDocument], set[str]]:
+        """The model's reply about `documents` as they fit, with the documents given and cut."""
         given, cut = fitted(documents)
-        names = tuple(d.documentation_name for d in given)
-        log = ModelCallLog(self.model.provider)
-        messages = [{"role": "user", "content": prompt(given, cut)}]
-        try:
-            reply = call(
-                self.model,
-                ctx,
-                system=READ_PROMPT,
-                messages=messages,
-                schema=ReadReply,
-                options=CallOptions(calls=log),
-            )
-        except ModelCallError as error:
-            return _unused(f"the model could not be reached ({error})", self.model_id, names, log)
-        except ModelOutputError as error:
-            got = error.reply
-            try:
-                parsed = ReadReply.model_validate_json(_unfenced(got.text))
-            except ValidationError:
-                why = "the model's reply did not match its schema"
-                return _unused(why, got.model_id, names, got.calls, got.usage)
-            return check(parsed, given, cut, got.model_id, got.usage, got.calls)
-        if reply.parsed is None:
-            return _unused("the model declined", reply.model_id, names, reply.calls, reply.usage)
-        return check(reply.parsed, given, cut, reply.model_id, reply.usage, reply.calls)
+        return ask(self.model, ctx, system, given, cut, schema), given, cut
+
+
+class ModelReader(DocumentModel):
+    """Reads a plan's commitments."""
+
+    def read(self, documents: Sequence[ProjectDocument], ctx: RunContext) -> Reading:
+        got, given, cut = self.asked(documents, ctx, READ_PROMPT, ReadReply)
+        if got.parsed is None:
+            assert got.why is not None
+            return _unused(got.why, got.model_id, got.names, got.calls, got.usage)
+        assert got.model_id is not None
+        return check(got.parsed, given, cut, got.model_id, got.usage, got.calls)
 
 
 def _unused(
@@ -298,12 +338,19 @@ def _unusable(c: ReadCommitment, documents: Sequence[ProjectDocument]) -> str | 
     """Why a commitment the model read cannot be proposed, or None if it can."""
     if not c.output.strip():
         return "it names no output"
-    if not 1 <= c.document <= len(documents):
+    return unquoted(c.document, c.quote, documents, "the commitment")
+
+
+def unquoted(
+    document: int, quote: str, documents: Sequence[ProjectDocument], shows: str
+) -> str | None:
+    """Why `quote` does not show what it is given for (`shows`) in the numbered `document`: it
+    names no document given, is too short or too long, or is not in its text. None if it does."""
+    if not 1 <= document <= len(documents):
         return "it names no document it was given"
-    quote = normalise(c.quote)
-    if len(quote) < MIN_QUOTE or len(c.quote) > MAX_QUOTE:
-        return "its quote is too short or too long to show the commitment"
-    if quote not in normalise(documents[c.document - 1].documentation_text):
+    if len(normalise(quote)) < MIN_QUOTE or len(quote) > MAX_QUOTE:
+        return f"its quote is too short or too long to show {shows}"
+    if normalise(quote) not in normalise(documents[document - 1].documentation_text):
         return "its quote is not in the document"
     return None
 

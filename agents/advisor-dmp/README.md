@@ -1,15 +1,19 @@
 # advisor.dmp
 
-**Alpha** (`0.3.0a1`). With a model, it reviews a plan the researcher attached against the core
+**Alpha** (`0.4.0a1`). It describes a project before its data are collected, proposing what the
+researcher said and, with a model, what an attached proposal or award letter says, as project
+facts for the researcher to confirm ([Describing the project](#describing-the-project)). With a
+model, it reviews a plan the researcher attached against the core
 requirements of a plan, good practice and the decisions made in the project. It compares the commitments it is given or a
 researcher confirmed, and with a model reads a free-text plan the researcher attached to propose
 them (#962). Reading a machine-actionable plan itself is TODO(#701).
 
-The Data Management Plan Checker is one persona of the agent roster ([Agents](../../docs/specs/agents.md)). It serves two
-steps of the Blueprint's process flow:
+The Data Management Planner is one persona of the agent roster ([Agents](../../docs/specs/agents.md)). It serves three
+steps of the process flow:
 
 | Step | What it does |
 |---|---|
+| `setup.project` | Proposes what the project is for, its field of study, when it runs and the data it will produce, as project facts for the researcher to confirm, and says what is still needed ([Describing the project](#describing-the-project)). Our addition to the Blueprint's Figure 1. |
 | `setup.dmp-review` | Has a model review the plan attached against Science Europe's core requirements, UKRI and UK Data Service good practice and the decisions made in the project ([Reviewing a plan](#reviewing-a-plan)). |
 | `governance.dmp` (R8) | Compares what the data management plan committed to share with what is planned at publication, and lists each difference for a person to review. |
 
@@ -19,6 +23,23 @@ document, the core `Document`, and this checker's payload is its own.
 R8 asks that sharing at publication be checked against the plan's commitments, with
 discrepancies flagged for human review and never enforced. A reviewed decision not to share is a
 valid outcome, and the checker says so.
+
+## Describing the project
+
+Phase 1 opens with "Describe your project" (`setup.project`), since every later planning step
+builds on what the project is and the data it will produce. `ProjectDescriptionRequest` carries
+what the researcher said, each optional: `research_summary`, `field_of_study`, `period_start` and
+`period_end`. What they say of their data the orchestrator proposes itself, as a `data_description`
+(#1507). In a project the conductor also gives the attached documents and the decided facts.
+
+The Planner proposes what the researcher said first, as `project_summary`, `field_of_study` and
+`project_period` facts. With a model (`describe.py`, `describe_prompt.md`), it
+reads the attached documents for what they did not say, a `data_description` among it; each thing read must quote the document it
+names, and is dropped and said otherwise (`read_plan.unquoted`), as a plan's commitments are. It
+never proposes a fact a person has already decided. The payload's `still_needed` names what neither
+gives, for the orchestrator to ask. Nothing counts until a person decides it, and the step is done
+once a person decides what the project is for. The Documentation Editor then places what was
+decided in the README that plans the documentation and in a Data Management Plan.
 
 ## Input and output
 

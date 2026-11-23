@@ -199,7 +199,8 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
     step started once drafted and done once approved, a README with any data dictionary drafted
     alongside it. A README drafted before the project's inventory is added plans the
     documentation, so its versions show `setup.documentation`; one drafted after shows
-    `preparation.documentation` (#1017). The last validation shows `deposit.validate` done if it conforms and started if
+    `preparation.documentation` (#1017). A summary of the project proposed shows `setup.project`
+    started, and one a person decided shows it done. The last validation shows `deposit.validate` done if it conforms and started if
     not, and a package built shows `deposit.finalise` done. Everything else is the researcher's own word, an `entry_chosen` or `step_marked`
     event, which they may change at any time; what the log produced outranks a skip. The one
     exception is the entry point an orchestrator's model worked out from what the researcher said,
@@ -283,6 +284,14 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
     The questions are the same for every deployment: a profile may not change or extend them. The
     intake gathers nothing else. Funder, discipline, data types,
     embargo and licence are asked by the step that needs them, when the researcher reaches it.
+    What the project is and the data it will produce are the first such step, and the first of
+    Phase 1: "Describe your project" (`setup.project`), our addition to Figure 1, which every later
+    planning step builds on. The Data Management Planner serves it, proposing what the researcher
+    said and what an attached proposal or award letter says as project facts for them to confirm
+    ([Projects](projects.md), invariant 28). It is a step and not part of the intake because its
+    answers are read from the researcher's documents and confirmed like any fact, and are asked
+    only once the researcher reaches planning: a researcher who joins at entry 2 or 3 is not
+    asked them first.
     Answers are the researcher's own word, recorded in the project log and read like
     `step_marked` ([Projects](projects.md)). They can be changed at any time, from the phase tracker
     or by answering again. The researcher may skip a question, dismiss the intake, or type instead.
@@ -499,7 +508,9 @@ against it.
   would take steps from no one, which the roster forbids ([Agents](agents.md)).
 - **A long intake that also asks funder, discipline, data types, embargo and licence.** Asking
   these before the researcher has said anything puts people off. The answers would also be
-  guesses that the steps would ask about again.
+  guesses that the steps would ask about again. What the project is and the data it will produce
+  are instead the first planning step, `setup.project`, whose answers are proposed from the
+  researcher's documents and confirmed as project facts.
 - **Intake answers as `step_marked` events.** That would lose what the researcher was asked, and
   make answering again unable to undo a skip that came from an earlier answer.
 - **A model's intake answers recorded as a weaker word, as its entry point is.** The card would

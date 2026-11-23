@@ -109,6 +109,9 @@ class FactKind(StrEnum):
     STANDARD = "standard"
     DATA_MANAGEMENT_PLAN = "data_management_plan"
     DATA_DESCRIPTION = "data_description"
+    PROJECT_SUMMARY = "project_summary"
+    FIELD_OF_STUDY = "field_of_study"
+    PROJECT_PERIOD = "project_period"
 
 
 class FileDecision(StrEnum):
@@ -146,12 +149,24 @@ class LocationPrecision(StrEnum):
 STANDARD_TARGET_PATTERN = r"^(dataset|field:\S.*)$"
 DATASET_TARGET = "dataset"
 
-# The one subject a `data_management_plan` or `data_description` fact has, so that a project has
-# at most one current plan and one description: the last decision on each stands
-# (docs/specs/projects.md, invariant 32).
+# The one subject a fact about the project as a whole has, so that a project has at most one
+# current plan, one description of its data, one summary, field and period: the last decision on
+# each stands (docs/specs/projects.md, invariant 32). The summary, field and period are decided at
+# "Describe your project" (`setup.project`).
 PLAN_SUBJECT = "project"
 # The kinds of fact whose subject is always `PLAN_SUBJECT`.
-PROJECT_WIDE = frozenset({FactKind.DATA_MANAGEMENT_PLAN, FactKind.DATA_DESCRIPTION})
+PROJECT_WIDE = frozenset(
+    {
+        FactKind.DATA_MANAGEMENT_PLAN,
+        FactKind.DATA_DESCRIPTION,
+        FactKind.PROJECT_SUMMARY,
+        FactKind.FIELD_OF_STUDY,
+        FactKind.PROJECT_PERIOD,
+    }
+)
+
+# A date as precise as is known: a year, a month or a day.
+PARTIAL_DATE_PATTERN = r"^\d{4}(-\d{2}(-\d{2})?)?$"
 
 # The value slots each kind of project fact needs (the schema's rules on ProjectFact).
 FACT_NEEDS: dict[FactKind, tuple[str, ...]] = {
@@ -164,6 +179,9 @@ FACT_NEEDS: dict[FactKind, tuple[str, ...]] = {
     FactKind.STANDARD: ("standard_name",),
     FactKind.DATA_MANAGEMENT_PLAN: ("plan_document",),
     FactKind.DATA_DESCRIPTION: ("data_collected",),
+    FactKind.PROJECT_SUMMARY: ("summary_text",),
+    FactKind.FIELD_OF_STUDY: ("field_name",),
+    FactKind.PROJECT_PERIOD: ("period_start",),
 }
 
 
@@ -206,6 +224,11 @@ class ProjectFact(Frozen):
     data_formats: str | None = None
     data_volume: str | None = None
     data_reused: str | None = None
+    # What the project is: its aims and questions, its field of study, and when it runs.
+    summary_text: str | None = Field(default=None, pattern=r"\S")
+    field_name: str | None = Field(default=None, pattern=r"\S")
+    period_start: str | None = Field(default=None, pattern=PARTIAL_DATE_PATTERN)
+    period_end: str | None = Field(default=None, pattern=PARTIAL_DATE_PATTERN)
     # Shown to the person deciding; never given to an agent.
     proposed_because: str | None = None
 

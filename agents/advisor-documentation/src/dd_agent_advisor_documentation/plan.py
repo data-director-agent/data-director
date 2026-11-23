@@ -47,7 +47,7 @@ TITLE = "Data Management Plan"
 # metadata record gives it, and a decided funder or the record's title is offered beside it.
 DETAILS: dict[str, Any] = {
     "heading": "Project details",
-    "from": ["funders"],
+    "from": ["project", "funders"],
     "parts": [
         {
             "label": "Project title",
