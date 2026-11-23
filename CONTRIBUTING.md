@@ -267,6 +267,8 @@ issue is a parent with sub-issues. Labels say where and what about:
 
 * `area: …`: the part touched, one or more of `sdk`, `harness`, `workbench`, `app`, `agents`,
   `docs`, `ci`.
+* `source: feedback form`: an issue filed from the app's feedback form, of any kind; the app
+  applies it.
 * Themes: `blueprint` (review or conformance against the Blueprint), `security`, `evaluation`,
   `accessibility`, `user report` (a bug filed from the app by someone using it; the app applies
   it, and triage treats it first), and `needs spec` for a change to a fixed format.
