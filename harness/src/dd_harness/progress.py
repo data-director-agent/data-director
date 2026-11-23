@@ -17,7 +17,9 @@ The intake's answers (`intake_answered`, docs/specs/projects.md, rule 20) are th
 "No" marks its question's steps skipped only where the log shows no work on the step and the
 researcher has not marked it, even open again. The latest answer to a question counts, so "Yes"
 after "No" opens the steps again, and an answer counts only while the entry point is one the
-question is asked from (`dd_sdk.intake`).
+question is asked from (`dd_sdk.intake`). A skip also lapses once the log shows its answer's
+premise no longer holds: a Data Management Plan written and approved here after "No" to having one
+opens the step that reviews it (`REOPENED_BY_DOCUMENT`).
 
 Nothing here orders the steps or keeps a current one. The order, and the step to suggest next, are
 `dd_sdk.process_flow`'s; any step may be done, marked or reopened at any time.
@@ -82,6 +84,10 @@ DOCUMENT_STEPS: Final[Mapping[str, tuple[str, tuple[str, ...]]]] = {
     "preparation.documentation": ("readme", ("data_dictionary",)),
     "setup.dmp-create": ("dmp", ()),
 }
+# The steps an intake answer skips that a document of a kind reopens once a version of it is
+# approved, since the answer's premise no longer holds: a plan written here after "No" to
+# `intake.dmp` is a plan to review (`setup.dmp-review`). A draft alone reopens nothing.
+REOPENED_BY_DOCUMENT: Final[Mapping[str, str]] = {"setup.dmp-review": "dmp"}
 
 _ORDER = {s.id: i for i, s in enumerate(s for p in PHASES for s in p.steps)}
 _RANK: Final[Mapping[str, int]] = {"open": 0, "skipped": 1, "started": 2, "done": 3}
@@ -156,7 +162,8 @@ def step_reasons(events: Iterable[Mapping[str, Any]]) -> dict[str, dict[str, Any
             reasons[step_id] = _produced(made, tally.produced_by[step_id], tally.kind_of)
         else:
             reasons[step_id] = _reason(mark, "marked", tally.marked_by[step_id])
-    reasons |= _intake_reasons(events, reasons.keys())
+    reopened = {s for s, kind in REOPENED_BY_DOCUMENT.items() if kind in tally.kinds_approved}
+    reasons |= _intake_reasons(events, reasons.keys() | reopened)
     reasons = {k: v for k, v in reasons.items() if v["state"] != "open"}
     return {k: reasons[k] for k in sorted(reasons, key=_ORDER.__getitem__)}
 

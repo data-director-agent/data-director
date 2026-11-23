@@ -42,13 +42,16 @@ classes:
 
   DmpReviewRequest:
     description: >-
-      A request to review the data management plan the researcher attached (setup.dmp-review):
-      how well it answers the core requirements of a plan and meets good practice, and whether it
-      reflects what people in the project decided. In a project the conductor gives the attached
-      documents and the decided facts; outside one, the caller sends them.
+      A request to review the project's data management plan (setup.dmp-review): how well it
+      answers the core requirements of a plan and meets good practice, and whether it reflects
+      what people in the project decided. The plan is the attached document a person marked as
+      the plan, else the plan written in the project as a person approved it last, else the latest
+      document attached. In a project the conductor gives the attached documents, the approved
+      plan and the decided facts; outside one, the caller sends them.
     mixins:
       - GivenProjectDocuments
       - GivenProjectDecisions
+      - GivenProjectPlan
     slots:
       - schema_class
 

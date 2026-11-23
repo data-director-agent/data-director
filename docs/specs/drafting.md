@@ -58,8 +58,10 @@ later (Phases 3 and 5) and the plan is updated once they are (`setup.dmp-review`
 `post.dmp-update`). No model writes a plan's text, so
 `document_derivation` is always `template`; where a model is configured, it suggests answers only
 from the documents the researcher attached and the project's decisions, beside the questions
-(invariant 7). The Data Management Plan Checker (`advisor.dmp`) reviews an attached plan against
-the same requirements (`setup.dmp-review`).
+(invariant 7). The Data Management Plan Checker (`advisor.dmp`) reviews a plan against the same
+requirements (`setup.dmp-review`): an attached plan, or, once a version is approved, the plan
+written here, which reopens the review after a "No" to having a plan ([Projects](projects.md),
+rule 20 and invariant 32).
 
 ## Invariants
 

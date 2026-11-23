@@ -849,7 +849,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   (`reasons`) and the decision points (`decisions`) are the harness's, in the progress it
   serves. Each stop is a button that says its state in words. A step out of scope says "Not in
   this version", or, where the intake's answer skipped it as the branch not taken, that it is
-  skipped, struck through like any skipped step; opening one (`?step=`) shows what
+  skipped, struck through like any skipped step, until the log shows the answer's premise no
+  longer holds ([Projects](projects.md), rule 20); opening one (`?step=`) shows what
   the step is, its state and why, a link to the document or page that produced it, the marks the
   researcher may make, and **Ask Data Director about this**, which opens the conversation with a
   question about the step in the message box, unsent (`/?ask={step_id}`), so the researcher's

@@ -75,6 +75,9 @@ reviewed and updated as the research proceeds and again after publication (Phase
 - Create a Data Management Plan where none exists (*optional*)
 - Review and update the Data Management Plan
 
+If you said you have no plan, the review step is skipped. Once you write a plan here and approve
+it, the review step opens again, so that the Data Management Plan Checker can review your plan.
+
 ### Phase 2: Governance and constraints
 
 *Entry 2 starts here.* These checks come before repository selection and constrain everything

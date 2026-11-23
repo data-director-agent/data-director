@@ -16,9 +16,10 @@ the check of a deposit against it, so the intake never shows a step as done. "No
 nothing. The mandated-repository question follows §8's two branches (Figure 3): "No" marks the
 check of whether a repository is mandated skipped, and "Yes" marks the recommendation of one
 skipped, since the choice is made. The Data Management Plan question follows Figure 1's two
-branches: "Yes" marks creating a plan skipped and "No" marks reviewing one skipped. Both steps are
-out of scope, so the skip records the branch not taken, not work; it is the one way an
-out-of-scope step is ever skipped, since a researcher may not mark one. An answer may also
+branches: "Yes" marks creating a plan skipped and "No" marks reviewing one skipped. The skip
+records the branch not taken, not work, and once a plan written in the project after "No" is
+approved, the harness lifts the review's skip (docs/specs/projects.md, rule 20). An
+answer may also
 carry a notice, which the app shows at once. "No" to a Data Management Plan says that writing one
 is optional and still available, since an optional step is never suggested. "Yes" to sensitive
 data says not to share the data itself with the agent, as §5.2 asks that sensitive data not reach
