@@ -72,15 +72,21 @@ institution_storage:
 #   - https://orcid.org/0000-0002-1825-0097
 
 # The instance's data steward teams, copied into the profile as written: who receives the matters
-# researchers raise (docs/guide/steward-guide/becoming-a-steward.md). Leave it out and the instance
-# has no stewards; a researcher who asks for one is told so.
+# researchers raise. Leave it out and the instance has no stewards; a researcher who asks for one
+# is told so. Every key is explained in docs/guide/operations/configuration.md, "Data steward teams".
 # stewardship:
+#   visibility: escalated         # escalated (the default) or scope: which projects a steward may open
+#   reroute_after: P3D            # send an escalation nobody has taken to its team again (P3D, PT48H)
 #   teams:
-#     - id: library-rdm
-#       name: Library Research Data Team
-#       members: [https://orcid.org/0000-0002-1825-0097]
-#       contact: https://example.ac.uk/research-data/contact
-#       response_time: 3 working days
+#     - id: library-rdm           # lower-case words joined by hyphens; unique
+#       name: Library Research Data Team       # what researchers are shown
+#       members:                  # at least one, by ORCID iD as a URL
+#         - https://orcid.org/0000-0002-1825-0097
+#       supports: [faculty-of-science]         # labels of the projects it supports
+#       contact: https://example.ac.uk/research-data/contact   # shown when no steward can help
+#       response_time: 3 working days          # what a researcher is told to expect
+#       notify: rdm-helpdesk@example.ac.uk     # emailed about each escalation; needs DD_SMTP_URL
+#       notify_on: [opened, rerouted, replied, withdrawn, reopened]   # the default: all five
 
 # Whether people may pay for model calls with their own AI provider account, copied into the
 # profile as written. Leave it out and the deployment pays. It needs the model broker and the

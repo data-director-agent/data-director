@@ -133,7 +133,48 @@ request cannot name a profile; only the operator chooses it
 ([profiles](../../../workbench/profiles/README.md)). Who the data stewards are is a profile
 key too, `stewardship`, which the stewards' team owns and the operator applies, and who administers
 the instance is `administrators`; on a VM both are written in `deployment.yaml`
-([Becoming a steward](../steward-guide/becoming-a-steward.md)).
+([Data steward teams](#data-steward-teams)).
+
+## Data steward teams
+
+The data stewards who help researchers are the profile's `stewardship` key. A person is a steward
+only because a team lists them: signing in never makes anyone one, and no environment variable
+does ([Data stewards](../../specs/stewardship.md), invariant 1). The steward team owns the content
+of the key and you apply it: write it in `deployment.yaml` (on a VM, `/etc/data-director/deployment.yaml`),
+not in `profile.yaml`, which `apply` generates, and run `sudo data-director apply` (`dd.py start` in
+development), which copies `stewardship` into the profile as written. The
+[example](../../../config/examples/deployment.yaml) shows every key. Leave it out and the instance
+has no stewards: a researcher who asks for one is told so, and everything else works.
+
+| Key | What it is |
+|---|---|
+| `stewardship.visibility` | `escalated` (the default): a steward may open a project only while an escalation is routed to their team, or a pause their team holds. `scope`: also any project whose owners chose the team as their support team, read-only until something is escalated. No value lets a steward see every project. |
+| `stewardship.reroute_after` | Optional. An ISO 8601 duration in whole days or hours (`P3D`, `PT48H`, `P1DT12H`). An escalation left `open` that long is sent to its team again by the hourly sweep ([Notifications](#notifications)). Left out, never. |
+| `stewardship.deposit_co_approval` | Leave it `false`. It is not built yet ([#1306](https://github.com/data-director-agent/data-director/issues/1306)), and a profile that turns it on stops the app at start-up. |
+| `stewardship.teams` | The teams, each a mapping with the keys below. |
+
+Each team has:
+
+| Key | Required | What it is |
+|---|---|---|
+| `id` | Yes | Lower-case words joined by hyphens (`library-rdm`), unique. It appears in each project's log, so do not reuse or rename it. |
+| `name` | Yes | What researchers are shown. |
+| `members` | Yes, at least one | Principal identifiers, as the sign-in records them. For ORCID, the iD as a URL (`https://orcid.org/0000-0002-1825-0097`); a bare iD is refused at start-up, because it names nobody. |
+| `supports` | No | Labels of the projects the team supports, shown to owners who choose a support team. |
+| `contact` | No | An address or a page, shown as given when no steward can help. |
+| `response_time` | No | What a researcher is told to expect, as written (`3 working days`). |
+| `notify` | No | An email address, such as a shared mailbox or a helpdesk's intake, where the team is told about escalations. Needs `DD_SMTP_URL` ([Notifications](#notifications)). Left out, the team is told nothing by email. |
+| `notify_on` | No | Which of `opened`, `rerouted`, `replied`, `withdrawn` and `reopened` the address is told about. All five by default. |
+
+A key outside this list is refused when the instance starts, rather than ignored, so a typing
+mistake never leaves a rule you believe in unenforced. Where an escalation goes: to the team its
+project's owners chose as their support team; with none chosen, to the only team; where there are
+several, the researcher picks one.
+
+Administrators, who run the workbench, are the separate `administrators` key, written the same
+way. They are not stewards and see no one's project. The profile's `version` rises with each
+change, and each stored run records the version it was held to. What the
+people on a team do is in the [Data Steward's Guide](../steward-guide/becoming-a-steward.md).
 
 ## Who a run acts for
 
