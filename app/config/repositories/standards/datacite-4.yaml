@@ -4,7 +4,7 @@
 # the deployment has one, merged on top. Keys are as in README.md one folder up.
 schema_class: RequirementSet
 requirement_set_id: datacite-4
-version: 2
+version: 3
 title: DataCite Metadata Schema 4
 url: https://schema.datacite.org/meta/kernel-4/
 conforms_to: http://datacite.org/schema/kernel-4
@@ -16,40 +16,40 @@ re3data_names:
 # but filled in by the repository that mints the DOI, so they are not fields: the publisher and
 # publication year are listed under filled_by_repository, and the check before packaging says the
 # repository fills them in. (The Zenodo transport's _ZENODO_FILLS leaves the same properties out
-# of what it sends.) Each schema.org term follows DataCite's own mapping to schema.org. A field's
+# of what it sends.) Each term follows DataCite's own mapping to schema.org. A field's
 # value is supplied on the project's documents unless supplied_on names another page.
 fields:
   - property: titles
-    schema_org: name
+    term: schema:name
     obligation: required
   - property: creators
-    schema_org: creator
+    term: schema:creator
     obligation: required
     supplied_on: researchers
   - property: types.resourceTypeGeneral
-    schema_org: additionalType
+    term: schema:additionalType
     obligation: required
   - property: subjects
-    schema_org: keywords
+    term: schema:keywords
     obligation: recommended
   - property: contributors
-    schema_org: contributor
+    term: schema:contributor
     obligation: recommended
     supplied_on: researchers
   # DataCite recommends dates of any type. Creation is the one every dataset has.
   - property: dates
     qualifier: {dateType: Created}
-    schema_org: dateCreated
+    term: schema:dateCreated
     obligation: recommended
   - property: relatedIdentifiers
-    schema_org: citation
+    term: schema:citation
     obligation: recommended
   - property: descriptions
     qualifier: {descriptionType: Abstract}
-    schema_org: description
+    term: schema:description
     obligation: recommended
   - property: geoLocations
-    schema_org: spatialCoverage
+    term: schema:spatialCoverage
     obligation: recommended
 
 required_documents:

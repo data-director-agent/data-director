@@ -106,9 +106,9 @@ TODO(#394, #200).
    `recommended` to `required` and label it; lowering one is refused on load. Documents are the
    union of both sets, and a kind either requires is required. Media types, sizes and licences
    come from the override alone (`harness/tests/test_requirements.py`). Two fields of a set, or of
-   an override merged on its standard, never share a schema.org term, since a record's values are
-   checked under their field's term and one field's value would pass for the other's; such sets
-   are refused on load.
+   an override merged on its standard, never share a term, compared as its full IRI, since a
+   record's values are checked under their field's term and one field's value would pass for the
+   other's; such sets are refused on load.
 5. **A choice resolves deterministically.** The override is the one for the repository's
    identifier. The standard is the one the override names, because a steward who wrote the
    override knows the repository better than its registry record (re3data lists only Dublin Core
@@ -215,8 +215,8 @@ test the rest.
 
 **The class.** `RequirementSet` is a core contract class ([Contract](contract.md)) so that the
 harness, a drafter and `advisor.repository` read one description without knowing one another. Each
-field names a property of the standard's schema, optionally qualified, the schema.org term it maps
-to, its obligation and, in `supplied_on`, the page of the project where a researcher supplies its
+field names a property of the standard's schema, optionally qualified, the `term` it maps to, its
+obligation and, in `supplied_on`, the page of the project where a researcher supplies its
 value: `documents` (the metadata record's questions, the default), `researchers`, `facts` or
 `repository`. Properties the repository fills itself, such as the identifier, the publisher and the
 publication year, are not fields; those the schema makes mandatory and the researcher might look
@@ -267,7 +267,10 @@ to that page.
 
 The record is read as RDF, the same reading the package uses, through the pivot of
 [Metadata standards](metadata-standards.md): the standard's definition maps each of its properties
-to a term. Today the set's own field table does this, for DataCite alone, TODO(#1357, #1358). A
+to a term. Today the set's own field table does this, for DataCite alone, TODO(#1358): each field
+names its `term` as a CURIE of a registered prefix (`schema:`, `dcterms:`, `dcat:` or `prov:`), such
+as `dcterms:provenance` for a lineage, or as the full IRI, and a set kept before terms were IRIs,
+which names a schema.org local name in `schema_org`, is read as `schema:` with a warning. A
 field's property, and its qualifier when it has one, select the record's entries; each entry's value
 becomes a value of the field's term. SHACL shapes
 are generated from the fields, one `sh:minCount 1` property shape per field, with the severity

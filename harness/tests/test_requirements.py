@@ -147,7 +147,7 @@ def test_a_choice_needs_a_re3data_identifier_and_a_name(sets: Path) -> None:
                         fields=[
                             {
                                 "property": "titles",
-                                "schema_org": "name",
+                                "term": "schema:name",
                                 "obligation": "recommended",
                             }
                         ]
@@ -166,7 +166,7 @@ def test_a_choice_needs_a_re3data_identifier_and_a_name(sets: Path) -> None:
                             {
                                 "property": "descriptions",
                                 "qualifier": {"descriptionType": "Methods"},
-                                "schema_org": "description",
+                                "term": "schema:description",
                                 "obligation": "required",
                                 "form_label": "Lineage",
                             }
@@ -183,10 +183,10 @@ def test_a_choice_needs_a_re3data_identifier_and_a_name(sets: Path) -> None:
                     "standards",
                     standard(
                         fields=[
-                            {"property": "titles", "schema_org": "name", "obligation": "required"},
+                            {"property": "titles", "term": "schema:name", "obligation": "required"},
                             {
                                 "property": "creators",
-                                "schema_org": "name",
+                                "term": "schema:name",
                                 "obligation": "required",
                             },
                         ]
@@ -283,3 +283,73 @@ def test_a_malformed_suggested_list_stops_start_up(sets: Path, text: str) -> Non
     (sets / "suggested.yaml").write_text(text, encoding="utf-8")
     with pytest.raises(RequirementsError):
         load_requirements(sets)
+
+
+# --- Terms (docs/specs/metadata-standards.md, invariants 7 and 8; #1357) -------------------------
+
+LINEAGE = {
+    "property": "descriptions",
+    "qualifier": {"descriptionType": "Methods"},
+    "term": "dcterms:provenance",
+    "obligation": "required",
+    "form_label": "Lineage",
+}
+
+
+def test_a_field_may_name_a_term_of_another_vocabulary(tmp_path: Path) -> None:
+    folder = write(tmp_path, ("standards", standard()), ("overrides", override(fields=[LINEAGE])))
+    merged = load_requirements(folder).resolve(ORDA, "ORDA", []).requirements()
+    assert "dcterms:provenance" in [f["term"] for f in merged["fields"]]
+    RepositoryRequirements.model_validate(merged)
+
+
+def test_an_override_names_its_standards_field_by_curie_or_iri_alike(tmp_path: Path) -> None:
+    """A field is identified by its term's IRI, so an override raising the abstract by its IRI
+    raises the standard's field rather than adding a second one under the same term."""
+    abstract = {
+        "property": "descriptions",
+        "qualifier": {"descriptionType": "Abstract"},
+        "term": "http://schema.org/description",
+        "obligation": "required",
+    }
+    folder = write(tmp_path, ("standards", standard()), ("overrides", override(fields=[abstract])))
+    merged = load_requirements(folder).resolve(ORDA, "ORDA", []).requirements()
+    descriptions = [f for f in merged["fields"] if f["property"] == "descriptions"]
+    assert [f["obligation"] for f in descriptions] == ["required"]
+
+
+def test_two_fields_under_one_iri_are_refused_however_it_is_written(tmp_path: Path) -> None:
+    fields = [
+        {"property": "titles", "term": "schema:name", "obligation": "required"},
+        {"property": "creators", "term": "http://schema.org/name", "obligation": "required"},
+    ]
+    folder = write(tmp_path, ("standards", standard(fields=fields)))
+    with pytest.raises(RequirementsError, match="maps both"):
+        load_requirements(folder)
+
+
+@pytest.mark.parametrize(
+    "term", ["foaf:name", "dd:lineage", "name", "https://example.org/terms/lineage"]
+)
+def test_a_term_outside_the_registered_vocabularies_is_refused(tmp_path: Path, term: str) -> None:
+    fields = [{"property": "titles", "term": term, "obligation": "required"}]
+    folder = write(tmp_path, ("standards", standard(fields=fields)))
+    with pytest.raises(RequirementsError, match="not a RequirementSet"):
+        load_requirements(folder)
+
+
+def test_a_set_written_before_terms_were_iris_reads_as_schema_org(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    fields = [
+        {"property": "titles", "schema_org": "name", "obligation": "required"},
+        {"property": "subjects", "schema_org": "keywords", "obligation": "required"},
+    ]
+    folder = write(tmp_path, ("standards", standard(fields=fields)))
+    with caplog.at_level("WARNING", logger="dd_harness.requirements"):
+        resolved = load_requirements(folder).resolve(ELSEWHERE, "Elsewhere", [])
+    assert [f["term"] for f in resolved.requirements()["fields"]] == [
+        "schema:name",
+        "schema:keywords",
+    ]
+    assert any("schema_org" in r.getMessage() for r in caplog.records)

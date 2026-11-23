@@ -13,10 +13,10 @@ kept as YAML under `DD_REPOSITORIES_DIR`:
 A choice resolves to the repository's override, if the deployment has one, and the standard's
 set: the one the override names in `conforms_to`, else one the repository's re3data record
 declares, else DataCite's, with a warning. The two are merged. A field is identified by its
-property, qualifier and schema.org term; an override may add one, or raise one from recommended
-to required, label it and say where its value is supplied, but never lower one. Documents, and
-the properties the repository fills in itself, are the union of both, and a kind either requires
-is required. Media types, sizes and licences come from the override alone.
+property, qualifier and term, compared as the term's full IRI; an override may add one, or raise
+one from recommended to required, label it and say where its value is supplied, but never lower
+one. Documents, and the properties the repository fills in itself, are the union of both, and a
+kind either requires is required. Media types, sizes and licences come from the override alone.
 
 Every set is checked when it is loaded, so a deployment whose sets are malformed, of neither
 kind, or contradict one another does not start. Recording the choice in a project is
@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
@@ -45,6 +46,9 @@ from dd_sdk.contract.models import (
     RequirementField,
     RequirementSet,
 )
+from dd_sdk.contract.requirements import expand_term, legacy_term
+
+log = logging.getLogger(__name__)
 
 STANDARDS_DIR = "standards"
 OVERRIDES_DIR = "overrides"
@@ -322,6 +326,7 @@ def _load(path: Path, schema: ClassSchema, *, override: bool) -> LoadedSet:
         raise RequirementsError(f"{path}: not YAML: {exc}") from exc
     if not isinstance(data, dict):
         raise RequirementsError(f"{path}: not a mapping")
+    data = _legacy_terms(path, data)
     errors = schema.errors(data)
     if errors:
         raise RequirementsError(f"{path}: not a RequirementSet: {'; '.join(errors)}")
@@ -375,21 +380,38 @@ def _misplaced(found: RequirementSet) -> list[str]:
 
 
 def _field_key(field: RequirementField) -> tuple[str, str, str]:
-    return field.property, json.dumps(field.qualifier, sort_keys=True), field.schema_org
+    return field.property, json.dumps(field.qualifier, sort_keys=True), expand_term(field.term)
+
+
+def _legacy_terms(path: Path, data: dict[str, Any]) -> dict[str, Any]:
+    """A set whose fields name a schema.org local name in `schema_org`, as sets did before terms
+    were IRIs, read with `schema:` terms (#1357), and a warning to rewrite it."""
+    fields = data.get("fields")
+    if not isinstance(fields, list) or not any(
+        isinstance(f, dict) and "schema_org" in f for f in fields
+    ):
+        return data
+    log.warning(
+        "%s: a field names schema_org, read as a schema: term; write it as term instead "
+        "(docs/specs/deposit.md)",
+        path,
+    )
+    return {**data, "fields": [legacy_term(f) for f in fields]}
 
 
 def _distinct_terms(set_id: str, fields: Iterable[RequirementField]) -> None:
-    """Refuse two fields, of a set or of an override merged on its standard, that share a
-    schema.org term. A record's values are checked under their field's term, so the value of one
-    would satisfy the other: a lineage mapped to `description` would pass on the abstract alone."""
+    """Refuse two fields, of a set or of an override merged on its standard, that share a term,
+    compared as its full IRI. A record's values are checked under their field's term, so the
+    value of one would satisfy the other: a lineage mapped to `description` would pass on the
+    abstract alone."""
     seen: dict[str, tuple[str, str]] = {}
     for field in fields:
         named = field.property, json.dumps(field.qualifier, sort_keys=True)
-        other = seen.setdefault(field.schema_org, named)
+        other = seen.setdefault(expand_term(field.term), named)
         if other != named:
             raise RequirementsError(
                 f"{set_id!r} maps both {_described(other)} and {_described(named)} to "
-                f"schema:{field.schema_org}, so a value of one would be taken for the other; "
+                f"{field.term}, so a value of one would be taken for the other; "
                 "give each field its own term (docs/specs/deposit.md)"
             )
 

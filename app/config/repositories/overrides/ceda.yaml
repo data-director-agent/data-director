@@ -12,7 +12,7 @@
 # check for is required.
 schema_class: RequirementSet
 requirement_set_id: ceda
-version: 1
+version: 2
 title: NERC EDS Centre for Environmental Data Analysis
 url: https://arrivals.ceda.ac.uk/intro/
 re3data_id: r3d100012305
@@ -25,40 +25,41 @@ conforms_to: http://datacite.org/schema/kernel-4
 
 fields:
   - property: titles
-    schema_org: name
+    term: schema:name
     obligation: required
     form_label: Title
   - property: creators
-    schema_org: creator
+    term: schema:creator
     obligation: required
     form_label: Authors
   # Reviewers check that a delivery comes with "a full description of the dataset": what, where,
   # when, how, why, who and how complete.
   - property: descriptions
     qualifier: {descriptionType: Abstract}
-    schema_org: description
+    term: schema:description
     obligation: required
     form_label: Description
   - property: geoLocations
-    schema_org: spatialCoverage
+    term: schema:spatialCoverage
     obligation: recommended
     form_label: Coverage
   - property: dates
     qualifier: {dateType: Collected}
-    schema_org: temporalCoverage
+    term: schema:temporalCoverage
     obligation: recommended
     form_label: Temporal range
   # CEDA's catalogue holds the lineage; its DataCite records do not. A DataCite record would carry
-  # it as a Methods description, whose schema.org term must differ from the abstract's (README.md).
+  # it as a Methods description, whose term must differ from the abstract's (README.md):
+  # dcterms:provenance, as for the EIDC.
   - property: descriptions
     qualifier: {descriptionType: Methods}
-    schema_org: measurementTechnique
+    term: dcterms:provenance
     obligation: recommended
     form_label: Lineage
   # CEDA's DataCite records carry a project's PI as a ProjectLeader contributor and its funder as a
   # Sponsor contributor, not as a funding reference.
   - property: contributors
-    schema_org: contributor
+    term: schema:contributor
     obligation: recommended
     form_label: Project description
 

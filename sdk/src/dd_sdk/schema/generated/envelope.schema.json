@@ -3775,8 +3775,9 @@
                ],
                "description": "Values that narrow the property, such as a subjectScheme. Part of what identifies a field when an override is merged with its standard's set."
             },
-            "schema_org": {
-               "description": "The schema.org term the property maps to, by which the record is read as RDF.",
+            "term": {
+               "description": "The term of an existing vocabulary the property maps to, by which the record is read as RDF: a CURIE with a registered prefix (schema, dcterms, dcat or prov), such as dcterms:provenance, or the full IRI of a term in one of those vocabularies (docs/specs/metadata-standards.md, invariant 7). A set kept before terms were IRIs names a schema.org local name in schema_org, which reads as schema:<name>.",
+               "pattern": "^((schema|dcterms|dcat|prov):[A-Za-z][A-Za-z0-9_-]*|(http://schema\\.org/|http://purl\\.org/dc/terms/|http://www\\.w3\\.org/ns/dcat#|http://www\\.w3\\.org/ns/prov#)[A-Za-z][A-Za-z0-9_-]*)$",
                "type": "string"
             },
             "obligation": {
@@ -3803,7 +3804,7 @@
          },
          "required": [
             "property",
-            "schema_org",
+            "term",
             "obligation"
          ],
          "title": "RequirementField",
@@ -4735,5 +4736,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.27.0"
+   "version": "0.28.0"
 }

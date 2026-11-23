@@ -12,7 +12,7 @@
 # both the template and the UK PDC's list of "essential metadata elements" ask for it.
 schema_class: RequirementSet
 requirement_set_id: ukpdc
-version: 1
+version: 2
 title: NERC EDS UK Polar Data Centre
 url: https://www.bas.ac.uk/data/polar-data-centre/data-deposit/
 re3data_id: r3d100010120
@@ -25,54 +25,53 @@ conforms_to: http://datacite.org/schema/kernel-4
 
 fields:
   - property: titles
-    schema_org: name
+    term: schema:name
     obligation: required
     form_label: Title
   # "As a minimum, you must include the roles of the dataset creator(s) and a contact person."
   - property: creators
-    schema_org: creator
+    term: schema:creator
     obligation: required
     form_label: Personnel
   - property: contributors
-    schema_org: contributor
+    term: schema:contributor
     obligation: required
     form_label: Personnel
   - property: descriptions
     qualifier: {descriptionType: Abstract}
-    schema_org: description
+    term: schema:description
     obligation: required
     form_label: Abstract
-  # The UK PDC's DataCite records carry the lineage as a Methods description. Its schema.org term
-  # must differ from the abstract's (README.md); measurementTechnique is the nearest, as for the
-  # EIDC.
+  # The UK PDC's DataCite records carry the lineage as a Methods description. Its term must
+  # differ from the abstract's (README.md): dcterms:provenance, as for the EIDC.
   - property: descriptions
     qualifier: {descriptionType: Methods}
-    schema_org: measurementTechnique
+    term: dcterms:provenance
     obligation: required
     form_label: Lineage/methodology
   - property: subjects
-    schema_org: keywords
+    term: schema:keywords
     obligation: required
     form_label: Keywords
   - property: fundingReferences
-    schema_org: funding
+    term: schema:funding
     obligation: required
     form_label: Funding source
   - property: dates
     qualifier: {dateType: Collected}
-    schema_org: temporalCoverage
+    term: schema:temporalCoverage
     obligation: required
     form_label: Temporal coverage
   - property: geoLocations
-    schema_org: spatialCoverage
+    term: schema:spatialCoverage
     obligation: required
     form_label: Spatial coverage
   - property: rightsList
-    schema_org: license
+    term: schema:license
     obligation: required
     form_label: Use constraints
   - property: relatedIdentifiers
-    schema_org: citation
+    term: schema:citation
     obligation: recommended
     form_label: Related datasets
 

@@ -7,7 +7,8 @@
 /** One field a repository's requirements name, and how much the deposit needs it. */
 interface RequiredField {
   property: string;
-  schema_org: string;
+  /** The vocabulary term it is read under, as a CURIE such as `dcterms:provenance`, or an IRI. */
+  term: string;
   obligation: "required" | "recommended";
   /** What the repository's own deposit form calls it, where an override says. */
   form_label?: string;
