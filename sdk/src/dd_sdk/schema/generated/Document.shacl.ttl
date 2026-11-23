@@ -81,7 +81,12 @@ dd:DocumentQuestion a sh:NodeShape ;
     rdfs:comment "A question a drafter asks the researcher about one gap in the version it drafted: a README section it could not write, a data dictionary cell it could not fill, or a metadata record property it left null. The target is either gap_section, with gap_part when the section is asked part by part, or gap_file, gap_field and gap_column together, or gap_property alone. A cell question about a column that several files share, by name, type and format, also lists in gap_files every file whose cell the answer fills. question_id is derived from the target, so it is the same in every version that leaves the same gap (docs/specs/drafting.md). A question may offer a suggested_answer, with how it was derived (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied only when a person records it as their answer. A question that asks for a value every kind of document gives the same way names it in shared_field; a suggestion copied from a person's own answer or decision elsewhere in the project says where, in suggested_from." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
+    sh:property [ sh:description "How suggested_answer came about. Present exactly when suggested_answer is." ;
+            sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
+            sh:maxCount 1 ;
+            sh:order 10 ;
+            sh:path dd:suggestion_derivation ],
+        [ sh:datatype xsd:string ;
             sh:description "The question, as a short line a person reads before the options." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -154,12 +159,7 @@ dd:DocumentQuestion a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 12 ;
             sh:path dd:suggested_from ;
-            sh:pattern "^(metadata_record|readme|data_dictionary|dmp|other|decision|institution)$" ],
-        [ sh:description "How suggested_answer came about. Present exactly when suggested_answer is." ;
-            sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
-            sh:maxCount 1 ;
-            sh:order 10 ;
-            sh:path dd:suggestion_derivation ] ;
+            sh:pattern "^(metadata_record|readme|data_dictionary|dmp|other|decision|institution)$" ] ;
     sh:targetClass dd:DocumentQuestion .
 
 dd:DocumentVersionRef a sh:NodeShape ;

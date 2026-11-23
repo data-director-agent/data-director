@@ -257,6 +257,14 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     agent is not run ([Data stewards](stewardship.md), invariant 8;
     `harness/tests/test_steward_interventions.py`). Adding it raised the contract version to
     0.26.0.
+38. A `ProjectFact` may be a `data_description`: what data the project collects, produces or
+    reuses (`data_collected`, required), how (`data_collection_method`), which existing data
+    (`data_reused`), in which formats (`data_formats`) and in what volume (`data_volume`), each in
+    the researcher's own words. Its subject is always `project`, so a project has one current
+    description. A `Reply` mixes in `ProposesFacts`, so that an orchestrator may propose one from
+    what the researcher said, for a person to confirm ([Projects](projects.md), invariant 28;
+    [Orchestration](orchestration.md), invariant 8; #160; `sdk/tests/test_fact_kinds.py`). Adding
+    them raised the contract version to 0.27.0.
 
 ## Boundaries and contracts
 

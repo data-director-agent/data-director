@@ -170,6 +170,21 @@
          "@id": "https://w3id.org/data-director/current_version",
          "@type": "@id"
       },
+      "data_collected": {
+         "@id": "https://w3id.org/data-director/data_collected"
+      },
+      "data_collection_method": {
+         "@id": "https://w3id.org/data-director/data_collection_method"
+      },
+      "data_formats": {
+         "@id": "https://w3id.org/data-director/data_formats"
+      },
+      "data_reused": {
+         "@id": "https://w3id.org/data-director/data_reused"
+      },
+      "data_volume": {
+         "@id": "https://w3id.org/data-director/data_volume"
+      },
       "dcat": "http://www.w3.org/ns/dcat#",
       "dcterms": "http://purl.org/dc/terms/",
       "dd": "https://w3id.org/data-director/",

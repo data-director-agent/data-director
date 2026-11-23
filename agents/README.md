@@ -162,7 +162,7 @@ Rules that keep this true:
    name; the digest, not the name, identifies a class in a stored run.
 
    Say which steps of the Blueprint's process flow the agent helps with, by their ids in
-   `dd_sdk.process_flow`: `serves=("setup.vocabularies", "setup.formats", "preparation.formats")`. The
+   `dd_sdk.process_flow`: `serves=("setup.formats", "preparation.formats", "preparation.vocabularies")`. The
    orchestrators name it at those steps and no others ([Orchestration](../docs/specs/orchestration.md)). Name steps, not
    requirements: the requirements it bears on follow from the steps, and whether it meets them is
    for the [requirements register](../docs/requirements.yaml).

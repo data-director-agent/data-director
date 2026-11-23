@@ -397,6 +397,22 @@ def _plan(_: ProjectFact) -> str:
     return "data management plan: one attached document is marked as the project's plan"
 
 
+def _description(fact: ProjectFact) -> str:
+    """The researcher's own words, confirmed, so that the model need not ask for them again."""
+    said = [
+        f"{label} {json.dumps(value)}"
+        for label, value in (
+            ("data collected", fact.data_collected),
+            ("how", fact.data_collection_method),
+            ("formats", fact.data_formats),
+            ("volume", fact.data_volume),
+            ("reused", fact.data_reused),
+        )
+        if value
+    ]
+    return "data description: " + ", ".join(said)
+
+
 _SAYS: dict[FactKind, Callable[[ProjectFact], str]] = {
     FactKind.FUNDER: _funder,
     FactKind.REQUIRED_REPOSITORY: _required,
@@ -406,6 +422,7 @@ _SAYS: dict[FactKind, Callable[[ProjectFact], str]] = {
     FactKind.SHARING_COMMITMENT: _commitment,
     FactKind.STANDARD: _standard,
     FactKind.DATA_MANAGEMENT_PLAN: _plan,
+    FactKind.DATA_DESCRIPTION: _description,
 }
 
 

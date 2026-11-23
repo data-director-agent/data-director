@@ -72,7 +72,7 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
    `test_delegations_are_kept_when_the_parent_fails_after_delegating`,
    `test_a_child_that_finishes_after_its_parent_is_still_recorded`)
 8. **An orchestrator has no tools except its delegations, `ask_questions`, `name_project`,
-   `set_entry_point` and `suggest_setup_answers`.** A
+   `set_entry_point`, `propose_data_description` and `suggest_setup_answers`.** A
    model-backed orchestrator is offered one tool per input class of each agent in the harness's
    manifest, and `ask_questions`, which reaches nothing: called alone it ends the turn, and the
    reply carries its questions as `Reply.reply_questions`. In a project no person has named
@@ -83,7 +83,12 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
    (`Message.project_entry_by_researcher` not true) it is also offered `set_entry_point`, which
    reaches nothing: the reply carries the entry point the model worked out from what the
    researcher said as `Reply.new_project_entry`, which the conductor records (invariant 18), and
-   the turn goes on. While the project's intake has a question the researcher has not answered
+   the turn goes on. In a project it is also offered `propose_data_description`, which reaches
+   nothing: the reply carries, as `Reply.proposed_facts`, a `data_description` fact in the
+   researcher's own words, with the words it rests on as `proposed_because`, which the conductor
+   records as a proposal for a person to confirm ([Projects](projects.md), invariant 28), and the
+   turn goes on. Only a confirmed description reaches an agent, so a model's reading of what the
+   researcher said never becomes a fact without a person. While the project's intake has a question the researcher has not answered
    (invariant 20), it is also offered `suggest_setup_answers`, which reaches nothing: the reply
    carries, as `Reply.intake_suggestions`, the answers the model read in what the researcher
    said, each a question id and one fixed option of a question asked from the project's entry
