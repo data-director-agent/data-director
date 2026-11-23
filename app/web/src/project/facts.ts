@@ -215,6 +215,11 @@ export const SUBJECT_OF: Record<FactKind, keyof ProjectFact | null> = {
 export const ASK_TO_REVIEW_PLAN =
   "Please have the Data Management Planner review the plan I marked for this project against the core requirements of a plan.";
 
+/** What the shell puts in the message box to ask for help to identify the target data repository,
+ * unsent. */
+export const ASK_TO_IDENTIFY_REPOSITORY =
+  "Please help me identify the best data repository for this project's data.";
+
 export const PLAN_SUBJECT = "project";
 
 /** The fact that marks the attached document whose text has `digest` as the project's plan. */
