@@ -8,6 +8,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict
 
 SHA256_PATTERN = r"^[0-9a-f]{64}$"
+UUID7_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 # A repository is identified in the registry that lists it (docs/specs/deposit.md): by its re3data
 # identifier, or, for one re3data does not list, by its DataCite repository identifier, which
 # always holds a dot and so is never mistaken for the other. Nothing invents an identifier.

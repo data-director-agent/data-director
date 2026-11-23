@@ -116,18 +116,18 @@ dd:DocumentQuestion a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 8 ;
             sh:path dd:gap_property ],
+        [ sh:datatype xsd:string ;
+            sh:description "Where a suggestion not made by a model came from: for one copied from the person's own words (suggestion_derivation `answer`), the kind of document whose question they answered, or `decision` for a fact people in the project decided; for one a drafter composed by rule from what the deployment's profile vouches for (suggestion_derivation `template`), `institution`. Present exactly then." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 12 ;
+            sh:path dd:suggested_from ;
+            sh:pattern "^(metadata_record|readme|data_dictionary|dmp|other|decision|institution)$" ],
         [ sh:description "How suggested_answer came about. Present exactly when suggested_answer is." ;
             sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
             sh:maxCount 1 ;
             sh:order 10 ;
             sh:path dd:suggestion_derivation ],
-        [ sh:datatype xsd:string ;
-            sh:description "Where a suggestion copied from the person's own words came from: the kind of document whose question they answered, or `decision` for a fact people in the project decided. Present exactly when suggestion_derivation is `answer`." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 12 ;
-            sh:path dd:suggested_from ;
-            sh:pattern "^(metadata_record|readme|data_dictionary|dmp|other|decision)$" ],
         [ sh:datatype xsd:string ;
             sh:description "The question, as a short line a person reads before the options." ;
             sh:maxCount 1 ;

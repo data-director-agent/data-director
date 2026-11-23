@@ -120,7 +120,8 @@ storage, so name each service by a label of your own (`research-filestore`) and 
 `allows_external_collaborators`, its free `allowance_gb`, whether it is `charges_for_storage`,
 what its `storage_backup` is, and the `guidance` pages you checked. The storage adviser recommends
 from these alone and cites them under the profile's reference; without them it declines and
-points the researcher to your research data staff
+points the researcher to your research data staff. The Data Management Plan drafter also offers
+them, as a suggestion the researcher confirms, to the plan's question on storage and backup
 ([Policy and identity](../../specs/policy-and-identity.md)).
 
 Raise the profile's `version` on every change. Each stored run records the profile and version it

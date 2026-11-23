@@ -158,8 +158,8 @@ institution's for keeping data while a project runs, each by the deployment's ow
 it vouches for: the kind of service, whether it is approved for sensitive data, whether people
 outside the institution can be given access, the allowance without charge, whether it charges, what
 it does to keep copies, and the pages checked; no registry lists them, so the profile is their only
-source; the conductor gives them to an agent whose input class mixes in `GivenInstitutionStorage`,
-replacing whatever a caller sent, and the source check resolves what an agent cites of them under
+source; the conductor gives them to an agent whose input class mixes in `GivenInstitutionStorage`, as the
+Storage Adviser's input and every drafter's `DraftRequest` do, replacing whatever a caller sent, and the source check resolves what an agent cites of them under
 the profile's reference; `dd_harness.institution_storage`) and `stewardship` and `administrators` (the deployment's steward teams and
 its administrators, each person by principal identifier: deployment roles,
 [Data stewards](stewardship.md), invariant 1; `dd_harness.stewardship`). A setting is the agent's own
