@@ -4,15 +4,21 @@ binding).
 
 A watcher only watches. What it is told cannot change a run, and an exception it raises is logged
 and dropped, so a broken stream never changes an outcome or loses a stored run.
+
+Whatever a watcher is told is also recorded, one JSON object per call (`StageRecorder`), and the
+conductor keeps the records as the run's `stages.jsonl` artifact (docs/specs/storage.md), so a run
+can be replayed, and debugged, as the person watching it saw it.
 """
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Protocol
+from datetime import UTC, datetime
+from typing import Any, Protocol
 
 from dd_harness.grounding import GroundingReport
 from dd_harness.sources import SourceReport
@@ -83,6 +89,86 @@ class RunObserver(Protocol):
     def tool_finished(self, call_id: str, name: str, *, ok: bool) -> None: ...
 
 
+def plan_value(steps: tuple[Step, ...]) -> dict[str, Any]:
+    return {"steps": [{"id": step.id, "label": step.label} for step in steps]}
+
+
+def grounding_value(report: GroundingReport) -> dict[str, Any]:
+    return dataclasses.asdict(report)
+
+
+def sources_value(report: SourceReport) -> dict[str, Any]:
+    return {"passed": report.passed, **dataclasses.asdict(report)}
+
+
+class StageRecorder:
+    """A run observer that turns each call into one JSON object, `{"event": <method>, ...}`, and
+    hands it to `stage`. It is the one mapping from what the conductor tells to a record: the
+    stored `stages.jsonl` and every transport's events are made from these records. A tool call is
+    recorded by its gateway name only, never its arguments or what it returned."""
+
+    def stage(self, record: dict[str, Any]) -> None:
+        raise NotImplementedError
+
+    def plan(self, steps: tuple[Step, ...]) -> None:
+        self.stage({"event": "plan", **plan_value(steps)})
+
+    def step_started(self, step: Step) -> None:
+        self.stage({"event": "step_started", "step": step.id})
+
+    def step_finished(self, step: Step) -> None:
+        self.stage({"event": "step_finished", "step": step.id})
+
+    def grounding(self, report: GroundingReport) -> None:
+        self.stage({"event": "grounding", "report": grounding_value(report)})
+
+    def sources(self, report: SourceReport) -> None:
+        self.stage({"event": "sources", "report": sources_value(report)})
+
+    def child_started(self, invocation_id: str, agent_id: str) -> None:
+        self.stage({"event": "child_started", "invocation_id": invocation_id, "agent_id": agent_id})
+
+    def child_finished(self, invocation_id: str, agent_id: str, status: str) -> None:
+        self.stage(
+            {
+                "event": "child_finished",
+                "invocation_id": invocation_id,
+                "agent_id": agent_id,
+                "status": str(status),
+            }
+        )
+
+    def child_failed(self, invocation_id: str, agent_id: str, message: str) -> None:
+        self.stage(
+            {
+                "event": "child_failed",
+                "invocation_id": invocation_id,
+                "agent_id": agent_id,
+                "message": message,
+            }
+        )
+
+    def tool_started(self, call_id: str, name: str) -> None:
+        self.stage({"event": "tool_started", "call_id": call_id, "name": name})
+
+    def tool_finished(self, call_id: str, name: str, *, ok: bool) -> None:
+        self.stage({"event": "tool_finished", "call_id": call_id, "name": name, "ok": ok})
+
+
+class _Kept(StageRecorder):
+    """The records of one run, each with the time it was told, in the order told. Children and
+    tool calls are told from other threads, so appending takes a lock."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self.records: list[dict[str, Any]] = []
+
+    def stage(self, record: dict[str, Any]) -> None:
+        at = datetime.now(UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+        with self._lock:
+            self.records.append({"at": at, **record})
+
+
 class NullObserver:
     """Watches nothing: the observer of a run nobody streams."""
 
@@ -124,16 +210,22 @@ class Watch:
     def __init__(self, observer: RunObserver | None, cancel: threading.Event | None) -> None:
         self._observer: RunObserver = observer or NullObserver()
         self._cancel = cancel
+        self._kept = _Kept()
+
+    def stages(self) -> list[dict[str, Any]]:
+        """What the run was told, as records, in order (`stages.jsonl`)."""
+        return list(self._kept.records)
 
     def cancelled(self) -> bool:
         """A method, not a property: the answer changes while the run goes on."""
         return self._cancel is not None and self._cancel.is_set()
 
     def _tell(self, method: str, *args: object, **kwargs: object) -> None:
-        try:
-            getattr(self._observer, method)(*args, **kwargs)
-        except Exception:  # a watcher never changes a run
-            log.exception("run observer %s failed; the run goes on", method)
+        for name, observer in (("record", self._kept), ("observer", self._observer)):
+            try:
+                getattr(observer, method)(*args, **kwargs)
+            except Exception:  # a watcher, or the record of one, never changes a run
+                log.exception("run %s %s failed; the run goes on", name, method)
 
     def plan(self) -> None:
         self._tell("plan", STEPS)

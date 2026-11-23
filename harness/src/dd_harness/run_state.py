@@ -156,6 +156,9 @@ class RunState:
     report: grounding.GroundingReport | None = None
     source_report: source_check.SourceReport | None = None
     shapes_report: bytes | None = None
+    # The envelope document as the agent's result made it, kept once a check or the project
+    # withheld it (`pipeline.withhold`), for operators only.
+    withheld: dict[str, Any] | None = None
 
     @property
     def spec(self) -> AgentSpec:

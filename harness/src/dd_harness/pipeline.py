@@ -16,6 +16,7 @@ contract fails as the agent's error, and the project takes the run's effects
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from typing import Any
 
@@ -39,7 +40,15 @@ from dd_harness.provenance import process_run_crate
 from dd_harness.refusals import failed_result, input_refusal, refuse, stopped_by_pause
 from dd_harness.remote import Received, RemoteAgent
 from dd_harness.run_state import RunHost, RunState, Step
-from dd_harness.storage import CRATE, GROUNDING, SOURCES, SPANS, VALIDATION
+from dd_harness.storage import (
+    CRATE,
+    GROUNDING,
+    SOURCES,
+    SPANS,
+    STAGES,
+    VALIDATION,
+    WITHHELD,
+)
 from dd_sdk.agent import AgentResult, AgentSpec, RunContext, typed_request
 from dd_sdk.contract import problem as problems
 from dd_sdk.contract import validate
@@ -311,7 +320,7 @@ def withhold_violations(conductor: RunHost, run: RunState) -> None:
         + ". "
         + "; ".join(violations)
     )
-    run.envelope = failed(run.finished, statement, problems.grounding_violation(violations))
+    withhold(run, statement, problems.grounding_violation(violations))
 
 
 # 7. Validate. A result the agent returned that still breaks the contract is the agent's error,
@@ -327,8 +336,8 @@ def validate_contract(conductor: RunHost, run: RunState) -> None:
             raise
         statement = "Agent result violates the contract: " + "; ".join(exc.messages)
         prob = problems.agent_error(run.spec.agent_id, exc)
-        run.envelope = failed(run.finished, statement, prob)
-        run.doc = run.envelope.to_document()
+        withhold(run, statement, prob, kept=run.doc)
+        run.doc = run.finished.to_document()
         validate.validate_envelope(run.doc)
 
 
@@ -341,8 +350,8 @@ def apply_project_effects(conductor: RunHost, run: RunState) -> None:
     if refusal is None:
         return
     statement = f"The draft was not kept in the project: {refusal}."
-    run.envelope = failed(run.finished, statement, problems.revision_refused(refusal))
-    run.doc = run.envelope.to_document()
+    withhold(run, statement, problems.revision_refused(refusal))
+    run.doc = run.finished.to_document()
     validate.validate_envelope(run.doc)
 
 
@@ -391,11 +400,14 @@ def store_run(conductor: RunHost, run: RunState) -> None:
     spans = conductor._spans(run.trace_id)
     artifacts = {
         SPANS: spans,
+        STAGES: _jsonl(run.watch.stages()),
         GROUNDING: (run.report.summary() + "\n").encode(),
         SOURCES: (run.source_report.summary() + "\n").encode(),
     }
     if run.shapes_report is not None:
         artifacts[VALIDATION] = run.shapes_report
+    if run.withheld is not None:
+        artifacts[WITHHELD] = (json.dumps(run.withheld, indent=2) + "\n").encode()
     if conductor.write_crate:
         crate = process_run_crate(
             run.doc,
@@ -409,6 +421,10 @@ def store_run(conductor: RunHost, run: RunState) -> None:
     store.put_artifacts(run_id, artifacts)  # one transaction in a database
 
 
+def _jsonl(records: list[dict[str, Any]]) -> bytes:
+    return "".join(json.dumps(r, separators=(",", ":")) + "\n" for r in records).encode()
+
+
 # Once the run's span has ended, in order.
 AFTER_SPAN: tuple[Step, ...] = (
     lint_grounding,
@@ -419,6 +435,18 @@ AFTER_SPAN: tuple[Step, ...] = (
     check_shapes,
     store_run,
 )
+
+
+def withhold(
+    run: RunState, statement: str, prob: ProblemDetails, *, kept: dict[str, Any] | None = None
+) -> None:
+    """Fail the run after its agent answered, keeping what it answered as the `withheld.json`
+    artifact for operators (docs/specs/storage.md, invariant 5). `kept` is the envelope document
+    when the envelope itself could not be trusted to serialise again (a contract violation); the
+    first withholding is the one kept, since later ones see only the failed envelope."""
+    if run.withheld is None:
+        run.withheld = kept if kept is not None else run.finished.to_document()
+    run.envelope = failed(run.finished, statement, prob)
 
 
 def failed(envelope: Envelope, statement: str, prob: ProblemDetails) -> Envelope:

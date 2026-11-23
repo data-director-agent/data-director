@@ -50,6 +50,10 @@ GROUNDING = "grounding.txt"  # the grounding linter's summary
 SOURCES = "sources.txt"  # the source check's summary
 VALIDATION = "validation-report.jsonld"  # the payload's SHACL Validation Report, if it has shapes
 CRATE = "crate"  # the Process Run Crate, one artifact per file under this prefix
+STAGES = "stages.jsonl"  # what the run's watchers were told, in order (dd_harness.observe)
+# The envelope as the agent's result made it, before a check or the project withheld it. Read only
+# by operator surfaces, never served to a researcher (docs/specs/storage.md, invariant 5).
+WITHHELD = "withheld.json"
 
 
 class RunStorage(Protocol):
