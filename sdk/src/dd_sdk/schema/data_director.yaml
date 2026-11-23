@@ -1974,8 +1974,9 @@ slots:
       words (suggestion_derivation `answer`), the kind of document whose question they answered,
       or `decision` for a fact people in the project decided; for one a drafter composed by rule
       from what the deployment's profile vouches for (suggestion_derivation `template`),
-      `institution`. Present exactly then.
-    pattern: "^(metadata_record|readme|data_dictionary|dmp|other|decision|institution)$"
+      `institution`; for one made of the project's people by rule (derivation `answer`), `researchers`.
+      Present exactly then.
+    pattern: "^(metadata_record|readme|data_dictionary|dmp|other|decision|institution|researchers)$"
   answered_in:
     description: The kind of document whose question the answer was recorded to.
     range: DocumentKind

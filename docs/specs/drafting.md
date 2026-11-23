@@ -249,8 +249,10 @@ rule 20 and invariant 32).
     (`harness/tests/test_shared_answers_in_a_project.py`). The drafter offers it as the open
     question's `suggested_answer`, with `suggestion_derivation` `answer` and `suggested_from`
     naming the kind; where nobody answered, it offers a decided funder or licence
-    (`project_decisions`, invariant 9) with `suggested_from` `decision`
-    (`dd_sdk.shared_answers`). Such a suggestion copies the person's own words, so it may fill a
+    (`project_decisions`, invariant 9) with `suggested_from` `decision`; and for the creators,
+    the project's people who kept a name in their ORCID record (`researchers`), one per line,
+    with `suggested_from` `researchers` (`dd_sdk.shared_answers`). Who answers questions about the
+    data is not known, so the person says it. Such a suggestion copies the person's own words, so it may fill a
     field no model may suggest, a creator, date, place, funder or licence; but it is still only
     offered, kept out of the document's text, and recorded for that document only when the person
     accepts or saves it there, as any suggestion is (invariant 7). A person's words come before a
