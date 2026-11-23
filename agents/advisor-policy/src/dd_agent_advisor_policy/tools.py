@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from dd_agent_advisor_policy.crossref import CrossrefJournals
+from dd_agent_advisor_policy.doaj import DoajJournals
 from dd_agent_advisor_policy.opf import ITEM_TYPES, OpenPolicyFinder
 from dd_agent_advisor_policy.retrieve import Policies, SourceRecord
 from dd_sdk.agent import RunContext
@@ -44,7 +45,7 @@ JOURNAL_BY_ISSN = ToolSpec(
     name="get_journal_by_issn",
     description=(
         "Read a journal by ISSN: its Open Policy Finder record, with its publishers' records, "
-        "and Crossref's record naming its publisher."
+        "its DOAJ record of its open access terms, and Crossref's record naming its publisher."
     ),
     input_schema={
         "type": "object",
@@ -56,6 +57,20 @@ JOURNAL_BY_ISSN = ToolSpec(
 SEARCH_CROSSREF = ToolSpec(
     name="search_crossref_journals",
     description="Search Crossref's journals by title, to find a journal's ISSN and publisher.",
+    input_schema={
+        "type": "object",
+        "properties": {"title": {"type": "string", "minLength": 2, "maxLength": 300}},
+        "required": ["title"],
+        "additionalProperties": False,
+    },
+)
+SEARCH_DOAJ = ToolSpec(
+    name="search_doaj",
+    description=(
+        "Search the Directory of Open Access Journals by journal title, for an open access "
+        "journal's licences, copyright, deposit (self-archiving) policy, charges and publisher. "
+        "It lists open access journals only."
+    ),
     input_schema={
         "type": "object",
         "properties": {"title": {"type": "string", "minLength": 2, "maxLength": 300}},
@@ -86,6 +101,7 @@ class Lookups:
     policies: Policies | None = None
     opf: OpenPolicyFinder | None = None
     crossref: CrossrefJournals | None = None
+    doaj: DoajJournals | None = None
     records: dict[str, SourceRecord] = field(default_factory=dict)
     # Actors whose name was ambiguous: no finding may name them.
     blocked: frozenset[str] = frozenset()
@@ -94,10 +110,12 @@ class Lookups:
         out: list[ToolSpec] = []
         if self.opf is not None:
             out += [SEARCH_OPF]
-        if self.opf is not None or self.crossref is not None:
+        if self.opf is not None or self.crossref is not None or self.doaj is not None:
             out += [JOURNAL_BY_ISSN]
         if self.crossref is not None:
             out += [SEARCH_CROSSREF]
+        if self.doaj is not None:
+            out += [SEARCH_DOAJ]
         if self.policies is not None:
             out += [SEARCH_FAIRSHARING]
         return out
@@ -172,10 +190,11 @@ def _journal_by_issn(lookups: Lookups, args: Mapping[str, Any]) -> list[SourceRe
                 publisher = lookups.opf.fetch("publisher", link.id)
                 if publisher is not None:
                     found.append(publisher)
-    if lookups.crossref is not None:
-        crossref = lookups.crossref.by_issn(issn)
-        if crossref is not None:
-            found.append(crossref)
+    for registry in (lookups.doaj, lookups.crossref):
+        if registry is not None:
+            journal_record = registry.by_issn(issn)
+            if journal_record is not None:
+                found.append(journal_record)
     return found
 
 
@@ -183,6 +202,12 @@ def _search_crossref(lookups: Lookups, args: Mapping[str, Any]) -> list[SourceRe
     if lookups.crossref is None:
         return None
     return list(lookups.crossref.search(_string(args, "title")))
+
+
+def _search_doaj(lookups: Lookups, args: Mapping[str, Any]) -> list[SourceRecord] | None:
+    if lookups.doaj is None:
+        return None
+    return list(lookups.doaj.search(_string(args, "title")))
 
 
 def _search_fairsharing(lookups: Lookups, args: Mapping[str, Any]) -> list[SourceRecord] | None:
@@ -196,6 +221,7 @@ HANDLERS: Mapping[str, Handler] = {
     SEARCH_OPF.name: _search_opf,
     JOURNAL_BY_ISSN.name: _journal_by_issn,
     SEARCH_CROSSREF.name: _search_crossref,
+    SEARCH_DOAJ.name: _search_doaj,
     SEARCH_FAIRSHARING.name: _search_fairsharing,
 }
 

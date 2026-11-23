@@ -24,8 +24,8 @@ from opf_fixture import (
 
 from dd_agent_advisor_policy import discover
 from dd_agent_advisor_policy.classes import Actor, ActorRole
-from dd_agent_advisor_policy.crossref import normal_issn
 from dd_agent_advisor_policy.opf import MAX_CONDITIONS, filter_for, from_item
+from dd_mcp_doaj.journals import normal_issn
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, verify
 from dd_sdk.registry import RegistryUnavailable
 

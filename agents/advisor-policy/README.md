@@ -9,13 +9,14 @@ and institution ask of it. It serves two steps of the Blueprint's process flow (
 
 | Step | What the agent does |
 |---|---|
-| `governance.policies` (Phase 2, Figure 2) | Matches each funder, journal and institution to its policy records in FAIRsharing and Jisc Open Policy Finder, and reports what each asks, quoted from the record, and where they differ. |
+| `governance.policies` (Phase 2, Figure 2) | Matches each funder, journal and institution to its policy records in FAIRsharing, Jisc Open Policy Finder and, for an open access journal, the Directory of Open Access Journals (DOAJ), and reports what each asks, quoted from the record, and where they differ. |
 | `repository.mandated` (Phase 3, Figure 3) | Reports the repositories a matched policy requires, in the form `advisor.repository` takes as `RepositoryNeeds.mandated`. |
 
 The guidance note to Figure 2 suggests FAIRsharing's policy records as the source. They are
 curated summaries, and many funders and publishers have none (#750, #905), so the agent also
 reads [Jisc Open Policy Finder](https://openpolicyfinder.jisc.ac.uk), which replaced Sherpa
-Romeo and Juliet, and asks Crossref which publisher a journal belongs to. By default a model then
+Romeo and Juliet, reads an open access journal's terms from [DOAJ](https://doaj.org), which needs
+no key, and asks Crossref which publisher a journal belongs to. By default a model then
 reads the records found, searches for more, and states what each policy asks, each obligation
 with a quote that the agent checks is in the record. Records are still summaries of the policies,
 so every result needs a person to check it against the policy text. The agent flags where policies
@@ -31,7 +32,7 @@ ambiguous. It may also give the disciplines, the kinds of data and the publicati
 `PolicyChecks` holds:
 
 - `policies`: one entry per policy record matched to an actor, with the `registry` it came from
-  (`fairsharing` or `open_policy_finder`) and `match_derivation`: `registry` when the first
+  (`fairsharing`, `open_policy_finder` or `doaj`) and `match_derivation`: `registry` when the first
   search's rule matched it, `model` when a model found it with its tools. The record is named only
   in `grounded_on`; its name, clauses and policies are the evidence `content`
   ([Evidence and grounding](../../docs/specs/grounding.md)). Each obligation (`deposit`,
@@ -54,7 +55,7 @@ ambiguous. It may also give the disciplines, the kinds of data and the publicati
 - `funders`: each funder identified in ROR, grounded on its ROR record (the identifier is stated
   there only), with the Crossref Funder ID ROR prefers, so that both can be passed on.
 - `journals`: each journal identified, with its publisher and ISSN, grounded on its Open Policy
-  Finder or Crossref record.
+  Finder, DOAJ or Crossref record.
 - `ambiguous`: each funder whose name could mean more than one organisation in ROR, and each
   journal title that could mean more than one journal, grounded on every candidate, likeliest
   first. Its policy was not looked up, and the statement asks the researcher which they mean.
@@ -72,12 +73,12 @@ never taken alone:
   organisations with a Crossref Funder ID shown first. A name such as "UKRI-NERC" that ROR does
   not hold is read through ROR's own parent relationships. No alias table is kept. When ROR
   cannot be read, funders are searched by the name given and the statement says so.
-- **Identifying journals** (`discover.py`, `opf.py`, `crossref.py`). A journal is read from Open
-  Policy Finder by its ISSN when given, otherwise searched by its title, and kept only when the
+- **Identifying journals** (`discover.py`, `opf.py`, `doaj.py`, `crossref.py`). A journal is read
+  from Open Policy Finder, then DOAJ, by its ISSN when given, otherwise searched by its title, and kept only when the
   title is the same once case, punctuation, "&" and a leading "The" are set aside. Two journals
   with that title are not guessed between: the researcher is asked for the ISSN. Open Policy
-  Finder links the journal to its publishers; when it has no record of the journal, Crossref's
-  journals API names the publisher. The publisher's name, with any legal form such as "BV" set
+  Finder links the journal to its publishers; when it has no record of the journal, DOAJ or
+  Crossref's journals API names the publisher. The publisher's name, with any legal form such as "BV" set
   aside, is then searched in FAIRsharing too, so a journal with no policy of its own reaches its
   publisher's (#905). No table of publishers is kept.
 - **Open Policy Finder** (`discover.py`). Each funder is searched by every name ROR gives it, and a
@@ -85,6 +86,14 @@ never taken alone:
   journal's own record is kept, or its publisher's when Open Policy Finder has none for the
   journal. Without a key it is not searched, and the statement says so; when it cannot be asked,
   the statement says so and FAIRsharing still answers.
+- **DOAJ** (`doaj.py`, #1517). A journal's DOAJ record, found by ISSN or exact title as above, is
+  matched to the journal as a policy record (`registry: doaj`). It states the journal's licences,
+  whether authors keep copyright, its deposit policy and where that is recorded, its preservation
+  services and charges. No obligation is read from it by rule; a model may read one, with a quote,
+  and it is about the publication. DOAJ lists open access journals only, so a journal it does not
+  list is not evidence of anything. Two DOAJ journals with the title given are not guessed
+  between, as for Open Policy Finder. When DOAJ cannot be asked, the statement says so and the
+  other registries still answer.
 - **Matching** (`match.py`). An actor given with a FAIRsharing identifier is fetched by it.
   Otherwise each of its names is searched, and a record is kept only when FAIRsharing types it for the
   actor's role (a journal matches a journal or journal publisher policy) and its name or
@@ -102,7 +111,7 @@ never taken alone:
   management plan.
 - **The model advisor** (`advise.py`, `verify.py`; the default). A model is given the context and
   every record the first search retrieved, numbered `R1`, `R2`… and marked as untrusted data
-  (`system_prompt.md`). It may search Open Policy Finder, Crossref and FAIRsharing with read-only
+  (`system_prompt.md`). It may search Open Policy Finder, DOAJ, Crossref and FAIRsharing with read-only
   tools, at most `DD_POLICY_MAX_LOOKUPS` times a run; each record a tool returns is retrieved by
   the agent and numbered in turn. It ends by calling `submit_findings` with, for each record that
   applies to an actor, a rationale and the obligations the record states, each with a quote. The
@@ -166,8 +175,15 @@ never taken alone:
   it, the agent warns at start-up and lists Open Policy Finder in the payload's `not_searched`;
   a run that finds nothing for a funder or journal, identifies nothing and reads no text abstains
   with `REGISTRY_UNAVAILABLE`, because it could not search, and `doctor` notes the key as not set.
+  DOAJ still answers for an open access journal, and Crossref names a journal's publisher, so a
+  journal's publisher policy in FAIRsharing is still reached; a funder's open access policy is
+  not.
 - `DD_POLICY_CROSSREF`: `live` (the default) asks Crossref which publisher a journal belongs to;
   `off` does not.
+- `DD_POLICY_DOAJ`: `live` (the default) reads an open access journal's terms from DOAJ, which
+  needs no key; `off` does not, and a run with a journal lists DOAJ in `not_searched`.
+- `DD_REGISTRY_CONTACT`: the operators' contact address (never a person's own), sent to Crossref
+  and DOAJ as `mailto:` in the User-Agent. Unset, no address is sent.
 
 ## Sources
 
@@ -179,9 +195,11 @@ FAIRsharing's database records. It is pinned in `workbench/sources.yaml` and
 `uv run python agents/advisor-policy/scripts/build_policy_snapshot.py` with the FAIRsharing login set, then pin
 the new file.
 
-Open Policy Finder (`api.openpolicyfinder.jisc.ac.uk`, key in the `x-api-key` header) and
-Crossref's journals API are read live only, labelled `open-policy-finder:live:<date>` and
-`crossref-journals:live:<date>`. Jisc licenses the data under CC BY-NC-ND 4.0 and the API is for
+Open Policy Finder (`api.openpolicyfinder.jisc.ac.uk`, key in the `x-api-key` header), DOAJ
+(`doaj.org/api/v4`, no key, through the client in [`mcp-doaj`](../../mcp-doaj/README.md)) and
+Crossref's journals API are read live only, labelled `open-policy-finder:live:<date>`,
+`doaj-journals:live:<date>` and `crossref-journals:live:<date>`. DOAJ waives its rights in the
+metadata under CC0 and allows two requests a second. Jisc licenses the data under CC BY-NC-ND 4.0 and the API is for
 non-commercial use, so no copy is kept to fall back to; Jisc states no rate limit (#952). To check the route with a key, run
 `uv run python -m dd_agent_advisor_policy.opf check`; `--record <folder>` writes what came back,
 for the test fixtures.

@@ -315,7 +315,8 @@
          "description": "",
          "enum": [
             "fairsharing",
-            "open_policy_finder"
+            "open_policy_finder",
+            "doaj"
          ],
          "title": "PolicyRegistry",
          "type": "string"

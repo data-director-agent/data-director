@@ -112,7 +112,7 @@ def test_without_open_policy_finder_crossref_still_reaches_the_publisher(runs_di
     assert [p.grounded_on[0].source_id for p in checks.policies] == ["FAIRsharing.test-elsevier"]
     assert [g.source_id for g in checks.journals[0].grounded_on] == [STOTEN_CROSSREF]
     assert checks.journals[0].publisher == "Elsevier BV"
-    assert [n.registry for n in checks.not_searched] == [PolicyRegistry.OPEN_POLICY_FINDER]
+    assert PolicyRegistry.OPEN_POLICY_FINDER in [n.registry for n in checks.not_searched]
 
 
 def test_a_journal_given_by_issn_is_read_by_it(runs_dir: Path) -> None:

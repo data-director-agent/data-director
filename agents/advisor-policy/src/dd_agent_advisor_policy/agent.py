@@ -1,5 +1,5 @@
 """The policy advisor: retrieve → match → assess → advise, over FAIRsharing's policy records,
-Jisc Open Policy Finder's and Crossref's journals.
+Jisc Open Policy Finder's, DOAJ's and Crossref's journals.
 
 It serves the first step of Phase 2 (Figure 2), checking funder, journal and institutional data
 sharing policies, and the first step of Phase 3 (Figure 3), whether the funder, journal or
@@ -16,10 +16,11 @@ record once, in `grounded_on`; what the reader is shown about it is the evidence
 which the linter re-hashes (E1, docs/specs/grounding.md). Where policies differ, the agent flags it
 for human review and never decides which applies.
 
-A journal is identified by its ISSN or title in Open Policy Finder and Crossref, and its
+A journal is identified by its ISSN or title in Open Policy Finder, DOAJ and Crossref, and its
 publisher's name is searched too, since most journals follow their publisher's policy (#905).
 Open Policy Finder is read live, with a key; without one it is not searched and the statement
-says so.
+says so. DOAJ needs no key, and its record of an open access journal's terms is matched to the
+journal as a policy record (#1517).
 
 Before FAIRsharing is searched, each funder is identified in ROR (`resolve.py`): a name that ROR
 gives to one organisation is searched by every name ROR records for it, and the funder's ROR record
@@ -187,6 +188,7 @@ class PolicyAgent:
             policies=self.sources.fallback if found.snapshot_ref.stale else self.sources.policies,
             opf=self.sources.opf,
             crossref=self.sources.crossref,
+            doaj=self.sources.doaj,
             records=dict(found.records),
             blocked=frozenset(found.blocked),
         )

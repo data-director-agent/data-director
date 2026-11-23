@@ -1,0 +1,140 @@
+{
+ "last": "https://doaj.org/api/v4/search/journals/issn:2041-1723?page=1&pageSize=10",
+ "page": 1,
+ "pageSize": 10,
+ "query": "issn:2041-1723",
+ "results": [
+  {
+   "admin": {
+    "last_full_review": "2026-03-17",
+    "ticked": true
+   },
+   "bibjson": {
+    "apc": {
+     "has_apc": true,
+     "max": [
+      {
+       "currency": "EUR",
+       "price": 6150
+      },
+      {
+       "currency": "USD",
+       "price": 7350
+      },
+      {
+       "currency": "GBP",
+       "price": 5490
+      }
+     ],
+     "url": "https://www.nature.com/ncomms/about/article-processing-charges"
+    },
+    "article": {
+     "license_display": [
+      "Embed"
+     ],
+     "license_display_example_url": "https://www.nature.com/articles/s41467-018-07146-5"
+    },
+    "boai": true,
+    "copyright": {
+     "author_retains": false,
+     "url": "https://www.nature.com/ncomms/about/open-access"
+    },
+    "deposit_policy": {
+     "has_policy": true,
+     "service": [
+      "Open Policy Finder"
+     ],
+     "url": "https://openpolicyfinder.jisc.ac.uk/publication/24265?from=single_hit"
+    },
+    "editorial": {
+     "board_url": "https://www.nature.com/ncomms/about/editors",
+     "review_process": [
+      "Unspecified peer review"
+     ],
+     "review_url": "https://www.nature.com/ncomms/journal-policies/editorial-process"
+    },
+    "eissn": "2041-1723",
+    "keywords": [
+     "natural sciences",
+     "biology",
+     "chemistry",
+     "earth sciences",
+     "physics"
+    ],
+    "language": [
+     "EN"
+    ],
+    "license": [
+     {
+      "BY": true,
+      "NC": false,
+      "ND": false,
+      "SA": false,
+      "type": "CC BY",
+      "url": "https://creativecommons.org/licenses/by/4.0/"
+     },
+     {
+      "BY": true,
+      "NC": true,
+      "ND": true,
+      "SA": false,
+      "type": "CC BY-NC-ND",
+      "url": "https://creativecommons.org/licenses/by-nc-nd/4.0/"
+     }
+    ],
+    "oa_start": 2015,
+    "other_charges": {
+     "has_other_charges": false
+    },
+    "pid_scheme": {
+     "has_pid_scheme": true,
+     "scheme": [
+      "DOI"
+     ]
+    },
+    "plagiarism": {
+     "detection": true,
+     "url": "https://www.nature.com/authors/policies/plagiarism.html"
+    },
+    "preservation": {
+     "has_preservation": true,
+     "service": [
+      "CLOCKSS",
+      "PMC",
+      "Portico"
+     ],
+     "url": "https://www.nature.com/openresearch/about-open-access/policies-journals/#Digital_preservation"
+    },
+    "publication_time_weeks": 28,
+    "publisher": {
+     "country": "GB",
+     "name": "Nature Portfolio"
+    },
+    "ref": {
+     "aims_scope": "https://www.nature.com/ncomms/about/aims",
+     "author_instructions": "https://www.nature.com/ncomms/submit/guide-to-authors",
+     "journal": "https://www.nature.com/ncomms/",
+     "license_terms": "https://www.nature.com/ncomms/about/open-access",
+     "oa_statement": "https://www.nature.com/ncomms/about/open-access"
+    },
+    "subject": [
+     {
+      "code": "Q",
+      "scheme": "LCC",
+      "term": "Science"
+     }
+    ],
+    "title": "Nature Communications",
+    "waiver": {
+     "has_waiver": true,
+     "url": "https://www.springernature.com/gp/open-research/policies/journal-policies/apc-waiver-countries"
+    }
+   },
+   "created_date": "2016-01-11T18:43:05Z",
+   "id": "ef13b44b43f840a688b3efc17d44c265",
+   "last_updated": "2026-09-17T10:51:24Z"
+  }
+ ],
+ "timestamp": "2026-11-23T11:44:30.528055Z",
+ "total": 1
+}

@@ -28,6 +28,7 @@ from typing import Any, ClassVar
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
+from dd_mcp_doaj.journals import normal_issn
 from dd_sdk.credentials import ConfigError
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
 from dd_sdk.registry import RegistryUnavailable, SnapshotRef, pinned
@@ -36,7 +37,6 @@ API_BASE = "https://api.crossref.org/journals"
 REGISTRY_LABEL = "crossref-journals"
 TIMEOUT_S = 20.0
 SEARCH_ROWS = 5
-ISSN = re.compile(r"^\d{4}-?\d{3}[\dX]$")
 CONTACT_SETTING = "DD_REGISTRY_CONTACT"
 # One plain address: nothing that could end the User-Agent's comment or start another header.
 ADDRESS = re.compile(r"[^\s@<>();,\"\\]+@[^\s@<>();,\"\\]+\.[^\s@<>();,\"\\]+")
@@ -49,15 +49,6 @@ def contact_from(env: Mapping[str, str]) -> str | None:
     if value and not ADDRESS.fullmatch(value):
         raise ConfigError(f"{CONTACT_SETTING}={value!r}: expected one e-mail address")
     return value or None
-
-
-def normal_issn(value: str) -> str | None:
-    """`value` as `NNNN-NNNC`, or None if it is not an ISSN."""
-    text = value.strip().upper()
-    if not ISSN.match(text):
-        return None
-    digits = text.replace("-", "")
-    return f"{digits[:4]}-{digits[4:]}"
 
 
 class CrossrefJournal(BaseModel):
