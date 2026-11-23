@@ -2,7 +2,9 @@
 (docs/specs/deposit.md).
 
 The repository a researcher chose is a `repository_chosen` event. It records each requirement
-set the choice resolved to by reference and digest, and keeps the merged set as a blob, so that a
+set the choice resolved to by reference and digest, and the definition of the standard the merged
+set follows by reference, digest and the codec of each serialisation
+(docs/specs/metadata-standards.md, invariant 12), and keeps the merged set as a blob, so that a
 drafter and validation read exactly what was chosen. The last choice counts.
 """
 
@@ -10,6 +12,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from dd_harness.metadata_standards import registered
 from dd_harness.projects.rules import REPOSITORY_CHOSEN, ProjectRules
 from dd_harness.requirements import REPOSITORY_ID, Requirements, RequirementsError
 from dd_harness.sources import Sources
@@ -53,6 +56,7 @@ class RepositoryChoice(ProjectRules):
         resolved = requirements.resolve(entry.repository_id, entry.name, entry.metadata_standards)
         merged = resolved.requirements()
         digest = input_hash(merged)
+        standard = registered().by_uri(merged["conforms_to"])
         self._keep_blob(project_id, digest, canonicalise(merged, INPUT_CANONICALISATION))
         self._append(
             project_id,
@@ -68,6 +72,7 @@ class RepositoryChoice(ProjectRules):
                 "record_hash": entry.content_hash,
                 "record_canonicalisation": entry.canonicalisation,
                 "requirement_sets": [s.describe() for s in resolved.sets],
+                "standard": standard.definition.describe() if standard else None,
                 "digest": digest,
                 "canonicalisation": INPUT_CANONICALISATION,
                 "warnings": list(resolved.warnings),

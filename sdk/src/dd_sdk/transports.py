@@ -7,8 +7,9 @@ A transport that sends anything through a platform's API is registered under the
     [project.entry-points."dd.transports"]
     zenodo = "dd_harness.transports.zenodo:TRANSPORT"
 
-What the harness needs of one is how to render the approved DataCite record into the item the
-platform's API takes (its `format`), and the file name the RO-Crate package takes in the draft. The
+What the harness needs of one is how to render the approved metadata record, read as the pivot of
+its standard's definition (docs/specs/metadata-standards.md), into the item the platform's API
+takes (its `format`), and the file name the RO-Crate package takes in the draft. The
 API calls themselves are made by the deposit broker, which holds the person's token
 (`dd_sdk.deposit_grant`), never by the harness. The `manual` transport sends nothing and is not
 registered: a repository without a `deposit` block is deposited to by hand.
@@ -35,9 +36,10 @@ class TransportError(Exception):
 
 @dataclass(frozen=True)
 class RenderedItem:
-    """The platform item rendered from the approved DataCite record: its exact bytes, which are
-    kept by their digest and sent, and the record's properties the mapping could not place, which
-    the outcome names rather than dropping them silently."""
+    """The platform item rendered from the approved metadata record: its exact bytes, which are
+    kept by their digest and sent, and the record's properties the mapping could not place, by
+    their paths in the record's standard, which the outcome names rather than dropping them
+    silently."""
 
     content: bytes
     unplaced: tuple[str, ...] = ()
@@ -50,8 +52,9 @@ class Transport:
     - `name`: the identifier an override's `deposit.transport` names;
     - `format`: the format of the item it carries, such as `zenodo-deposit`;
     - `media_type`: the item's media type;
-    - `render`: from the approved DataCite record's attributes and the connector's `target` to
-      the item. It never sees a credential and makes no call.
+    - `render`: from the approved metadata record's pivot, a mapping of each term's IRI to the
+      record's values under it (`dd_metadata_records.Pivot`), and the connector's `target` to the
+      item. It never sees a credential and makes no call.
     """
 
     name: str

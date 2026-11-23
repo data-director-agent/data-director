@@ -18,6 +18,10 @@ one from recommended to required, label it and say where its value is supplied, 
 one. Documents, and the properties the repository fills in itself, are the union of both, and a
 kind either requires is required. Media types, sizes and licences come from the override alone.
 
+A field's term may be left out: it is the one the standard's definition gives the field's
+property and qualifier (docs/specs/metadata-standards.md). A field that names a term the definition
+gives otherwise is refused, and so is a set whose standard no registered definition covers.
+
 Every set is checked when it is loaded, so a deployment whose sets are malformed, of neither
 kind, or contradict one another does not start. Recording the choice in a project is
 `ProjectStore.choose_repository`; checking a project against the merged set is
@@ -37,6 +41,8 @@ from typing import Any
 
 import yaml
 
+from dd_harness.metadata_standards import registered
+from dd_metadata_records import Standards
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     RE3DATA_ID_PATTERN,
@@ -178,6 +184,7 @@ class Requirements:
         standards: Iterable[LoadedSet],
         overrides: Iterable[LoadedSet],
         suggested: Sequence[str] = (),
+        definitions: Standards | None = None,
     ) -> None:
         for repository_id in suggested:
             if not REPOSITORY_ID.fullmatch(repository_id):
@@ -207,6 +214,8 @@ class Requirements:
             )
         for override in self.overrides:
             self._check_override(override)
+        for loaded in self.all:
+            _check_definition(loaded.requirement_set, definitions or registered())
 
     @property
     def suggested(self) -> tuple[str, ...]:
@@ -290,14 +299,17 @@ class Requirements:
                 )
 
 
-def load_requirements(directory: Path) -> Requirements:
-    """Load the sets under `directory`. The path is the operator's, never a caller's."""
+def load_requirements(directory: Path, definitions: Standards | None = None) -> Requirements:
+    """Load the sets under `directory`, reading each field's term from its standard's definition
+    in `definitions`, the registered ones by default. The path is the operator's, never a
+    caller's."""
     if not directory.is_dir():
         raise RequirementsError(f"repository requirements not found at {directory}")
     schema = ClassSchema.of(RequirementSet)
-    standards = [_load(p, schema, override=False) for p in _files(directory / STANDARDS_DIR)]
-    overrides = [_load(p, schema, override=True) for p in _files(directory / OVERRIDES_DIR)]
-    return Requirements(standards, overrides, _suggested(directory / SUGGESTED_FILE))
+    found = definitions or registered()
+    standards = [_load(p, schema, found, override=False) for p in _files(directory / STANDARDS_DIR)]
+    overrides = [_load(p, schema, found, override=True) for p in _files(directory / OVERRIDES_DIR)]
+    return Requirements(standards, overrides, _suggested(directory / SUGGESTED_FILE), found)
 
 
 def _suggested(path: Path) -> list[str]:
@@ -318,7 +330,7 @@ def _files(directory: Path) -> list[Path]:
     return sorted(directory.glob("*.yaml")) if directory.is_dir() else []
 
 
-def _load(path: Path, schema: ClassSchema, *, override: bool) -> LoadedSet:
+def _load(path: Path, schema: ClassSchema, definitions: Standards, *, override: bool) -> LoadedSet:
     raw = path.read_bytes()
     try:
         data = yaml.safe_load(raw)
@@ -326,7 +338,7 @@ def _load(path: Path, schema: ClassSchema, *, override: bool) -> LoadedSet:
         raise RequirementsError(f"{path}: not YAML: {exc}") from exc
     if not isinstance(data, dict):
         raise RequirementsError(f"{path}: not a mapping")
-    data = _legacy_terms(path, data)
+    data = _defined_terms(_legacy_terms(path, data), definitions)
     errors = schema.errors(data)
     if errors:
         raise RequirementsError(f"{path}: not a RequirementSet: {'; '.join(errors)}")
@@ -397,6 +409,52 @@ def _legacy_terms(path: Path, data: dict[str, Any]) -> dict[str, Any]:
         path,
     )
     return {**data, "fields": [legacy_term(f) for f in fields]}
+
+
+def _defined_terms(data: dict[str, Any], definitions: Standards) -> dict[str, Any]:
+    """A set whose fields leave out their term, with the term its standard's definition gives
+    each field's property and qualifier. A field the definition gives no term keeps none, and the
+    schema refuses it."""
+    fields = data.get("fields")
+    standard = definitions.by_uri(data.get("conforms_to"))
+    if standard is None or not isinstance(fields, list):
+        return data
+    filled = []
+    for field in fields:
+        if (
+            isinstance(field, dict)
+            and "term" not in field
+            and isinstance(field.get("property"), str)
+        ):
+            term = standard.definition.term(field["property"], field.get("qualifier"))
+            field = {**field, "term": term} if term else field
+        filled.append(field)
+    return {**data, "fields": filled}
+
+
+def _check_definition(found: RequirementSet, definitions: Standards) -> None:
+    """Refuse a set whose standard no registered definition covers (invariant 11 of
+    docs/specs/metadata-standards.md), or a field that names a term other than the one the
+    standard's definition gives its property and qualifier."""
+    standard = definitions.by_uri(found.conforms_to)
+    if standard is None:
+        raise RequirementsError(
+            f"{found.requirement_set_id!r} follows {found.conforms_to}, which no registered "
+            "standard's definition covers (docs/specs/metadata-standards.md)"
+        )
+    definition = standard.definition
+    for field in found.fields:
+        given = definition.term(field.property, field.qualifier)
+        if given is not None and given != expand_term(field.term):
+            raise RequirementsError(
+                f"{found.requirement_set_id!r} reads {_described(_named(field))} under "
+                f"{field.term}, but {definition.ref} gives it {given}; a field's term is its "
+                "standard's (docs/specs/metadata-standards.md)"
+            )
+
+
+def _named(field: RequirementField) -> tuple[str, str]:
+    return field.property, json.dumps(field.qualifier, sort_keys=True)
 
 
 def _distinct_terms(set_id: str, fields: Iterable[RequirementField]) -> None:

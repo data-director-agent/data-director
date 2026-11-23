@@ -52,6 +52,7 @@ the default home for anything.
 | `dd-duo`, data use conditions from a pinned release of the GA4GH Data Use Ontology (DUO) | `duo/` |
 | `dd-journals`, journals by ISSN and title, from a pinned OpenAlex snapshot built at install | `journals/` |
 | `dd-dmp-template`, the core requirements of a Data Management Plan (after Science Europe's) | `dmp-template/` |
+| `dd-metadata-records`, metadata records in any standard: codecs, standards' definitions and the pivot a record is checked and converted through | `metadata-records/` |
 | The FAIRsharing server, an MCP server that looks up FAIRsharing records for agents through the tool gateway | `mcp-fairsharing/` |
 | The SPDX server, an MCP server that looks up licences in a pinned release of the SPDX licence list for agents through the tool gateway | `mcp-spdx/` |
 | The subjects server, an MCP server that lists the fields of a subject classification (ANZSRC, OECD) for agents through the tool gateway | `mcp-subjects/` |
@@ -162,7 +163,10 @@ uv run --group mutation mutmut results
 
 ### Keeping the code in shape
 
-The package boundaries are checked by Import Linter and `scripts/check_boundaries.py`. Import
+The package boundaries are checked by Import Linter and `scripts/check_boundaries.py`, and
+`uv run python scripts/check_standard_keys.py` checks that no module outside a metadata
+standard's definition names one of its properties
+([Metadata standards](docs/specs/metadata-standards.md), invariant 3). Import
 Linter also checks inside a package: no package's modules import one another in a cycle (the
 cycles that existed when the check was added are listed in its `ignore_imports`, and may only be
 removed), and `dd_harness` and `dd_app` keep their layers, from the way in down to the checks the

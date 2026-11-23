@@ -22,5 +22,6 @@
   "units": "0.1.0-alpha.0",
   "registry-cache": "0.1.0-alpha.0",
   "subjects": "0.1.0-alpha.0",
-  "dmp-template": "0.1.0-alpha.0"
+  "dmp-template": "0.1.0-alpha.0",
+  "metadata-records": "0.1.0-alpha.0"
 }

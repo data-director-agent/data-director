@@ -186,7 +186,8 @@ rule 20 and invariant 32).
    off at the model's length limit, or one malformed item, never discards the rest. The outcome's
    statement says how many questions got no suggestion and why, in plain words
    (`agents/advisor-documentation/tests/test_suggestion_batches.py`, #1318). The Metadata Librarian suggests only the values its rule
-   table marks `suggest` (`agents/advisor-metadata/src/dd_agent_advisor_metadata/datacite.yaml`):
+   table marks `suggest` (the drafting block of DataCite's definition,
+   `metadata-records/src/dd_metadata_records/standards/datacite-4.yaml`):
    a title, a description, a free keyword and a language; never a creator, contributor, date,
    rights statement, funder, related identifier or place, which only the researcher can give.
    An entry the repository asks for from a named subject classification, such as ORDA's
@@ -238,10 +239,9 @@ rule 20 and invariant 32).
     every kind of document gives the same way: the dataset's title, its creators, its abstract,
     when and where the data were collected, its funder and its licence (`SharedField`, #1284). A
     drafter names the one a question asks for in its `shared_field`, from its own template: the
-    Metadata Librarian's rule table marks the first entry of `titles`, `creators`,
+    Metadata Librarian names the first entry of `titles`, `creators`,
     `descriptions` (Abstract), `dates` (Collected), `geoLocations`, `fundingReferences` and
-    `rightsList` with `shares`
-    (`agents/advisor-metadata/src/dd_agent_advisor_metadata/datacite.yaml`), and the Documentation
+    `rightsList` in `agents/advisor-metadata/src/dd_agent_advisor_metadata/shares.yaml`, and the Documentation
     Editor's README template marks the parts of General information and the Description and
     Access and licence sections (`readme.yaml`). In a project the conductor gives a drafter
     `shared_answers`: for each shared field, the latest answer a person recorded to a question on

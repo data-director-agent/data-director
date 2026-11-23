@@ -35,7 +35,9 @@ Put code in the package whose job it is, not the one you have open; the full tab
   `journals/`: `dd-journals`, journals by ISSN and title, from a pinned OpenAlex snapshot built at
   install; depends on no other member.
   `dmp-template/`: `dd-dmp-template`, the core requirements of a Data Management Plan;
-  depends on no other member. `registry-cache/`:
+  depends on no other member. `metadata-records/`: `dd-metadata-records`, metadata records in any
+  standard (codecs, standards' definitions and the pivot); depends on no other member, and the
+  harness and each agent that drafts or reads a record depend on it. `registry-cache/`:
   `dd-registry-cache`, the local cache in front of a slowly changing registry that the SDK's
   FAIRsharing client uses; depends on no other member. `scripts/`: repository tooling.
 - `sdk/browser/`: `@data-director/agent-view`, the TypeScript and React library every front end

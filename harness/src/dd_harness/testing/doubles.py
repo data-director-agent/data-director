@@ -197,6 +197,9 @@ class AbstainingStub:
         )
 
 
+# The standard `DocumentStub` says its metadata record follows: the harness reads a record only in a
+# standard a registered definition covers (docs/specs/metadata-standards.md, invariant 1).
+STUB_RECORD_STANDARD = "http://datacite.org/schema/kernel-4"
 # What `DocumentStub` drafts for each kind: a media type and a placeholder text in it.
 _DRAFTS: dict[DocumentKind, tuple[str, str]] = {
     DocumentKind.METADATA_RECORD: (
@@ -289,6 +292,7 @@ class DocumentStub:
             payload=Document(
                 document_kind=kind,
                 media_type=media_type,
+                conforms_to=STUB_RECORD_STANDARD if kind == DocumentKind.METADATA_RECORD else None,
                 document_text=text,
                 document_derivation=Derivation.TEMPLATE
                 if self.model_id is None

@@ -353,3 +353,41 @@ def test_a_set_written_before_terms_were_iris_reads_as_schema_org(
         "schema:keywords",
     ]
     assert any("schema_org" in r.getMessage() for r in caplog.records)
+
+
+def test_a_field_may_leave_its_term_to_its_standards_definition(tmp_path: Path) -> None:
+    """docs/specs/metadata-standards.md: the term a field is read under is its standard's."""
+    fields = [
+        {"property": "titles", "obligation": "required"},
+        {
+            "property": "descriptions",
+            "qualifier": {"descriptionType": "Methods"},
+            "obligation": "recommended",
+        },
+    ]
+    root = write(tmp_path / "repositories", ("standards", standard(fields=fields)))
+    merged = load_requirements(root).resolve(ELSEWHERE, "Elsewhere").requirements()
+    assert [f["term"] for f in merged["fields"]] == [
+        "http://schema.org/name",
+        "http://purl.org/dc/terms/provenance",
+    ]
+
+
+def test_a_field_that_names_another_term_than_its_standards_is_refused(tmp_path: Path) -> None:
+    fields = [{"property": "titles", "term": "schema:headline", "obligation": "required"}]
+    root = write(tmp_path / "repositories", ("standards", standard(fields=fields)))
+    with pytest.raises(RequirementsError, match=r"datacite-4@v1 gives it http://schema.org/name"):
+        load_requirements(root)
+
+
+def test_a_set_whose_standard_no_definition_covers_stops_start_up(tmp_path: Path) -> None:
+    """docs/specs/metadata-standards.md, invariant 11."""
+    other = standard(
+        requirement_set_id="ddi",
+        conforms_to="https://ddialliance.org/Specification/DDI-Codebook/2.5/",
+        re3data_names=["DDI"],
+        fields=[{"property": "title", "term": "schema:name", "obligation": "required"}],
+    )
+    root = write(tmp_path / "repositories", ("standards", standard()), ("standards", other))
+    with pytest.raises(RequirementsError, match="no registered standard's definition covers"):
+        load_requirements(root)

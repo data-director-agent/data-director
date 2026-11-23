@@ -9,10 +9,6 @@ path = "app/web/src/components/inventory/InventoryView.tsx"
 lines = 523
 
 [[file]]
-path = "harness/src/dd_harness/deposit.py"
-lines = 506
-
-[[file]]
 path = "harness/src/dd_harness/postgres/__init__.py"
 lines = 597
 

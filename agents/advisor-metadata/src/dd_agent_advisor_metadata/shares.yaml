@@ -1,0 +1,15 @@
+# The value a property's first entry gives the same way as a README does (`SharedField`,
+# docs/specs/drafting.md): an answer the researcher gave there is offered as a suggestion here. A
+# mapping names it by the entry's qualifier, such as a date's dateType. What a property is, how it
+# is written and what is asked about it is the standard's definition's (`dd_metadata_records`);
+# which shared field it gives is Data Director's, so it is kept here. Keyed by DataCite's
+# properties until the librarian drafts from any standard's definition, TODO(#1359).
+titles: title
+creators: creators
+descriptions:
+  Abstract: description
+dates:
+  Collected: dates_collected
+rightsList: licence
+fundingReferences: funder
+geoLocations: place

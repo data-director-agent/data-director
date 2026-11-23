@@ -205,6 +205,8 @@ nav:
           - /journals/README.md
       - DMP template library:
           - /dmp-template/README.md
+      - Metadata records library:
+          - /metadata-records/README.md
       - FAIRsharing server:
           - /mcp-fairsharing/README.md
       - SPDX licence list server:

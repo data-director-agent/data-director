@@ -11,7 +11,7 @@
 # that must be completed, so its labels are the form labels here.
 schema_class: RequirementSet
 requirement_set_id: bodc
-version: 2
+version: 3
 title: NERC EDS British Oceanographic Data Centre
 url: https://www.bodc.ac.uk/submit_data/
 re3data_id: r3d100010192
@@ -48,11 +48,11 @@ fields:
     obligation: required
     form_label: "Dataset abstract:"
   # "Sampling protocol:" and "Analytical protocol:" are mandatory. A DataCite record carries them
-  # as a Methods description; its term must differ from the abstract's (README.md), so it is
-  # schema:measurementTechnique, the technique used to produce the data.
+  # as a Methods description, which DataCite's definition reads as dcterms:provenance, as the other
+  # NERC EDS centres' overrides do (docs/specs/metadata-standards.md).
   - property: descriptions
     qualifier: {descriptionType: Methods}
-    term: schema:measurementTechnique
+    term: dcterms:provenance
     obligation: required
     form_label: "Sampling protocol: and Analytical protocol:"
   - property: dates

@@ -105,8 +105,9 @@ setting stops `dd-advisor-fairness serve` at start-up.
 
 ## Reuse
 
-`datacite.py` reads a DataCite record in DataCite's JSON form and imports nothing from the Data
-Director contract, so it can be lifted into a neutral library.
+`datacite.py` reads a record, DataCite's JSON form unless another standard is named, through the
+pivot terms of its standard's definition in `dd-metadata-records`, the neutral library that holds
+the codecs and definitions, and imports nothing from the Data Director contract.
 
 ## Run it
 

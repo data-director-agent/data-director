@@ -20,11 +20,14 @@ is asked in two steps: whether the location may be published, and at what precis
 then the place (`location.py`, #1073). The question about the subjects names the vocabularies the
 project chose for the dataset (`chosen.py`, #1391).
 
-It reads the DataCite JSON form from `datacite.yaml`. An entry the repository asks for from a
-named subject classification, such as ORDA's categories from the ANZSRC Fields of Research, is
-suggested only from that classification's fields, retrieved through the tool gateway, and each
-suggestion cites the field's record (`categories.py`, #703). So its grounding mode is `retrieval`:
-it records reading its input as a retrieval, and cites its input and each field's record.
+It reads how each property is written and what is asked about it from DataCite's definition in
+`dd_metadata_records` (docs/specs/metadata-standards.md), which shared field a property gives from
+`shares.yaml`, and writes the record through the definition's JSON codec. An entry the repository
+asks for from a named subject classification, such as ORDA's categories from the ANZSRC Fields of
+Research, is suggested only from that classification's fields, retrieved through the tool gateway,
+and each suggestion cites the field's record (`categories.py`, #703). So its grounding mode is
+`retrieval`: it records reading its input as a retrieval, and cites its input and each field's
+record.
 Keywords from other vocabularies are TODO(#956). Regenerating a record drafts it afresh, and names
 the version it replaces in `revises`. It does not convert a record to another standard (R6): it
 abstains with `capability_not_implemented` for requirements in any standard but DataCite.
@@ -33,7 +36,6 @@ Conversion through a shared pivot is TODO(#1363).
 
 from __future__ import annotations
 
-import json
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
@@ -51,6 +53,7 @@ from dd_agent_advisor_metadata.questions import (
     place,
 )
 from dd_agent_advisor_metadata.suggest import Ask, Suggester, Suggestions, TemplateSuggester
+from dd_metadata_records import Standard
 from dd_sdk import shared_answers
 from dd_sdk.agent import (
     AgentResult,
@@ -79,7 +82,9 @@ from dd_sdk.contract.questions import SharedField
 from dd_sdk.tools import ToolRecord
 from dd_sdk.tracing import retrieval_span
 
-DATACITE_FORM = Path(__file__).with_name("datacite.yaml")
+# Which shared field each property gives (`shares.yaml`); the rest of the rule table is the
+# standard's definition's drafting block (docs/specs/metadata-standards.md).
+SHARES = Path(__file__).with_name("shares.yaml")
 MEDIA_TYPE = "application/json"
 # The DataCite property that holds the licence; its question names the licences the repository
 # accepts.
@@ -107,7 +112,7 @@ class Form:
     ask: str | None = None
     publish: str | None = None
     suggest: bool = False
-    # The shared field its first entry gives, or one for each qualifier value (`datacite.yaml`).
+    # The shared field its first entry gives, or one for each qualifier value (`shares.yaml`).
     shares: str | Mapping[str, str] | None = None
 
     def shared_field(self, gap: Gap) -> SharedField | None:
@@ -133,19 +138,25 @@ class _Categories:
 _LATER_ENTRY = re.compile(r"\[[1-9][0-9]*\]")
 
 
-def load_form(path: Path = DATACITE_FORM) -> dict[str, Form]:
-    with path.open(encoding="utf-8") as fh:
-        table = yaml.safe_load(fh)
+def load_form(standard: Standard | None = None, shares: Path = SHARES) -> dict[str, Form]:
+    """How each property the standard's definition gives drafting advice for is written and asked
+    about: the definition's value key and drafting block, and the shared field `shares` names."""
+    definition = (standard or scope.standard()).definition
+    with shares.open(encoding="utf-8") as fh:
+        shared: dict[str, Any] = yaml.safe_load(fh) or {}
+    if unknown := set(shared) - set(definition.drafting):
+        raise ValueError(f"{shares}: {sorted(unknown)} have no drafting advice in {definition.ref}")
     form = {}
-    for prop, entry in table.items():
-        unknown = set(entry) - {"value", "filled", "ask", "publish", "suggest", "shares"}
-        if unknown:
-            raise ValueError(f"{path}: {prop} has unknown keys {sorted(unknown)}")
-        if "value" in entry and "filled" in entry:
-            raise ValueError(f"{path}: {prop} has a value key or a filled value, not both")
-        if "filled" in entry and {"ask", "publish", "suggest", "shares"} & set(entry):
-            raise ValueError(f"{path}: {prop} is filled, so nothing is asked or suggested")
-        form[str(prop)] = Form(**entry)
+    for prop, advice in definition.drafting.items():
+        found = definition.property(prop)
+        value = found.value if found else None
+        if value is not None and "filled" in advice:
+            raise ValueError(
+                f"{definition.ref}: {prop} has a value key or a filled value, not both"
+            )
+        if "filled" in advice and prop in shared:
+            raise ValueError(f"{shares}: {prop} is filled, so nothing is asked or shared")
+        form[prop] = Form(value=value, shares=shared.get(prop), **advice)
     return form
 
 
@@ -228,7 +239,7 @@ class MetadataLibrarian:
                 or f"Metadata record for {requirements.repository_name}",
                 media_type=MEDIA_TYPE,
                 conforms_to=requirements.conforms_to,
-                document_text=json.dumps(record, ensure_ascii=False, indent=2) + "\n",
+                document_text=scope.standard().write(record, MEDIA_TYPE),
                 document_derivation=Derivation.TEMPLATE,
                 revises=current.version_ref if current else None,
                 document_questions=questions,

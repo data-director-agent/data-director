@@ -28,7 +28,7 @@ fixes what the word "harness" names.
 | `mcp-spdx/` | `data-director-mcp-spdx` | The SPDX server: a framework-neutral MCP server that looks up a licence in a pinned release of the SPDX licence list, packaged with its source and licence, answering records the Rights and Licensing Adviser cites through the tool gateway ([Grounding](grounding.md)). Reaches no network; imports no other member. |
 | `mcp-subjects/` | `data-director-mcp-subjects` | The subjects server: a framework-neutral MCP server that lists the fields of a subject classification held by `dd-subjects` (ANZSRC Fields of Research, OECD Fields of R&D) and gives one by its code, answering records the Metadata Librarian cites for a category it suggests through the tool gateway ([Grounding](grounding.md)). Reaches no network; imports only `dd-subjects`. |
 | `mcp-doaj/` | `data-director-mcp-doaj` | The DOAJ server: a framework-neutral client and MCP server that reads an open access journal's terms (licences, copyright, deposit policy, preservation, charges) from the Directory of Open Access Journals by ISSN or title. The Policy Adviser reads it as a library. Imports no other member. |
-| `metadata-records/` | `data-director-metadata-records` | Not built yet, TODO(#1358). The codecs and the definitions of metadata standards that write, read and check a metadata record in any standard ([Metadata standards](metadata-standards.md)). Speaks no Data Director contract and imports no other member. |
+| `metadata-records/` | `data-director-metadata-records` | The codecs and the definitions of metadata standards that write, read and check a metadata record in any standard ([Metadata standards](metadata-standards.md)). Speaks no Data Director contract and imports no other member. |
 
 Beside the Python members, `inventory/browser/` is `@data-director/inventory`, a TypeScript
 library that reads a `FileInventory`: it parses, summarises, arranges the files as folders,
@@ -61,7 +61,7 @@ The contract, transport, grounding and the app's own process boundary are specif
 
 1. The dependency graph between members at run time is:
    - `sdk` depends on `registry-cache` only;
-   - `harness` depends on `sdk` only;
+   - `harness` depends on `sdk` and `metadata-records` only;
    - `workbench` depends on `harness` and `sdk`, and on nothing else in the workspace;
    - `app` depends on `harness`, `sdk` and `inventory`, the last to describe a folder on a local
      install ([Projects](projects.md)), and on nothing else in the workspace;
@@ -69,11 +69,10 @@ The contract, transport, grounding and the app's own process boundary are specif
      depends on it;
    - `broker` depends on `sdk` only; no member depends on it;
    - each agent depends on `sdk` only, and an agent that drafts or reads a metadata record also on
-     `metadata-records` once it exists, TODO(#1358);
+     `metadata-records`;
    - `inventory` depends on no other member;
    - `registry-cache` depends on no other member;
-   - `metadata-records` depends on no other member, and the harness depends on it as well as on
-     `sdk`, once it exists, TODO(#1358).
+   - `metadata-records` depends on no other member.
 
    The graph is what each member declares in `[project].dependencies`; no check compares the
    declarations with this list, so a new first-party dependency is a change to this spec.
