@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-agent-advisor-ethics"
-version = "0.1.0a1"
+version = "0.1.0a2"
 description = "advisor.ethics: the Research Ethics Adviser persona (alpha)"
 requires-python = ">=3.14"
 license = "MIT"

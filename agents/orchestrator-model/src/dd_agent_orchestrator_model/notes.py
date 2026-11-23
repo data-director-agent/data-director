@@ -206,7 +206,8 @@ def inventory_note(message: Message) -> str | None:
         note += " Its limitations: " + "; ".join(held.inventory_limitations) + "."
     return (
         note + " The harness puts it into the input of any agent that takes an inventory: leave "
-        "`inventory` out, and send an empty input to an agent that takes only an inventory."
+        "`inventory` and `project_file_inventory` out, and send an empty input to an agent that "
+        "takes only an inventory."
     )
 
 

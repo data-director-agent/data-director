@@ -142,7 +142,8 @@ intended design, and each part says where it is not built yet.
    metadata record whatever its state, and `project_metadata_approved`, the version a person
    approved last, as a `DraftRequest`'s `metadata_record` is; #432) or `GivenProjectPlan`
    (`project_plan_approved`, the version of the project's `dmp` document a person approved last,
-   an `ApprovedPlan`); an agent that reads
+   an `ApprovedPlan`) or `GivenProjectInventory` (`project_file_inventory`, the project's
+   `FileInventory`, as a `DraftRequest`'s `inventory` is); an agent that reads
    the documents it is given also says so in its card's `reads_attached` ([Agents](agents.md),
    invariant 12): where the accepted schema on the agent's card declares the slot, the
    conductor fills it as it fills a `DraftRequest`'s, by slot name and never by the class's name,
@@ -154,7 +155,10 @@ intended design, and each part says where it is not built yet.
    decision to withhold or generalise as saying the data are sensitive, and `advisor.policy` looks
    up each decided funder's policy. Each takes a person's decision over what its caller wrote
    (each agent's `given.py`). `advisor.dmp` reviews the plan written in the project this way when no
-   attached document is marked as the plan (invariant 32). `advisor.fairness` gives feedback on the metadata record this way,
+   attached document is marked as the plan (invariant 32). `advisor.ethics` checks the names in the inventory and carries over
+   what its personal data detector found, and `advisor.standards`, `advisor.repository` and
+   `advisor.storage` take formats, kinds of data and size from it where their caller left them
+   out (#1540). `advisor.fairness` gives feedback on the metadata record this way,
    at any point in the work and for no step of its own
    (`harness/tests/test_project_metadata_record_given.py`).
    Filling any other class is not built yet.
@@ -175,8 +179,9 @@ intended design, and each part says where it is not built yet.
    values and never anyone's words). The profile lists the classes that may be given to an agent
    whose card declares a `hosted` model; where it does not say, `inventory` and `decisions` may. The conductor refuses anything
    else before it is sent, with a Problem Details response, and records the refusal. The key is
-   `hosted_models` (`dd_harness.policy`). A `DraftRequest`'s inventory, a plain `FileInventory`
-   and a `Message`'s `project_inventory` are `inventory`; a metadata record, the version a
+   `hosted_models` (`dd_harness.policy`). A `DraftRequest`'s inventory, a plain `FileInventory`,
+   a `Message`'s `project_inventory` and an agent's own class's `project_file_inventory` are
+   `inventory`; a metadata record, the version a
    drafter regenerates, a person's answers, the `project_documents` of a `DraftRequest` or an agent's own class and the `project_metadata_draft`, `project_metadata_approved` and `project_plan_approved` of an agent's own class are
    `documentation`; a `Message`'s `project_researchers` and a `DraftRequest`'s `researchers` are
    `researcher`; the `project_decisions` of any of these, and the `project_repository` of a

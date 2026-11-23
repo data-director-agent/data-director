@@ -1,6 +1,6 @@
 # advisor.storage
 
-**Model-backed alpha** (`0.1.0a1`): the Storage Adviser. It serves one step of the process flow,
+**Model-backed alpha** (`0.1.0a2`): the Storage Adviser. It serves one step of the process flow,
 `setup.storage` (plan storage, backup and security during the project), which is this
 repository's addition to the Blueprint's Phase 1: where data live while a project runs is the
 first thing a data service asks, and one of a Data Management Plan's core requirements (Storage
@@ -8,7 +8,7 @@ and backup during the project), but no step of the Blueprint's flow asks it.
 
 | Part | In this agent |
 |---|---|
-| Input | `StorageNeeds`: `expected_volume_gb`, `involves_personal_data` (`yes`, `no` or `unknown`) and `external_collaborators`, as the researcher says them. The conductor fills `institution_storage` from the deployment's profile (`GivenInstitutionStorage`) and replaces whatever a caller sent there. |
+| Input | `StorageNeeds`: `expected_volume_gb`, `involves_personal_data` (`yes`, `no` or `unknown`) and `external_collaborators`, as the researcher says them. The conductor fills `institution_storage` from the deployment's profile (`GivenInstitutionStorage`) and replaces whatever a caller sent there. In a project it also fills `project_file_inventory` with the project's inventory (`GivenProjectInventory`, #1540). When no `expected_volume_gb` is given, the inventory's total file size, rounded up to whole gigabytes, is used, and the statement says this is the current size, not a forecast. |
 | Payload | `StorageAdvice`: `storage_options` (each with its `storage_id`, what it `offers` and its `concerns`), `excluded_storage` (each with why), `plan_questions`, a `summary` and how it came about, and `limitations`. |
 | Grounding mode | `retrieval`: each service rests on what the profile vouches for about it, cited as `institution-storage:<storage_id>` under the profile's reference, which the harness's source check resolves against the profile it loaded. |
 | Outcomes | `succeeded` with advice; `abstained` (`no_candidates_retrieved`) when the profile names no storage; `referred` (`requires_human_judgement`, to a data steward) when the data involve personal data and no service named is approved for them. |

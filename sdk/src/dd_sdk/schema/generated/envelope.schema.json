@@ -1493,6 +1493,25 @@
          "title": "GivenProjectDocuments",
          "type": "object"
       },
+      "GivenProjectInventory": {
+         "additionalProperties": false,
+         "description": "Mixed into an agent's own input class when the agent reads the project's file inventory: its files, the tables' fields and what the inventory command's personal data detector found. In a project the conductor fills project_file_inventory by this name and never needs to know the input class (docs/specs/projects.md, invariant 6); outside one, the caller sends it.",
+         "properties": {
+            "project_file_inventory": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/FileInventory"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The project's file inventory, as the researcher added it last. In a project the conductor fills it and a caller leaves it out. Absent while the project holds no inventory."
+            }
+         },
+         "title": "GivenProjectInventory",
+         "type": "object"
+      },
       "GivenProjectMetadataRecord": {
          "additionalProperties": false,
          "description": "Mixed into an agent's own input class when the agent reads the project's metadata record: its latest version, whatever its state, and the version a person approved last. In a project the conductor fills project_metadata_draft and project_metadata_approved by these names and never needs to know the input class (docs/specs/projects.md, invariant 6); outside one, the caller sends them.",

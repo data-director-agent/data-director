@@ -1008,6 +1008,17 @@ classes:
       - project_metadata_draft
       - project_metadata_approved
 
+  GivenProjectInventory:
+    mixin: true
+    description: >-
+      Mixed into an agent's own input class when the agent reads the project's file inventory:
+      its files, the tables' fields and what the inventory command's personal data detector
+      found. In a project the conductor fills project_file_inventory by this name and never needs
+      to know the input class (docs/specs/projects.md, invariant 6); outside one, the caller sends
+      it.
+    slots:
+      - project_file_inventory
+
   GivenProjectPlan:
     mixin: true
     description: >-
@@ -2043,6 +2054,12 @@ slots:
       The version of the project's metadata record a person approved last. In a project the
       conductor fills it and a caller leaves it out. Absent when no version has been approved.
     range: ApprovedMetadataRecord
+    inlined: true
+  project_file_inventory:
+    description: >-
+      The project's file inventory, as the researcher added it last. In a project the conductor
+      fills it and a caller leaves it out. Absent while the project holds no inventory.
+    range: FileInventory
     inlined: true
   project_plan_approved:
     description: >-

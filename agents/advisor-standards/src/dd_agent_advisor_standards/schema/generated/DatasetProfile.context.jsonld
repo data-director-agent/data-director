@@ -13,8 +13,20 @@
       "FieldSummary": {
          "@id": "https://w3id.org/data-director/FieldSummary"
       },
+      "FileInventory": {
+         "@id": "https://w3id.org/data-director/FileInventory"
+      },
+      "InventoryFile": {
+         "@id": "https://w3id.org/data-director/InventoryFile"
+      },
+      "InventoryPart": {
+         "@id": "https://w3id.org/data-director/InventoryPart"
+      },
       "MissingCodeCount": {
          "@id": "https://w3id.org/data-director/MissingCodeCount"
+      },
+      "PersonalDataFinding": {
+         "@id": "https://w3id.org/data-director/PersonalDataFinding"
       },
       "ProjectFact": {
          "@id": "https://w3id.org/data-director/ProjectFact"
@@ -141,6 +153,86 @@
       "file_decision": {
          "@id": "https://w3id.org/data-director/file_decision"
       },
+      "file_description": {
+         "@id": "http://purl.org/dc/terms/description"
+      },
+      "file_fields": {
+         "@id": "https://w3id.org/data-director/file_fields",
+         "@type": "@id"
+      },
+      "file_identified_by": {
+         "@id": "https://w3id.org/data-director/file_identified_by"
+      },
+      "file_media_type": {
+         "@id": "http://www.w3.org/ns/dcat#mediaType"
+      },
+      "file_path": {
+         "@id": "https://w3id.org/data-director/file_path"
+      },
+      "file_pronom_ids": {
+         "@id": "https://w3id.org/data-director/file_pronom_ids"
+      },
+      "file_role": {
+         "@id": "https://w3id.org/data-director/file_role"
+      },
+      "file_sha256": {
+         "@id": "http://spdx.org/rdf/terms#checksumValue"
+      },
+      "file_size": {
+         "@id": "http://www.w3.org/ns/dcat#byteSize"
+      },
+      "finding_column": {
+         "@id": "https://w3id.org/data-director/finding_column"
+      },
+      "finding_confidence": {
+         "@id": "https://w3id.org/data-director/finding_confidence"
+      },
+      "finding_detector": {
+         "@id": "https://w3id.org/data-director/finding_detector"
+      },
+      "finding_examined": {
+         "@id": "https://w3id.org/data-director/finding_examined"
+      },
+      "finding_file": {
+         "@id": "https://w3id.org/data-director/finding_file"
+      },
+      "finding_kind": {
+         "@id": "https://w3id.org/data-director/finding_kind"
+      },
+      "finding_proportion": {
+         "@id": "https://w3id.org/data-director/finding_proportion"
+      },
+      "finding_target": {
+         "@id": "https://w3id.org/data-director/finding_target"
+      },
+      "inventory_files": {
+         "@id": "https://w3id.org/data-director/inventory_files",
+         "@type": "@id"
+      },
+      "inventory_identified_with": {
+         "@id": "https://w3id.org/data-director/inventory_identified_with"
+      },
+      "inventory_limitations": {
+         "@id": "https://w3id.org/data-director/inventory_limitations"
+      },
+      "inventory_made_at": {
+         "@id": "http://www.w3.org/ns/prov#generatedAtTime",
+         "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+      },
+      "inventory_parts": {
+         "@id": "https://w3id.org/data-director/inventory_parts",
+         "@type": "@id"
+      },
+      "inventory_personal_data": {
+         "@id": "https://w3id.org/data-director/inventory_personal_data",
+         "@type": "@id"
+      },
+      "inventory_tool": {
+         "@id": "http://www.w3.org/ns/prov#wasGeneratedBy"
+      },
+      "inventory_tool_version": {
+         "@id": "https://w3id.org/data-director/inventory_tool_version"
+      },
       "keywords": {
          "@id": "http://www.w3.org/ns/dcat#keyword"
       },
@@ -163,6 +255,29 @@
       "name": {
          "@id": "https://w3id.org/data-director/name"
       },
+      "part_folder": {
+         "@id": "https://w3id.org/data-director/part_folder"
+      },
+      "part_identified_with": {
+         "@id": "https://w3id.org/data-director/part_identified_with"
+      },
+      "part_limitations": {
+         "@id": "https://w3id.org/data-director/part_limitations"
+      },
+      "part_made_at": {
+         "@id": "http://www.w3.org/ns/prov#generatedAtTime",
+         "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+      },
+      "part_personal_data": {
+         "@id": "https://w3id.org/data-director/part_personal_data",
+         "@type": "@id"
+      },
+      "part_tool": {
+         "@id": "http://www.w3.org/ns/prov#wasGeneratedBy"
+      },
+      "part_tool_version": {
+         "@id": "https://w3id.org/data-director/part_tool_version"
+      },
       "period_end": {
          "@id": "https://w3id.org/data-director/period_end"
       },
@@ -174,6 +289,10 @@
       },
       "project_decisions": {
          "@id": "https://w3id.org/data-director/project_decisions",
+         "@type": "@id"
+      },
+      "project_file_inventory": {
+         "@id": "https://w3id.org/data-director/project_file_inventory",
          "@type": "@id"
       },
       "proposed_because": {

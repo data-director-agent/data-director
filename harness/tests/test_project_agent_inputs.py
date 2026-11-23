@@ -1,7 +1,8 @@
 """An agent's own input class, filled in a project (docs/specs/projects.md, invariant 6): a class
 that mixes in `GivenProjectDocuments` or `GivenProjectDecisions` is given the attached documents or
 the decided facts by slot name, which the conductor reads from the agent's card, never from the
-class's name. The profile's `hosted_models` and `attached_documents` hold as for a core class."""
+class's name. One that mixes in `GivenProjectInventory` is given the project's inventory. The
+profile's `hosted_models` and `attached_documents` hold as for a core class."""
 
 from __future__ import annotations
 
@@ -21,6 +22,7 @@ from dd_harness.testing import (
     ProbeReading,
     ProbeRecord,
     ScriptedAgent,
+    file_inventory,
     make_conductor,
     request,
 )
@@ -112,6 +114,42 @@ def test_a_class_with_the_mixins_is_given_the_documents_and_decisions_in_place_o
     assert (document["documentation_name"], document["documentation_text"]) == ("dmp.md", PLAN)
     (decision,) = given["project_decisions"]
     assert decision["fact_funder_name"] == FUNDER["fact_funder_name"]
+
+
+def test_a_class_with_the_inventory_mixin_is_given_the_projects_inventory(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    """The inventory is filled by slot name, replacing nothing a caller could set, and is
+    `inventory`, which a hosted model may be given by default (invariant 8)."""
+    projects.add_inventory(
+        project, file_inventory("survey.csv"), acted_for=TEST_PRINCIPAL, caused_by="test"
+    )
+    runs = tmp_path / "runs"
+    conductor = conductor_over(runs, projects, hosted(FactStub()))
+
+    env = conductor.invoke(
+        in_project(projects, project, request("stub.facts", ProbeReading())),
+        acting_for=TEST_PRINCIPAL,
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    given = stored_input(runs, env.invocation_id)["project_file_inventory"]
+    assert [f["file_path"] for f in given["inventory_files"]] == ["survey.csv"]
+
+
+def test_a_class_with_the_inventory_mixin_is_given_none_while_the_project_holds_none(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    runs = tmp_path / "runs"
+    conductor = conductor_over(runs, projects, FactStub())
+    sent = ProbeReading.model_validate({"project_file_inventory": file_inventory("forged.csv")})
+
+    env = conductor.invoke(
+        in_project(projects, project, request("stub.facts", sent)), acting_for=TEST_PRINCIPAL
+    )
+
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "project_file_inventory" not in stored_input(runs, env.invocation_id)
 
 
 def test_the_document_a_person_marked_as_the_plan_is_given_as_the_plan(

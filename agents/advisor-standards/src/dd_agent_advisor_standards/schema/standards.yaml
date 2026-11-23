@@ -32,9 +32,11 @@ classes:
       is shaped. Every slot maps onto an external vocabulary rather than a Data Director namespace.
       In a project the conductor also gives the facts people decided; a decided field of study,
       description of the data or summary of the project fills what the profile leaves empty
-      (#1529).
+      (#1529). It also gives the project's inventory; its media types and tables' fields fill
+      what the profile leaves empty (#1540).
     mixins:
       - GivenProjectDecisions
+      - GivenProjectInventory
     slots:
       - schema_class
       - title

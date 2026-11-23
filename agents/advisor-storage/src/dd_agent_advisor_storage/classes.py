@@ -12,6 +12,7 @@ from typing import Literal
 from pydantic import Field
 
 from dd_sdk.contract.facts import InstitutionStorage
+from dd_sdk.contract.inventory import FileInventory
 from dd_sdk.contract.models import Derivation, Frozen, Grounded
 
 
@@ -28,6 +29,8 @@ class StorageNeeds(Frozen):
     external_collaborators: bool | None = None
     # Filled by the conductor from the profile (`GivenInstitutionStorage`).
     institution_storage: list[InstitutionStorage] = Field(default_factory=list)
+    # Filled by the conductor in a project (`GivenProjectInventory`).
+    project_file_inventory: FileInventory | None = None
 
 
 class StorageOption(Grounded):

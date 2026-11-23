@@ -4,6 +4,7 @@ researcher said, each service cited under the profile's reference and resolved a
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,7 @@ from dd_agent_advisor_storage.classes import PersonalDataAnswer, StorageAdvice, 
 from dd_harness.conductor import Conductor
 from dd_harness.testing import PERMISSIVE, TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
+from dd_sdk.contract.inventory import FileInventory, IdentificationMethod, InventoryFile
 from dd_sdk.contract.models import Envelope, GroundingMode, OutcomeStatus, ReasonCode
 from dd_sdk.schema import gen
 
@@ -150,3 +152,51 @@ def test_the_source_id_names_the_profiles_label() -> None:
 
 def test_its_schemas_are_generated_from_its_linkml() -> None:
     assert gen.stale(SCHEMA) == [], f"run `uv run dd-gen-schema {SCHEMA}`"
+
+
+def inventory_of(size: int) -> FileInventory:
+    return FileInventory(
+        inventory_tool="dd-inventory",
+        inventory_tool_version="0.1.0",
+        inventory_made_at=datetime(2026, 11, 1, tzinfo=UTC),
+        inventory_files=[
+            InventoryFile(
+                file_path="scans/a.xy",
+                file_size=size,
+                file_sha256="a" * 64,
+                file_identified_by=IdentificationMethod.EXTENSION,
+            )
+        ],
+    )
+
+
+def test_the_inventorys_size_stands_in_for_an_expected_size_not_given(tmp_path: Path) -> None:
+    """In a project the conductor gives the inventory (#1540): 150 GB of files is more than the
+    filestore's 100 GB allowance, as an expected 150 GB would be."""
+    held = conductor(tmp_path, [FILESTORE])
+    from_inventory = advise(
+        held,
+        involves_personal_data=PersonalDataAnswer.NO,
+        project_file_inventory=inventory_of(150 * 10**9),
+    )
+    expected = advise(held, involves_personal_data=PersonalDataAnswer.NO, expected_volume_gb=150)
+
+    def concerns(env: Envelope) -> list[str]:
+        (option,) = env.payload_as(StorageAdvice).storage_options
+        return option.concerns
+
+    assert concerns(from_inventory) == concerns(expected)
+
+
+def test_an_expected_size_given_stands_over_the_inventorys(tmp_path: Path) -> None:
+    held = conductor(tmp_path, [FILESTORE])
+    env = advise(
+        held,
+        involves_personal_data=PersonalDataAnswer.NO,
+        expected_volume_gb=10,
+        project_file_inventory=inventory_of(150 * 10**9),
+    )
+    plain = advise(held, involves_personal_data=PersonalDataAnswer.NO, expected_volume_gb=10)
+    assert env.payload_as(StorageAdvice).storage_options == (
+        plain.payload_as(StorageAdvice).storage_options
+    )

@@ -4,6 +4,9 @@
       "GroundingRef": {
          "@id": "https://w3id.org/data-director/GroundingRef"
       },
+      "PersonalDataFinding": {
+         "@id": "https://w3id.org/data-director/PersonalDataFinding"
+      },
       "SensitivityFlag": {
          "@id": "https://w3id.org/data-director/agents/ethics/SensitivityFlag"
       },
@@ -32,12 +35,43 @@
       "field": {
          "@id": "https://w3id.org/data-director/agents/ethics/field"
       },
+      "files": {
+         "@id": "https://w3id.org/data-director/agents/ethics/files"
+      },
+      "finding_column": {
+         "@id": "https://w3id.org/data-director/finding_column"
+      },
+      "finding_confidence": {
+         "@id": "https://w3id.org/data-director/finding_confidence"
+      },
+      "finding_detector": {
+         "@id": "https://w3id.org/data-director/finding_detector"
+      },
+      "finding_examined": {
+         "@id": "https://w3id.org/data-director/finding_examined"
+      },
+      "finding_file": {
+         "@id": "https://w3id.org/data-director/finding_file"
+      },
+      "finding_kind": {
+         "@id": "https://w3id.org/data-director/finding_kind"
+      },
+      "finding_proportion": {
+         "@id": "https://w3id.org/data-director/finding_proportion"
+      },
+      "finding_target": {
+         "@id": "https://w3id.org/data-director/finding_target"
+      },
       "flags": {
          "@id": "https://w3id.org/data-director/agents/ethics/flags",
          "@type": "@id"
       },
       "grounded_on": {
          "@id": "https://w3id.org/data-director/grounded_on",
+         "@type": "@id"
+      },
+      "inventory_findings": {
+         "@id": "https://w3id.org/data-director/agents/ethics/inventory_findings",
          "@type": "@id"
       },
       "limitations": {

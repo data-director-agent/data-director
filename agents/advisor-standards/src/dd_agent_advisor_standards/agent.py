@@ -67,7 +67,7 @@ class StandardsAgent:
         agent_id="advisor.standards",
         title="Standards Librarian",
         icon="📚",
-        version="0.5.0",
+        version="0.6.0",
         description=(
             "Recommends controlled vocabularies, ontologies and data formats from FAIRsharing "
             "for a dataset profile, whether its data are collected or still being planned, "
