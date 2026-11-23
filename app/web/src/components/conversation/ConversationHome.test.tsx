@@ -16,15 +16,17 @@ import {
   turnBody,
   Unreachable,
 } from "../../conversation/api";
-import { ConversationSessionProvider } from "../../conversation/session";
 import type { Conversation } from "../../conversation/types";
 import { type FlowApi, FlowApiContext } from "../../flow/api";
 import { ActiveProjectProvider } from "../../project/active";
+import { ConversationSessionProvider } from "../../conversation/session";
+import { homePath } from "../../route";
 import intakeCompleteFixture from "../../../fixtures/intake-complete.json";
 import intakePendingFixture from "../../../fixtures/intake-pending.json";
 import projectCreatedFixture from "../../../fixtures/project-created.json";
 import projectsFixture from "../../../fixtures/projects.json";
 import projectFixture from "../../../fixtures/project-documents.json";
+import answersFixture from "../../../fixtures/project-answers.json";
 import {
   type DocumentVersion,
   httpProjectApi,
@@ -46,6 +48,7 @@ import { cassetteTransport, RunTransportContext, type RunTransport } from "../..
 import { SUCCEEDED, turnTransport, type TurnSent } from "../../test/turns";
 import { AnnouncerProvider } from "../ui/Announcer";
 import { ConversationHome } from "./ConversationHome";
+import { askAboutQuestion } from "./useAskAbout";
 
 // Phase 1's name as the app shows it, read from the fixture rather than repeated.
 const PHASE_ONE = flowFixture.phases[0]?.name ?? "";
@@ -943,6 +946,97 @@ describe("ConversationHome", () => {
       await renderHome(withOrchestrator(), fakeApi({ get }));
       expect(await screen.findByText(/could not open that conversation/)).toBeVisible();
       expect(location.search).toBe("");
+    });
+
+    describe("a step or a draft's question asked about from another page", () => {
+      const asked = flowFixture.phases.flatMap((p) => p.steps)[0];
+      if (!asked) throw new Error("the flow fixture has no step");
+
+      /** The page drawn, left and drawn again in one session, as on going to the journey map
+       * and back; `back` is the address it comes back to. */
+      async function leaveAndComeBack(
+        back: string,
+        sendTurn: TurnSent,
+        { project = httpProjectApi, writing = "" }: { project?: ProjectApi; writing?: string } = {},
+      ) {
+        localStorage.setItem("dd-project", CONVERSATION.project_id ?? "p1");
+        history.replaceState(null, "", "/?conversation=c9");
+        const api = fakeApi({ sendTurn });
+        const page = (shown: boolean) => (
+          <AnnouncerProvider>
+            <FlowApiContext.Provider value={FLOW}>
+              <ProjectApiContext.Provider value={project}>
+                <ActiveProjectProvider>
+                  <ConversationApiContext.Provider value={api}>
+                    <RunTransportContext.Provider value={api.turns}>
+                      <ConversationSessionProvider>
+                        {shown && <ConversationHome directory={withOrchestrator()} />}
+                      </ConversationSessionProvider>
+                    </RunTransportContext.Provider>
+                  </ConversationApiContext.Provider>
+                </ActiveProjectProvider>
+              </ProjectApiContext.Provider>
+            </FlowApiContext.Provider>
+          </AnnouncerProvider>
+        );
+        const rendered = await opened(render(page(true)));
+        await screen.findByRole("list", { name: "Conversation" });
+        if (writing) await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), writing);
+        rendered.rerender(page(false));
+        history.replaceState(null, "", back);
+        rendered.rerender(page(true));
+        return opened(rendered);
+      }
+
+      it("starts a new conversation with the step's prompt in the box, unsent", async () => {
+        const sendTurn = vi.fn(() => Promise.resolve());
+        await leaveAndComeBack(homePath({ ask: asked.id }), sendTurn);
+        const box = screen.getByRole("textbox", { name: "What would you like to do?" });
+        await waitFor(() => expect(box).toHaveValue(asked.prompt));
+        expect(screen.queryByRole("list", { name: "Conversation" })).not.toBeInTheDocument();
+        await waitFor(() => expect(box).toHaveFocus());
+        expect(new URLSearchParams(location.search).has("ask")).toBe(false);
+        expect(new URLSearchParams(location.search).has("conversation")).toBe(false);
+        expect(sendTurn).not.toHaveBeenCalled();
+      });
+
+      it("starts a new conversation with a draft's question in the box, unsent", async () => {
+        const answers = answersFixture as ProjectDocuments;
+        const readme = answers.documents[0];
+        const question = readme?.versions[0]?.questions[0];
+        if (!readme || !question) throw new Error("the answers fixture asks nothing");
+        const documents = () => Promise.resolve(answers);
+        const sendTurn = vi.fn(() => Promise.resolve());
+        await leaveAndComeBack(
+          homePath({ question: `${readme.document_id}/${question.question_id}` }),
+          sendTurn,
+          { project: { ...httpProjectApi, documents } },
+        );
+        const box = () => screen.getByRole("textbox", { name: "What would you like to do?" });
+        await waitFor(() => expect(box()).toHaveValue(askAboutQuestion("README", question)));
+        expect(screen.queryByRole("list", { name: "Conversation" })).not.toBeInTheDocument();
+        expect(new URLSearchParams(location.search).has("question")).toBe(false);
+        expect(sendTurn).not.toHaveBeenCalled();
+      });
+
+      it("asks before replacing a message being written, and replaces it only when told", async () => {
+        await leaveAndComeBack(homePath({ ask: asked.id }), vi.fn(() => Promise.resolve()), {
+          writing: "my own words",
+        });
+        const dialog = await screen.findByRole("dialog");
+        // The dialog is modal, so the box behind it is hidden from the accessibility tree meanwhile.
+        const box = (hidden = false) => screen.getByRole("textbox", { name: "What would you like to do?", hidden });
+        expect(box(true)).toHaveValue("my own words");
+        await userEvent.click(within(dialog).getByRole("button", { name: "Replace it" }));
+        await waitFor(() => expect(box()).toHaveValue(asked.prompt));
+        expect(screen.queryByRole("list", { name: "Conversation" })).not.toBeInTheDocument();
+      });
+
+      it("keeps the open conversation when the step is not in the flow", async () => {
+        await leaveAndComeBack(homePath({ ask: "no.such-step" }), vi.fn(() => Promise.resolve()));
+        expect(await screen.findByRole("list", { name: "Conversation" })).toBeVisible();
+        expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toHaveValue("");
+      });
     });
   });
 

@@ -6,7 +6,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 dd:Reply a sh:NodeShape ;
-    rdfs:comment "The payload of a conversational agent: the text of its reply. An orchestrator's reply is grounded on its input and on the envelopes of the invocations it delegated to." ;
+    rdfs:comment "The payload of a conversational agent: the text of its reply. An orchestrator's reply is grounded on its input and on the envelopes of the invocations it delegated to. An orchestrator may propose a data description fact from what the researcher said, for a person to confirm (docs/specs/orchestration.md)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
@@ -35,6 +35,11 @@ dd:Reply a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path dd:reply_text ],
+        [ sh:class dd:ProjectFact ;
+            sh:description "Facts the agent proposes for a person to confirm. A proposal is never a fact until a person decides it (docs/specs/projects.md)." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 8 ;
+            sh:path dd:proposed_facts ],
         [ sh:class dd:Question ;
             sh:description "The questions the reply asks, in the order they are put to the researcher one at a time; between 1 and 8, with unique question_key values. Absent when the reply asks nothing or asks in prose." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
@@ -107,6 +112,197 @@ dd:GroundingRef a sh:NodeShape ;
             sh:path dd:source_id ] ;
     sh:targetClass dd:GroundingRef .
 
+dd:ProjectFact a sh:NodeShape ;
+    rdfs:comment "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, an output a data management plan committed to share, a standard, vocabulary or format the researcher chose for the dataset, which attached document is the project's data management plan, or what data the project collects and how (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The licence decided, as an SPDX identifier or a URL." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 14 ;
+            sh:path dd:licence_id ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a sharing commitment, the repository the plan committed to share the output in, as the plan names it; absent where it names none. A plan that names several for one output gives a sharing commitment for each." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 15 ;
+            sh:path dd:commitment_repository ],
+        [ sh:datatype xsd:string ;
+            sh:description "The kind of check that raised the fact, in the checking agent's words, such as duplicate, system_file or third_party. Kept as it was given; the core does not enumerate it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path dd:fact_check_kind ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a data description fact, the file formats the data are kept in, in the researcher's words." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 27 ;
+            sh:path dd:data_formats ],
+        [ sh:datatype xsd:string ;
+            sh:description "The key a decision counts by within its kind: the funder's identifier or name, the repository's re3data identifier or name, the file's path, the field or path judged sensitive, licence, or the standard chosen and what it is chosen for. The last decision on a kind and subject stands." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:fact_subject ;
+            sh:pattern "\\S" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The funders, journals or institutions that require the repository." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path dd:fact_required_by ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a data description fact, which existing data the project reuses, and how, in the researcher's words." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 29 ;
+            sh:path dd:data_reused ],
+        [ sh:description "The funder's ROR identifier, as a URL, where it is known." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 3 ;
+            sh:path dd:fact_funder_ror ],
+        [ sh:description "The funder's Crossref Funder ID, as a DOI URL, where it is known." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path dd:fact_crossref_funder_id ],
+        [ sh:datatype xsd:string ;
+            sh:description "The required repository's re3data identifier, such as r3d100010199, where known." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:fact_re3data_id ;
+            sh:pattern "^r3d[0-9]{9}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a sharing commitment, the licence the plan committed to, as the plan names it; absent where it names none." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 17 ;
+            sh:path dd:commitment_licence ],
+        [ sh:description "Whether the file is to be deposited." ;
+            sh:in ( "include" "exclude" "undecided" ) ;
+            sh:maxCount 1 ;
+            sh:order 9 ;
+            sh:path dd:file_decision ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a data description fact, how much data the project expects, in the researcher's words." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 28 ;
+            sh:path dd:data_volume ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a sharing commitment, the digest of the attached document's text (its documentation_digest) the quote is from." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 19 ;
+            sh:path dd:commitment_document ;
+            sh:pattern "^[0-9a-f]{64}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The funder's name, as its policy record or the researcher gives it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dd:fact_funder_name ],
+        [ sh:description "Whether the sensitive field or file may be published, and how." ;
+            sh:in ( "publish" "generalise" "withhold" "undecided" ) ;
+            sh:maxCount 1 ;
+            sh:order 12 ;
+            sh:path dd:sensitivity_decision ],
+        [ sh:datatype xsd:string ;
+            sh:description "The path of the file the fact is about, relative to the dataset's root folder, as the inventory gives it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path dd:fact_file_path ;
+            sh:pattern "^[^/]" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The required repository's name." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:fact_repository_name ],
+        [ sh:datatype xsd:string ;
+            sh:description "Why the agent proposes the fact, in a sentence for the person deciding. Kept with the proposal and shown to the person, never given to an agent." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 30 ;
+            sh:path dd:proposed_because ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a standard fact, what the standard is chosen for: dataset, or field:<name> for one field of the dataset's tables. Absent means the dataset." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 23 ;
+            sh:path dd:standard_target ;
+            sh:pattern "^(dataset|field:\\S.*)$" ],
+        [ sh:description "What the fact is about, which says which value slots apply." ;
+            sh:in ( "funder" "required_repository" "file_inclusion" "sensitivity" "licence" "sharing_commitment" "standard" "data_management_plan" "data_description" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path dd:fact_kind ],
+        [ sh:description "For a location that may be published or generalised, the precision agreed. Absent where the subject is not a location." ;
+            sh:in ( "exact" "site" "region" "country" ) ;
+            sh:maxCount 1 ;
+            sh:order 13 ;
+            sh:path dd:location_precision ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a data description fact, how the data are collected or produced, in the researcher's words." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 26 ;
+            sh:path dd:data_collection_method ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a sharing commitment, how openly the plan committed to share the output (such as open, embargoed or on request), as the plan says it; absent where it says nothing." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 16 ;
+            sh:path dd:commitment_access ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a standard fact, the name of the standard, vocabulary, ontology or format chosen, as its registry record or the researcher gives it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 20 ;
+            sh:path dd:standard_name ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a data management plan fact, the digest of the attached document's text (its documentation_digest) that is the project's plan." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 24 ;
+            sh:path dd:plan_document ;
+            sh:pattern "^[0-9a-f]{64}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The field name, or the file path, judged sensitive, such as a lat or lon field, or a file of site coordinates." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 11 ;
+            sh:path dd:sensitive_subject ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a sharing commitment, the plan's own words the commitment was read from, verbatim, so the person deciding can see the passage it rests on." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 18 ;
+            sh:path dd:commitment_quote ],
+        [ sh:description "For a standard fact, a persistent identifier of the standard, as a URL, such as its FAIRsharing DOI, where it is known." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 21 ;
+            sh:path dd:standard_id ],
+        [ sh:description "For a standard fact, what kind of standard was chosen, where it is known." ;
+            sh:in ( "metadata_standard" "controlled_vocabulary" "ontology" "terminology" "data_format" "field_format" ) ;
+            sh:maxCount 1 ;
+            sh:order 22 ;
+            sh:path dd:standard_kind ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a data description fact, what data the project collects, produces or reuses, and of which types, in the researcher's words." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 25 ;
+            sh:path dd:data_collected ] ;
+    sh:targetClass dd:ProjectFact .
+
 dd:Question a sh:NodeShape ;
     rdfs:comment "One question a conversational agent asks the researcher in its reply, shown as a form field and answered with the reply's other questions in the next turn. A choice question has a fixed set of options, of which one or several may be chosen, and where question_other is true the researcher may answer in their own words instead; option values are unique within the question. A short or long text question is answered in the researcher's own words and has no options; a short text question may suggest answers (question_suggestions), which the researcher may take or ignore. Asking never suspends the run: the researcher may skip a question, or ignore them all and type (docs/specs/orchestration.md)." ;
     sh:closed true ;
@@ -146,6 +342,12 @@ dd:Question a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
             sh:path dd:question_multiple ],
+        [ sh:description "How the question is answered." ;
+            sh:in ( "choice" "short_text" "long_text" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 2 ;
+            sh:path dd:question_kind ],
         [ sh:datatype xsd:string ;
             sh:description "The question's identifier within its reply, which an answer names: a lower-case letter, then up to 39 lower-case letters, digits and hyphens." ;
             sh:maxCount 1 ;
@@ -153,12 +355,6 @@ dd:Question a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path dd:question_key ;
-            sh:pattern "^[a-z][a-z0-9-]{0,39}$" ],
-        [ sh:description "How the question is answered." ;
-            sh:in ( "choice" "short_text" "long_text" ) ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:order 2 ;
-            sh:path dd:question_kind ] ;
+            sh:pattern "^[a-z][a-z0-9-]{0,39}$" ] ;
     sh:targetClass dd:Question .
 

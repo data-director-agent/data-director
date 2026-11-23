@@ -2,7 +2,8 @@
 commitment read from a plan names the passage it rests on and the document that holds it (#962),
 and a standard chosen names the standard, and what it is chosen for only as the dataset or one
 field (#1391); a project's data management plan names the attached document, under the one
-subject a plan has (#1447)."""
+subject a plan has (#1447); and a data description says what data the project collects, under
+the same one subject (#160)."""
 
 from __future__ import annotations
 
@@ -112,3 +113,34 @@ def test_a_project_has_one_plan_subject() -> None:
     """Every plan fact has the same subject, so the last decision on it is the current plan."""
     with pytest.raises(ValidationError):
         ProjectFact.model_validate({**PLAN, "fact_subject": "grant/dmp.docx"})
+
+
+DESCRIPTION: dict[str, Any] = {
+    "fact_kind": "data_description",
+    "fact_subject": PLAN_SUBJECT,
+    "data_collected": "Interview transcripts and survey responses.",
+    "data_collection_method": "Semi-structured interviews, recorded and transcribed.",
+}
+
+
+def test_a_data_description_says_what_data_are_collected() -> None:
+    fact = ProjectFact.model_validate(DESCRIPTION)
+    assert fact.fact_kind == FactKind.DATA_DESCRIPTION
+    assert set(FACT_NEEDS[FactKind.DATA_DESCRIPTION]) <= fact.model_fields_set
+
+
+def test_a_data_description_without_what_is_collected_is_refused() -> None:
+    with pytest.raises(ValidationError):
+        ProjectFact.model_validate({**DESCRIPTION, "data_collected": None})
+
+
+def test_how_formats_volume_and_reuse_are_optional() -> None:
+    """A researcher may say what they collect before they know how much, or in what formats."""
+    bare = {k: v for k, v in DESCRIPTION.items() if k != "data_collection_method"}
+    assert ProjectFact.model_validate(bare).data_volume is None
+
+
+def test_a_project_has_one_data_description_subject() -> None:
+    """Every description has the same subject, so the last decision on it is the current one."""
+    with pytest.raises(ValidationError):
+        ProjectFact.model_validate({**DESCRIPTION, "fact_subject": "interviews"})

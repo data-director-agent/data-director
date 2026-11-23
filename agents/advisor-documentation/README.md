@@ -148,7 +148,7 @@ will be kept up to date. Each is drafted from the project's decided facts, as gi
 | Section | Drafted from |
 |---|---|
 | Project details | the decided funders |
-| Data description and collection | the inventory's files, if the data already exist |
+| Data description and collection | the confirmed description of the project's data, in the researcher's words, and the inventory's files, if the data already exist; complete when the description says how the data are collected or which existing data are reused |
 | Documentation and data quality | the standards, vocabularies and formats chosen |
 | Legal and ethical requirements | the sensitive data identified, and how each is to be handled |
 | Data sharing and long-term preservation | the chosen and required repositories, the decided licence, and the licences the repository offers |

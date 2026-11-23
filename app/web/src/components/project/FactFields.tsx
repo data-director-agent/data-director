@@ -1,8 +1,8 @@
 /**
  * The values of one project fact, as a person sets them: whether a file goes in, whether a
  * sensitive field or file may be published and how precisely, a funder, a required repository,
- * the licence, what the plan commits to share, or a standard, vocabulary or format chosen
- * (docs/specs/projects.md, invariant 28).
+ * the licence, what the plan commits to share, a standard, vocabulary or format chosen, or what
+ * data the project collects and how (docs/specs/projects.md, invariant 28).
  *
  * When a person changes a proposal, its kind and subject stay as proposed, since a decision is on
  * that fact; when they state a fact of their own, they choose the kind, and the subject is taken
@@ -15,6 +15,7 @@ import {
   FACT_KINDS,
   FILE_DECISIONS,
   type FactKind,
+  PLAN_SUBJECT,
   PRECISIONS,
   type ProjectFact,
   SENSITIVITY_DECISIONS,
@@ -38,6 +39,7 @@ function TextValue({
   fact,
   set,
   required = false,
+  long = false,
 }: {
   label: string;
   hint?: string;
@@ -45,6 +47,8 @@ function TextValue({
   fact: ProjectFact;
   set: Setter;
   required?: boolean;
+  /** A few sentences in a person's own words, rather than a name or an identifier. */
+  long?: boolean;
 }) {
   const id = useId();
   const value = fact[slot];
@@ -58,14 +62,25 @@ function TextValue({
           {hint}
         </p>
       )}
-      <input
-        id={id}
-        type="text"
-        required={required}
-        aria-describedby={hint ? `${id}-hint` : undefined}
-        value={Array.isArray(value) ? value.join(", ") : (value ?? "")}
-        onChange={(event) => set(slot, event.target.value)}
-      />
+      {long ? (
+        <textarea
+          id={id}
+          rows={3}
+          required={required}
+          aria-describedby={hint ? `${id}-hint` : undefined}
+          value={typeof value === "string" ? value : ""}
+          onChange={(event) => set(slot, event.target.value)}
+        />
+      ) : (
+        <input
+          id={id}
+          type="text"
+          required={required}
+          aria-describedby={hint ? `${id}-hint` : undefined}
+          value={Array.isArray(value) ? value.join(", ") : (value ?? "")}
+          onChange={(event) => set(slot, event.target.value)}
+        />
+      )}
     </div>
   );
 }
@@ -245,6 +260,26 @@ function KindValues({ fact, set, isNew }: { fact: ProjectFact; set: Setter; isNe
     case "data_management_plan":
       // Which document is the plan is chosen on the Documents page, not typed here.
       return null;
+    case "data_description":
+      // In the researcher's own words: every agent in the project, such as the plan's drafter,
+      // is given them as written.
+      return (
+        <>
+          <TextValue
+            label="What data the project collects, produces or reuses"
+            hint="Of which types, such as interview recordings and survey responses."
+            slot="data_collected"
+            fact={fact}
+            set={set}
+            required
+            long
+          />
+          <TextValue label="How they are collected or produced" slot="data_collection_method" fact={fact} set={set} long />
+          <TextValue label="Existing data reused, and how" slot="data_reused" fact={fact} set={set} long />
+          <TextValue label="Formats" hint="Such as WAV audio and CSV tables." slot="data_formats" fact={fact} set={set} />
+          <TextValue label="Volume" hint="Such as about 20 GB." slot="data_volume" fact={fact} set={set} />
+        </>
+      );
     case "standard":
       // What it is chosen for stays as proposed; a standard a person states is for the dataset.
       return (
@@ -323,6 +358,8 @@ export function blankFact(kind: FactKind): ProjectFact {
       return { fact_kind: kind, fact_subject: "", sensitivity_decision: "undecided" };
     case "licence":
       return { fact_kind: kind, fact_subject: "licence" };
+    case "data_description":
+      return { fact_kind: kind, fact_subject: PLAN_SUBJECT };
     default:
       return { fact_kind: kind, fact_subject: "" };
   }

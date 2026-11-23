@@ -11,12 +11,13 @@ const directory = normalise(several as unknown as RawAgentsResponse);
 describe("servingStep", () => {
   it("joins a step to the agents whose manifest serves its id", () => {
     const index = servingIndex(directory.agents);
-    const vocabularies = FLOW.phases[0]?.steps[1];
-    if (!vocabularies) throw new Error("no second step in Phase 1");
-    expect(vocabularies.id).toBe("setup.vocabularies");
+    const vocabularies = FLOW.phases
+      .flatMap((p) => p.steps)
+      .find((s) => s.id === "preparation.vocabularies");
+    if (!vocabularies) throw new Error("no vocabularies step in the flow");
     expect(servingStep(vocabularies, index)).toEqual(
       directory.agents
-        .filter((a) => a.serves.includes("setup.vocabularies"))
+        .filter((a) => a.serves.includes("preparation.vocabularies"))
         .map((a) => a.id),
     );
     expect(servingStep(vocabularies, index)).toContain("advisor.standards");
@@ -39,7 +40,7 @@ describe("servingStep", () => {
   it("does not join an agent to a step by a requirement the step names", () => {
     const [first] = directory.agents;
     if (!first) throw new Error("no agent in the fixture");
-    const index = servingIndex([{ ...first, serves: ["setup.vocabularies"] }]);
+    const index = servingIndex([{ ...first, serves: ["preparation.vocabularies"] }]);
     const formats = {
       id: "preparation.formats",
       text: "Recommend open formats",

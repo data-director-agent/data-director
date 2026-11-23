@@ -18,8 +18,9 @@
  * shows their version, so that they can see it laid out before they approve it.
  *
  * An earlier version opens read-only, with a line saying it is not the latest and a link to the
- * latest. Beneath a README's latest draft, the person may ask for changes in their own words
- * (`RevisionRequest`). After a decision, focus moves to the document's heading, since the form it was in has
+ * latest. Beneath the latest version of a document an agent drafted, the person may ask that agent
+ * to continue drafting it from the answers recorded (`ContinueDrafting`), and beneath a README's
+ * latest draft, ask for changes in their own words (`RevisionRequest`). After a decision, focus moves to the document's heading, since the form it was in has
  * gone. A decision the server refused because the document has moved on is said in an alert,
  * which takes the focus, above the latest version, which the page has read again.
  */
@@ -40,6 +41,7 @@ import { documentName } from "../../project/name";
 import { Permitted, StewardPermitted } from "../../project/view";
 import { Link } from "../../route";
 import { Button } from "../ui/Button";
+import { ContinueDrafting } from "./ContinueDrafting";
 import { DecisionForm } from "./DecisionForm";
 import { Provenance, State } from "./DocumentFacts";
 import { DocumentHistory } from "./DocumentHistory";
@@ -285,6 +287,16 @@ export function DocumentReader({
         </Permitted>
       )}
       <Permitted action="contribute">
+        <ContinueDrafting
+          key={`${document.document_id}:draft`}
+          projectId={projectId}
+          document={document}
+          version={version}
+          name={name}
+          isLatest={isLatest}
+          onDrafted={onAnswered}
+          onStale={refused}
+        />
         <RevisionRequest
           key={document.document_id}
           projectId={projectId}
@@ -327,7 +339,7 @@ function Deciding({
   return (
     <p className="callout">
       This version is not the {name} yet: it asks what the drafter needs before writing it. Answer
-      its questions on its card in the conversation, then ask for the {name} to be written.
+      its questions, then choose “Continue drafting” below to have the {name} written.
     </p>
   );
 }
