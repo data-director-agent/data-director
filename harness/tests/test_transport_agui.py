@@ -22,6 +22,7 @@ from dd_harness.grounding import GroundingReport
 from dd_harness.identity import OperatorAssertion, RefusalReason, Unauthenticated
 from dd_harness.observe import STEPS, Step
 from dd_harness.sources import SourceReport
+from dd_harness.storage import STAGES
 from dd_harness.testing import (
     RESTRICTIVE,
     TEST_PRINCIPAL,
@@ -433,7 +434,7 @@ def test_a_run_cancelled_before_it_starts_never_runs_its_agent(runs_dir: Path) -
     assert agent.calls == 0
 
 
-def test_the_replay_of_a_stored_run_starts_and_finishes(runs_dir: Path) -> None:
+def test_the_replay_of_a_stored_run_streams_its_stages(runs_dir: Path) -> None:
     conductor = make_conductor(runs_dir, AbstainingStub())
     envelope = conductor.invoke(request("stub.abstain", fakes.message()), acting_for=TEST_PRINCIPAL)
     app = _app(conductor)
@@ -446,9 +447,28 @@ def test_the_replay_of_a_stored_run_starts_and_finishes(runs_dir: Path) -> None:
 
     found, missing = asyncio.run(go())
     conductor.close()
-    assert [e["type"] for e in found] == ["RUN_STARTED", "RUN_FINISHED"]
+    types = [e["type"] for e in found]
+    assert (types[0], types[-1]) == ("RUN_STARTED", "RUN_FINISHED")
+    assert found[1]["type"] == "CUSTOM" and found[1]["name"] == "dd.plan"
+    assert types.count("STEP_STARTED") == types.count("STEP_FINISHED") > 0
     assert found[-1]["result"] == envelope.to_document()
     assert missing == 404
+
+
+def test_a_run_stored_without_its_stages_replays_as_start_and_finish(runs_dir: Path) -> None:
+    """A run stored before stages were kept (docs/specs/transport.md)."""
+    conductor = make_conductor(runs_dir, AbstainingStub())
+    envelope = conductor.invoke(request("stub.abstain", fakes.message()), acting_for=TEST_PRINCIPAL)
+    (runs_dir / envelope.invocation_id / STAGES).unlink()
+    app = _app(conductor)
+
+    async def go() -> list[dict[str, Any]]:
+        async with _client(app) as hc:
+            return _events((await hc.get(f"/agui/runs/{envelope.invocation_id}")).text)
+
+    found = asyncio.run(go())
+    conductor.close()
+    assert [e["type"] for e in found] == ["RUN_STARTED", "RUN_FINISHED"]
 
 
 class _Refusing:

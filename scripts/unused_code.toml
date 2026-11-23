@@ -53,16 +53,6 @@ name = "external_attr"
 how = "zipfile reads it from the ZipInfo when it writes the entry"
 
 [[reached]]
-path = "harness/src/dd_harness/transport/agui.py"
-name = "step_finished"
-how = "a run observer's method, which the run calls by name (dd_harness.observe)"
-
-[[reached]]
-path = "harness/src/dd_harness/transport/agui.py"
-name = "step_started"
-how = "a run observer's method, which the run calls by name (dd_harness.observe)"
-
-[[reached]]
 path = "sdk/src/dd_sdk/serve.py"
 name = "on_cancel_task"
 how = "an override: a2a-sdk's request handler dispatches each A2A method to it"

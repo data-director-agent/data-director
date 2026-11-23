@@ -126,3 +126,10 @@ def test_the_grant_the_harness_sent_never_reaches_the_run_store(tmp_path: Path) 
     for path in runs.rglob("*"):
         if path.is_file():
             assert sent["token"] not in path.read_text(encoding="utf-8", errors="replace"), path
+
+
+def test_a_secret_in_a_list_valued_attribute_is_dropped() -> None:
+    span = {"name": "chat", "attributes": {"notes": ["fine", f"Bearer {SENTINEL}"], "n": [1, 2]}}
+    result = scrub([span])
+    assert result.spans[0]["attributes"] == {"n": [1, 2]}
+    assert result.reasons == [Reason.SHAPE]
