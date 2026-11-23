@@ -6,14 +6,26 @@ Plan ([Drafting documents](../../docs/specs/drafting.md)). It is likely to chang
 
 The Documentation Editor drafts a README and a data dictionary for a dataset (Blueprint R5), from
 the project's file inventory and approved metadata record, and a Data Management Plan from the
-decisions made in the project and the researcher's answers. It serves two steps of the process
-flow, `preparation.documentation` and `setup.dmp-create` ([A Data Management
-Plan](#a-data-management-plan)).
+decisions made in the project and the researcher's answers. It serves three steps of the process
+flow, `setup.documentation`, `preparation.documentation` and `setup.dmp-create` ([A Data
+Management Plan](#a-data-management-plan)).
 
-It does not serve the Phase 1 step `setup.documentation`, planning the documentation before data
-are collected: a project has a file inventory only once its data exist, so the editor would have
-nothing to draft from. That step has no agent yet; a planning mode that needs no inventory is
-#1017.
+## Before the data are collected
+
+At the Phase 1 step `setup.documentation` the project has no file inventory yet, as its data do not
+exist (#1017). Asked for a README then, the editor plans the documentation instead of abstaining.
+The README has the same sections, but those with a `plan_ask` in `readme.yaml` (Files, Methods and
+Variables) ask what the researcher expects: the files and formats they will produce and how they
+will name them, how they will collect and process the data and what to record as they go, and the
+variables, units and missing-value codes they expect. The first draft asks first, with a note that
+says it is a plan. A model writer is told only that the data are not collected yet
+(`data_collected: false`) and is given no files, so it writes prose only from the approved metadata
+record, if there is one.
+
+The questions are the same ones the README asks later, so the answers are kept: once the inventory
+is added, the README drafted at `preparation.documentation` places them, and the researcher may
+revise any answer that changed during collection. A data dictionary is drafted from the inventory's
+tables, so before collection the editor abstains on one.
 
 ## Ask first, then write
 

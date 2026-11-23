@@ -219,7 +219,7 @@ def test_the_suggestion_is_the_first_open_step_from_the_entry_and_never_a_gate()
 
 
 def test_a_step_an_agent_serves_is_suggested_before_one_no_agent_does() -> None:
-    """Entry 1's first step has no agent (#1017), so a served step is put first (#1377); a step
+    """Where Entry 1's first step has no agent, a served step is put first (#1377); a step
     begun still comes first, and with nothing served the first open step is suggested."""
     start = entry(1)
     manifest = [{"agent_id": "advisor.standards", "serves": ["setup.vocabularies"]}]
