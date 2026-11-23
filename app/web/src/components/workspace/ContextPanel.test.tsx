@@ -110,8 +110,8 @@ describe("ContextPanel", () => {
     expect(await within(waiting).findByText(/Nothing waits on you/)).toBeVisible();
   });
 
-  it("names the step suggested next and asks about it in the message box", async () => {
-    const onAsk = vi.fn();
+  it("names the step suggested next and starts a new conversation about it", async () => {
+    const onStartStep = vi.fn();
     const step = FLOW.phases[1]?.steps[0];
     if (!step) throw new Error("the flow fixture has no step");
     const progress: ProjectProgress = {
@@ -123,12 +123,12 @@ describe("ContextPanel", () => {
       project: SETTLED,
       flow: { state: "loaded", flow: FLOW },
       progress,
-      onAsk,
+      onStartStep,
     });
     const where = region("Where we are");
     expect(within(where).getByText("Suggested next").nextElementSibling).toHaveTextContent(step.label);
     await userEvent.click(within(where).getByRole("button", { name: "Ask about the next step" }));
-    expect(onAsk).toHaveBeenCalledWith(expect.stringContaining(step.label));
+    expect(onStartStep).toHaveBeenCalledWith(step);
   });
 
   it("shows what Data Director works from, each fact marked proposed, the unknown named together", async () => {

@@ -161,11 +161,12 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const mode = useReplyMode(asking, intakeOpen(projectId, intakeRead));
   useShowDraft(text, intakeRead.settled, mode.setMode);
 
+  // A new conversation is not started while a reply is awaited.
+  const startConversation = busy ? undefined : (step: FlowStep) => startStep(step);
   const tracked = trackedProgress(projectId, progress, {
     projectApi,
     documents,
-    // A new conversation is not started while a reply is awaited.
-    startConversation: busy ? undefined : (step: FlowStep) => startStep(step),
+    startConversation,
     answerIntakeAgain: intakeRead.intake ? intakeRead.openAgain : undefined,
   });
 
@@ -373,6 +374,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             fairFeedback={directory.agents.some((a) => a.payload === FAIRNESS_CLASS)}
             refresh={turnCount}
             onAsk={(question) => askInBox(question, text, putText, reply)}
+            onStartStep={startConversation}
             onInventorySaved={() => void reloadProjects()}
           />
         }
