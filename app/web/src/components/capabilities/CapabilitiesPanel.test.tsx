@@ -45,6 +45,14 @@ describe("CapabilitiesPanel", () => {
     expect(screen.getByText("quality review")).toBeVisible();
   });
 
+  it("links to the agent's page on the documentation site", () => {
+    render(<AgentDetail agent={agent("advisor.quality")} />);
+    expect(screen.getByRole("link", { name: /documentation for Metadata Reviewer/ })).toHaveAttribute(
+      "href",
+      "https://data-director-agent.github.io/data-director/agents/advisor-quality/",
+    );
+  });
+
   it("offers nothing to run and no technical tabs", () => {
     render(<AgentDetail agent={agent("advisor.quality")} />);
     expect(screen.queryByRole("tab")).toBeNull();

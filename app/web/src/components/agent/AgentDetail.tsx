@@ -20,6 +20,7 @@ import { AgentSpecView } from "@data-director/agent-view/react";
 
 import { AgentIcon, type AgentView, agentName } from "../../manifest/normalise";
 import { CapabilitiesPanel } from "../capabilities/CapabilitiesPanel";
+import { agentDocsUrl } from "./agentDocs";
 
 export function AgentDetail({
   agent,
@@ -62,6 +63,12 @@ export function AgentDetail({
           )}
         </p>
       )}
+      <p className="agent-docs-link">
+        <a href={agentDocsUrl(agent.id)} target="_blank" rel="noreferrer">
+          Read the documentation for {agentName(agent)}
+          <span className="visually-hidden"> (opens in a new tab)</span>
+        </a>
+      </p>
       <CapabilitiesPanel agent={agent} ownAccounts={ownAccounts} />
       <details className="agent-technical">
         <summary>Technical details: what its agent card declares</summary>
