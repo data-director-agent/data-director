@@ -50,10 +50,12 @@ hand-written inventories, and asks whether the categories it suggests from the r
 controlled vocabulary are those a curator would choose. It also asks whether each category cites
 the vocabulary record it came from, and whether every value only the researcher can give is asked
 about and left null. A repository asking for another standard must be told the capability is not
-implemented. The committed baseline is the template suggester's, which suggests no category, so it recalls
-none. A model suggests categories only from a classification retrieved through the tool gateway,
-and the evaluation's conductor has no gateway yet, so a run with a model recalls none either
-(TODO(#703)). The cases are to be replaced by the ORDA corpus (TODO(#22)).
+implemented. A model suggests categories only from a classification retrieved through the tool
+gateway, so the evaluation's conductor serves the classification server in process and grants it to
+the librarian; a workbench evaluation can be given tool servers in this way. The committed baseline
+is the template suggester's, which suggests no category, so it recalls none; a fake-model test runs
+the whole evaluation through the gateway and shows a curator's category recalled and cited. The
+cases are to be replaced by the ORDA corpus (TODO(#22)).
 
 ## Invariants
 
