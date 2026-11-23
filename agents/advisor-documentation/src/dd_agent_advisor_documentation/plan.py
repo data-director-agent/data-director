@@ -73,7 +73,16 @@ SECTION_FACTS: dict[str, dict[str, Any]] = {
     "documentation-quality": {"from": ["standards"], "suggest": "documents"},
     "storage-backup": {"suggest": "documents"},
     "legal-ethical": {"from": ["sensitivity"], "suggest": "documents"},
+    # A plan is written before the repository (Phase 3) and the licence (Phase 5) are chosen, so
+    # its sharing question asks for what is intended, not what is decided.
     "sharing-preservation": {
+        "ask": (
+            "what you intend for sharing and long-term preservation: how and when the data will "
+            "be shared, under what licence and restrictions, where they will be preserved and "
+            "how they will get a persistent identifier. If the repository or licence is not "
+            "chosen yet, say what you expect, such as a repository that issues DOIs; the plan "
+            "is updated once they are chosen."
+        ),
         "from": ["repository", "licence", "licences"],
         "suggest": "documents",
         "shares": "licence",
