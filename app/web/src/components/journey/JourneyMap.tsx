@@ -1,8 +1,8 @@
 /**
  * A project's journey drawn as a map (docs/specs/app.md, "The journey map"), after the Blueprint's
  * §8 figures: each phase a line of stops, the entry points pinned to the phases they join at, the
- * intake's decision points as diamonds before the steps they can skip, a band across the whole
- * saying every action is recorded, and the last phase looping back rather than ending.
+ * intake's decision points as diamonds before the steps they can skip, and the last phase looping
+ * back rather than ending.
  *
  * Every stop is a real button in an ordered list, so the map reads in order with a keyboard or a
  * screen reader and reflows at any zoom; the lines and dots are decoration drawn in CSS, and each
@@ -15,7 +15,6 @@ import "./JourneyMap.css";
 import { MapPin, Repeat } from "lucide-react";
 
 import type { Line, Station, StationState } from "../../flow/journey";
-import { Link } from "../../route";
 import { ToggleButton } from "../ui/Button";
 
 export const STATE_WORDS: Record<StationState, string> = {
@@ -73,10 +72,6 @@ export function JourneyMap({
 }) {
   return (
     <div className={waitingOnly ? "journey journey-waiting-only" : "journey"}>
-      <p className="journey-rail">
-        Everything Data Director does in this project is recorded, so it can be checked later.{" "}
-        <Link to="/activity">See the activity</Link>
-      </p>
       <ol className="journey-lines" aria-label="The phases in order">
         {lines.map((line) => {
           const headingId = `journey-phase-${line.phase.number}`;
