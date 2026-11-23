@@ -30,6 +30,7 @@ from dd_harness import (
     policy,
     profile_vouched,
     shacl,
+    span_scrub,
 )
 from dd_harness import observe as steps
 from dd_harness import sources as source_check
@@ -168,14 +169,19 @@ def invoke_agent(conductor: RunHost, run: RunState) -> None:
         run.result = failed_result(f"Agent raised: {exc}")
         run.prob = problems.agent_error(spec.agent_id, exc)
     else:
-        _received(conductor, run, received)
+        issued = [
+            g.token if isinstance(g, DelegationGrant | ToolsGrant) else g
+            for g in (sent_grant, tools_grant, model_grant)
+            if g is not None
+        ]
+        _received(conductor, run, received, issued)
     run.watch.finished(steps.AGENT)
     if run.watch.cancelled():
         run.result, run.prob = cancelled_result(spec.agent_id, ran=True)
         run.from_agent = False
 
 
-def _received(conductor: RunHost, run: RunState, received: Received) -> None:
+def _received(conductor: RunHost, run: RunState, received: Received, issued: list[str]) -> None:
     """Take what the agent answered. An agent that returns a payload other than the class it
     declared, or one its own class schema does not admit, or prompts that are not those its
     calls name, is contradicting its specification: a programmer error, handled the same way as
@@ -183,8 +189,16 @@ def _received(conductor: RunHost, run: RunState, received: Received) -> None:
     spec = run.spec
     run.from_agent = True
     # A remote agent's spans were recorded in its own process; bring them into this trace so the
-    # linter reads one tree (docs/specs/agents.md).
-    conductor.tracing.import_spans(run.trace_id, received.spans)
+    # linter reads one tree (docs/specs/agents.md), with no attribute that could hold a secret
+    # (docs/specs/security.md, invariant 2).
+    spans = span_scrub.scrub_received(
+        received.spans,
+        issued,
+        agent_id=spec.agent_id,
+        invocation_id=run.request.invocation_id,
+        principal=run.acting_for.principal_id,
+    )
+    conductor.tracing.import_spans(run.trace_id, spans)
     result = run.result = received.result
     run.model_calls = result.model_calls
     run.prompts, unmatched = _matched_prompts(result)
