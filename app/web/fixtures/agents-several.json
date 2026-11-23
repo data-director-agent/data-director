@@ -1758,9 +1758,9 @@
         }
       },
       "serves": [
-        "setup.vocabularies",
         "setup.formats",
-        "preparation.formats"
+        "preparation.formats",
+        "preparation.vocabularies"
       ],
       "settings": {},
       "skills": [],
