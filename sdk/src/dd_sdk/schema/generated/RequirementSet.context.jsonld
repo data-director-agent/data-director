@@ -94,9 +94,6 @@
       "schema_class": {
          "@id": "https://w3id.org/data-director/schema_class"
       },
-      "schema_org": {
-         "@id": "https://w3id.org/data-director/schema_org"
-      },
       "shex": "http://www.w3.org/ns/shex#",
       "spdx": "http://spdx.org/rdf/terms#",
       "supplied_on": {
@@ -104,6 +101,9 @@
       },
       "target": {
          "@id": "https://w3id.org/data-director/target"
+      },
+      "term": {
+         "@id": "https://w3id.org/data-director/term"
       },
       "title": {
          "@id": "http://purl.org/dc/terms/title"

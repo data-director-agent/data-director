@@ -181,12 +181,13 @@ dd:RequirementField a sh:NodeShape ;
             sh:order 3 ;
             sh:path dd:obligation ],
         [ sh:datatype xsd:string ;
-            sh:description "The schema.org term the property maps to, by which the record is read as RDF." ;
+            sh:description "The term of an existing vocabulary the property maps to, by which the record is read as RDF: a CURIE with a registered prefix (schema, dcterms, dcat or prov), such as dcterms:provenance, or the full IRI of a term in one of those vocabularies (docs/specs/metadata-standards.md, invariant 7). A set kept before terms were IRIs names a schema.org local name in schema_org, which reads as schema:<name>." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
-            sh:path dd:schema_org ],
+            sh:path dd:term ;
+            sh:pattern "^((schema|dcterms|dcat|prov):[A-Za-z][A-Za-z0-9_-]*|(http://schema\\.org/|http://purl\\.org/dc/terms/|http://www\\.w3\\.org/ns/dcat#|http://www\\.w3\\.org/ns/prov#)[A-Za-z][A-Za-z0-9_-]*)$" ],
         [ sh:description "Where in the app a researcher supplies the field's value, which validation names beside a missing one. Absent means documents, the metadata record's questions." ;
             sh:in ( "documents" "researchers" "facts" "repository" ) ;
             sh:maxCount 1 ;

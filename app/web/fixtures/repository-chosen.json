@@ -5,32 +5,32 @@
       "form_label": "Title",
       "obligation": "required",
       "property": "titles",
-      "schema_org": "name"
+      "term": "schema:name"
     },
     {
       "form_label": "Authors",
       "obligation": "required",
       "property": "creators",
-      "schema_org": "creator",
-      "supplied_on": "researchers"
+      "supplied_on": "researchers",
+      "term": "schema:creator"
     },
     {
       "form_label": "Item type",
       "obligation": "required",
       "property": "types.resourceTypeGeneral",
-      "schema_org": "additionalType"
+      "term": "schema:additionalType"
     },
     {
       "form_label": "Keywords",
       "obligation": "required",
       "property": "subjects",
-      "schema_org": "keywords"
+      "term": "schema:keywords"
     },
     {
       "obligation": "recommended",
       "property": "contributors",
-      "schema_org": "contributor",
-      "supplied_on": "researchers"
+      "supplied_on": "researchers",
+      "term": "schema:contributor"
     },
     {
       "obligation": "recommended",
@@ -38,13 +38,13 @@
       "qualifier": {
         "dateType": "Created"
       },
-      "schema_org": "dateCreated"
+      "term": "schema:dateCreated"
     },
     {
       "form_label": "Related materials",
       "obligation": "recommended",
       "property": "relatedIdentifiers",
-      "schema_org": "citation"
+      "term": "schema:citation"
     },
     {
       "form_label": "Description",
@@ -53,12 +53,12 @@
       "qualifier": {
         "descriptionType": "Abstract"
       },
-      "schema_org": "description"
+      "term": "schema:description"
     },
     {
       "obligation": "recommended",
       "property": "geoLocations",
-      "schema_org": "spatialCoverage"
+      "term": "schema:spatialCoverage"
     },
     {
       "form_label": "Categories",
@@ -67,19 +67,19 @@
       "qualifier": {
         "subjectScheme": "ANZSRC Fields of Research"
       },
-      "schema_org": "about"
+      "term": "schema:about"
     },
     {
       "form_label": "License",
       "obligation": "required",
       "property": "rightsList",
-      "schema_org": "license"
+      "term": "schema:license"
     },
     {
       "form_label": "Funding",
       "obligation": "recommended",
       "property": "fundingReferences",
-      "schema_org": "funding"
+      "term": "schema:funding"
     }
   ],
   "filled_by_repository": [
@@ -125,12 +125,12 @@
   ],
   "requirement_sets": [
     {
-      "ref": "datacite-4@v2",
-      "sha256": "2b8caed6181e75b258fe51d8d516818f6764874d61005352f2cd23eb1c905806"
+      "ref": "datacite-4@v3",
+      "sha256": "96cb85773093143275f94df6e21a4243f38677d5a5a5eb7903c46b129da86f6b"
     },
     {
-      "ref": "orda@v3",
-      "sha256": "f703877afb1c4afb5a6aa1ff52af76e46abdad934847c3a93890cbce444776f8"
+      "ref": "orda@v4",
+      "sha256": "2d758d2fdae05ec1ae6ac1896cd23831c691139d43eb244e7761be6f5bba231e"
     }
   ],
   "unconfirmed": [

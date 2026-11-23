@@ -117,7 +117,7 @@ def choose_a_repository(tmp_path: Path, projects: ProjectStore, project: str) ->
         "title": "DataCite Metadata Schema 4",
         "conforms_to": DATACITE,
         "re3data_names": ["DataCite Metadata Schema"],
-        "fields": [{"property": "titles", "schema_org": "name", "obligation": "required"}],
+        "fields": [{"property": "titles", "term": "schema:name", "obligation": "required"}],
         "required_documents": ["metadata_record"],
     }
     path = tmp_path / "repositories" / "standards" / "datacite-4.yaml"

@@ -9,7 +9,7 @@
 # marked "*" are mandatory, so its labels are the form labels here.
 schema_class: RequirementSet
 requirement_set_id: eidc
-version: 1
+version: 2
 title: NERC EDS Environmental Information Data Centre
 url: https://eidc.ac.uk/deposit
 re3data_id: r3d100010199
@@ -23,49 +23,50 @@ conforms_to: http://datacite.org/schema/kernel-4
 
 fields:
   - property: titles
-    schema_org: name
+    term: schema:name
     obligation: required
     form_label: Title
   - property: creators
-    schema_org: creator
+    term: schema:creator
     obligation: required
     form_label: Authors
   # "* Description (min 100 characters)": an executive summary of what, where, when, how and why.
   - property: descriptions
     qualifier: {descriptionType: Abstract}
-    schema_org: description
+    term: schema:description
     obligation: required
     form_label: Description
   # "* Lineage": how the data came into existence, and the stages, quality control among them,
-  # they passed through. The EIDC's DataCite records carry it as a Methods description. Its
-  # schema.org term must differ from the abstract's, or the abstract would satisfy it (README.md);
-  # measurementTechnique, the technique used to produce the data, is the nearest.
+  # they passed through. The EIDC's DataCite records carry it as a Methods description. Its term
+  # must differ from the abstract's, or the abstract would satisfy it (README.md). It is
+  # dcterms:provenance, as GeoDCAT-AP maps ISO 19115 lineage
+  # (https://semiceu.github.io/GeoDCAT-AP/releases/2.0.0/#lineage); schema.org has no term for it.
   - property: descriptions
     qualifier: {descriptionType: Methods}
-    schema_org: measurementTechnique
+    term: dcterms:provenance
     obligation: required
     form_label: Lineage
   # "* Science topic" and the keywords both become DataCite subjects. Whether the keywords alone
   # are mandatory is TODO(#1250).
   - property: subjects
-    schema_org: keywords
+    term: schema:keywords
     obligation: required
     form_label: Science topic and Keywords
   - property: rightsList
-    schema_org: license
+    term: schema:license
     obligation: required
     form_label: End user licence
   # Not marked mandatory, although NERC-funded data must name its award.
   - property: fundingReferences
-    schema_org: funding
+    term: schema:funding
     obligation: recommended
     form_label: Grants/awards used to generate this resource
   - property: geoLocations
-    schema_org: spatialCoverage
+    term: schema:spatialCoverage
     obligation: recommended
     form_label: Area of Study
   - property: relatedIdentifiers
-    schema_org: citation
+    term: schema:citation
     obligation: recommended
     form_label: Related data holdings
 

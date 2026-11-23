@@ -21,8 +21,9 @@ it is recognised, and the codecs are shared. Neither is built or specified here.
 
 **What is built.** The metadata record is DataCite in its JSON form, and DataCite's keys are written
 into the Librarian (`datacite.yaml`), the deposit check (`VALUE_KEYS`), the Documentation Editor's
-reader and the Zenodo item. A requirement set names a schema.org term for each field, and validation
-reads a record as RDF through it. Everything below is the design that replaces those; each part names
+reader and the Zenodo item. A requirement set names a term for each field itself, as a CURIE or IRI
+of schema.org, Dublin Core Terms, DCAT or PROV-O, and validation reads a record as RDF through it;
+the package's root dataset has each field's values under its term. Everything below is the design that replaces those; each part names
 the issue that builds it. Until then the code does what *What is built* says, and a statement here
 that the code does not yet meet is marked in place.
 
@@ -118,9 +119,9 @@ record in a standard, written in YAML by the people who know the repository. Its
 properties of the standard by their path and their qualifier, and their obligation. The term a field
 is read under comes from the standard's definition. A field of an override for something the standard
 has no property for, such as a Dataverse contact email, names its own term, and a field may not name
-a term that differs from the one the standard's definition gives its property. Today a field names a
-schema.org term itself and a standard has no definition of its own; the term becomes an IRI in
-#1357, and the definition is built in #1358.
+a term that differs from the one the standard's definition gives its property. Today a field names
+its term itself, as a CURIE or IRI, and a standard has no definition of its own; the definition is
+built in #1358.
 
 A definition and a requirement set have different owners and change at different rates. A definition
 describes the format, and changes when the standard does. A set describes a repository's wishes and

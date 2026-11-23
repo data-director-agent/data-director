@@ -1,9 +1,9 @@
 {
   "identity": {
     "agent_id": "advisor.metadata",
-    "cases_sha256": "3da7ac55c0fe26d2e7244fde83e4619454a07b1be5e568f422b8d687ba5f2f69",
+    "cases_sha256": "5c37565d39e66353261a336e2d5871577f814acae04494add1052f3d9076dfd2",
     "configuration": {},
-    "git_revision": "16f50f64429469a01234acdf679cc21c4df4d6d1",
+    "git_revision": "00844de031169efa5f269730f3f553241f9045ad",
     "rule_table_sha256": "4f7e33cbfcf624ef1bb6ab45b3367309d36f24ac6fbf5925227a5fd0a9f79d49",
     "spec_version": "0.3.0a0",
     "system_prompt_sha256": "8c93f2f784cf427eb38e681579c9888ea7c858791e60a6b9b269df78da886bbe"

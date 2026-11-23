@@ -30,8 +30,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
-from dd_harness.deposit import datacite_attributes
 from dd_harness.deposit_broker import DepositBroker, DepositRefusal
+from dd_harness.deposit_record import datacite_attributes
 from dd_harness.projects import (
     DEPOSIT_APPROVED,
     DEPOSIT_CHECKS_CONFIRMED,

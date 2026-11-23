@@ -77,7 +77,7 @@ describe("ProjectPanelPage", () => {
       "href",
       site,
     );
-    expect(within(panel).getByText("orda@v3")).toBeVisible();
+    expect(within(panel).getByText(REPOSITORY.requirement_sets.at(-1)?.ref ?? "")).toBeVisible();
     expect(
       within(panel).getByRole("heading", { name: "What it accepts" }),
     ).toBeVisible();
@@ -189,7 +189,7 @@ describe("ProjectPanelPage", () => {
       at(SUGGESTED.repositories, 0).repository_id,
     );
     const panel = screen.getByRole("region", { name: "Repository" });
-    expect(await within(panel).findByText("orda@v3")).toBeVisible();
+    expect(await within(panel).findByText(REPOSITORY.requirement_sets.at(-1)?.ref ?? "")).toBeVisible();
     expect(
       within(panel).getByRole("button", { name: "Change repository" }),
     ).toBeVisible();

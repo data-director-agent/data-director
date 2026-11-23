@@ -11,7 +11,7 @@
 # email after the deposit.
 schema_class: RequirementSet
 requirement_set_id: ngdc
-version: 1
+version: 2
 title: NERC EDS National Geoscience Data Centre
 url: https://transfer.bgs.ac.uk/ingestion
 re3data_id: r3d100010189
@@ -25,36 +25,36 @@ conforms_to: http://datacite.org/schema/kernel-4
 
 fields:
   - property: titles
-    schema_org: name
+    term: schema:name
     obligation: required
     form_label: Title
   # 100 to 4000 characters: what, where, when, how, why and who, and whether the data are complete.
   - property: descriptions
     qualifier: {descriptionType: Abstract}
-    schema_org: description
+    term: schema:description
     obligation: required
     form_label: Abstract and data description
   # Required for every deposit. The NGDC's DataCite records do not carry it, but a DataCite record
-  # would as a Methods description; its schema.org term must differ from the abstract's
-  # (README.md), so it is measurementTechnique, as for the EIDC.
+  # would as a Methods description; its term must differ from the abstract's (README.md), so it
+  # is dcterms:provenance, as for the EIDC.
   - property: descriptions
     qualifier: {descriptionType: Methods}
-    schema_org: measurementTechnique
+    term: dcterms:provenance
     obligation: required
     form_label: Lineage statement
   - property: geoLocations
-    schema_org: spatialCoverage
+    term: schema:spatialCoverage
     obligation: required
     form_label: Area / geographical extent
   # The form requires the dates and the grant number of a NERC-funded deposit, but not of a
   # statutory or commercial one, so they are recommended here.
   - property: dates
     qualifier: {dateType: Collected}
-    schema_org: temporalCoverage
+    term: schema:temporalCoverage
     obligation: recommended
     form_label: Begin date and end date
   - property: fundingReferences
-    schema_org: funding
+    term: schema:funding
     obligation: recommended
     form_label: Grant number
 

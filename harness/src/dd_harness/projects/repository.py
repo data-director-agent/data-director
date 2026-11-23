@@ -14,6 +14,7 @@ from dd_harness.projects.rules import REPOSITORY_CHOSEN, ProjectRules
 from dd_harness.requirements import REPOSITORY_ID, Requirements, RequirementsError
 from dd_harness.sources import Sources
 from dd_sdk.contract.models import Principal
+from dd_sdk.contract.requirements import legacy_term
 from dd_sdk.evidence import INPUT_CANONICALISATION, canonicalise, input_hash
 
 
@@ -76,8 +77,13 @@ class RepositoryChoice(ProjectRules):
 
     def requirements(self, project_id: str) -> dict[str, Any] | None:
         """The merged requirements of the repository chosen last, or None if none has been. A set
-        kept before repositories had an identifier of their own is given its re3data one."""
+        kept before repositories had an identifier of their own is given its re3data one, and a
+        field kept before terms were IRIs its `schema:` term (#1357)."""
         found = self._latest(project_id, REPOSITORY_CHOSEN)
-        if found is not None and "repository_id" not in found and found.get("re3data_id"):
-            return {**found, "repository_id": found["re3data_id"]}
+        if found is None:
+            return None
+        if "repository_id" not in found and found.get("re3data_id"):
+            found = {**found, "repository_id": found["re3data_id"]}
+        if any("schema_org" in field for field in found.get("fields") or []):
+            found = {**found, "fields": [legacy_term(field) for field in found["fields"]]}
         return found

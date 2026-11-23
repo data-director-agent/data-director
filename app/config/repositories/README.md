@@ -31,8 +31,8 @@ only Dublin Core for ORDA, which registers its DOIs with DataCite. Without an ov
 harness picks the standard whose `re3data_names` include one the repository's re3data record
 declares. When none does, it uses DataCite's and warns.
 
-The harness merges the two. A field is identified by its `property`, `qualifier` and
-`schema_org`. An override may add a field, or raise one from `recommended` to `required` and give
+The harness merges the two. A field is identified by its `property`, `qualifier` and `term`,
+compared as the term's full IRI. An override may add a field, or raise one from `recommended` to `required` and give
 its `form_label` and `supplied_on`; it may not lower one. Documents, and the properties in
 `filled_by_repository`, are the union of both. Media types, sizes and
 licences come from the override alone.
@@ -77,10 +77,16 @@ Each entry of `fields` has:
 
 - `property`: the schema's property, such as DataCite's `titles`;
 - `qualifier` (optional): a value that narrows it, such as a subject scheme;
-- `schema_org`: the schema.org term it maps to, used to read the record for checking and to
-  describe the dataset in the package. A record's values are checked under this term, so two
-  fields may not share one, even across an override and its standard: a lineage mapped to
-  `description` would pass on the abstract alone. Such sets are refused on load;
+- `term`: the term of an existing vocabulary it maps to, used to read the record for checking and
+  to describe the dataset in the package. It is a CURIE with one of the prefixes `schema:`
+  (schema.org), `dcterms:` (Dublin Core Terms), `dcat:` (DCAT) or `prov:` (PROV-O), such as
+  `schema:name` or `dcterms:provenance`, or the full IRI of a term in one of them. A term the
+  vocabulary does not define is refused on load: no term is invented. A record's values are checked
+  under this term, so two fields may not share one, even across an override and its standard and
+  even when one names it by CURIE and the other by IRI: a lineage mapped to `schema:description`
+  would pass on the abstract alone. Such sets are refused on load. A set written before terms were
+  IRIs names a schema.org term in `schema_org`, such as `schema_org: name`; it still loads, read as
+  `schema:name`, with a warning to rewrite it;
 - `obligation`: `required` (a missing value stops the package) or `recommended` (a warning);
 - `form_label` (overrides only): the label of the field in the repository's deposit form, where a
   person depositing by hand puts the value;

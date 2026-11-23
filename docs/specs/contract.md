@@ -265,6 +265,12 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     what the researcher said, for a person to confirm ([Projects](projects.md), invariant 28;
     [Orchestration](orchestration.md), invariant 8; #160; `sdk/tests/test_fact_kinds.py`). Adding
     them raised the contract version to 0.27.0.
+39. A `RequirementField` names the term it is read under in `term`, a CURIE of a registered
+    prefix (`schema:`, `dcterms:`, `dcat:` or `prov:`) or the full IRI of a term in one of those
+    vocabularies, in place of a schema.org local name in `schema_org`. A field kept with
+    `schema_org: X`, in a project log, a blob or a request, reads as `schema:X`
+    ([Metadata standards](metadata-standards.md), invariant 7; [Deposit](deposit.md), invariant
+    4; #1357; `sdk/tests/test_contract.py`). Replacing it raised the contract version to 0.28.0.
 
 ## Boundaries and contracts
 

@@ -2,7 +2,7 @@
 Zenodo deposition (docs/specs/deposit.md, Depositing through an API; TODO(#648) for the rest).
 
 The mapping is the platform item's packager. It reads the same DataCite properties validation reads
-(`dd_harness.deposit.VALUE_KEYS`) and writes the members of Zenodo's deposition metadata
+(`dd_harness.deposit_record.VALUE_KEYS`) and writes the members of Zenodo's deposition metadata
 (https://developers.zenodo.org/#representation):
 
 | DataCite | Zenodo |
