@@ -42,6 +42,7 @@ steps = [
   "setup.dmp-review",
   "setup.documentation",
   "setup.formats",
+  "setup.project",
   "setup.storage",
   "setup.vocabularies",
 ]
