@@ -10,6 +10,7 @@ from typing import Literal
 
 from pydantic import Field
 
+from dd_sdk.contract.drafting import ApprovedPlan
 from dd_sdk.contract.facts import ProjectDocument, ProjectFact
 from dd_sdk.contract.models import Derivation, Frozen, Grounded
 
@@ -33,9 +34,11 @@ class DmpCommitments(Frozen):
 
 class DmpReviewRequest(Frozen):
     schema_class: Literal["DmpReviewRequest"] = "DmpReviewRequest"
-    # Filled by the conductor in a project (`GivenProjectDocuments`, `GivenProjectDecisions`).
+    # Filled by the conductor in a project (`GivenProjectDocuments`, `GivenProjectDecisions`,
+    # `GivenProjectPlan`).
     project_documents: list[ProjectDocument] = Field(default_factory=list)
     project_decisions: list[ProjectFact] = Field(default_factory=list)
+    project_plan_approved: ApprovedPlan | None = None
 
 
 class SectionFinding(Frozen):

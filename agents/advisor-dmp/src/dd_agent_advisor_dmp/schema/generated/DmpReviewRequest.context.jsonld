@@ -1,8 +1,14 @@
 {
    "@context": {
       "@vocab": "https://w3id.org/data-director/agents/dmp/",
+      "ApprovedPlan": {
+         "@id": "https://w3id.org/data-director/ApprovedPlan"
+      },
       "DmpReviewRequest": {
          "@id": "https://w3id.org/data-director/agents/dmp/DmpReviewRequest"
+      },
+      "DocumentVersionRef": {
+         "@id": "https://w3id.org/data-director/DocumentVersionRef"
       },
       "ProjectDocument": {
          "@id": "https://w3id.org/data-director/ProjectDocument"
@@ -29,6 +35,15 @@
       "dcterms": "http://purl.org/dc/terms/",
       "dd": "https://w3id.org/data-director/",
       "dmp": "https://w3id.org/data-director/agents/dmp/",
+      "document_id": {
+         "@id": "https://w3id.org/data-director/document_id"
+      },
+      "document_text": {
+         "@id": "https://w3id.org/data-director/document_text"
+      },
+      "document_title": {
+         "@id": "http://purl.org/dc/terms/title"
+      },
       "documentation_added_at": {
          "@id": "https://w3id.org/data-director/documentation_added_at",
          "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
@@ -96,6 +111,9 @@
       "location_precision": {
          "@id": "https://w3id.org/data-director/location_precision"
       },
+      "media_type": {
+         "@id": "http://purl.org/dc/terms/format"
+      },
       "plan_document": {
          "@id": "https://w3id.org/data-director/plan_document"
       },
@@ -105,6 +123,10 @@
       },
       "project_documents": {
          "@id": "https://w3id.org/data-director/project_documents",
+         "@type": "@id"
+      },
+      "project_plan_approved": {
+         "@id": "https://w3id.org/data-director/project_plan_approved",
          "@type": "@id"
       },
       "proposed_because": {
@@ -135,6 +157,13 @@
       },
       "standard_target": {
          "@id": "https://w3id.org/data-director/standard_target"
+      },
+      "version": {
+         "@id": "https://w3id.org/data-director/version"
+      },
+      "version_ref": {
+         "@id": "https://w3id.org/data-director/version_ref",
+         "@type": "@id"
       },
       "xsd": "http://www.w3.org/2001/XMLSchema#"
    }

@@ -82,6 +82,38 @@ dd:DocumentQuestion a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "The question, as a short line a person reads before the options." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dd:question_prompt ],
+        [ sh:datatype xsd:string ;
+            sh:description "An answer the drafter suggests, offered to the person with the question and never placed in the document. It becomes supplied only when a person records it, or a correction of it, as their answer." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 9 ;
+            sh:path dd:suggested_answer ],
+        [ sh:datatype xsd:string ;
+            sh:description "The part of the README section the question would fill, such as Funding, when the drafter asks the section part by part. Present only with gap_section." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dd:gap_part ],
+        [ sh:description "The value a question asks for, or an answer gives, when every kind of document gives it the same way, so that an answer given for one document may be offered as a suggestion in another (docs/specs/drafting.md)." ;
+            sh:in ( "title" "creators" "description" "dates_collected" "place" "funder" "licence" ) ;
+            sh:maxCount 1 ;
+            sh:order 11 ;
+            sh:path dd:shared_field ],
+        [ sh:datatype xsd:string ;
+            sh:description "The question's identifier within its document: q- and 16 lower-case hexadecimal digits, derived from the gap it targets." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:question_id ;
+            sh:pattern "^q-[0-9a-f]{16}$" ],
+        [ sh:datatype xsd:string ;
             sh:description "The field whose data dictionary row the question would fill." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -127,39 +159,7 @@ dd:DocumentQuestion a sh:NodeShape ;
             sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
             sh:maxCount 1 ;
             sh:order 10 ;
-            sh:path dd:suggestion_derivation ],
-        [ sh:datatype xsd:string ;
-            sh:description "The question, as a short line a person reads before the options." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path dd:question_prompt ],
-        [ sh:datatype xsd:string ;
-            sh:description "An answer the drafter suggests, offered to the person with the question and never placed in the document. It becomes supplied only when a person records it, or a correction of it, as their answer." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 9 ;
-            sh:path dd:suggested_answer ],
-        [ sh:datatype xsd:string ;
-            sh:description "The part of the README section the question would fill, such as Funding, when the drafter asks the section part by part. Present only with gap_section." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 3 ;
-            sh:path dd:gap_part ],
-        [ sh:description "The value a question asks for, or an answer gives, when every kind of document gives it the same way, so that an answer given for one document may be offered as a suggestion in another (docs/specs/drafting.md)." ;
-            sh:in ( "title" "creators" "description" "dates_collected" "place" "funder" "licence" ) ;
-            sh:maxCount 1 ;
-            sh:order 11 ;
-            sh:path dd:shared_field ],
-        [ sh:datatype xsd:string ;
-            sh:description "The question's identifier within its document: q- and 16 lower-case hexadecimal digits, derived from the gap it targets." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path dd:question_id ;
-            sh:pattern "^q-[0-9a-f]{16}$" ] ;
+            sh:path dd:suggestion_derivation ] ;
     sh:targetClass dd:DocumentQuestion .
 
 dd:DocumentVersionRef a sh:NodeShape ;

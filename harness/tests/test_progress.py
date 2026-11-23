@@ -354,6 +354,17 @@ def test_an_answer_to_the_dmp_question_skips_the_branch_not_taken_and_marks_noth
     assert progress.step_states([chose(1), answered("intake.dmp", YES)])
 
 
+def test_an_approved_plan_written_after_no_reopens_its_review() -> None:
+    review = "setup.dmp-review"
+    no = [chose(1), answered("intake.dmp", NO)]
+    assert progress.step_states([*no, added("p", "dmp")])[review] == "skipped"
+    states = progress.step_states([*no, added("p", "dmp"), decided("p")])
+    assert review not in states
+    assert states["setup.dmp-create"] == "done"
+    kept = [*no, added("p", "dmp"), decided("p"), marked(review, "skipped")]
+    assert progress.step_reasons(kept)[review]["source"] == "marked"
+
+
 def test_the_latest_answer_to_an_intake_question_counts() -> None:
     events = [chose(1), answered("intake.sensitive", NO), answered("intake.sensitive", YES)]
     assert progress.step_states(events) == {}

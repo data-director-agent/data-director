@@ -99,6 +99,12 @@ dd:Affiliation a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:integer ;
+            sh:description "The year it ended; absent while it continues." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 8 ;
+            sh:path dd:end_year ],
+        [ sh:datatype xsd:integer ;
             sh:description "The year it started." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -118,18 +124,18 @@ dd:Affiliation a sh:NodeShape ;
             sh:order 6 ;
             sh:path dd:role_title ],
         [ sh:datatype xsd:string ;
-            sh:description "The scheme of organisation_identifier, in ORCID's words, such as ROR, GRID or RINGGOLD. Present exactly when organisation_identifier is." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path dd:organisation_identifier_scheme ],
-        [ sh:datatype xsd:string ;
             sh:description "ORCID's identifier for the item within the record, by which a researcher chose to keep it." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path dd:put_code ],
+        [ sh:datatype xsd:string ;
+            sh:description "The scheme of organisation_identifier, in ORCID's words, such as ROR, GRID or RINGGOLD. Present exactly when organisation_identifier is." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dd:organisation_identifier_scheme ],
         [ sh:datatype xsd:string ;
             sh:description "The department within the organisation." ;
             sh:maxCount 1 ;
@@ -147,13 +153,7 @@ dd:Affiliation a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 3 ;
-            sh:path dd:organisation_identifier ],
-        [ sh:datatype xsd:integer ;
-            sh:description "The year it ended; absent while it continues." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 8 ;
-            sh:path dd:end_year ] ;
+            sh:path dd:organisation_identifier ] ;
     sh:targetClass dd:Affiliation .
 
 dd:ApprovedMetadataRecord a sh:NodeShape ;
@@ -192,18 +192,18 @@ dd:CategoryCount a sh:NodeShape ;
     rdfs:comment "One category of a field and how many rows hold it, rounded." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path dd:category_value ],
-        [ sh:datatype xsd:integer ;
+    sh:property [ sh:datatype xsd:integer ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
-            sh:path dd:category_count ] ;
+            sh:path dd:category_count ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path dd:category_value ] ;
     sh:targetClass dd:CategoryCount .
 
 dd:CurrentVersion a sh:NodeShape ;
@@ -482,6 +482,12 @@ dd:InstitutionStorage a sh:NodeShape ;
             sh:order 4 ;
             sh:path dd:storage_kind ],
         [ sh:datatype xsd:string ;
+            sh:description "What the service does to keep copies, as the institution states it, such as nightly snapshots replicated to a second site." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 9 ;
+            sh:path dd:storage_backup ],
+        [ sh:datatype xsd:string ;
             sh:description "The deployment's own label for a storage service, such as research-filestore: lower case letters, digits and hyphens." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -489,12 +495,6 @@ dd:InstitutionStorage a sh:NodeShape ;
             sh:order 0 ;
             sh:path dd:storage_id ;
             sh:pattern "^[a-z0-9][a-z0-9-]*$" ],
-        [ sh:datatype xsd:string ;
-            sh:description "What the service does to keep copies, as the institution states it, such as nightly snapshots replicated to a second site." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 9 ;
-            sh:path dd:storage_backup ],
         [ sh:datatype xsd:float ;
             sh:description "How many gigabytes a project may hold there without charge, where there is a limit." ;
             sh:maxCount 1 ;
@@ -1118,18 +1118,18 @@ dd:ResearcherRecord a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
             sh:path dd:country ],
-        [ sh:datatype xsd:integer ;
-            sh:description "How many works the record held beyond the 50 offered. Absent when none were left out." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 10 ;
-            sh:path dd:works_omitted ],
         [ sh:datatype xsd:string ;
             sh:description "The researcher's name as their ORCID record gives it: the credit name, else the given and family names. Absent when they keep their name private or did not keep it." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path dd:researcher_name ],
+        [ sh:datatype xsd:integer ;
+            sh:description "How many works the record held beyond the 50 offered. Absent when none were left out." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path dd:works_omitted ],
         [ sh:datatype xsd:dateTime ;
             sh:description "When the record was read from ORCID's public API." ;
             sh:maxCount 1 ;

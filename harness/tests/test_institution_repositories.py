@@ -20,7 +20,7 @@ from requirement_sets import (
     write,
 )
 
-from dd_harness import institution_repositories, project_facts
+from dd_harness import agent_slots, institution_repositories
 from dd_harness.policy import PolicyError, Profile
 from dd_harness.projects import REPOSITORY_CHOSEN, ProjectStore
 from dd_harness.requirements import RequirementsError, load_requirements
@@ -146,7 +146,7 @@ def test_a_repository_only_datacite_registers_can_be_chosen_and_is_recorded_by_i
     assert len(event["warnings"]) == 1 and "no override" in event["warnings"][0]
     merged = RepositoryRequirements.model_validate(store.requirements(project_id))
     assert (merged.repository_id, merged.re3data_id) == (DURHAM, None)
-    chosen = project_facts.chosen(store.summary(project_id)["repository"])
+    chosen = agent_slots.chosen(store.summary(project_id)["repository"])
     assert chosen == {
         "chosen_repository_name": "Durham University Repositories",
         "chosen_repository_id": DURHAM,

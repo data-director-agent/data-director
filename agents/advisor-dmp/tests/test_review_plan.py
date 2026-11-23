@@ -19,12 +19,20 @@ from dd_agent_advisor_dmp.read_plan import ModelReader
 from dd_agent_advisor_dmp.review_model import REVIEW_PROMPT, ModelReviewer
 from dd_dmp_template import SECTIONS
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
+from dd_sdk.contract.drafting import ApprovedPlan
 from dd_sdk.contract.facts import FactKind, ProjectDocument, ProjectFact, SensitivityDecision
-from dd_sdk.contract.models import Envelope, GroundingMode, OutcomeStatus, ReasonCode
+from dd_sdk.contract.models import (
+    DocumentVersionRef,
+    Envelope,
+    GroundingMode,
+    OutcomeStatus,
+    ReasonCode,
+)
 from dd_sdk.model import declared
 from dd_sdk.testing import FakeModel
 
 PLANS = Path(__file__).parents[1] / "src" / "dd_agent_advisor_dmp" / "evals" / "data"
+WRITTEN_ID = "01900000-0000-7000-8000-0000000000d1"
 STORAGE = SECTIONS[2]
 LEGAL = SECTIONS[3]
 
@@ -145,6 +153,33 @@ def test_the_document_marked_as_the_plan_is_reviewed_rather_than_the_latest(
     content = json.dumps(sent.messages)
     assert "Ethics and consent" in content and "second site" not in content
     assert "partial.md" in env.outcome.statement
+
+
+def test_the_plan_written_in_the_project_is_reviewed_unless_one_attached_is_marked(
+    runs_dir: Path,
+) -> None:
+    written = ApprovedPlan(
+        version_ref=DocumentVersionRef(document_id=WRITTEN_ID, version=2),
+        document_title="Peatland plan",
+        media_type="text/markdown",
+        document_text=(PLANS / "partial.md").read_text(encoding="utf-8"),
+    )
+    model = review_of(*every_requirement())
+    env = run(
+        runs_dir,
+        DmpReviewRequest(project_documents=[COMPLETE], project_plan_approved=written),
+        reviewer(model),
+    )
+    (sent,) = model.sent
+    assert "second site" not in json.dumps(sent.messages)
+    assert "Peatland plan" in env.outcome.statement
+
+    marked = COMPLETE.model_copy(update={"documentation_is_plan": True})
+    model = review_of(*every_requirement())
+    asked = DmpReviewRequest(project_documents=[marked], project_plan_approved=written)
+    run(runs_dir, asked, reviewer(model))
+    (sent,) = model.sent
+    assert "second site" in json.dumps(sent.messages)
 
 
 def test_no_plan_attached_abstains(runs_dir: Path) -> None:

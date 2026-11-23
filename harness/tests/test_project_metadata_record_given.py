@@ -2,7 +2,9 @@
 invariants 6 and 8; #432): a class that mixes in `GivenProjectMetadataRecord` is given the latest
 version of the metadata record, whatever its state, and the version a person approved last, by
 slot name. Only the conductor fills them in a project; outside one, the caller's are kept. Both are
-`documentation`, so a profile that keeps documentation from a hosted model refuses the run."""
+`documentation`, so a profile that keeps documentation from a hosted model refuses the run. A class
+that mixes in `GivenProjectPlan` is given the data management plan written in the project, as a
+person approved it last, the same way."""
 
 from __future__ import annotations
 
@@ -55,11 +57,18 @@ def project(projects: ProjectStore) -> str:
     return projects.create(acted_for=TEST_PRINCIPAL, caused_by="test", title="Peatland")
 
 
-def draft_record(projects: ProjectStore, project: str, *, approve: bool) -> DocumentVersionRef:
-    """A metadata record drafted into the project by the document stub, approved if asked."""
+def draft_record(
+    projects: ProjectStore,
+    project: str,
+    *,
+    approve: bool,
+    kind: DocumentKind = DocumentKind.METADATA_RECORD,
+) -> DocumentVersionRef:
+    """A document drafted into the project by the document stub, a metadata record unless asked
+    otherwise, approved if asked."""
     drafter = make_conductor(Path(projects.root).parent / "draft-runs", DocumentStub())
     env = drafter.invoke(
-        request("stub.document", document_request(DocumentKind.METADATA_RECORD)),
+        request("stub.document", document_request(kind)),
         acting_for=TEST_PRINCIPAL,
     )
     ref = projects.record_draft(project, env)
@@ -117,6 +126,29 @@ def test_the_latest_draft_and_the_approved_version_are_given_in_place_of_the_cal
     assert draft["version_state"] == VersionState.PROPOSED.value
     assert draft["document_text"]
     assert given["project_metadata_approved"]["version_ref"] == approved.model_dump(mode="json")
+
+
+def test_the_plan_a_person_approved_last_is_given_and_a_draft_alone_is_not(
+    tmp_path: Path, projects: ProjectStore, project: str
+) -> None:
+    runs = tmp_path / "runs"
+    conductor = conductor_over(runs, projects, FactStub())
+
+    def given_plan() -> Any:
+        env = conductor.invoke(
+            in_project(projects, project, request("stub.facts", ProbeReading())),
+            acting_for=TEST_PRINCIPAL,
+        )
+        assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+        return stored_input(runs, env.invocation_id).get("project_plan_approved")
+
+    draft_record(projects, project, approve=False, kind=DocumentKind.DMP)
+    assert given_plan() is None
+    approved = draft_record(projects, project, approve=True, kind=DocumentKind.DMP)
+    draft_record(projects, project, approve=False, kind=DocumentKind.DMP)
+    plan = given_plan()
+    assert plan["version_ref"] == approved.model_dump(mode="json")
+    assert plan["document_text"]
 
 
 def test_a_project_without_a_metadata_record_gives_neither(

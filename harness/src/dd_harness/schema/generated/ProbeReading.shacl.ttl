@@ -6,7 +6,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 doubles:ProbeReading a sh:NodeShape ;
-    rdfs:comment "What a checking double reads in a project: an agent's own input class that asks the conductor for the attached documents, the decided facts, the chosen repository and the metadata record by their slots (docs/specs/projects.md, invariant 6)." ;
+    rdfs:comment "What a checking double reads in a project: an agent's own input class that asks the conductor for the attached documents, the decided facts, the chosen repository, the metadata record and the approved plan by their slots (docs/specs/projects.md, invariant 6)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:class <https://w3id.org/data-director/ChosenRepository> ;
@@ -15,6 +15,12 @@ doubles:ProbeReading a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 4 ;
             sh:path <https://w3id.org/data-director/project_repository> ],
+        [ sh:class <https://w3id.org/data-director/ApprovedPlan> ;
+            sh:description "The version of the project's data management plan (a dmp document) a person approved last. In a project the conductor fills it and a caller leaves it out. Absent when no version has been approved." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 7 ;
+            sh:path <https://w3id.org/data-director/project_plan_approved> ],
         [ sh:class <https://w3id.org/data-director/ProjectFact> ;
             sh:description "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
@@ -83,6 +89,39 @@ doubles:ProbeReading a sh:NodeShape ;
             sh:order 3 ;
             sh:path <https://w3id.org/data-director/document_text> ] ;
     sh:targetClass <https://w3id.org/data-director/ApprovedMetadataRecord> .
+
+<https://w3id.org/data-director/ApprovedPlan> a sh:NodeShape ;
+    rdfs:comment "The data management plan written in the project as a person approved it: the version named by the last approval of a dmp document in the project (docs/specs/projects.md). It is the project's own document, not one a researcher attached, so no data_management_plan fact names it." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "A short name a person can tell documents apart by, such as README for raw/." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dcterms:title ],
+        [ sh:datatype xsd:string ;
+            sh:description "The media type of document_text, such as text/markdown or application/json." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dcterms:format ],
+        [ sh:datatype xsd:string ;
+            sh:description "The content of the document, as text; a structured record is serialised." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <https://w3id.org/data-director/document_text> ],
+        [ sh:class <https://w3id.org/data-director/DocumentVersionRef> ;
+            sh:description "The version, by its document and number." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/version_ref> ] ;
+    sh:targetClass <https://w3id.org/data-director/ApprovedPlan> .
 
 <https://w3id.org/data-director/ChosenRepository> a sh:NodeShape ;
     rdfs:comment "The repository a researcher chose to deposit the project's data in, from the shortlist, by the identifier of the registry that lists it: the conductor fills it into a Message, and into the input of an agent that mixes in GivenProjectRepository, so that the agent knows a repository is chosen and which (docs/specs/projects.md). The last choice stands until a researcher chooses again." ;
