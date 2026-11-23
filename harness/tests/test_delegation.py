@@ -383,10 +383,12 @@ def test_a_delegation_agent_reads_what_it_may_invoke_from_the_harness_card(
     tmp_path: Path,
 ) -> None:
     seen: list[list[dict[str, Any]]] = []
+    schemas: list[dict[str, dict[str, Any]]] = []
 
     def behaviour(req: InvocationRequest, ctx: RunContext) -> AgentResult:
         assert ctx.delegate is not None
         seen.append(ctx.delegate.manifest())
+        schemas.append(ctx.delegate.schemas_of(["fake.none"]))
         return abstain("only looking")
 
     conductor = make_conductor(
@@ -396,9 +398,12 @@ def test_a_delegation_agent_reads_what_it_may_invoke_from_the_harness_card(
     [manifest] = seen
     by_id = {entry["agent_id"]: entry for entry in manifest}
     assert set(by_id) == {"fake.delegation", "fake.none"}
-    # Each entry is the agent's own description, with the schemas a caller builds an input from.
+    # Each entry is the agent's own description; the schemas a caller builds an input from are
+    # served beside the card, named on it by digest.
     assert "ProbeRecord" in by_id["fake.none"]["accepts"]
-    assert "json_schema" in by_id["fake.none"]["schemas"]["ProbeRecord"]
+    assert "schemas" not in by_id["fake.none"]
+    [served] = schemas
+    assert "json_schema" in served["fake.none"]["ProbeRecord"]
 
 
 def test_a_card_without_the_manifest_is_a_refusal() -> None:

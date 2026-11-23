@@ -66,6 +66,12 @@ def schema_digest(json_schema: Mapping[str, Any]) -> str:
     return content_hash(dict(json_schema), DOCUMENT_CANONICALISATION)
 
 
+def schemas_digest(document: Mapping[str, Any]) -> str:
+    """The sha256 of an agent's class schemas keyed by class name, as the harness serves them
+    (`dd_sdk.manifest`), canonicalised as `dd-json-document-v1`."""
+    return content_hash(dict(document), DOCUMENT_CANONICALISATION)
+
+
 def shapes_digest(shacl: str, context: Mapping[str, Any]) -> str:
     """The sha256 of a class's shapes and context, canonicalised as `dd-json-document-v1`."""
     return content_hash({"shacl": shacl, "context": dict(context)}, DOCUMENT_CANONICALISATION)

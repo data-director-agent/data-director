@@ -18,7 +18,7 @@ presentation from its schema and the agent's `derivations` (docs/specs/agents.md
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
@@ -401,14 +401,17 @@ def typed_request(spec: AgentSpec, request: InvocationRequest) -> InvocationRequ
 class Delegate(Protocol):
     """Invoke another agent through the harness and return its envelope (`dd_sdk.delegate`).
 
-    `manifest` is what the harness says it may invoke: one `describe(spec)` per registered agent,
-    schemas included. A delegation agent routes from it, never from its own list
+    `manifest` is what the harness says it may invoke: one `dd_sdk.manifest.manifest_entry(spec)`
+    per registered agent, without schemas. A delegation agent routes from it, never from its own
+    list, and asks `schemas_of` for the class schemas of the agents it builds inputs for
     (docs/specs/orchestration.md).
     """
 
     def __call__(self, agent_id: str, input: Frozen) -> Delegated: ...
 
     def manifest(self) -> list[dict[str, Any]]: ...
+
+    def schemas_of(self, agent_ids: Iterable[str]) -> dict[str, dict[str, Any]]: ...
 
 
 @dataclass(frozen=True)

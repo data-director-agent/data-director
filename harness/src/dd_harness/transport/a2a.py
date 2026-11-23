@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+from dataclasses import dataclass
 from typing import Any
 
 from a2a.helpers import (
@@ -43,15 +44,18 @@ from starlette.routing import BaseRoute, Route
 from dd_harness.conductor import Conductor, UnknownAgent
 from dd_harness.identity import Authenticator, IdentityError, Unauthenticated, record_refusal
 from dd_harness.policy import PolicyError
+from dd_harness.registry import Registered
 from dd_sdk.contract.models import InvocationRequest, to_document
 from dd_sdk.contract.problem import unauthenticated
 from dd_sdk.contract.validate import ContractViolation
+from dd_sdk.manifest import manifest_entry, schemas_digest, schemas_document
 from dd_sdk.serve import request_handler
 from dd_sdk.wire import (
     ENVELOPE_JSON_ARTIFACT,
     MANIFEST_EXTENSION_URI,
     META_DELEGATION_TOKEN,
     META_TRACEPARENT,
+    SCHEMAS_PATH,
 )
 
 PROTOCOL_VERSION = "1.0"
@@ -60,9 +64,9 @@ AGENT_CARD_WELL_KNOWN_PATH = "/.well-known/agent-card.json"
 
 def agent_card(conductor: Conductor, base_url: str) -> AgentCard:
     """The harness's card. One skill per registered agent, and the manifest extension that a
-    delegation agent routes from: each agent's `describe(spec)`, schemas included
-    (docs/specs/orchestration.md)."""
-    manifest = conductor.registry.manifest()
+    delegation agent routes from: each agent's `manifest_entry(spec)`, which names its schemas by
+    digest and leaves them to `schemas_route` (docs/specs/orchestration.md)."""
+    manifest = [manifest_entry(registered.spec) for registered in _registered(conductor)]
     skills = [
         AgentSkill(
             id=entry["agent_id"],
@@ -94,7 +98,10 @@ def agent_card(conductor: Conductor, base_url: str) -> AgentCard:
             extensions=[
                 AgentExtension(
                     uri=MANIFEST_EXTENSION_URI,
-                    description="The agents this harness may invoke (dd_sdk.agent.describe each).",
+                    description=(
+                        "The agents this harness may invoke (dd_sdk.manifest.manifest_entry each); "
+                        f"each agent's schemas are at {SCHEMAS_PATH}."
+                    ),
                     params={"agents": manifest},
                 )
             ],
@@ -191,25 +198,64 @@ class ConductorExecutor(AgentExecutor):
         raise NotImplementedError("invocations are synchronous; nothing to cancel")
 
 
+@dataclass(frozen=True)
+class _Fixed:
+    """A JSON document serialised once, with its ETag."""
+
+    body: bytes
+    etag: str
+
+    @classmethod
+    def of(cls, document: dict[str, Any], digest: str | None = None) -> _Fixed:
+        body = json.dumps(document, separators=(",", ":")).encode("utf-8")
+        return cls(body, f'"{digest or hashlib.sha256(body).hexdigest()}"')
+
+    def response(self, request: Request) -> Response:
+        """The body, or a `304` with none where `If-None-Match` selects its ETag."""
+        headers = {"ETag": self.etag}
+        sent = request.headers.get("if-none-match")
+        if sent and _etag_matches(sent, self.etag):
+            return Response(status_code=304, headers=headers)
+        return Response(self.body, media_type="application/json", headers=headers)
+
+
 def card_route(card: AgentCard, path: str = AGENT_CARD_WELL_KNOWN_PATH) -> Route:
     """`GET` of the card at `path`, serialised once, here, when the route is built.
 
     The a2a library's own card route serialises the card and hashes it again on every request,
-    on the event loop; the harness's card carries every agent's schemas and is about a megabyte,
-    so that was most of the loop's time under load (#1423). The body and its ETag are bytes held
-    here, and `If-None-Match` is answered with a `304` and no body, as the library's route does.
+    on the event loop, which was most of the loop's time under load when the card carried every
+    agent's schemas (#1423). The body and its ETag are bytes held here, and `If-None-Match` is
+    answered with a `304` and no body, as the library's route does.
     """
-    body = json.dumps(agent_card_to_dict(card), separators=(",", ":")).encode("utf-8")
-    etag = f'"{hashlib.sha256(body).hexdigest()}"'
+    fixed = _Fixed.of(agent_card_to_dict(card))
 
     async def serve(request: Request) -> Response:
-        headers = {"ETag": etag}
-        sent = request.headers.get("if-none-match")
-        if sent and _etag_matches(sent, etag):
-            return Response(status_code=304, headers=headers)
-        return Response(body, media_type="application/json", headers=headers)
+        return fixed.response(request)
 
     return Route(path, serve, methods=["GET"])
+
+
+def schemas_route(conductor: Conductor) -> Route:
+    """`GET` of one agent's class schemas at `SCHEMAS_PATH`, each serialised once, when the route
+    is built. The ETag is the `schemas_digest` the card names, so a delegation agent that holds
+    the digest holds the document (docs/specs/orchestration.md)."""
+    documents: dict[str, _Fixed] = {}
+    for registered in _registered(conductor):
+        document = schemas_document(registered.spec)
+        documents[registered.spec.agent_id] = _Fixed.of(document, schemas_digest(document))
+
+    async def serve(request: Request) -> Response:
+        fixed = documents.get(request.path_params["agent_id"])
+        if fixed is None:
+            return Response(status_code=404)
+        return fixed.response(request)
+
+    return Route(SCHEMAS_PATH, serve, methods=["GET"])
+
+
+def _registered(conductor: Conductor) -> list[Registered]:
+    """The registered agents, in the order of their ids."""
+    return [conductor.registry.agents[agent_id] for agent_id in conductor.registry.ids()]
 
 
 def _etag_matches(header: str, etag: str) -> bool:
@@ -230,6 +276,7 @@ def a2a_routes(
     handler = request_handler(ConductorExecutor(conductor, authenticator), card)
     routes: list[BaseRoute] = [
         card_route(card),
+        schemas_route(conductor),
         *create_jsonrpc_routes(handler, "/a2a"),
     ]
     return card, routes
