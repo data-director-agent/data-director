@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from dd_sdk.flow_phases import PHASES as PHASES
+from dd_sdk.flow_phases import RETIRED_STEPS as RETIRED_STEPS
 from dd_sdk.flow_phases import Phase as Phase
 from dd_sdk.flow_phases import Step as Step
 
@@ -59,6 +60,15 @@ OUT_OF_SCOPE: frozenset[str] = frozenset(s.id for p in PHASES for s in p.steps i
 PERSON_DECIDES: frozenset[str] = frozenset(
     s.id for p in PHASES for s in p.steps if s.person_decides
 )
+
+
+def current_step(step_id: str) -> str | None:
+    """The step a stored `step_id` names in this release: itself, the step that replaced it if it
+    is retired, or None if it is retired with no successor or unknown here (a log written by a
+    later release). Read every step id from a project log through this, never index by it."""
+    if step_id in STEPS:
+        return step_id
+    return RETIRED_STEPS.get(step_id)
 
 
 def requirements_of(step_ids: Iterable[str]) -> tuple[str, ...]:

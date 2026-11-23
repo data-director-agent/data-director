@@ -173,6 +173,22 @@ INTAKE: tuple[IntakeQuestion, ...] = (
 )
 
 
+# The question ids an earlier release asked and this one does not, each with the question that
+# replaces it, or None where none does, so that a project log naming one still reads. A question's
+# id is stored in every `intake_answered`, so it is never deleted or reused, only retired here
+# (docs/specs/projects.md). Never remove an entry.
+RETIRED_QUESTIONS: Mapping[str, str | None] = {}
+
+
+def current_question(question_id: str) -> str | None:
+    """The question a stored `question_id` names in this release: itself, the question that
+    replaced it if it is retired, or None if it is retired with no successor or unknown here (a
+    log written by a later release). Read every question id from a project log through this."""
+    if any(q.id == question_id for q in INTAKE):
+        return question_id
+    return RETIRED_QUESTIONS.get(question_id)
+
+
 def question(question_id: str) -> IntakeQuestion:
     for q in INTAKE:
         if q.id == question_id:
