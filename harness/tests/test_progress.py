@@ -186,8 +186,12 @@ def test_the_store_suggests_a_step_the_deployments_agents_serve(store: ProjectSt
     project = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
     store.choose_entry(project, 1, acted_for=TEST_PRINCIPAL, caused_by="test")
     assert store.progress(project)["suggested"] == "setup.documentation"
+    assert store.progress(project)["passed_over"] == []
     store.serving = lambda: [{"agent_id": "advisor.standards", "serves": ["setup.vocabularies"]}]
     assert store.progress(project)["suggested"] == "setup.vocabularies"
+    # The step passed over is named, so the app can say why (#1377).
+    assert store.progress(project)["passed_over"] == ["setup.documentation"]
+    assert store.intake(project)["progress"]["passed_over"] == ["setup.documentation"]
     assert store.summary(project)["progress"]["suggested"] == "setup.vocabularies"
     assert store.intake(project)["progress"]["suggested"] == "setup.vocabularies"
     assert store.snapshot(project).progress(project)["suggested"] == "setup.vocabularies"

@@ -36,6 +36,7 @@ from dd_sdk.process_flow import (
     STEPS,
     StepState,
     entry,
+    passed_over,
     progress,
     suggested_next,
 )
@@ -294,17 +295,20 @@ def describe(
     names, as a project summary carries them and the app's phase tracker shows them, with why
     each step is in its state (`step_reasons`) and the intake's decision points (`decisions`),
     which the journey map draws. `manifest` is the agents the deployment enables, so that the
-    suggestion is a step one of them serves where there is one (#1377)."""
+    suggestion is a step one of them serves where there is one (#1377); the steps it passed over
+    for that reason (`passed_over`) let the app say why the suggestion is not the first."""
     events = list(events)
     (chosen, source), reasons = entry_and_source(events), step_reasons(events)
     states = {k: v["state"] for k, v in reasons.items()}
     start = entry(chosen) if chosen is not None else None
-    suggested = suggested_next(progress(start, states, manifest), start)
+    steps = progress(start, states, manifest)
+    suggested = suggested_next(steps, start)
     return {
         "entry": chosen,
         "entry_source": source,
         "steps": states,
         "suggested": suggested.step.id if suggested is not None else None,
+        "passed_over": [s.step.id for s in passed_over(steps, suggested)],
         "reasons": reasons,
         "decisions": decisions(events),
     }

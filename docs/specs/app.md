@@ -410,7 +410,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
       project starts at and the suggested step, both from the project summary. The suggested step
       is one an enabled agent serves wherever its phase has one ([Orchestration](orchestration.md),
       invariant 19), so **Start with …** does not open on a step Data Director cannot help with.
-      Before the project's first turn, the card's ending then offers "Start with" the suggested
+      Where that passes over earlier steps of the phase that no enabled agent serves (the
+      progress's `passed_over`), the ending names them and says that they come first in the
+      process but Data Director cannot help with them yet, so that a suggestion out of §8's order
+      is explained. Before the project's first turn, the card's ending then offers "Start with" the suggested
       step and "Not now". Start closes the card and sends the researcher's opening turn, which
       names that step, by the ordinary turn path, so the conversation begins with Data
       Director's guidance on it. Not now closes the card and sends nothing. Asked again from the

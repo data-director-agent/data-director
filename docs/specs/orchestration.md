@@ -228,7 +228,9 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     deployment enables serves comes before one no agent serves, so that a new project's card does
     not open on a step nothing can help with, such as `setup.documentation` before #1017 (#1377);
     the suggestion never leaves that phase for an agent, and where none of its steps is served it
-    is the first open one, named as having no agent (invariant 14). The harness reads the enabled
+    is the first open one, named as having no agent (invariant 14). The steps it passed over for
+    a served one are named (`dd_sdk.process_flow.passed_over`, the progress's `passed_over`), so
+    the app can say why the suggestion is not the first in §8's order. The harness reads the enabled
     agents from the app's conductor (`ProjectProgress.serving`), and the model's note from the
     manifest it is given, so the card, the tracker and both orchestrators agree. With no entry point recorded,
     where the researcher is is not known, so it names only a step begun, from any phase, or none:
