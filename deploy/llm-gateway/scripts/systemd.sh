@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Start or stop the LiteLLM gateway on a VM, for data-director-llm-gateway.service (deploy/README.md,
-# "The LiteLLM gateway"). install.sh copies it, with compose.yaml and config.yaml, to
-# /usr/local/lib/data-director/llm-gateway/, and the unit runs that copy as root:
+# "The LiteLLM gateway"). install.sh copies it, with compose.yaml, config.yaml and
+# dd_token_guard.py, to /usr/local/lib/data-director/llm-gateway/, and the unit runs that copy as
+# root:
 #
 #   systemd.sh up     start the gateway and its database, and wait until the gateway answers
 #   systemd.sh down   stop them; the database's volume, with its keys, budgets and spend, stays
@@ -51,6 +52,13 @@ compose() {
 case "${1:-}" in
   up)
     load
+    # compose.yaml bind-mounts this file. If it is missing Docker makes a directory in its place,
+    # and LiteLLM then fails at start with an error that does not say why.
+    if [[ ! -f "$HERE/dd_token_guard.py" ]]; then
+      echo "$HERE/dd_token_guard.py is missing or not a file: run deploy/install.sh again," \
+        "and remove it first if it is a directory" >&2
+      exit 1
+    fi
     compose up --detach --wait --wait-timeout 300 litellm db
     ;;
   down)

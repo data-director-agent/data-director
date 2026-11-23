@@ -215,7 +215,7 @@ if [[ "$gateway" == true ]]; then
   # Docker runs what compose.yaml says as root, so the unit runs root's copy from this clone.
   lib_gateway=/usr/local/lib/data-director/llm-gateway
   install -d -m 0755 "$lib_gateway"
-  install -m 0644 "$SRC/deploy/llm-gateway/compose.yaml" "$SRC/deploy/llm-gateway/config.yaml" "$lib_gateway/"
+  install -m 0644 "$SRC/deploy/llm-gateway/compose.yaml" "$SRC/deploy/llm-gateway/config.yaml" "$SRC/deploy/llm-gateway/dd_token_guard.py" "$lib_gateway/"
   install -m 0755 "$SRC/deploy/llm-gateway/scripts/systemd.sh" "$lib_gateway/systemd.sh"
   new_file "$ETC/llm-gateway.env" "$SRC/config/examples/llm-gateway.env"
   # The gateway's own secrets, made once. The salt key encrypts what the gateway stores, so it
