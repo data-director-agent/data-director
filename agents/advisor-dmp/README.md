@@ -1,7 +1,7 @@
 # advisor.dmp
 
-**Alpha** (`0.3.0a1`). It reviews a plan the researcher attached against the core requirements of
-a plan and the decisions made in the project. It compares the commitments it is given or a
+**Alpha** (`0.3.0a1`). With a model, it reviews a plan the researcher attached against the core
+requirements of a plan, good practice and the decisions made in the project. It compares the commitments it is given or a
 researcher confirmed, and with a model reads a free-text plan the researcher attached to propose
 them (#962). Reading a machine-actionable plan itself is TODO(#701).
 
@@ -10,7 +10,7 @@ steps of the Blueprint's process flow:
 
 | Step | What it does |
 |---|---|
-| `setup.dmp-review` | Reviews the plan attached against Science Europe's core requirements and the decisions made in the project ([Reviewing a plan](#reviewing-a-plan)). |
+| `setup.dmp-review` | Has a model review the plan attached against Science Europe's core requirements, UKRI and UK Data Service good practice and the decisions made in the project ([Reviewing a plan](#reviewing-a-plan)). |
 | `governance.dmp` (R8) | Compares what the data management plan committed to share with what is planned at publication, and lists each difference for a person to review. |
 
 Writing a plan (`setup.dmp-create`) is the Documentation Editor's: a written plan is a project
@@ -89,28 +89,44 @@ plan committed to share. If the model cannot be reached or its reply is unusable
 `DmpReviewRequest` carries only the attached documents and the decided facts, which the conductor
 fills in a project. The plan reviewed is the document a person marked as the project's plan
 (#1447), or, while none is marked, the latest document attached; with none, the checker abstains
-with `insufficient_input`. The payload's `section_findings` and `decision_conflicts` say
-what it found (`review.py`):
+with `insufficient_input`. The payload's `section_findings` say what it found.
 
-- **By rule, always.** [`dd-dmp-template`](../../dmp-template/README.md) reads the plan's headings
-  against the six core requirements, after Science Europe's. A requirement a heading names, with
-  text under it, is `covered`, with the start of that text quoted; one whose heading has nothing
-  under it is `vague`; one no heading names is `missing`. Each says what the requirement's
-  questions are, for the researcher to check. `finding_derivation` is `lexical`.
-- **Decisions not reflected.** A funder, required repository, licence or standard people in the
-  project decided that the plan never names (case, spaces, quotation marks and dashes set aside,
-  so `CC-BY-4.0` matches "CC BY 4.0"), and sensitive data where the plan has no legal and ethical
-  section, are each a `DecisionConflict` for a person to review. The plan may need updating, or the
-  decision may.
-- **With the model** (`review_model.py`, `review_prompt.md`), on unless `DD_DMP_MATCHER=template`.
-  It is given the plan (its first 60,000 characters), each requirement's questions and the rules'
-  finding, and reads how fully the plan answers each. A reading is used only if it names a
-  requirement it was given, once, gives a reason, and quotes words found in the plan. It may only
-  raise a finding: a `covered` requirement it reads as answered only in part becomes `vague`, with
-  `finding_derivation` `model` and its reason; for a `missing` one it may point to where the plan
-  answers it under another heading, which stays `missing`, with the model's reason and quote, for
-  a person to judge. Readings not used are listed in `dropped`. An unusable reply leaves the rules'
-  review, and the statement says why.
+There is no rule behind the review. A plan's headings say little about whether it answers a
+requirement, and a decision's wording may differ from the plan's, so a review by rule could not
+tell a good plan from a poor one. A model reads the plan (`review_model.py`), and code checks each
+reading before it is used. With `DD_DMP_MATCHER=template`, which turns the model off, the checker
+abstains with `capability_not_implemented` and says why.
+
+The model is given the plan (its first 60,000 characters), each of Science Europe's six core
+requirements with its questions, and the decisions people in the project made: the funder, a
+required repository, a licence, a standard, and any sensitive data identified. Its system prompt
+(`review_prompt.md`) sets out what a good plan looks like, from the
+[STFC/UKRI](https://www.ukri.org/councils/stfc/guidance-for-applicants/what-to-include-in-your-proposal/data-management-plan/)
+and [UK Data Service](https://ukdataservice.ac.uk/learning-hub/data-producer-support/planning-and-governing-research-data/planning/data-management-planning/)
+guidance. A plan is:
+
+- **specific and justified**: concrete decisions and reasons, not generic statements;
+- **proportionate**: its effort matches the value and complexity of the data;
+- **clear on the essentials**: repositories, metadata and documentation, the software needed to
+  read the data, retention and persistent identifiers are stated;
+- **realistic**: staff, training, computing and costs are identified and justified;
+- **transparent**: restrictions on sharing and any embargo are explained, not hidden;
+- **owned**: roles and responsibilities go to named people or teams;
+- **maintained**: it says how it will be reviewed and updated as the research proceeds;
+- **FAIR-oriented**: a sharing strategy for the end of the project is planned from the start.
+
+UK funders' typical specifics (original data kept for at least ten years, published data public
+within about six months unless an embargo is justified, an established repository) are put to the
+model as good practice, not as a rule for every project.
+
+For each requirement the model says how fully the plan answers it, quotes the plan's words, and
+gives a reason, which also says where a decision made in the project is not reflected. A reading is
+used only if it names a requirement it was given, once, gives a reason, and, where it says the plan
+answers the requirement wholly or in part, quotes words found in the plan (case, whitespace,
+quotation marks and dashes set aside). Its answer becomes the finding: `fully` is `covered`,
+`partly` is `vague` and `not` is `missing`. A reading that fails a check is listed in `dropped`,
+and its requirement has no finding. If the model cannot be reached, declines, replies outside the
+schema or no reading is usable, the checker abstains and the statement says why.
 
 The review never changes the plan, and says nothing of whether it meets a funder's own template.
 
@@ -124,7 +140,7 @@ baseline.
 
 | Setting | Values |
 |---|---|
-| `DD_DMP_MATCHER` | `model` (default): a model reads what the rules leave over (`anthropic` names the same with the Anthropic provider); with no key and no broker credential the agent stops at start-up and says to set `template`. `template`: rules only, no model, no key. The model and its key are set as for every agent ([AI models](../../docs/guide/operations/ai-models.md)). |
+| `DD_DMP_MATCHER` | `model` (default): a model reviews and reads an attached plan and reads what the rules leave over (`anthropic` names the same with the Anthropic provider); with no key and no broker credential the agent stops at start-up and says to set `template`. `template`: rules only, no model, no key. The model and its key are set as for every agent ([AI models](../../docs/guide/operations/ai-models.md)). |
 
 ## Run it
 
@@ -134,15 +150,15 @@ uv run workbench invoke --agent advisor.dmp --input workbench/samples/dmp-commit
 uv run pytest agents/advisor-dmp
 ```
 
-Without a model key, set `DD_DMP_MATCHER=template` first.
+Without a model key, set `DD_DMP_MATCHER=template` first; it compares commitments by rule and reviews no plan.
 
 ## What it does not do
 
 - Its review reads one funder-neutral template. A funder's own template (UKRI's councils',
   Horizon Europe's) asks for more; choosing one by the institutional profile is a follow-up.
-- On the template path, its review reads only headings: a plan that answers a requirement under
-  another heading, or with none, is reported as missing it.
-- Its review has no evaluation set yet: how often the rules or the model miss is not measured.
+- Its review needs a model: on the template path there is none. A model's reading may be wrong, and
+  a quote found in the plan does not make it right.
+- Its review has no evaluation set yet: how often the model misjudges a plan is not measured.
 
 - It reads a free-text plan only with a model, and only to propose commitments for the researcher
   to confirm. It does not yet read a machine-actionable plan in the RDA DMP Common Standard by

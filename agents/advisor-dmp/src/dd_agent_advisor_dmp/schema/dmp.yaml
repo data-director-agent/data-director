@@ -43,9 +43,9 @@ classes:
   DmpReviewRequest:
     description: >-
       A request to review the data management plan the researcher attached (setup.dmp-review):
-      which of the core requirements it covers, and where it disagrees with what people in the
-      project decided. In a project the conductor gives the attached documents and the decided
-      facts; outside one, the caller sends them.
+      how well it answers the core requirements of a plan and meets good practice, and whether it
+      reflects what people in the project decided. In a project the conductor gives the attached
+      documents and the decided facts; outside one, the caller sends them.
     mixins:
       - GivenProjectDocuments
       - GivenProjectDecisions
@@ -67,7 +67,7 @@ classes:
       is a valid outcome. Where it has read an attached plan and nobody has confirmed its
       commitments yet, it proposes each commitment as a project fact for the researcher to
       confirm, quoting the passage it rests on, and compares nothing until they do. A review of
-      an attached plan (setup.dmp-review) fills section_findings and decision_conflicts instead.
+      an attached plan (setup.dmp-review) fills section_findings instead.
     mixins:
       - Grounded
       - ProposesFacts
@@ -76,7 +76,6 @@ classes:
       - discrepancies
       - reconciled
       - section_findings
-      - decision_conflicts
       - dropped
       - limitations
 
@@ -109,28 +108,15 @@ classes:
 
   SectionFinding:
     description: >-
-      How the plan meets one core requirement: covered, vague or missing, with the plan's heading
-      and words it rests on. The rules decide the finding from the plan's headings
-      (finding_derivation lexical); a model may only raise it, from covered to vague, never lower
-      it (finding_derivation model, with its reason). Either way it is for a person to judge.
+      How the plan meets one core requirement: covered, vague or missing, with the plan's words
+      the finding rests on and a model's reason. A model's reading, whose quote code checked is in
+      the plan; for a person to judge.
     slots:
       - section
       - finding
-      - plan_heading
       - quote
       - message
-      - finding_derivation
       - reason
-
-  DecisionConflict:
-    description: >-
-      A decision people in the project made that the plan does not reflect, such as a licence or
-      repository it does not name, for a person to review: the plan may need updating, or the
-      decision may. Found by rule.
-    slots:
-      - fact_kind
-      - decided
-      - message
 
 slots:
 
@@ -139,32 +125,16 @@ slots:
     range: SectionFinding
     multivalued: true
     inlined_as_list: true
-  decision_conflicts:
-    description: The decisions people in the project made that the plan does not reflect.
-    range: DecisionConflict
-    multivalued: true
-    inlined_as_list: true
   section:
     description: The core requirement, by its heading, such as Storage and backup during the project.
     required: true
   finding:
     description: >-
-      covered (a heading of the plan names it, with text under it), vague (it has a heading but
-      nothing, or too little, under it to answer its questions) or missing (no heading names it).
+      covered (a model read the plan as answering its questions specifically enough), vague (only
+      in part, or in general terms) or missing (not at all).
     required: true
-  plan_heading:
-    description: The plan's heading that names the requirement, if one does.
   quote:
     description: The plan's own words the finding rests on, found in its text.
-  finding_derivation:
-    description: >-
-      How the finding was reached: lexical, by the rule reading the plan's headings, or model, by
-      a model that read the plan as too vague to answer the requirement's questions.
-    range: Derivation
-    required: true
-  decided:
-    description: What people in the project decided, as recorded.
-    required: true
 
   dmp_identifier:
     description: The data management plan's identifier, such as a DOI, if it has one.
@@ -212,8 +182,8 @@ slots:
     required: true
   reason:
     description: >-
-      The model's short reason for a pairing or a reconciliation. Present exactly when a model
-      found it.
+      The model's short reason for a pairing, a reconciliation or a review finding. Present
+      exactly when a model found it.
   reconciled:
     description: >-
       Differences in repository, access or licence that a model judged to be the same thing,

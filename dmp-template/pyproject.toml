@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "data-director-dmp-template"
 version = "0.1.0-alpha.0"
-description = "The Science Europe core requirements for a Data Management Plan, and a rule that finds which of them a plan's headings cover"
+description = "The Science Europe core requirements for a Data Management Plan"
 readme = "README.md"
 requires-python = ">=3.14"
 license = "MIT"

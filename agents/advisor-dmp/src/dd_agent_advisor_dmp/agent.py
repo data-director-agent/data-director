@@ -1,10 +1,11 @@
 """advisor.dmp: the Data Management Plan Checker persona (docs/specs/agents.md). An alpha.
 
-Serves `governance.dmp` (R8) and `setup.dmp-review`. Given a `DmpReviewRequest`, it reviews the
-plan the researcher attached against the core requirements of a plan and the decisions people in
-the project made (`review.py`, `review_model.py`). Given `DmpCommitments`, the rest of this
-docstring applies. It compares the outputs a data management plan committed to share
-with the outputs the researcher now plans to share, and lists every difference for a person to
+Serves `governance.dmp` (R8) and `setup.dmp-review`. Given a `DmpReviewRequest`, a model reviews
+the plan the researcher attached against the core requirements of a plan, good practice and the
+decisions people in the project made (`review.py`, `review_model.py`); there is no rule behind the
+review, so with no model it abstains. Given `DmpCommitments`, the rest of this docstring applies.
+It compares the outputs a data management plan committed to share with the outputs the researcher
+now plans to share, and lists every difference for a person to
 review. It never enforces the plan: a reviewed decision not to share is a valid outcome.
 
 Rules first (the deterministic shell): outputs are matched by name, case ignored, and repository,
@@ -55,7 +56,7 @@ from dd_agent_advisor_dmp.read_plan import (
     plan_documents,
     plan_proposal,
 )
-from dd_agent_advisor_dmp.review import counted, plan_of, review
+from dd_agent_advisor_dmp.review import counted, plan_of
 from dd_agent_advisor_dmp.review_model import ModelReview, Reviewer, TemplateReviewer
 from dd_sdk.agent import (
     AgentResult,
@@ -78,13 +79,15 @@ from dd_sdk.contract.models import (
 
 REVIEW_LIMITATIONS = (
     "It reviews the plan against one funder-neutral template, after Science Europe's core "
-    "requirements; your funder's own template may ask for more.",
-    "By rule it reads only the plan's headings: a section is covered if a heading names it, "
-    "whether or not the text under it answers the requirement's questions.",
-    "A model's reading, where one is configured, may only raise a finding, never lower it; read "
-    "each one, with its quote, before you act on it.",
+    "requirements, and general good practice from UKRI and the UK Data Service guidance; your "
+    "funder's own template may ask for more, and it does not say whether the plan would be "
+    "accepted.",
+    "A model's reading may be wrong or miss something: read each finding, with its quote, before "
+    "you act on it. Only a quote found in the plan is used, which does not make the reading "
+    "right.",
     "It reviews the document marked as the project's plan, or, while none is marked, the latest "
     "document attached; it reads a free-text plan only, not a machine-actionable one (#701).",
+    "Its review has no evaluation set yet: how often the model misjudges a plan is not measured.",
 )
 LIMITATIONS = (
     "It reads a plan the researcher attached only to propose its commitments, which count once "
@@ -125,12 +128,12 @@ class DmpChecker:
         title="Data Management Plan Checker",
         icon="📋",
         description=(
-            "Alpha. Reviews the data management plan the researcher attached against Science "
-            "Europe's core requirements and the decisions made in the project; and compares what "
-            "a plan committed to share with what is planned at publication, listing each "
-            "difference in output, repository, access or licence for a person to review. With a "
-            "model, it reads the plan against each requirement's questions, and renamed outputs "
-            "and two names for one thing among what its rules leave over. Never enforces the plan."
+            "Alpha. With a model, reviews the data management plan the researcher attached "
+            "against Science Europe's core requirements, good practice and the decisions made in "
+            "the project; and compares what a plan committed to share with what is planned at "
+            "publication, listing each difference in output, repository, access or licence for a "
+            "person to review. Its model also pairs renamed outputs and two names for one thing "
+            "among what its rules leave over. Never enforces the plan."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(DmpCommitments), ClassSchema.of(DmpReviewRequest)),
@@ -143,12 +146,9 @@ class DmpChecker:
             "discrepancies.reason": Derived(Derivation.MODEL),
             "discrepancies.message": Derived(Derivation.TEMPLATE),
             "reconciled.reason": Derived(Derivation.MODEL),
-            "section_findings.finding": Derived(
-                Derivation.LEXICAL, recorded_in="finding_derivation"
-            ),
+            "section_findings.finding": Derived(Derivation.MODEL),
             "section_findings.reason": Derived(Derivation.MODEL),
             "section_findings.message": Derived(Derivation.TEMPLATE),
-            "decision_conflicts": Derived(Derivation.LEXICAL),
             "dropped": Derived(Derivation.TEMPLATE),
             "limitations": Derived(Derivation.TEMPLATE),
         },
@@ -233,26 +233,37 @@ class DmpChecker:
         )
 
     def _review(self, asked: DmpReviewRequest, ctx: RunContext) -> AgentResult:
-        """A review of the attached plan: by rule, then raised by a model where one is set."""
+        """A model's review of the attached plan; with no model, or none of its readings usable, the
+        agent abstains, because nothing else reviews a plan."""
         plan = plan_of(asked.project_documents)
         if plan is None:
             return abstain(
                 ReasonCode.INSUFFICIENT_INPUT,
                 "Attach your data management plan to the project, and ask for a review again.",
             )
-        reviewed = review(plan, asked.project_decisions)
-        read = self.reviewer.review(plan, reviewed.findings, ctx)
-        conflicts = reviewed.conflicts
-        reflected = (
-            f"{_count(len(conflicts), 'decision')} made in the project "
-            f"{'is' if len(conflicts) == 1 else 'are'} not reflected in it"
-            if conflicts
-            else "it names every decision made in the project that it was checked against"
-        )
+        if self.reviewer.model_id is None:
+            return abstain(
+                ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
+                "Reviewing a plan needs a model, and none is configured (DD_DMP_MATCHER=template). "
+                "No rule can say whether a plan answers a requirement.",
+            )
+        read = self.reviewer.review(plan, asked.project_decisions, ctx)
+        used = model_use(read.model_id if read.calls else None, read.usage, read.calls)
+        if read.unused:
+            return AgentResult(
+                outcome=Outcome(
+                    status=OutcomeStatus.ABSTAINED,
+                    reason_code=ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
+                    statement=(
+                        f"It could not review '{plan.documentation_name}', because {read.unused} "
+                        f"({read.model_id}). Try again."
+                    ),
+                ),
+                **used,
+            )
         which = "the project's plan" if plan.documentation_is_plan else "the latest attached"
         statement = (
-            f"It reviewed '{plan.documentation_name}', {which}. {counted(read.findings)}; "
-            f"{reflected}. "
+            f"It reviewed '{plan.documentation_name}', {which}. {counted(read.findings)}. "
             f"{_how_reviewed(read)} Each finding is advice for you to judge: the plan is not "
             "changed."
         )
@@ -260,27 +271,18 @@ class DmpChecker:
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=statement),
             payload=DmpDiscrepancies(
                 section_findings=read.findings,
-                decision_conflicts=conflicts,
                 dropped=list(read.dropped),
                 limitations=list(REVIEW_LIMITATIONS),
                 grounded_on=[input_ref(ctx)],
             ),
             evidence=[input_evidence(ctx)],
-            **model_use(read.model_id if read.calls else None, read.usage, read.calls),
+            **used,
         )
 
 
 def _how_reviewed(read: ModelReview) -> str:
     """What the statement says about the model's reading of the plan."""
-    if read.model_id is None:
-        return "It was reviewed by rule: no model is configured, so only the headings were read."
-    if read.unused:
-        return f"It was reviewed by rule, because {read.unused} ({read.model_id})."
-    raised = sum(f.finding_derivation == Derivation.MODEL for f in read.findings)
-    said = (
-        f"A model ({read.model_id}) read the plan against each requirement's questions and "
-        f"raised {_count(raised, 'finding')}"
-    )
+    said = f"A model ({read.model_id}) read the plan against each requirement's questions"
     if read.dropped:
         said += f"; {_count(len(read.dropped), 'reading')} was not used: " + "; ".join(read.dropped)
     if read.cut:

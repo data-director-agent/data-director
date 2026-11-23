@@ -69,8 +69,8 @@ An early-stage (alpha) checker for two steps: reviewing your data management pla
 
 **Reviewing your plan.** Attach your plan to the project and ask for a review.
 
-- **You get back**, for each of six core requirements of a plan (after Science Europe's: data collection, documentation and quality, storage and backup, legal and ethics, sharing and preservation, responsibilities and resources), whether the plan covers it, treats it too vaguely or has no section for it, with the plan's words the finding rests on; and each decision made in the project, such as the licence or repository, that the plan does not name.
-- **It will not** change your plan, or say whether it meets your funder's own template. Without a model it reads only the plan's headings. With one, the model may point out a vague section or one answered under another heading, quoting your plan; it never marks a section better than the headings show.
+- **You get back**, for each of six core requirements of a plan (after Science Europe's: data collection, documentation and quality, storage and backup, legal and ethics, sharing and preservation, responsibilities and resources), whether a model read the plan as answering it specifically enough, only in part or in general terms, or not at all, with the plan's words the finding rests on and a short reason saying what to add. The model judges the plan against good practice from UKRI and the UK Data Service (specific and justified, proportionate, clear on repositories, retention and metadata, realistic about costs, transparent about what will not be shared, with named owners and a plan for keeping it up to date), and says where the plan does not reflect a decision made in the project, such as the licence or repository.
+- **It will not** change your plan, or say whether it meets your funder's own template. A model's reading can be wrong: check each finding against your plan. The review needs a model; a deployment that has turned the model off gets no review, and the checker says so.
 
 **Comparing what you share with what the plan promised.**
 
