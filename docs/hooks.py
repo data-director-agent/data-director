@@ -50,6 +50,8 @@ UNPUBLISHED = (
     "inventory/src/dd_inventory/pronom/*",
     # The licence of the pinned PRONOM records, which travels with the data.
     "formats/src/dd_formats/data/*",
+    # The licence of the pinned GA4GH Data Use Ontology terms, which travels with the data.
+    "duo/src/dd_duo/data/*",
     # The source and licence of the journal registry built from OpenAlex, which travel with it.
     "journals/src/dd_journals/data/*",
     # The licence of the pinned SPDX licence list, which travels with the data.
