@@ -3809,7 +3809,7 @@
   "incompatible": {},
   "profile": {
     "attached_documents": "allowed",
-    "digest": "3d0adbcbb9d74a5321e1c442c7ff2afeee34bcf455196b1fcf7702122f5c5a87",
+    "digest": "118cf9936a643599eae312efe10df5cfa022a740b6845ac9e37d28d6b7cc8675",
     "orchestrator": null,
     "ref": "profile:test-permissive@v9"
   },

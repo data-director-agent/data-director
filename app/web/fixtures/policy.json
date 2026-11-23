@@ -66,6 +66,11 @@
     },
     {
       "action_class": "advise",
+      "agent_id": "advisor.storage",
+      "requires_approval": false
+    },
+    {
+      "action_class": "advise",
       "agent_id": "example.hello",
       "requires_approval": false
     },
@@ -82,7 +87,7 @@
   ],
   "profile": {
     "description": "Reference profile for the Data Director app; enables every in-tree agent, requires approval for writes.",
-    "digest": "d06f9ece0e497cb4c53e31de4bfb5aedfe08c4c33a58b5debb769df7eb557442",
+    "digest": "4016460a25bd3570b2b5be9c3022c23842b890807a9137fa95f5fd32879899ce",
     "id": "data-director-app",
     "orchestrator": "orchestrator.stub",
     "ref": "profile:data-director-app@v10",
@@ -114,6 +119,17 @@
       "reason": null,
       "refers_to": null,
       "step_id": "setup.vocabularies"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Plan where your data will be stored and backed up",
+      "phase_name": "Plan ahead",
+      "phase_number": 1,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "setup.storage"
     },
     {
       "action_classes": [],

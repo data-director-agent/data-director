@@ -1698,9 +1698,8 @@
             },
             "allowance_gb": {
                "description": "How many gigabytes a project may hold there without charge, where there is a limit.",
-               "minimum": 0,
                "type": [
-                  "integer",
+                  "number",
                   "null"
                ]
             },

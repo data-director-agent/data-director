@@ -16,8 +16,9 @@ about it that the app offers to edit and send.
 
 The steps are taken from the figure captions in §8.2, with two boxes the captions leave out:
 Figure 2's check of ethical, legal and institutional constraints, and Figure 4's finalising of
-controlled vocabularies and ontologies, which settles the first choice made in Phase 1. One step
-is ours and in no figure: `deposit.fairness`, a FAIR check of the draft before submission.
+controlled vocabularies and ontologies, which settles the first choice made in Phase 1. Some steps
+are ours and in no figure: `setup.storage`, planning where data are stored and backed up while the
+project runs, and `deposit.fairness`, a FAIR check of the draft before submission.
 TODO(#245):
 check the rest against Figures 1 to 6 themselves, which may show other steps or decisions the
 captions leave out.
@@ -88,6 +89,16 @@ PHASES: tuple[Phase, ...] = (
                     "as I collect it."
                 ),
             ),
+            # Not in Figure 1: our addition. Where the data live while the project runs, how they
+            # are backed up and who can reach them is the first thing a data service asks, and
+            # one of a plan's core requirements (Storage and backup during the project); without
+            # it, a researcher who has no plan is never asked.
+            Step(
+                "setup.storage",
+                "Plan storage, backup and security during the project",
+                label="Plan where your data will be stored and backed up",
+                prompt="Help me plan where to store and back up my data while I work on it.",
+            ),
             # Figure 1: a decision, then create a plan where none exists (optional) or review
             # and update the one that does.
             Step(
@@ -105,7 +116,10 @@ PHASES: tuple[Phase, ...] = (
             ),
         ),
         name="Plan ahead",
-        summary="Before you collect any data: decide how it will be described.",
+        summary=(
+            "Before you collect any data: decide how it will be described, and where it will be "
+            "stored and backed up."
+        ),
     ),
     Phase(
         2,

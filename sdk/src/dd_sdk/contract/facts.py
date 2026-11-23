@@ -338,7 +338,8 @@ class InstitutionStorage(Frozen):
     storage_kind: StorageKind | None = None
     approved_for_sensitive: bool | None = None
     allows_external_collaborators: bool | None = None
-    allowance_gb: int | None = Field(default=None, ge=0)
+    # A float so that it hashes the same after A2A's Struct, which has no integers.
+    allowance_gb: float | None = Field(default=None, ge=0)
     charges_for_storage: bool | None = None
     storage_backup: str | None = None
     guidance: list[str] = Field(default_factory=list)

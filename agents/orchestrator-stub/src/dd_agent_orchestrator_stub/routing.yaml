@@ -87,6 +87,8 @@ entries:
 next: '^\s*(?:what(?:[''’]s|\s+is)?\s+next|next(?:\s+step)?|what\s+now|continue|carry\s+on|where\s+(?:am\s+i|are\s+we|is\s+my\s+project))\b'
 
 steps:
+  setup.storage:
+    - { schema_class: StorageNeeds }
   setup.dmp-create:
     - { schema_class: DraftRequest, document_kind: dmp }
   setup.dmp-review:

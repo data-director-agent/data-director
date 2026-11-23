@@ -2034,9 +2034,12 @@ slots:
     description: Whether people outside the institution can be given access to data held there.
     range: boolean
   allowance_gb:
+    # A float, and no minimum_value: an agent cites the entry as evidence, and A2A's protobuf
+    # Struct carries every number as a double, so an integer would not hash the same on both
+    # sides of the wire; a bound would break the card's schema digest (#333). The profile's
+    # loader refuses a negative allowance.
     description: How many gigabytes a project may hold there without charge, where there is a limit.
-    range: integer
-    minimum_value: 0
+    range: float
   charges_for_storage:
     description: Whether the institution charges a project for storage there.
     range: boolean

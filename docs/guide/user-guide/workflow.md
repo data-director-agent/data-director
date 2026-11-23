@@ -65,8 +65,10 @@ Blueprint's flow and shown here so the map is complete, but Data Director does n
 
 - Draft the data documentation (R5)
 - Select controlled vocabularies and ontologies (R3)
-- Create a Data Management Plan where none exists (*optional*, out of scope for now)
-- Review and update the Data Management Plan (out of scope for now)
+- Plan storage, backup and security during the project (not in the Blueprint's figure, added
+  because where your data live while you work on them is the first thing to settle)
+- Create a Data Management Plan where none exists (*optional*)
+- Review and update the Data Management Plan
 
 ### Phase 2: Governance and constraints
 

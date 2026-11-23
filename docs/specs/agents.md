@@ -168,6 +168,14 @@ assessor also serves `deposit.fairness`, our addition to Figure 5, with the same
 that the check comes before submission as well as after publication (`post.fairness`). That step
 is advice: it gates nothing and marks no other step done.
 
+The Storage Adviser (`advisor.storage`) is the persona for where a project's data live while it
+runs: its own sources (the deployment's `institution_storage`, which no registry holds), its own
+failure modes (offering storage not approved for personal data) and its own step,
+`setup.storage`, our addition to Figure 1. No other persona covered it: the Documentation Editor
+drafts a plan's storage section from what the researcher says, and the Data Management Plan
+Checker reviews it, but neither knows the institution's services. It flags what the profile does
+not vouch for and leaves how sensitive data are protected to the person who decides it.
+
 Some steps are deliberately served by no agent, and the orchestrators name them as steps with no
 agent:
 
@@ -209,7 +217,7 @@ Each in-tree agent's state now. This table is the one place a state is written d
 | State | Agents |
 |---|---|
 | Mock (invariant 13) | none |
-| Model-backed alpha (invariant 14) | `advisor.dmp`, `advisor.documentation`, `advisor.ethics`, `advisor.fairness`, `advisor.files`, `advisor.linking`, `advisor.metadata`, `advisor.policy`, `advisor.rights` |
+| Model-backed alpha (invariant 14) | `advisor.dmp`, `advisor.documentation`, `advisor.ethics`, `advisor.fairness`, `advisor.files`, `advisor.linking`, `advisor.metadata`, `advisor.policy`, `advisor.rights`, `advisor.storage` |
 | Persona | `advisor.quality`, `advisor.repository`, `advisor.standards` |
 | Deterministic by design, or not an advisor | `example.hello`, `orchestrator.model`, `orchestrator.stub` |
 

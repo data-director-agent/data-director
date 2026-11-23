@@ -10,6 +10,7 @@ agents:
   advisor.policy: advise
   advisor.repository: advise
   example.hello: advise
+  advisor.storage: advise
   advisor.quality: advise
   advisor.ethics: advise
   advisor.files: advise

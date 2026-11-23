@@ -46,6 +46,16 @@
           "text": "Select controlled vocabularies and ontologies"
         },
         {
+          "id": "setup.storage",
+          "label": "Plan where your data will be stored and backed up",
+          "optional": false,
+          "out_of_scope": false,
+          "person_decides": false,
+          "prompt": "Help me plan where to store and back up my data while I work on it.",
+          "requirements": [],
+          "text": "Plan storage, backup and security during the project"
+        },
+        {
           "id": "setup.dmp-create",
           "label": "Write a Data Management Plan",
           "optional": true,
@@ -66,7 +76,7 @@
           "text": "Review and update the Data Management Plan"
         }
       ],
-      "summary": "Before you collect any data: decide how it will be described.",
+      "summary": "Before you collect any data: decide how it will be described, and where it will be stored and backed up.",
       "title": "Pre-collection setup"
     },
     {
