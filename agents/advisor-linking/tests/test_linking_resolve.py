@@ -17,6 +17,8 @@ from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_harness.testing.tools import fake_gateway, tools_profile
 from dd_mcp_pid.app import mcp_server
 from dd_mcp_pid.dois import Crossref, DataCite
+from dd_mcp_pid.grant_server import GrantSources, grant_registry
+from dd_mcp_pid.grants import CrossrefGrants, OpenAireGraph
 from dd_mcp_pid.http import Http
 from dd_mcp_pid.orcid import Orcid
 from dd_mcp_pid.ror import RorApi
@@ -37,8 +39,76 @@ TYPED = {
     "10.13039/grant.4": ("Crossref", "grant"),
     "10.1016/article.5": ("Crossref", "journal-article"),
 }
-ALL = ["datacite", "crossref", "orcid", "ror"]
-ID_FIELD = {"datacite": "doi", "crossref": "doi", "orcid": "orcid", "ror": "id"}
+ALL = ["datacite", "crossref", "orcid", "ror", "grants"]
+ID_FIELD = {"datacite": "doi", "crossref": "doi", "orcid": "orcid", "ror": "id", "grants": "id"}
+UKRI_AWARD = "EP/T012345/1"
+SHARED_AWARD = "100000"
+WELLCOME_GRANT = "10.35802/100000"
+UKRI_PROJECT = "ukri________::0001"
+SNSF_PROJECT = "snsf________::0002"
+PROJECT_PAGE = "https://explore.openaire.eu/search/project?projectId="
+
+
+def _project(ident: str, code: str, title: str, funder: str, short: str, stream: str) -> Any:
+    return {
+        "id": ident,
+        "code": code,
+        "title": title,
+        "funding": {"funder": {"name": funder, "shortname": short}, "level0": {"name": stream}},
+    }
+
+
+# Searches for grants, by the filter asked -> the source's answer, cut to the fields it reads.
+GRANT_SEARCHES: dict[str, Any] = {
+    f"type:grant,award.number:{SHARED_AWARD}": {
+        "message": {
+            "items": [
+                {
+                    "DOI": WELLCOME_GRANT,
+                    "type": "grant",
+                    "award": SHARED_AWARD,
+                    "project": [
+                        {
+                            "project-title": [{"title": "Balanced cortical dynamics"}],
+                            "funding": [
+                                {
+                                    "funder": {
+                                        "name": "Wellcome Trust",
+                                        "id": [{"id": "10.13039/100010269", "id-type": "DOI"}],
+                                    }
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ]
+        }
+    },
+    f"code:{UKRI_AWARD}": {
+        "results": [
+            _project(
+                UKRI_PROJECT,
+                UKRI_AWARD,
+                "Lava deltas",
+                "UK Research and Innovation",
+                "UKRI",
+                "EPSRC",
+            )
+        ]
+    },
+    f"code:{SHARED_AWARD}": {
+        "results": [
+            _project(
+                SNSF_PROJECT,
+                SHARED_AWARD,
+                "Massive stars",
+                "Swiss National Science Foundation",
+                "SNSF",
+                "Projects",
+            )
+        ]
+    },
+}
 
 # Path on each registry's API -> its answer, cut to the fields the server reads.
 ANSWERS: dict[str, dict[str, Any]] = {
@@ -86,6 +156,9 @@ for _doi, (_agency, _type) in TYPED.items():
 def answer(req: httpx.Request) -> httpx.Response:
     if req.url.path.endswith(BROKEN):
         return httpx.Response(500)
+    if req.url.path in {"/works", "/graph/v4/projects"}:
+        searched = GRANT_SEARCHES.get(req.url.params.get("filter", ""))
+        return httpx.Response(200, json=searched or {"message": {"items": []}, "results": []})
     found = ANSWERS.get(req.url.path)
     return httpx.Response(200, json=found) if found is not None else httpx.Response(404)
 
@@ -99,6 +172,9 @@ def registries() -> dict[str, Registry]:
         "crossref": doi_registry("Crossref", Crossref(http("Crossref"))),
         "orcid": orcid_registry(Orcid(http("ORCID"))),
         "ror": ror_registry(RorSources(index=None, api=RorApi(http("ROR")))),
+        "grants": grant_registry(
+            GrantSources(CrossrefGrants(http("Crossref")), OpenAireGraph(http("OpenAIRE")))
+        ),
     }
 
 
@@ -113,8 +189,13 @@ def tool_server(registry: Registry) -> ToolServer:
     )
 
 
-def run(tmp_path: Path, identifiers: list[str], granted: list[str] = ALL) -> Envelope:
-    served = registries()
+def run(
+    tmp_path: Path,
+    identifiers: list[str],
+    granted: list[str] = ALL,
+    served: dict[str, Registry] | None = None,
+) -> Envelope:
+    served = served or registries()
     serve: Callable[[ToolServer], Any] = lambda s: mcp_server(served[s.name])  # noqa: E731
     conductor = make_conductor(
         tmp_path / "runs",
@@ -190,18 +271,22 @@ def test_a_lookup_that_fails_everywhere_is_recorded_by_form_only(tmp_path: Path)
     assert link.message.startswith("Could not be looked up through DataCite and Crossref")
 
 
-def test_grant_numbers_and_malformed_ids_are_not_looked_up(tmp_path: Path) -> None:
-    env = run(tmp_path, ["EP/T012345/1", "0000-0002-1825-0098", DATACITE_DOI])
+def test_malformed_ids_are_not_looked_up(tmp_path: Path) -> None:
+    env = run(tmp_path, ["0000-0002-1825-0098", DATACITE_DOI])
     links = env.payload_as(RelatedIdentifiers).links
-    assert [link.resolved for link in links] == [None, None, True]
+    assert [link.resolved for link in links] == [None, True]
     assert [r.tool_server for r in env.tool_retrievals] == ["datacite"]
 
 
 @pytest.mark.parametrize(
     ("granted", "resolved", "form_only"),
     [
-        (["crossref"], "DOIs were looked up", "ORCID iDs and ROR ids were checked by form only"),
-        ([], None, "DOIs, ORCID iDs and ROR ids were checked by form only"),
+        (
+            ["crossref"],
+            "DOIs were looked up",
+            "ORCID iDs, ROR ids and grant numbers were checked by form only",
+        ),
+        ([], None, "DOIs, ORCID iDs, ROR ids and grant numbers were checked by form only"),
     ],
 )
 def test_the_limitations_say_which_schemes_were_looked_up(
@@ -253,3 +338,74 @@ def test_a_funding_organisation_is_offered_its_crossref_funder_id(tmp_path: Path
     [link] = env.payload_as(RelatedIdentifiers).links
     assert link.resolved is True and link.relation is None
     assert "https://doi.org/10.13039/501100000270" in link.message
+
+
+def test_a_grant_number_that_names_one_grant_is_resolved_and_cited(tmp_path: Path) -> None:
+    env = run(tmp_path, [UKRI_AWARD])
+    payload = env.payload_as(RelatedIdentifiers)
+    [link] = payload.links
+    assert (link.resolved, link.title, link.resource_type) == (True, "Lava deltas", "Grant")
+    [grant] = link.candidates
+    assert (grant.funder, grant.funding_stream, grant.source) == (
+        "UK Research and Innovation",
+        "EPSRC",
+        "OpenAIRE",
+    )
+    assert "awardNumber" in link.message
+    cited = f"tool:grants/{PROJECT_PAGE}{UKRI_PROJECT}"
+    assert [r.source_id for r in env.tool_retrievals] == [cited]
+    assert [g.source_id for g in payload.grounded_on] == [cited]
+
+
+def test_an_ambiguous_grant_number_lists_every_candidate_and_chooses_none(tmp_path: Path) -> None:
+    env = run(tmp_path, [SHARED_AWARD])
+    payload = env.payload_as(RelatedIdentifiers)
+    [link] = payload.links
+    assert link.resolved is True
+    assert link.title is None and link.normalised is None
+    assert {(c.funder, c.source) for c in link.candidates} == {
+        ("Wellcome Trust", "Crossref"),
+        ("Swiss National Science Foundation", "OpenAIRE"),
+    }
+    wellcome = next(c for c in link.candidates if c.source == "Crossref")
+    assert wellcome.id == f"https://doi.org/{WELLCOME_GRANT}"
+    assert wellcome.funder_identifier == "https://doi.org/10.13039/100010269"
+    assert sorted(g.source_id for g in payload.grounded_on) == sorted(
+        f"tool:grants/{c.id}" for c in link.candidates
+    )
+
+
+def test_a_grant_number_with_one_grant_doi_is_given_it(tmp_path: Path) -> None:
+    def only_crossref(req: httpx.Request) -> httpx.Response:
+        return answer(req) if req.url.host != "api.openaire.eu" else httpx.Response(503)
+
+    served = registries()
+    served["grants"] = grant_registry(
+        GrantSources(
+            CrossrefGrants(Http("Crossref", transport=httpx.MockTransport(answer), pauses=())),
+            OpenAireGraph(
+                Http("OpenAIRE", transport=httpx.MockTransport(only_crossref), pauses=())
+            ),
+        )
+    )
+    env = run(tmp_path, [SHARED_AWARD], served=served)
+    [link] = env.payload_as(RelatedIdentifiers).links
+    assert link.normalised == f"https://doi.org/{WELLCOME_GRANT}"
+    assert f"awardURI https://doi.org/{WELLCOME_GRANT}" in link.message
+    assert "funderIdentifier https://doi.org/10.13039/100010269" in link.message
+
+
+def test_a_grant_number_no_source_holds_is_not_found(tmp_path: Path) -> None:
+    env = run(tmp_path, ["ZZ/9999/1"])
+    [link] = env.payload_as(RelatedIdentifiers).links
+    assert link.resolved is False and link.candidates == []
+    assert link.message.startswith("Not found by the grant resolver")
+
+
+def test_without_the_grant_resolver_grant_numbers_are_checked_by_form_only(
+    tmp_path: Path,
+) -> None:
+    env = run(tmp_path, [UKRI_AWARD], granted=["datacite"])
+    payload = env.payload_as(RelatedIdentifiers)
+    assert payload.links[0].resolved is None
+    assert any("grant numbers were checked by form only" in lim for lim in payload.limitations)

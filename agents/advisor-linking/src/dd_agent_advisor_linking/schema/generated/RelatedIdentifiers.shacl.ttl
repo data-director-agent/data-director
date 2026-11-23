@@ -5,7 +5,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 linking:RelatedIdentifiers a sh:NodeShape ;
-    rdfs:comment "The payload of advisor.linking: each identifier recognised, checked for form and put in canonical form, with a suggested way to record it, and a DOI's title and type where it was resolved. It suggests linking metadata for the researcher to review; registering the links stays with the researcher and the repository (R11)." ;
+    rdfs:comment "The payload of advisor.linking: each identifier recognised, checked for form and put in canonical form, with a suggested way to record it, what it names where it was resolved, and every grant a grant number may name. It suggests linking metadata for the researcher to review; registering the links stays with the researcher and the repository (R11)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:description "How the summary came about: template, the rules' own summary, or model, where a model wrote it from the findings." ;
@@ -62,55 +62,67 @@ linking:RelatedIdentifiers a sh:NodeShape ;
             sh:path <https://w3id.org/data-director/source_id> ] ;
     sh:targetClass <https://w3id.org/data-director/GroundingRef> .
 
+linking:GrantCandidate a sh:NodeShape ;
+    rdfs:comment "A grant that a grant number may name, as the source that holds it describes it. Where a number names more than one, the researcher chooses; the adviser does not." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "The funder's identifier as a URL, a Crossref Funder ID or ROR id, where the source gives one." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path linking:funder_identifier ],
+        [ sh:datatype xsd:string ;
+            sh:description "What the grant's record is cited by: its grant DOI as a URL, or its OpenAIRE project page." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path linking:id ],
+        [ sh:datatype xsd:string ;
+            sh:description "The funder's name." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path linking:funder ],
+        [ sh:datatype xsd:string ;
+            sh:description "The award number, as the source gives it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path linking:award ],
+        [ sh:datatype xsd:string ;
+            sh:description "The source that holds the grant's record (Crossref or OpenAIRE)." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path linking:source ],
+        [ sh:datatype xsd:string ;
+            sh:description "The funder's scheme or programme the grant was made under." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path linking:funding_stream ],
+        [ sh:datatype xsd:string ;
+            sh:description "What a resolved identifier names, as the source gives it: a DOI's title, a person's public name, an organisation's name or a grant's title. Absent for a grant number that names more than one grant." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path linking:title ] ;
+    sh:targetClass linking:GrantCandidate .
+
 linking:RelatedLink a sh:NodeShape ;
     rdfs:comment "One identifier as given, and what the adviser made of it." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
-            sh:description "The type of what a resolved identifier names, as the source gives it: a DOI's resource type, Person for an ORCID iD, or an organisation's first ROR type." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 7 ;
-            sh:path linking:resource_type ],
-        [ sh:datatype xsd:string ;
-            sh:description "A suggested DataCite relationType, such as IsSupplementTo, for the researcher to confirm. Absent where the adviser cannot tell." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 3 ;
-            sh:path linking:relation ],
-        [ sh:datatype xsd:string ;
-            sh:description "The scheme it was recognised as, from schemes.yaml (doi, orcid, ror, grant), or unknown." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 1 ;
-            sh:path linking:scheme ],
-        [ sh:datatype xsd:boolean ;
-            sh:description "Whether the identifier (a DOI, ORCID iD or ROR id) was found through the tool gateway. Absent when no lookup was made; false when it was made and found nothing or failed, with the reason in message." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 5 ;
-            sh:path linking:resolved ],
-        [ sh:datatype xsd:string ;
             sh:description "What the researcher should check or do with the identifier." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 8 ;
+            sh:order 9 ;
             sh:path linking:message ],
-        [ sh:datatype xsd:boolean ;
-            sh:description "Whether the identifier is well formed for its scheme. True does not mean it exists: only a link with resolved true was looked up." ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path linking:valid ],
-        [ sh:datatype xsd:string ;
-            sh:description "The identifier's canonical https form, for a DOI, ORCID iD or ROR id." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 2 ;
-            sh:path linking:normalised ],
         [ sh:datatype xsd:string ;
             sh:description "The identifier, as given." ;
             sh:maxCount 1 ;
@@ -119,7 +131,50 @@ linking:RelatedLink a sh:NodeShape ;
             sh:order 0 ;
             sh:path linking:given ],
         [ sh:datatype xsd:string ;
-            sh:description "What a resolved identifier names, as the source gives it: a DOI's title, a person's public name or an organisation's name." ;
+            sh:description "A suggested DataCite relationType, such as IsSupplementTo, for the researcher to confirm. Absent where the adviser cannot tell." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path linking:relation ],
+        [ sh:datatype xsd:string ;
+            sh:description "The type of what a resolved identifier names, as the source gives it: a DOI's resource type, Person for an ORCID iD, an organisation's first ROR type, or Grant for a grant number." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path linking:resource_type ],
+        [ sh:datatype xsd:string ;
+            sh:description "The scheme it was recognised as, from schemes.yaml (doi, orcid, ror, grant), or unknown." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path linking:scheme ],
+        [ sh:datatype xsd:string ;
+            sh:description "The identifier's canonical https form, for a DOI, ORCID iD or ROR id, or a grant number's grant DOI where it names one grant that has one." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path linking:normalised ],
+        [ sh:datatype xsd:boolean ;
+            sh:description "Whether the identifier (a DOI, ORCID iD, ROR id or grant number) was found through the tool gateway. A grant number is found when it names at least one grant, listed in candidates. Absent when no lookup was made; false when it was made and found nothing or failed, with the reason in message." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path linking:resolved ],
+        [ sh:class linking:GrantCandidate ;
+            sh:description "Every grant a resolved grant number may name, for the researcher to choose from where there is more than one." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 8 ;
+            sh:path linking:candidates ],
+        [ sh:datatype xsd:boolean ;
+            sh:description "Whether the identifier is well formed for its scheme. True does not mean it exists: only a link with resolved true was looked up." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path linking:valid ],
+        [ sh:datatype xsd:string ;
+            sh:description "What a resolved identifier names, as the source gives it: a DOI's title, a person's public name, an organisation's name or a grant's title. Absent for a grant number that names more than one grant." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 6 ;
