@@ -25,7 +25,15 @@ from dd_harness.projects import (
     ProjectStore,
     UnknownProjectError,
 )
-from dd_harness.projects.escalations import MOVES, NewEscalation, escalations, support_team
+from dd_harness.projects.escalations import (
+    MOVES,
+    RESEARCHER,
+    NewEscalation,
+    Side,
+    escalations,
+    support_team,
+)
+from dd_harness.projects.escalations import STEWARD as STEWARD_SIDE
 from dd_harness.role_events import names, team_key
 from dd_harness.testing import PERMISSIVE, TEST_PRINCIPAL
 from dd_sdk.contract.models import Principal
@@ -174,7 +182,7 @@ def test_each_move_the_state_table_lists_is_made(
     assert escalation["state"] == state
     assert [h["move"] for h in escalation["history"]] == ["open", *path]
     assert escalations(projects.events(project_id)) == [
-        {k: v for k, v in escalation.items() if k != "team_name"}
+        {k: v for k, v in escalation.items() if k not in ("team_name", "permitted_moves")}
     ]
 
 
@@ -299,6 +307,55 @@ def test_a_steward_who_is_a_member_of_the_project_acts_as_a_member(
     assert raised.value.refusal is EscalationRefusal.MEMBER_OF_PROJECT
     (row,) = escalation_api.queue(projects, found, COLLEAGUE)
     assert row["member_of_project"] is True
+    assert [(m["move"], m["permitted"], m["refusal"]) for m in row["permitted_moves"]] == [
+        ("take", False, "member-of-project")
+    ]
+
+
+# --- what each person may do -----------------------------------------------------------------
+
+
+def moves_of(escalation: dict[str, Any]) -> dict[str, str]:
+    """The moves listed as permitted, each with its note rule."""
+    return {m["move"]: m["note"] for m in escalation["permitted_moves"] if m["permitted"]}
+
+
+def test_each_side_is_told_the_moves_the_state_allows(
+    projects: ProjectStore, project_id: str
+) -> None:
+    found = profile(LIBRARY)
+    opened = open_one(projects, project_id, found)
+    assert moves_of(opened) == {"withdraw": "none"}
+    (row,) = escalation_api.queue(projects, found, STEWARD)
+    assert moves_of(row) == {"take": "none"}
+    taken = make(projects, project_id, found, opened, "take")
+    assert moves_of(taken) == {
+        "release": "optional",
+        "wait": "required",
+        "resolve": "required",
+        "hand_back": "required",
+    }
+    make(projects, project_id, found, taken, "wait")
+
+    def shown(reader: Principal) -> dict[str, str]:
+        (escalation,) = escalation_api.for_project(projects, found, project_id, reader)[
+            "escalations"
+        ]
+        return moves_of(escalation)
+
+    assert shown(COLLEAGUE) == {"reply": "required", "withdraw": "none"}
+    assert shown(STEWARD) == {"resolve": "required", "hand_back": "required"}
+    assert shown(OTHER_STEWARD) == {}
+
+
+@pytest.mark.parametrize(
+    "state", ["open", "taken", "waiting_for_researcher", "resolved", "handed_back", "withdrawn"]
+)
+@pytest.mark.parametrize("side", [RESEARCHER, STEWARD_SIDE])
+def test_every_listed_move_is_one_the_rules_allow(state: str, side: Side) -> None:
+    for listed in escalation_api.permitted_moves(side, {"state": state}):
+        step = MOVES[listed["move"]]
+        assert step.side == side and state in step.starts and listed["note"] == step.note
 
 
 def test_someone_who_is_not_a_member_cannot_open_one(
@@ -322,7 +379,7 @@ def test_with_no_team_it_is_refused_and_the_project_says_so(
     with pytest.raises(EscalationRefusedError) as raised:
         open_one(projects, project_id, found)
     assert raised.value.refusal is EscalationRefusal.NO_STEWARD_TEAM
-    shown = escalation_api.for_project(projects, found, project_id)
+    shown = escalation_api.for_project(projects, found, project_id, TEST_PRINCIPAL)
     assert shown["routes_to"] is None and shown["unrouted"] == "no-steward-team"
     assert shown["teams"] == [] and shown["escalations"] == []
 
@@ -347,7 +404,10 @@ def test_with_several_teams_the_sender_picks_one_and_an_owners_pick_is_the_suppo
     open_one(projects, project_id, found, team_id="library-rdm")
     assert support_team(projects.events(project_id)) == "library-rdm"
     assert open_one(projects, project_id, found, by=COLLEAGUE)["team_id"] == "library-rdm"
-    assert escalation_api.for_project(projects, found, project_id)["routes_to"] == "library-rdm"
+    assert (
+        escalation_api.for_project(projects, found, project_id, TEST_PRINCIPAL)["routes_to"]
+        == "library-rdm"
+    )
 
 
 def test_an_owner_chooses_the_support_team_from_the_profiles_teams(

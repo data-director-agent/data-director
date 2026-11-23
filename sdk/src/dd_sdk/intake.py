@@ -19,9 +19,11 @@ skipped, since the choice is made. The Data Management Plan question follows Fig
 branches: "Yes" marks creating a plan skipped and "No" marks reviewing one skipped. Both steps are
 out of scope, so the skip records the branch not taken, not work; it is the one way an
 out-of-scope step is ever skipped, since a researcher may not mark one. An answer may also
-carry a notice, which the app shows at once. "Yes" to sensitive data says not to share the data
-itself with the agent, as §5.2 asks that sensitive data not reach the model without institutional
-authorisation and Figure 2 asks that it be anonymised first in a cloud deployment.
+carry a notice, which the app shows at once. "No" to a Data Management Plan says that writing one
+is optional and still available, since an optional step is never suggested. "Yes" to sensitive
+data says not to share the data itself with the agent, as §5.2 asks that sensitive data not reach
+the model without institutional authorisation and Figure 2 asks that it be anonymised first in a
+cloud deployment.
 
 Each question is a single choice with fixed options and no "Something else": an answer in the
 researcher's own words is one no step state can follow, and the researcher may always type instead.
@@ -33,7 +35,7 @@ docs/specs/intake-reading.md.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 
 from dd_sdk.contract.models import ChoiceOption, Question, QuestionKind
@@ -100,15 +102,16 @@ def _yes_no(
     *,
     yes: tuple[str, ...] = (),
     no: tuple[str, ...] = (),
-    yes_notice: str = "",
+    notices: Mapping[str, str] | None = None,
     before: str,
 ) -> IntakeQuestion:
+    said = notices or {}
     return IntakeQuestion(
         question_id,
         prompt,
         (
-            IntakeOption(YES, "Yes", yes, yes_notice),
-            IntakeOption(NO, "No", no),
+            IntakeOption(YES, "Yes", yes, said.get(YES, "")),
+            IntakeOption(NO, "No", no, said.get(NO, "")),
             IntakeOption(NOT_SURE, "Not sure"),
         ),
         asked_from,
@@ -121,6 +124,14 @@ def _yes_no(
 SENSITIVE_NOTICE = (
     "Please do not paste or upload the sensitive data itself into this conversation. "
     "The governance step will cover how it is handled."
+)
+
+# What "No" to a Data Management Plan tells the researcher at once. Writing one is optional in
+# Figure 1 and comes after documentation and vocabularies, so it is never the suggested step; the
+# notice says it is still there.
+DMP_NOTICE = (
+    "Writing a Data Management Plan is optional in this process. You can start one at any time: "
+    'choose "Write a Data Management Plan" in the phase tracker, or ask in the conversation.'
 )
 
 # The intake's questions, in the order they are asked.
@@ -139,6 +150,7 @@ INTAKE: tuple[IntakeQuestion, ...] = (
         (1, 2),
         yes=("setup.dmp-create",),
         no=("setup.dmp-review",),
+        notices={NO: DMP_NOTICE},
         before="setup.dmp-create",
     ),
     _yes_no(
@@ -146,7 +158,7 @@ INTAKE: tuple[IntakeQuestion, ...] = (
         "Does the data include personal or otherwise sensitive information?",
         (1, 2),
         no=("governance.sensitive-data-identify", "governance.sensitive-data-handle"),
-        yes_notice=SENSITIVE_NOTICE,
+        notices={YES: SENSITIVE_NOTICE},
         before="governance.sensitive-data-identify",
     ),
     _yes_no(

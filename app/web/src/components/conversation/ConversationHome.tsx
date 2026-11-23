@@ -42,6 +42,10 @@
  * conversation with the step's prompt in the message box, unsent. A message already being written
  * is replaced only when the researcher confirms.
  *
+ * The message being written is kept with the open conversation, so leaving the page and coming
+ * back finds it in the box, shown even where the latest reply asks questions or the intake is
+ * open.
+ *
  * The page puts together hooks that each hold one part: the open conversation and its turns
  * (`useConversationTurns`), what a message carries (`useAttachments`), and the project's
  * documents, progress and intake (`useProjectDocuments`, `useProjectProgress`, `useIntake`), each
@@ -52,16 +56,19 @@
 
 import { useMemo, useRef, useState } from "react";
 
+import { useSessionState } from "../../conversation/session";
 import { documentReaders } from "../../conversation/documentation";
 import { type ReplyAnswers, replyQuestions } from "../../conversation/question";
 import type { Conversation } from "../../conversation/types";
 import type { FlowStep } from "../../flow/types";
 import type { Directory } from "../../manifest/normalise";
 import { useActiveProject } from "../../project/active";
+import { useResearcherProject } from "../../project/view";
 import { useProjectApi } from "../../project/api";
 import { homePath, navigate, useLocation } from "../../route";
 import type { Envelope } from "../../run/types";
 import { ContextPanel } from "../workspace/ContextPanel";
+import { StewardConversationBanner } from "../escalation/StewardConversationBanner";
 import { StewardProvider } from "../escalation/StewardContext";
 import { FAIRNESS_CLASS } from "../../project/fairness";
 import { PhaseTracker } from "../workspace/PhaseTracker";
@@ -89,7 +96,7 @@ import {
   workspaceReady,
 } from "./ConversationHomeParts";
 import { whyUnusable } from "./orchestrator";
-import { type Asking, type ReplyFocus, ReplyArea, useReplyMode } from "./ReplyArea";
+import { type Asking, type ReplyFocus, ReplyArea, useReplyMode, useShowDraft } from "./ReplyArea";
 import { nameOf } from "./Speaker";
 import { StartFromStep } from "./StartFromStep";
 import { Transcript } from "./Transcript";
@@ -105,7 +112,9 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const orchestrator = directory.agents.find((a) => a.id === named);
   const unusable = whyUnusable(named, orchestrator);
   const { projectId, projects, reloadProjects } = useActiveProject();
-  const [text, setText] = useState("");
+  // The message being written outlives the page, as the open conversation does, so leaving for
+  // another page and coming back loses nothing (conversation/session.tsx).
+  const [text, setText] = useSessionState("draft", "");
   const announce = useAnnounce();
   // A step whose prompt waits on the researcher's leave to replace the message being written.
   const [replacing, setReplacing] = useState<FlowStep | null>(null);
@@ -150,6 +159,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   });
   const { intake } = intakeRead;
   const mode = useReplyMode(asking, intakeOpen(projectId, intakeRead));
+  useShowDraft(text, intakeRead.settled, mode.setMode);
 
   const tracked = trackedProgress(projectId, progress, {
     projectApi,
@@ -172,6 +182,8 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     phases: <PhaseTracker load={flow} tracked={tracked} />,
   };
   const project = projectNamed(projects, projectId);
+  // A data steward working here is not offered to ask a data steward (`StewardConversationBanner`).
+  const asksSteward = useResearcherProject(projectId);
 
   // Drawn whole once what it reads on load has landed (#1328).
   const ready = workspaceReady({
@@ -255,7 +267,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
 
   return (
     <PageLoading ready={ready} said="Opening the project…">
-      <StewardProvider projectId={projectId} project={project} refresh={turnCount}>
+      <StewardProvider projectId={asksSteward} project={project} refresh={turnCount}>
       <Workspace
         {...frame}
         title="Talk to Data Director"
@@ -268,6 +280,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             <h2 id="conversation-heading" className="visually-hidden">
               Conversation
             </h2>
+            <StewardConversationBanner />
             {(turnCount > 0 || sent !== null) && (
               <Transcript
                 conversation={conversation}

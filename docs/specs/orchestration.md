@@ -192,7 +192,9 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
     started, done or skipped) from the project log (`dd_harness.progress`): an inventory shows the
     files described, a repository chosen shows one recommended, and a document's versions show its
     step started once drafted and done once approved, a README with any data dictionary drafted
-    alongside it. The last validation shows `deposit.validate` done if it conforms and started if
+    alongside it. A README drafted before the project's inventory is added plans the
+    documentation, so its versions show `setup.documentation`; one drafted after shows
+    `preparation.documentation` (#1017). The last validation shows `deposit.validate` done if it conforms and started if
     not, and a package built shows `deposit.finalise` done. Everything else is the researcher's own word, an `entry_chosen` or `step_marked`
     event, which they may change at any time; what the log produced outranks a skip. The one
     exception is the entry point an orchestrator's model worked out from what the researcher said,
@@ -225,9 +227,11 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
     from the entry phase that is neither done nor skipped, in scope and not optional, with a step
     begun before one not begun. Within the phase of that first open step, a step an agent the
     deployment enables serves comes before one no agent serves, so that a new project's card does
-    not open on a step nothing can help with, such as `setup.documentation` before #1017 (#1377);
+    not open on a step nothing can help with (#1377);
     the suggestion never leaves that phase for an agent, and where none of its steps is served it
-    is the first open one, named as having no agent (invariant 14). The harness reads the enabled
+    is the first open one, named as having no agent (invariant 14). The steps it passed over for
+    a served one are named (`dd_sdk.process_flow.passed_over`, the progress's `passed_over`), so
+    the app can say why the suggestion is not the first in §8's order. The harness reads the enabled
     agents from the app's conductor (`ProjectProgress.serving`), and the model's note from the
     manifest it is given, so the card, the tracker and both orchestrators agree. With no entry point recorded,
     where the researcher is is not known, so it names only a step begun, from any phase, or none:

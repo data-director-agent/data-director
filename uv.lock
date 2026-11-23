@@ -1912,7 +1912,7 @@ requires-dist = [
 
 [[package]]
 name = "data-director-dmp-template"
-version = "0.1.0a0"
+version = "0.1.0a1"
 source = { editable = "dmp-template" }
 
 [[package]]

@@ -9,7 +9,8 @@
  *
  * Which project is active is a convenience of this browser, kept in `localStorage` as the theme
  * is, so it may come back empty; the server decides what the person may read, and a remembered
- * project the server no longer lists is dropped.
+ * project the server no longer lists is dropped, unless the server still opens it for the person
+ * as its data steward (docs/specs/stewardship.md, invariant 3), whose projects it never lists.
  */
 
 import {
@@ -26,6 +27,7 @@ import {
 
 import { currentPreferences } from "../preferences";
 import { type ProjectSummary, useProjectApi } from "./api";
+import { asSteward, useStewardApi } from "./steward";
 
 const KEY = "dd-project";
 
@@ -67,6 +69,7 @@ const ActiveProjectContext = createContext<ActiveProject>({
 
 export function ActiveProjectProvider({ children }: { children: ReactNode }) {
   const api = useProjectApi();
+  const stewardApi = useStewardApi();
   // The person may choose to start each visit with no project chosen (`preferences.ts`); the
   // project is still remembered, so that changing their mind back restores it.
   const [projectId, setActive] = useState<string | null>(() =>
@@ -88,15 +91,25 @@ export function ActiveProjectProvider({ children }: { children: ReactNode }) {
           validated.current = true;
           const stored = remembered();
           if (stored !== null && !listed.some((p) => p.project_id === stored)) {
-            setActive((current) => (current === stored ? null : current));
-            remember(null);
+            const forget = () => {
+              setActive((current) => (current === stored ? null : current));
+              remember(null);
+            };
+            stewardApi.view(stored, controller.signal).then(
+              (view) => {
+                if (!asSteward(view)) forget();
+              },
+              () => {
+                if (!controller.signal.aborted) forget();
+              },
+            );
           }
         }
       },
       () => undefined,
     );
     return () => controller.abort();
-  }, [api, generation]);
+  }, [api, stewardApi, generation]);
 
   const setProjectId = useCallback((next: string | null) => {
     setActive(next);

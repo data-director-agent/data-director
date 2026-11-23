@@ -83,7 +83,7 @@ def test_the_last_validation_decides_the_validate_step_and_a_package_finalises()
 
 def test_a_document_step_is_done_once_what_it_needs_and_all_else_drafted_is_approved() -> None:
     # A README alone is enough where there is no table, so no data dictionary.
-    readme = [added("r", "readme"), decided("r")]
+    readme = [{"event": INVENTORY_ADDED}, added("r", "readme"), decided("r")]
     assert progress.step_states(readme)["preparation.documentation"] == "done"
     # A data dictionary alone is not.
     dictionary = [added("d", "data_dictionary"), decided("d")]
@@ -96,6 +96,23 @@ def test_a_document_step_is_done_once_what_it_needs_and_all_else_drafted_is_appr
         == "started"
     )
     assert progress.step_states([*events, decided("d")])["preparation.documentation"] == "done"
+
+
+def test_a_readme_drafted_before_the_inventory_plans_the_documentation() -> None:
+    """Before the data are collected a README plans the documentation (#1017): its versions show
+    `setup.documentation`, not `preparation.documentation`, which a README drafted once the
+    inventory is added shows."""
+    planned = [added("r", "readme")]
+    assert progress.step_states(planned) == {"setup.documentation": "started"}
+    approved = [*planned, decided("r")]
+    assert progress.step_states(approved) == {"setup.documentation": "done"}
+    # The same README drafted again once the data exist shows the later step, and the plan's
+    # approval still counts for the first.
+    later = [*approved, {"event": INVENTORY_ADDED}, added("r", "readme")]
+    states = progress.step_states(later)
+    assert states["setup.documentation"] == "done"
+    assert states["preparation.documentation"] == "started"
+    assert progress.step_states([*later, decided("r")])["preparation.documentation"] == "done"
 
 
 def test_an_approved_data_management_plan_finishes_writing_one() -> None:
@@ -185,8 +202,12 @@ def test_the_store_suggests_a_step_the_deployments_agents_serve(store: ProjectSt
     project = store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
     store.choose_entry(project, 1, acted_for=TEST_PRINCIPAL, caused_by="test")
     assert store.progress(project)["suggested"] == "setup.documentation"
+    assert store.progress(project)["passed_over"] == []
     store.serving = lambda: [{"agent_id": "advisor.standards", "serves": ["setup.vocabularies"]}]
     assert store.progress(project)["suggested"] == "setup.vocabularies"
+    # The step passed over is named, so the app can say why (#1377).
+    assert store.progress(project)["passed_over"] == ["setup.documentation"]
+    assert store.intake(project)["progress"]["passed_over"] == ["setup.documentation"]
     assert store.summary(project)["progress"]["suggested"] == "setup.vocabularies"
     assert store.intake(project)["progress"]["suggested"] == "setup.vocabularies"
     assert store.snapshot(project).progress(project)["suggested"] == "setup.vocabularies"

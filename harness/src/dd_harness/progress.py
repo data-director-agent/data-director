@@ -36,6 +36,7 @@ from dd_sdk.process_flow import (
     STEPS,
     StepState,
     entry,
+    passed_over,
     progress,
     suggested_next,
 )
@@ -70,7 +71,13 @@ DONE_BY_EVENT: Final[Mapping[str, str]] = {
 # also hold: started once any is proposed, done once the needed kind has an approved version and
 # so has every other kind drafted. A dataset with no table needs no data dictionary, so its README
 # alone finishes the documentation.
+#
+# A README drafted before the project's inventory, while the data are not collected, plans the
+# documentation (`setup.documentation`, #1017): its versions are tallied as `PLANNED_README`, not as
+# a README, so they show the Phase 1 step and not the Phase 4 one.
+PLANNED_README: Final = "readme:before-collection"
 DOCUMENT_STEPS: Final[Mapping[str, tuple[str, tuple[str, ...]]]] = {
+    "setup.documentation": (PLANNED_README, ()),
     "preparation.metadata": ("metadata_record", ()),
     "preparation.documentation": ("readme", ("data_dictionary",)),
     "setup.dmp-create": ("dmp", ()),
@@ -165,6 +172,10 @@ class _Tally:
     kinds_proposed: set[str] = field(default_factory=set)
     kinds_approved: set[str] = field(default_factory=set)
     kind_of: dict[str, str] = field(default_factory=dict)
+    # What each document's latest version is tallied as: its kind, or `PLANNED_README`.
+    tallied_as: dict[str, str] = field(default_factory=dict)
+    # Whether an inventory has been added yet, so the data exist.
+    collected: bool = False
     # The latest event bearing on each document kind: a proposal, or an approval.
     proposed_by: dict[str, Mapping[str, Any]] = field(default_factory=dict)
     approved_by: dict[str, Mapping[str, Any]] = field(default_factory=dict)
@@ -178,12 +189,16 @@ def _tally(events: Iterable[Mapping[str, Any]]) -> _Tally:
         if name in DONE_BY_EVENT:
             tally.produced[DONE_BY_EVENT[name]] = "done"
             tally.produced_by[DONE_BY_EVENT[name]] = event
+            tally.collected = tally.collected or name == INVENTORY_ADDED
         elif name == DOCUMENT_VERSION_ADDED:
-            tally.kind_of[event["document_id"]] = event["document_kind"]
-            tally.kinds_proposed.add(event["document_kind"])
-            tally.proposed_by[event["document_kind"]] = event
+            kind = event["document_kind"]
+            tallied = PLANNED_README if kind == "readme" and not tally.collected else kind
+            tally.kind_of[event["document_id"]] = kind
+            tally.tallied_as[event["document_id"]] = tallied
+            tally.kinds_proposed.add(tallied)
+            tally.proposed_by[tallied] = event
         elif name == DOCUMENT_VERSION_DECIDED and event.get("decision") == "approved":
-            kind = tally.kind_of.get(event["document_id"])
+            kind = tally.tallied_as.get(event["document_id"])
             if kind is not None:
                 tally.kinds_approved.add(kind)
                 tally.approved_by[kind] = event
@@ -294,17 +309,20 @@ def describe(
     names, as a project summary carries them and the app's phase tracker shows them, with why
     each step is in its state (`step_reasons`) and the intake's decision points (`decisions`),
     which the journey map draws. `manifest` is the agents the deployment enables, so that the
-    suggestion is a step one of them serves where there is one (#1377)."""
+    suggestion is a step one of them serves where there is one (#1377); the steps it passed over
+    for that reason (`passed_over`) let the app say why the suggestion is not the first."""
     events = list(events)
     (chosen, source), reasons = entry_and_source(events), step_reasons(events)
     states = {k: v["state"] for k, v in reasons.items()}
     start = entry(chosen) if chosen is not None else None
-    suggested = suggested_next(progress(start, states, manifest), start)
+    steps = progress(start, states, manifest)
+    suggested = suggested_next(steps, start)
     return {
         "entry": chosen,
         "entry_source": source,
         "steps": states,
         "suggested": suggested.step.id if suggested is not None else None,
+        "passed_over": [s.step.id for s in passed_over(steps, suggested)],
         "reasons": reasons,
         "decisions": decisions(events),
     }

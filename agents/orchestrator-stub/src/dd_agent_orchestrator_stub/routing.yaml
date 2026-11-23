@@ -89,6 +89,9 @@ next: '^\s*(?:what(?:[''’]s|\s+is)?\s+next|next(?:\s+step)?|what\s+now|continu
 steps:
   setup.storage:
     - { schema_class: StorageNeeds }
+  # Before the data are collected: a README that plans the documentation (#1017).
+  setup.documentation:
+    - { schema_class: DraftRequest, document_kind: readme }
   setup.dmp-create:
     - { schema_class: DraftRequest, document_kind: dmp }
   setup.dmp-review:

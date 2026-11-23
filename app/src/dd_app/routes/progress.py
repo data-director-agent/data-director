@@ -112,6 +112,9 @@ class ProjectProgress(ResponseBody):
     """Who recorded the entry point: the researcher, or Data Director from what they said."""
     steps: dict[str, StepState]
     suggested: str | None
+    passed_over: list[str]
+    """The steps before `suggested` in its phase that it passed over because no agent the
+    deployment enables serves them (#1377), in order; empty when none was."""
     reasons: dict[str, StepReason]
     """Why each step in `steps` is in its state, keyed the same."""
     decisions: list[Decision]

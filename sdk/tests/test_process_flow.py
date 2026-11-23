@@ -17,6 +17,7 @@ from dd_sdk.process_flow import (
     REQUIREMENTS,
     STEPS,
     entry,
+    passed_over,
     plan,
     progress,
     requirements_of,
@@ -236,7 +237,7 @@ def test_the_suggestion_is_the_first_open_step_from_the_entry_and_never_a_gate()
 
 
 def test_a_step_an_agent_serves_is_suggested_before_one_no_agent_does() -> None:
-    """Entry 1's first step has no agent (#1017), so a served step is put first (#1377); a step
+    """Where Entry 1's first step has no agent, a served step is put first (#1377); a step
     begun still comes first, and with nothing served the first open step is suggested."""
     start = entry(1)
     manifest = [{"agent_id": "advisor.standards", "serves": ["setup.vocabularies"]}]
@@ -250,6 +251,27 @@ def test_a_step_an_agent_serves_is_suggested_before_one_no_agent_does() -> None:
     later = [{"agent_id": "advisor.files", "serves": ["preparation.files"]}]
     held = suggested_next(progress(entry(2), {}, later), entry(2))
     assert held is not None and held.step.id == "governance.policies"
+
+
+def test_the_steps_passed_over_for_a_served_one_are_named() -> None:
+    """The app says why the suggestion is not the phase's first step (#1377): the open, required
+    steps before it that no agent serves. Nothing is passed over when the first is served, when
+    a step begun is suggested, or when nothing is served at all."""
+    start = entry(1)
+    manifest = [{"agent_id": "advisor.standards", "serves": ["setup.vocabularies"]}]
+    steps = progress(start, {}, manifest)
+    found = suggested_next(steps, start)
+    assert [s.step.id for s in passed_over(steps, found)] == ["setup.documentation"]
+    both = [{"agent_id": "a", "serves": ["setup.documentation", "setup.vocabularies"]}]
+    served = progress(start, {}, both)
+    assert passed_over(served, suggested_next(served, start)) == []
+    begun = progress(start, {"setup.vocabularies": "started"}, manifest)
+    assert passed_over(begun, suggested_next(begun, start)) == []
+    unserved = progress(start, {}, [])
+    assert passed_over(unserved, suggested_next(unserved, start)) == []
+    done = progress(start, {"setup.documentation": "done"}, manifest)
+    assert passed_over(done, suggested_next(done, start)) == []
+    assert passed_over(steps, None) == []
 
 
 def test_the_suggestion_passes_optional_and_out_of_scope_steps_and_ends_when_all_are_done() -> None:

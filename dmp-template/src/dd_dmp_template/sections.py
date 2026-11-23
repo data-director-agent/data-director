@@ -4,6 +4,10 @@ Science Europe's *Practical Guide to the International Alignment of Research Dat
 (extended edition, 2021, CC BY 4.0) sets out six core requirements that most funders' templates
 map onto, among them UKRI's councils' and Horizon Europe's. Each requirement is a `Section` here,
 with its questions in this library's own paraphrase.
+
+Two questions are this library's additions, after the STFC/UKRI and UK Data Service guidance on
+Data Management Plans: how long the data will be kept, and how and when the plan itself will be
+reviewed and updated, since a plan is kept up to date as the research proceeds.
 """
 
 from __future__ import annotations
@@ -75,12 +79,13 @@ SECTIONS: tuple[Section, ...] = (
     Section(
         "sharing-preservation",
         "Data sharing and long-term preservation",
-        "how and when the data will be shared, under what licence and restrictions, where they "
-        "will be preserved, and how they will get a persistent identifier.",
+        "how and when the data will be shared, under what licence and restrictions, where and "
+        "for how long they will be preserved, and how they will get a persistent identifier.",
         (
             "How and when will the data be shared, and are there restrictions on sharing?",
             "How will the data to keep be chosen, and where will they be preserved in the long "
             "term?",
+            "How long will the data be kept, and why?",
             "What methods or software will be needed to access and use the data?",
             "How will each dataset get a unique and persistent identifier?",
         ),
@@ -88,11 +93,12 @@ SECTIONS: tuple[Section, ...] = (
     Section(
         "responsibilities-resources",
         "Responsibilities and resources",
-        "who will be responsible for managing the data, and what time and money will be spent "
-        "on it.",
+        "who will be responsible for managing the data, what time and money will be spent on "
+        "it, and how this plan will be kept up to date.",
         (
             "Who will be responsible for data management?",
             "What resources will be given to managing the data and making them FAIR?",
+            "How and when will this plan be reviewed and updated, and by whom?",
         ),
     ),
 )

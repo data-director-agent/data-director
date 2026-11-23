@@ -18,7 +18,7 @@
   ],
   "phases": [
     {
-      "name": "Plan ahead",
+      "name": "Plan your data management",
       "number": 1,
       "steps": [
         {
@@ -73,22 +73,22 @@
           "optional": true,
           "out_of_scope": false,
           "person_decides": false,
-          "prompt": "Help me write a Data Management Plan for my project.",
+          "prompt": "Help me write a Data Management Plan covering how my data will be collected, stored, shared and kept.",
           "requirements": [],
           "text": "Create a Data Management Plan where none exists"
         },
         {
           "id": "setup.dmp-review",
-          "label": "Review your Data Management Plan",
+          "label": "Review and update your Data Management Plan",
           "optional": false,
           "out_of_scope": false,
           "person_decides": false,
-          "prompt": "Help me review my Data Management Plan.",
+          "prompt": "Help me review my Data Management Plan and keep it up to date.",
           "requirements": [],
           "text": "Review and update the Data Management Plan"
         }
       ],
-      "summary": "Before you collect any data: decide how it will be described, which formats to save it in, and where it will be stored and backed up.",
+      "summary": "Plan how your data will be collected, documented, stored, protected, shared and kept, who looks after them and at what cost, and keep the plan up to date.",
       "title": "Pre-collection setup"
     },
     {

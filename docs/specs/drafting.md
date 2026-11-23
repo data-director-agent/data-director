@@ -16,9 +16,13 @@ disclosed ([Disclosure](disclosure.md)).
 
 The Documentation Editor (`advisor.documentation`) is the first drafter. It serves
 `preparation.documentation` and drafts a README or a data dictionary from a `DraftRequest`. It
-does not serve `setup.documentation`, planning the documentation before data are collected,
-because a drafter infers only from a file inventory (invariant 1), which a project has only once
-its data exist; that step has no agent yet (#1017). Where a model is configured, as it is by
+also serves `setup.documentation`, planning the documentation before data are collected (#1017).
+A drafter infers only from a file inventory (invariant 1), which a project has only once its data
+exist, so before then it infers nothing: a README is drafted from the approved metadata record and
+the decisions, if any, with the sections that plan what to record (`plan_ask`) asking what the
+researcher expects to produce, under the same questions as the README drafted later, which places
+their answers. A data dictionary needs the inventory's tables, and the drafter abstains without
+them. Where a model is configured, as it is by
 default, a model writes the README's prose
 ([`agents/advisor-documentation/README.md`](../../agents/advisor-documentation/README.md)). The
 researcher answers its questions in the conversation, and the next draft places their answers.
@@ -45,7 +49,9 @@ project details. A plan is drafted before data exist, so it needs no inventory: 
 and places only what is supplied (invariant 2): the funders, the required repository, the licence,
 the sensitive data and their handling, and the standards people in the project decided, as project
 facts give them, the inventory's files if the data already exist, and the researcher's answers. It
-asks first, as a README does, and every other gap is asked. No model writes a plan's text, so
+asks first, as a README does, and every other gap is asked. Its sharing and preservation question
+asks for what is intended, since the repository and the licence are chosen later (Phases 3 and 5)
+and the plan is updated once they are (`setup.dmp-review`, `post.dmp-update`). No model writes a plan's text, so
 `document_derivation` is always `template`; where a model is configured, it suggests answers only
 from the documents the researcher attached and the project's decisions, beside the questions
 (invariant 7). The Data Management Plan Checker (`advisor.dmp`) reviews an attached plan against

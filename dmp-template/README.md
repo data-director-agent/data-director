@@ -30,7 +30,12 @@ their questions ([Drafting documents](../docs/specs/drafting.md), [`advisor.dmp`
 | `responsibilities-resources` | Responsibilities and resources |
 
 Each has a one-sentence `summary` a researcher can answer, and its `questions` in this library's
-own paraphrase of the guide's.
+own paraphrase of the guide's. Two questions are not the guide's but this library's additions,
+after the [STFC/UKRI](https://www.ukri.org/councils/stfc/guidance-for-applicants/what-to-include-in-your-proposal/data-management-plan/)
+and [UK Data Service](https://ukdataservice.ac.uk/learning-hub/data-producer-support/planning-and-governing-research-data/planning/data-management-planning/)
+guidance: how long the data will be kept (`sharing-preservation`), and how and when the plan
+will be reviewed and updated, and by whom (`responsibilities-resources`). A plan is a living
+document, kept up to date as the research proceeds.
 
 ## Honest limits
 
@@ -43,4 +48,6 @@ own paraphrase of the guide's.
 ## Credit
 
 The six requirements and their questions follow Science Europe's guide, published under
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); the wording here is a paraphrase.
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); the wording here is a paraphrase. The
+questions on retention and on keeping the plan up to date follow the STFC/UKRI and UK Data
+Service guidance.

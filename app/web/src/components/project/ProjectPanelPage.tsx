@@ -5,13 +5,16 @@
  * Each is the panel that shows it, under the project's breadcrumb and tabs; the panel reads what
  * it shows itself.
  *
- * A project the person may read becomes the one the app is working in, as on its other pages.
+ * A project the person may read becomes the one the app is working in, as on its other pages: one
+ * of their own, or one they opened as its data steward, which their own list never holds.
  */
 
 import { useEffect } from "react";
 
 import { useActiveProject } from "../../project/active";
 import { projectName } from "../../project/name";
+import { asSteward } from "../../project/steward";
+import { useProjectView } from "../../project/view";
 import type { ProjectTab } from "../../route";
 import { PageHeader } from "../frame/PageHeader";
 import { DepositPanel } from "./DepositPanel";
@@ -44,12 +47,13 @@ function Panel({ projectId, tab }: { projectId: string; tab: PanelTab }) {
 export function ProjectPanelPage({ projectId, tab }: { projectId: string; tab: PanelTab }) {
   const { projects, setProjectId } = useActiveProject();
   const project = projects.find((p) => p.project_id === projectId) ?? null;
-  const listed = project !== null;
-  const name = project ? projectName(project) : null;
+  const { view } = useProjectView();
+  const readable = project !== null || asSteward(view);
+  const name = project ? projectName(project) : (view?.title ?? null);
 
   useEffect(() => {
-    if (listed) setProjectId(projectId);
-  }, [listed, projectId, setProjectId]);
+    if (readable) setProjectId(projectId);
+  }, [readable, projectId, setProjectId]);
 
   return (
     <>

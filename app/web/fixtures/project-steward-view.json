@@ -1,0 +1,115 @@
+{
+  "conversation_count": 0,
+  "created_at": "2026-01-01T00:00:00+00:00",
+  "created_by": {
+    "assurance": "asserted",
+    "name": "Ada Example",
+    "principal_id": "https://orcid.org/0000-0001-5000-0007",
+    "principal_kind": "person"
+  },
+  "deleted": null,
+  "documents": {
+    "approved": 0,
+    "proposed": 0,
+    "rejected": 0
+  },
+  "intake": "pending",
+  "inventory": null,
+  "permitted_actions": {
+    "acting_as": "steward",
+    "actions": [
+      {
+        "action": "read",
+        "permitted": false,
+        "refusal": "not-a-member"
+      },
+      {
+        "action": "contribute",
+        "permitted": false,
+        "refusal": "not-a-member"
+      },
+      {
+        "action": "decide",
+        "permitted": false,
+        "refusal": "not-a-member"
+      },
+      {
+        "action": "manage",
+        "permitted": false,
+        "refusal": "not-a-member"
+      },
+      {
+        "action": "read",
+        "permitted": true
+      },
+      {
+        "action": "message",
+        "permitted": true
+      },
+      {
+        "action": "propose_edit",
+        "permitted": true
+      },
+      {
+        "action": "run",
+        "permitted": true
+      },
+      {
+        "action": "pause",
+        "permitted": true
+      },
+      {
+        "action": "resume",
+        "permitted": false,
+        "refusal": "no-pause-held"
+      },
+      {
+        "action": "clear_gate",
+        "permitted": true
+      },
+      {
+        "action": "refuse_gate",
+        "permitted": true
+      }
+    ]
+  },
+  "progress": {
+    "decisions": [
+      {
+        "answer_labels": null,
+        "answer_values": null,
+        "asked": false,
+        "before": "setup.dmp-create",
+        "prompt": "Do you have a Data Management Plan for this project?",
+        "question_id": "intake.dmp"
+      },
+      {
+        "answer_labels": null,
+        "answer_values": null,
+        "asked": false,
+        "before": "governance.sensitive-data-identify",
+        "prompt": "Does the data include personal or otherwise sensitive information?",
+        "question_id": "intake.sensitive"
+      },
+      {
+        "answer_labels": null,
+        "answer_values": null,
+        "asked": false,
+        "before": "repository.mandated",
+        "prompt": "Has a funder, journal or institution said where the data must go?",
+        "question_id": "intake.repository-mandated"
+      }
+    ],
+    "entry": null,
+    "entry_source": null,
+    "passed_over": [],
+    "reasons": {},
+    "steps": {},
+    "suggested": null
+  },
+  "project_id": "019a0000-0000-7000-8000-0000000000a1",
+  "repository": null,
+  "restore_days": 30,
+  "title": "Peat",
+  "title_source": "researcher"
+}
