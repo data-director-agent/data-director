@@ -108,6 +108,7 @@ administrators:              # optional: who administers the deployment, by prin
 stewardship:                 # optional: the deployment's data steward teams
   visibility: escalated      # or scope: also the projects that chose the team (read-only)
   deposit_co_approval: false # false until co-approval is built (#1306)
+  reroute_after: P3D         # optional: send an escalation nobody took to its team again
   teams:
     - id: library-rdm        # lower-case words joined by hyphens
       name: Library Research Data Team         # what researchers see
@@ -115,7 +116,9 @@ stewardship:                 # optional: the deployment's data steward teams
       supports: [faculty-of-science]           # optional: labels of the projects it supports
       contact: https://example.ac.uk/rdm       # optional: shown when no steward can help
       response_time: 3 working days            # optional: shown to the researcher
-                             # (docs/specs/stewardship.md, invariant 1)
+      notify: rdm@example.ac.uk                # optional: the team's mailbox or helpdesk
+      notify_on: [opened, rerouted, replied, withdrawn, reopened]   # optional; all by default
+                             # (docs/specs/stewardship.md, invariants 1 and 13)
 ```
 
 Those eighteen keys are the whole vocabulary. A profile with any other key is refused when the

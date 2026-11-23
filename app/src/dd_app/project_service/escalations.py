@@ -9,12 +9,16 @@ recorded, never against what the request says of it.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import timedelta
 from typing import Any
 
 from dd_app.project_service._area import Area
-from dd_harness import escalation_api
+from dd_harness import escalation_api, notifications
 from dd_harness.escalation_api import Confirmed, Requested
-from dd_sdk.contract.models import Principal
+from dd_sdk.contract.models import Principal, now
+
+# How far back a person's notices go (`notices`): what the shell shows, not what is kept.
+NOTICE_WINDOW = timedelta(days=30)
 
 
 class Escalations(Area):
@@ -26,8 +30,9 @@ class Escalations(Area):
     def open(
         self, project_id: str, confirmed: Confirmed, *, acted_for: Principal, caused_by: str
     ) -> dict[str, Any]:
-        """Open the escalation a member confirmed; returns the project's escalations."""
-        escalation_api.open_escalation(
+        """Open the escalation a member confirmed, and tell its team; returns the project's
+        escalations."""
+        opened = escalation_api.open_escalation(
             self._store,
             self._profile,
             project_id,
@@ -36,7 +41,13 @@ class Escalations(Area):
             acted_for=acted_for,
             caused_by=caused_by,
         )
+        self._tell(project_id, opened)
         return self.of_project(project_id, acted_for)
+
+    def _tell(self, project_id: str, escalation: dict[str, Any]) -> None:
+        escalation_api.tell_team(
+            self.governance.notifier, self._store, self._profile, project_id, escalation
+        )
 
     def move(
         self,
@@ -47,8 +58,9 @@ class Escalations(Area):
         acted_for: Principal,
         caused_by: str,
     ) -> dict[str, Any]:
-        """Make a move on an escalation; returns the escalation as it then stands."""
-        return escalation_api.move(
+        """Make a move on an escalation, and tell its team of a researcher's move; returns the
+        escalation as it then stands."""
+        moved = escalation_api.move(
             self._store,
             self._profile,
             project_id,
@@ -57,6 +69,8 @@ class Escalations(Area):
             acted_for=acted_for,
             caused_by=caused_by,
         )
+        self._tell(project_id, moved)
+        return moved
 
     def choose_support_team(
         self, project_id: str, team_id: str, *, acted_for: Principal, caused_by: str
@@ -77,3 +91,11 @@ class Escalations(Area):
         if self.governance.projects is None:
             return []
         return escalation_api.queue(self._store, self._profile, steward, states or None)
+
+    def notices(self, person: Principal) -> list[dict[str, Any]]:
+        """What data stewards have done in `person`'s projects lately, the newest first."""
+        if self.governance.projects is None:
+            return []
+        return notifications.for_person(
+            self._store, self._profile, person, since=now() - NOTICE_WINDOW
+        )

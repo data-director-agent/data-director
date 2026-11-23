@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Literal, Protocol
 
 from dd_sdk.contract.models import Principal
@@ -54,4 +55,16 @@ class ProjectEscalations(Protocol):
         caused_by: str,
     ) -> dict[str, Any]:
         """Make a move on an escalation, for the researcher's or the steward's side."""
+        ...
+
+    def reroute_escalation(
+        self,
+        project_id: str,
+        escalation_id: str,
+        *,
+        routed_before: datetime,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> dict[str, Any] | None:
+        """Send an `open` escalation last routed before `routed_before` to its team again."""
         ...

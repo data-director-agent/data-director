@@ -541,7 +541,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `app/web/src/components/settings/Preferences.test.tsx`,
     `app/web/src/components/settings/SettingsPage.test.tsx`, `app/web/e2e/settings.spec.ts`).
     Every date, time and number the app shows is written through `app/web/src/format.ts`, so that
-    it follows them.
+    it follows them. A **Notifications** tab chooses which kinds of update from a data steward the
+    banner's **Updates** shows, kept in the browser in the same way (`app/web/src/session/notices.ts`,
+    `app/web/src/components/settings/NoticeSettings.test.tsx`); a steward also reads there where
+    their team is emailed, as the profile says ([Data stewards](stewardship.md), invariant 13).
 31. **A person deletes a conversation from the list beside it.** Each conversation in the workspace's list has a delete button named by its
     title, which opens a dialog saying that the conversation leaves every list for everyone
     working on its project, that nothing is erased, and until which day it can be restored, from

@@ -39,4 +39,61 @@
   .session-timeout p {
     margin: 0;
   }
+
+  /* The banner's "Updates": what data stewards did in the person's projects. */
+  .notices {
+    position: relative;
+  }
+
+  .notices summary {
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .notices summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .notices-count {
+    margin-inline-start: var(--space-1);
+  }
+
+  .notices-panel {
+    position: absolute;
+    inset-inline-end: 0;
+    z-index: 10;
+    display: grid;
+    gap: var(--space-2);
+    width: min(24rem, calc(100vw - 2rem));
+    padding: var(--space-3);
+    border: var(--border-width) solid var(--color-border);
+    border-radius: var(--radius-small);
+    background: var(--color-surface);
+  }
+
+  .notices-panel p {
+    margin: 0;
+  }
+
+  .notices-list {
+    display: grid;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .notices-list a {
+    font-weight: 600;
+  }
+
+  .notices-list [data-seen] a {
+    font-weight: normal;
+  }
+
+  .notices-when {
+    display: block;
+    color: var(--color-text-muted);
+    font-size: var(--font-size-small);
+  }
 }

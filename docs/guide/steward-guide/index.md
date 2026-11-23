@@ -45,7 +45,7 @@ now; anything not built carries a note linking to its issue.
 | Pausing a project | Works | [#374](https://github.com/data-director-agent/data-director/issues/374), [#376](https://github.com/data-director-agent/data-director/issues/376) |
 | Notes and co-approval before deposit | Not built yet | [#1306](https://github.com/data-director-agent/data-director/issues/1306) |
 | Overviews | Not built yet | [#232](https://github.com/data-director-agent/data-director/issues/232), [#1307](https://github.com/data-director-agent/data-director/issues/1307) |
-| Notifications | Not built yet | [#378](https://github.com/data-director-agent/data-director/issues/378) |
+| Notifications: your team emailed, and a request nobody takes sent again | Works | [#378](https://github.com/data-director-agent/data-director/issues/378) |
 
 ## In this guide
 
@@ -58,7 +58,7 @@ now; anything not built carries a note linking to its issue.
 | [Working in a project](working-in-a-project.md) | Open a researcher's project and help in it. |
 | [Deposit readiness](deposit-readiness.md) | Help a researcher through the checks before deposit. |
 | [Overviews](overviews.md) | See your team's projects and the wider picture. |
-| [Notifications](notifications.md) | Choose what you are told about. |
+| [Notifications](notifications.md) | See when your team is emailed, and what the researcher is told. |
 | [Good practice](good-practice.md) | Act in a way researchers can trust. |
 
 The design behind these pages is in [Data stewards](../../specs/stewardship.md) and
