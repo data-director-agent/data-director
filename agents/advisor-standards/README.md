@@ -29,6 +29,10 @@ In a project the conductor also gives the profile the facts people decided (`pro
 - the decided description of the data (`data_description`), or else the summary of the project
   (`project_summary`), becomes the `description` its model reads.
 
+It is also given the project's inventory (`project_file_inventory`, `GivenProjectInventory`,
+#1540). Empty `media_types` are filled with the distinct media types of the inventory's files, and
+empty `fields` with its tables' fields, each name once.
+
 A value the input gives always stands, and free-text formats are never turned into media types.
 `searched.from_project_record` and the statement say which values came from the record.
 

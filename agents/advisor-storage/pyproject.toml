@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-agent-advisor-storage"
-version = "0.1.0a1"
+version = "0.1.0a2"
 description = "advisor.storage: the Storage Adviser persona (model-backed alpha)"
 requires-python = ">=3.14"
 license = "MIT"

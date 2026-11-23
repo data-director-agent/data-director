@@ -12,10 +12,16 @@ check resolves against the profile it loaded. Its decisions are rules (`rules`);
 (`dd_sdk.summary`) then writes a short summary beside them, a model's by default, which changes
 none of them. Where the data involve personal data and no service is approved for them, the
 choice is a person's: it refers the step rather than offer storage it cannot stand behind.
+
+In a project the conductor also gives it the project's inventory (`GivenProjectInventory`,
+#1540). Where no expected size is given, the inventory's files' total size, rounded up to a whole
+gigabyte, stands in for it, and the statement says so: it is what the data come to now, not a
+forecast.
 """
 
 from __future__ import annotations
 
+import math
 from datetime import UTC, datetime
 
 from dd_agent_advisor_storage import rules
@@ -48,6 +54,8 @@ from dd_sdk.tracing import retrieval_span
 DATA_STEWARD = "data_steward"
 # The evidence identifier of what the profile vouches for about one storage service.
 SOURCE_PREFIX = "institution-storage:"
+# Bytes in a gigabyte, as storage services count them.
+GIGABYTE = 10**9
 LIMITATIONS = (
     "It recommends only from the storage services your institution's profile names, and knows "
     "of them only what the profile says.",
@@ -62,7 +70,7 @@ LIMITATIONS = (
 class StorageAdviser:
     spec = AgentSpec(
         agent_id="advisor.storage",
-        version="0.1.0a1",
+        version="0.1.0a2",
         title="Storage Adviser",
         description=(
             "Recommends where to store and back up a project's data while it runs, from the "
@@ -91,8 +99,9 @@ class StorageAdviser:
         self.summariser = summariser or summary.TemplateSummariser()
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
-        needs = request.input
-        assert isinstance(needs, StorageNeeds)
+        asked = request.input
+        assert isinstance(asked, StorageNeeds)
+        needs, sized = _sized(asked)
         if not needs.institution_storage:
             return abstain(
                 ReasonCode.NO_CANDIDATES_RETRIEVED,
@@ -135,11 +144,14 @@ class StorageAdviser:
             f"{len(options)} of your institution's storage services may hold the data"
             f"{f', and {len(excluded)} are left out' if excluded else ''}. "
             "From the institution's profile, by rule; you choose."
+            f"{sized}"
         )
         told = summary.Findings(
             {
                 "needs": needs.model_dump(
-                    mode="json", exclude_none=True, exclude={"institution_storage"}
+                    mode="json",
+                    exclude_none=True,
+                    exclude={"institution_storage", "project_file_inventory"},
                 ),
                 "storage_options": [
                     o.model_dump(mode="json", exclude={"grounded_on"}) for o in options
@@ -166,6 +178,22 @@ class StorageAdviser:
             evidence=[_evidence(entry, now) for entry in cited],
         )
         return summary.with_calls(result, self.summariser.model_id, explanation)
+
+
+def _sized(needs: StorageNeeds) -> tuple[StorageNeeds, str]:
+    """`needs` with an expected size taken from the inventory when none was given, and the
+    statement's sentence saying so; the needs as they are, and no sentence, otherwise."""
+    inventory = needs.project_file_inventory
+    if needs.expected_volume_gb is not None or inventory is None:
+        return needs, ""
+    total = sum(f.file_size for f in inventory.inventory_files)
+    if not total:
+        return needs, ""
+    volume = math.ceil(total / GIGABYTE)
+    return needs.model_copy(update={"expected_volume_gb": volume}), (
+        f" No expected size was given, so the size of the files in the project's inventory, "
+        f"about {volume} GB, is used: it is what the data come to now, not a forecast."
+    )
 
 
 def source_id(entry: InstitutionStorage) -> str:

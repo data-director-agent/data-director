@@ -100,7 +100,7 @@ def _concerns(entry: InstitutionStorage, needs: StorageNeeds) -> list[str]:
     volume, allowance = needs.expected_volume_gb, entry.allowance_gb
     if volume is not None and allowance is not None and volume > allowance:
         concerns.append(
-            f"The project expects about {volume} GB, more than its {allowance:g} GB allowance."
+            f"The data come to about {volume} GB, more than its {allowance:g} GB allowance."
         )
     if needs.external_collaborators and entry.allows_external_collaborators is not True:
         concerns.append("People outside the institution may not be able to get access.")

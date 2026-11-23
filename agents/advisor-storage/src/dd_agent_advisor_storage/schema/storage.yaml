@@ -30,9 +30,11 @@ classes:
       What the researcher says about the data the project will hold while it runs: about how
       much, whether it involves personal data, and whether people outside the institution need
       access. The conductor fills institution_storage from the deployment's profile
-      (GivenInstitutionStorage).
+      (GivenInstitutionStorage) and, in a project, project_file_inventory with the project's
+      inventory, whose files' total size stands in for an expected size not given (#1540).
     mixins:
       - GivenInstitutionStorage
+      - GivenProjectInventory
     slots:
       - schema_class
       - expected_volume_gb

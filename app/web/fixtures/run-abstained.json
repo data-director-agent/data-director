@@ -17,12 +17,12 @@
       "principal_kind": "person"
     },
     "agent_id": "advisor.standards",
-    "agent_version": "0.5.0",
+    "agent_version": "0.6.0",
     "completed_at": "2026-01-01T00:00:00Z",
     "contract_version": "0.27.0",
     "evidence": [],
     "grounding_mode": "retrieval",
-    "input_schema": "903cb789805c300303ecdc37a11a6035aa65bc7fbdc468f3d2b5448eb0a784f6",
+    "input_schema": "e304f27ede70e69d176d0c0357ec41b7c8f63f80c5ad44ea354617cd352ae6dd",
     "invocation_id": "01900000-0000-7000-8000-000000000001",
     "outcome": {
       "reason_code": "insufficient_input",

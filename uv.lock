@@ -1724,7 +1724,7 @@ dev = [
 
 [[package]]
 name = "data-director-agent-advisor-storage"
-version = "0.1.0a1"
+version = "0.1.0a2"
 source = { editable = "agents/advisor-storage" }
 dependencies = [
     { name = "data-director-sdk" },
