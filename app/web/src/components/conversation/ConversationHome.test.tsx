@@ -240,6 +240,22 @@ describe("ConversationHome", () => {
       expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toHaveValue("");
     });
 
+    it("is hidden, not left below the working line, while the answer is awaited", async () => {
+      const sendTurn = vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockReturnValueOnce(new Promise<void>(() => undefined));
+      await renderHome(withOrchestrator(), fakeApi({ sendTurn, get: () => Promise.resolve(QUESTION) }));
+      await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "hi");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      await userEvent.click(await screen.findByRole("radio", { name: COLLECTED }));
+      await userEvent.click(screen.getByRole("button", { name: "Send answer" }));
+
+      expect(await screen.findByText(/is working on a reply/)).toBeVisible();
+      expect(screen.queryByRole("group", { name: "Where are you with your research data?" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Send answer" })).toBeNull();
+    });
+
     it("may be ignored: a typed message is sent with no answer", async () => {
       const sendTurn = vi.fn().mockResolvedValue(undefined);
       await renderHome(
