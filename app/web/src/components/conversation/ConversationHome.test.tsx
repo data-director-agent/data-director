@@ -549,7 +549,7 @@ describe("ConversationHome", () => {
     /** Confirms the inventory being checked, leaving nothing out. */
     async function confirm() {
       const review = await screen.findByRole("dialog", {
-        name: "Check the inventory before attaching it",
+        name: "Check the inventory",
       });
       await userEvent.click(
         within(review).getByRole("button", { name: "Attach this inventory" }),
@@ -653,7 +653,7 @@ describe("ConversationHome", () => {
       if (!input) throw new Error("no file input");
       await userEvent.upload(input, file(JSON.stringify(INVENTORY)));
       const review = await screen.findByRole("dialog", {
-        name: "Check the inventory before attaching it",
+        name: "Check the inventory",
       });
       expect(
         within(review).getByText(/names of your files and folders/),
@@ -690,7 +690,7 @@ describe("ConversationHome", () => {
       if (!input) throw new Error("no file input");
       await userEvent.upload(input, file(JSON.stringify(leftOut.attached)));
       const review = await screen.findByRole("dialog", {
-        name: "Check the inventory before attaching it",
+        name: "Check the inventory",
       });
       await userEvent.click(
         within(review).getByRole("checkbox", {

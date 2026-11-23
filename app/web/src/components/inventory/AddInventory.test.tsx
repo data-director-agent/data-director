@@ -49,7 +49,7 @@ describe("AddInventory", () => {
     const saveInventory = vi.fn<ProjectApi["saveInventory"]>().mockResolvedValue(SAVED);
     const { onSaved, input } = renderAdd({ saveInventory });
     await userEvent.upload(input as HTMLInputElement, json(INVENTORY));
-    const dialog = await screen.findByRole("dialog", { name: "Check the inventory before attaching it" });
+    const dialog = await screen.findByRole("dialog", { name: "Check the inventory" });
     expect(saveInventory).not.toHaveBeenCalled();
     await userEvent.click(within(dialog).getByRole("button", { name: "Add this inventory" }));
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith(SAVED));

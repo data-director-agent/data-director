@@ -41,7 +41,7 @@ export function InventoryReviewDialog({
   const history = choice.for === pending ? choice.history : startHistory();
   return (
     <ReviewDialog
-      title="Check the inventory before attaching it"
+      title="Check the inventory"
       isOpen={pending !== null}
       onDiscard={onDiscard}
       attach={{
