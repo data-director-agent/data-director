@@ -365,11 +365,12 @@ def test_the_stub_writes_a_plan_and_reviews_the_one_attached(
     approve_every_proposed(projects, project)
     assert projects.progress(project)["steps"]["setup.dmp-create"] == "done"
 
-    # Reviewing one reads the plan attached.
+    # Reviewing one is delegated to the checker. This one has no model, and no rule reviews a plan,
+    # so it abstains.
     projects.add_documentation(
         project, "dmp.md", "text/markdown", PLAN, acted_for=TEST_PRINCIPAL, caused_by="test"
     )
     env = researcher.say("Review your Data Management Plan", choose="setup.dmp-review")
-    assert delegated_agents(env) == {"advisor.dmp"}
+    assert delegated_agents(env, OutcomeStatus.ABSTAINED) == {"advisor.dmp"}
     env = researcher.say("Review my data management plan")
-    assert delegated_agents(env) == {"advisor.dmp"}
+    assert delegated_agents(env, OutcomeStatus.ABSTAINED) == {"advisor.dmp"}

@@ -34,6 +34,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from dd_agent_advisor_documentation.checks import NAMED, StrictReply, count, unchecked
+from dd_agent_advisor_documentation.dictionary import supplied_definitions
 from dd_agent_advisor_documentation.replies import (
     CUT_SHORT,
     ITEM_NOT_IN_FORM,
@@ -71,6 +72,13 @@ MAX_SECTION_SUGGESTION = 600
 DOCUMENTS = "attached_documents"
 # The most text of attached documents a writer is given, in characters: a few field notebooks.
 MAX_DOCUMENTS = 60_000
+# The key under which a writer is given the facts people in the project decided, such as the
+# standards and vocabularies chosen.
+PROJECT_DECISIONS = "project_decisions"
+# The key under which a data dictionary's writer is given the definitions and units the researcher
+# already gave, as examples of their wording and naming, and how many rows of them at most.
+RESEARCHER_DEFINITIONS = "researcher_definitions"
+MAX_DEFINITIONS = 100
 
 
 class SuggestedAnswer(StrictReply):
@@ -324,6 +332,29 @@ def with_documents(facts: Mapping[str, Any], asked: DraftRequest) -> dict[str, A
             entry["cut"] = True
         given.append(entry)
     return {**facts, DOCUMENTS: given} if given else dict(facts)
+
+
+def with_decisions(facts: Mapping[str, Any], asked: DraftRequest) -> dict[str, Any]:
+    """`facts` with the facts people in the project decided, such as the standards and
+    vocabularies chosen, so that a data dictionary's definitions and units can be suggested in
+    their terms. They are structured values, never anyone's words (docs/specs/projects.md,
+    invariant 28). Left out when there are none."""
+    if not asked.project_decisions:
+        return dict(facts)
+    return {
+        **facts,
+        PROJECT_DECISIONS: [
+            d.model_dump(mode="json", exclude_none=True) for d in asked.project_decisions
+        ],
+    }
+
+
+def with_definitions(facts: Mapping[str, Any], drafted_text: str) -> dict[str, Any]:
+    """`facts` with the definitions and units the researcher already gave (`supplied` in the
+    drafted dictionary), at most `MAX_DEFINITIONS` rows, so that a model can suggest the rest in
+    their wording and with the naming conventions they show. Left out when there are none."""
+    given = supplied_definitions(drafted_text, sorted(SUGGESTED_COLUMNS), MAX_DEFINITIONS)
+    return {**facts, RESEARCHER_DEFINITIONS: given} if given else dict(facts)
 
 
 def how_suggested(suggested: Suggestions, title: str) -> str:

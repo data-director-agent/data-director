@@ -6,14 +6,26 @@ Plan ([Drafting documents](../../docs/specs/drafting.md)). It is likely to chang
 
 The Documentation Editor drafts a README and a data dictionary for a dataset (Blueprint R5), from
 the project's file inventory and approved metadata record, and a Data Management Plan from the
-decisions made in the project and the researcher's answers. It serves two steps of the process
-flow, `preparation.documentation` and `setup.dmp-create` ([A Data Management
-Plan](#a-data-management-plan)).
+decisions made in the project and the researcher's answers. It serves three steps of the process
+flow, `setup.documentation`, `preparation.documentation` and `setup.dmp-create` ([A Data
+Management Plan](#a-data-management-plan)).
 
-It does not serve the Phase 1 step `setup.documentation`, planning the documentation before data
-are collected: a project has a file inventory only once its data exist, so the editor would have
-nothing to draft from. That step has no agent yet; a planning mode that needs no inventory is
-#1017.
+## Before the data are collected
+
+At the Phase 1 step `setup.documentation` the project has no file inventory yet, as its data do not
+exist (#1017). Asked for a README then, the editor plans the documentation instead of abstaining.
+The README has the same sections, but those with a `plan_ask` in `readme.yaml` (Files, Methods and
+Variables) ask what the researcher expects: the files and formats they will produce and how they
+will name them, how they will collect and process the data and what to record as they go, and the
+variables, units and missing-value codes they expect. The first draft asks first, with a note that
+says it is a plan. A model writer is told only that the data are not collected yet
+(`data_collected: false`) and is given no files, so it writes prose only from the approved metadata
+record, if there is one.
+
+The questions are the same ones the README asks later, so the answers are kept: once the inventory
+is added, the README drafted at `preparation.documentation` places them, and the researcher may
+revise any answer that changed during collection. A data dictionary is drafted from the inventory's
+tables, so before collection the editor abstains on one.
 
 ## Ask first, then write
 
@@ -129,7 +141,8 @@ since a plan is written before data are collected. Its sections are a first sect
 details (the title, the researchers and the funding, each asked part by part, and not asked when
 the approved metadata record gives it), then the six core requirements of
 [`dd-dmp-template`](../../dmp-template/README.md), after Science Europe's, each asking the
-template's one-sentence summary. Each is drafted from the project's decided facts, as given
+template's one-sentence summary, which also asks how long the data will be kept and how the plan
+will be kept up to date. Each is drafted from the project's decided facts, as given
 (`drafted.py`):
 
 | Section | Drafted from |
@@ -152,8 +165,8 @@ alone (`suggest_dmp_prompt.md`), checked as a README's suggestions are, and offe
 question, never placed. Without attached documents it is not asked.
 
 What it does not do: it follows one funder-neutral template, not a funder's own; it does not
-export a machine-actionable plan (RDA DMP Common Standard, #701); and updating a plan after
-publication (`post.dmp-update`) is out of scope.
+export a machine-actionable plan (RDA DMP Common Standard, #701); and it does not update a
+plan after publication (`post.dmp-update`), which no agent serves yet.
 
 ## Prose written by a model
 
@@ -247,8 +260,11 @@ drafted again (`tests/test_suggestions.py`; docs/specs/drafting.md, invariant 7)
 
 - **What it is given.** The same facts as the prose (above), the documents the researcher
   attached (the latest first, up to a fixed length, given as data and never as instructions), and
-  for each question its file, field and column. Never a field's description, the researcher's
-  answers or an earlier version.
+  for each question its file, field and column. Also, as examples, the definitions and units the
+  researcher already gave (`researcher_definitions`, up to 100 rows), so it can suggest the rest in
+  their wording and follow the naming conventions they show, and the project's decisions
+  (`project_decisions`), such as the standards and vocabularies chosen. Both reach a hosted model
+  only as the profile's `hosted_models` allows (`tests/test_dictionary_context.py`).
 - **What is offered.** Only a definition or unit, never a type, format or missing-value code. A
   suggestion is dropped if it is longer than 200 characters, is not one line of plain text, or
   names a link, DOI, email address or ORCID iD the facts do not give; the statement says how many

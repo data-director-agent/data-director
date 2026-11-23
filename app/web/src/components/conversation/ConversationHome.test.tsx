@@ -46,6 +46,9 @@ import { SUCCEEDED, turnTransport, type TurnSent } from "../../test/turns";
 import { AnnouncerProvider } from "../ui/Announcer";
 import { ConversationHome } from "./ConversationHome";
 
+// Phase 1's name as the app shows it, read from the fixture rather than repeated.
+const PHASE_ONE = flowFixture.phases[0]?.name ?? "";
+
 /** The frame's polite region, where the page's announcements are said. */
 const announcements = () => screen.getByRole("log", { name: "Announcements" });
 
@@ -1087,10 +1090,10 @@ describe("ConversationHome", () => {
       const detail = within(phases)
         .getAllByRole("listitem")
         .find((li) =>
-          li.querySelector("summary")?.textContent?.includes("Plan ahead"),
+          li.querySelector("summary")?.textContent?.includes(PHASE_ONE),
         );
       if (!detail) throw new Error("no phase");
-      await userEvent.click(within(detail).getByText("Plan ahead"));
+      await userEvent.click(within(detail).getByText(PHASE_ONE));
       const create = within(detail)
         .getByText("Write a Data Management Plan")
         .closest("li");
@@ -1098,7 +1101,7 @@ describe("ConversationHome", () => {
       expect(create).not.toHaveTextContent("(out of scope for now)");
       expect(
         within(detail)
-          .getByText("Review your Data Management Plan")
+          .getByText("Review and update your Data Management Plan")
           .closest("li"),
       ).not.toHaveTextContent("(out of scope for now)");
     });
@@ -1354,7 +1357,7 @@ describe("ConversationHome", () => {
           name: "No conversation is available",
         }),
       ).toBeVisible();
-      expect((await screen.findAllByText("Plan ahead"))[0]).toBeVisible();
+      expect((await screen.findAllByText(PHASE_ONE))[0]).toBeVisible();
     });
   });
 
@@ -1595,15 +1598,10 @@ describe("ConversationHome", () => {
       await userEvent.click(
         within(phases).getByText("Show what happens in each phase"),
       );
-      // A step done or skipped, or out of scope, offers no conversation.
+      // A step done or skipped offers no conversation.
       expect(
         within(phases).queryByRole("button", {
           name: `Start a conversation: ${label("preparation.files")}`,
-        }),
-      ).not.toBeInTheDocument();
-      expect(
-        within(phases).queryByRole("button", {
-          name: `Start a conversation: ${label("post.dmp-update")}`,
         }),
       ).not.toBeInTheDocument();
 

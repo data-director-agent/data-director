@@ -5,7 +5,7 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 dmp:DmpReviewRequest a sh:NodeShape ;
-    rdfs:comment "A request to review the data management plan the researcher attached (setup.dmp-review): which of the core requirements it covers, and where it disagrees with what people in the project decided. In a project the conductor gives the attached documents and the decided facts; outside one, the caller sends them." ;
+    rdfs:comment "A request to review the data management plan the researcher attached (setup.dmp-review): how well it answers the core requirements of a plan and meets good practice, and whether it reflects what people in the project decided. In a project the conductor gives the attached documents and the decided facts; outside one, the caller sends them." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:class <https://w3id.org/data-director/ProjectDocument> ;

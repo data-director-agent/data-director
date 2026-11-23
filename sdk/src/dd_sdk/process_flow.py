@@ -163,3 +163,27 @@ def suggested_next(steps: Iterable[ProgressStep], start: Entry | None) -> Progre
     phase = candidates[0].phase.number if candidates else None
     served = [s for s in candidates if s.agent_ids and s.phase.number == phase]
     return next(iter(started or served or candidates), None)
+
+
+def passed_over(
+    steps: Iterable[ProgressStep], suggested: ProgressStep | None
+) -> list[ProgressStep]:
+    """The steps `suggested_next` passed over for one an agent serves: those before `suggested`
+    in its phase that are open, in scope, not optional and served by no agent. The app says why
+    the suggestion is not the first of them (#1377). Empty when nothing was passed over, as when
+    the suggestion is a step begun or the first open one."""
+    if suggested is None or suggested.state == "started":
+        return []
+    before: list[ProgressStep] = []
+    for s in steps:
+        if s.step.id == suggested.step.id:
+            return before
+        if (
+            s.phase.number == suggested.phase.number
+            and s.state == "open"
+            and not s.step.out_of_scope
+            and not s.step.optional
+            and not s.agent_ids
+        ):
+            before.append(s)
+    return []

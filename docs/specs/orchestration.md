@@ -21,9 +21,7 @@ and the child's trace link ([Transport and tracing](transport.md)); the registry
 roster ([Agents](agents.md)); which agent the app opens on and how the browser shows a
 conversation ([The app](app.md)); a conversation's project and who may see it
 ([Projects](projects.md)). Governance as an entry point (open, restricted or unshared paths) is
-deferred by the Blueprint to v2.0 (Appendix G, comment 1). Creating, reviewing and updating a Data
-Management Plan are out of scope for the initial phase. The figures' steps for them stay in the
-process flow, marked out of scope, so that the flow is complete (invariant 17).
+deferred by the Blueprint to v2.0 (Appendix G, comment 1).
 
 ## Invariants
 
@@ -177,23 +175,26 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     R&D; or `none` (#1406; `test_the_profile_chooses_the_scheme_or_none`).
 
 17. **A step the Blueprint has and this project does not yet do is in the flow, marked
-    `out_of_scope`.** Updating the Data Management Plan after publication (`post.dmp-update`) is
-    one. Writing a plan (`setup.dmp-create`) and reviewing one (`setup.dmp-review`) are served by
-    alpha agents. The phase tracker and the stub name them and say "out of scope
-    for now"; the model's prompt marks them and tells the model not to offer to do them or look for
-    a tool. An agent that serves one is a `SpecError`, so none can appear to cover it, and a
-    researcher may not mark one. The intake's plan question may skip one, recording the branch of
-    Figure 1 not taken (invariant 20). Verifying a deposit against an existing plan
-    (`governance.dmp`, R8) is in scope.
-    (`test_updating_the_data_management_plan_is_in_the_flow_and_out_of_scope_for_now`,
+    `out_of_scope`.** No step is marked now: the Data Management Plan steps are all in scope.
+    Writing a plan (`setup.dmp-create`) and reviewing one (`setup.dmp-review`) are served by
+    alpha agents; updating it after publication (`post.dmp-update`) has no agent yet, so it is a
+    gap like any other, and verifying a deposit against an existing plan (`governance.dmp`, R8)
+    is in scope. The marker stays for a step a deployment keeps in the flow and does not do. The
+    phase tracker and the stub name such a step and say "out of scope for now"; the model's
+    prompt marks it and tells the model not to offer to do it or look for a tool. An agent that
+    serves one is a `SpecError`, so none can appear to cover it, and a researcher may not mark
+    one. (`test_the_data_management_plan_steps_are_in_the_flow_and_in_scope`,
+    `test_data_management_plan_steps_are_in_scope`,
     `test_serving_a_step_that_is_out_of_scope_for_now_is_refused`,
-    `test_data_management_plan_steps_are_named_and_said_to_be_out_of_scope`)
+    `test_the_prompt_tells_the_model_not_to_offer_a_step_marked_out_of_scope`)
 18. **Where a project is in the flow is derived from its log on every read, never stored.** No
     orchestrator, page or store keeps a current step. The harness reads each step's state (open,
     started, done or skipped) from the project log (`dd_harness.progress`): an inventory shows the
     files described, a repository chosen shows one recommended, and a document's versions show its
     step started once drafted and done once approved, a README with any data dictionary drafted
-    alongside it. The last validation shows `deposit.validate` done if it conforms and started if
+    alongside it. A README drafted before the project's inventory is added plans the
+    documentation, so its versions show `setup.documentation`; one drafted after shows
+    `preparation.documentation` (#1017). The last validation shows `deposit.validate` done if it conforms and started if
     not, and a package built shows `deposit.finalise` done. Everything else is the researcher's own word, an `entry_chosen` or `step_marked`
     event, which they may change at any time; what the log produced outranks a skip. The one
     exception is the entry point an orchestrator's model worked out from what the researcher said,
@@ -226,9 +227,11 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     from the entry phase that is neither done nor skipped, in scope and not optional, with a step
     begun before one not begun. Within the phase of that first open step, a step an agent the
     deployment enables serves comes before one no agent serves, so that a new project's card does
-    not open on a step nothing can help with, such as `setup.documentation` before #1017 (#1377);
+    not open on a step nothing can help with (#1377);
     the suggestion never leaves that phase for an agent, and where none of its steps is served it
-    is the first open one, named as having no agent (invariant 14). The harness reads the enabled
+    is the first open one, named as having no agent (invariant 14). The steps it passed over for
+    a served one are named (`dd_sdk.process_flow.passed_over`, the progress's `passed_over`), so
+    the app can say why the suggestion is not the first in §8's order. The harness reads the enabled
     agents from the app's conductor (`ProjectProgress.serving`), and the model's note from the
     manifest it is given, so the card, the tracker and both orchestrators agree. With no entry point recorded,
     where the researcher is is not known, so it names only a step begun, from any phase, or none:
@@ -265,9 +268,8 @@ process flow, marked out of scope, so that the flow is complete (invariant 17).
     offers "Not sure", which records the answer and marks nothing. No answer ever shows a step as
     done. "Yes" to a mandated repository marks the recommendation of one skipped, as Figure 3's
     "Yes" branch does. The Data Management Plan question follows Figure 1's branches: "Yes" marks
-    creating a plan skipped and "No" marks reviewing one skipped. Both steps are out of scope, so
-    the skip records the branch not taken, not work, and a skip before the entry point does not
-    bring its phase into the tracker (`dd_sdk.process_flow.progress`). "Yes" to sensitive data
+    creating a plan skipped and "No" marks reviewing one skipped. The skip records the branch not
+    taken, and a skip before the entry point does not bring its phase into the tracker (`dd_sdk.process_flow.progress`). "Yes" to sensitive data
     says at once, in the card, not to paste or upload the data itself into the conversation, and
     that the governance step covers how it is handled: Blueprint §5.2 asks that sensitive data not
     reach the model without institutional authorisation, and Figure 2 asks that it be anonymised

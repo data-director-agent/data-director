@@ -3,8 +3,11 @@
 Science Europe's *Practical Guide to the International Alignment of Research Data Management*
 (extended edition, 2021, CC BY 4.0) sets out six core requirements that most funders' templates
 map onto, among them UKRI's councils' and Horizon Europe's. Each requirement is a `Section` here,
-with its questions in this library's own paraphrase and the words a plan's heading for it
-commonly uses (`cues`), for `dd_dmp_template.coverage`.
+with its questions in this library's own paraphrase.
+
+Two questions are this library's additions, after the STFC/UKRI and UK Data Service guidance on
+Data Management Plans: how long the data will be kept, and how and when the plan itself will be
+reviewed and updated, since a plan is kept up to date as the research proceeds.
 """
 
 from __future__ import annotations
@@ -24,8 +27,6 @@ class Section:
     summary: str
     # The requirement's questions, each of which a complete section answers.
     questions: tuple[str, ...]
-    # Words, lower case, any of which in a heading says the heading is about this section.
-    cues: tuple[str, ...]
 
 
 SECTIONS: tuple[Section, ...] = (
@@ -39,18 +40,6 @@ SECTIONS: tuple[Section, ...] = (
             "What data, of which types and formats and in what volume, will be collected or "
             "produced?",
         ),
-        (
-            "data description",
-            "description of the data",
-            "data collection",
-            "collect",
-            "existing data",
-            "re-use of existing",
-            "reuse of existing",
-            "types of data",
-            "data types",
-            "data summary",
-        ),
     ),
     Section(
         "documentation-quality",
@@ -62,7 +51,6 @@ SECTIONS: tuple[Section, ...] = (
             "and how they are organised, will accompany the data?",
             "What measures will control the data's quality?",
         ),
-        ("documentation", "metadata", "quality", "standards"),
     ),
     Section(
         "storage-backup",
@@ -73,7 +61,6 @@ SECTIONS: tuple[Section, ...] = (
             "How will the data and metadata be stored and backed up during the project?",
             "How will the data be kept secure, and sensitive data protected?",
         ),
-        ("storage", "backup", "back-up", "back up", "security"),
     ),
     Section(
         "legal-ethical",
@@ -88,53 +75,30 @@ SECTIONS: tuple[Section, ...] = (
             "What ethical issues and codes of conduct apply, and how will they be taken into "
             "account?",
         ),
-        (
-            "legal",
-            "ethic",
-            "personal data",
-            "confidential",
-            "intellectual property",
-            "copyright",
-            "ownership",
-            "consent",
-            "gdpr",
-        ),
     ),
     Section(
         "sharing-preservation",
         "Data sharing and long-term preservation",
-        "how and when the data will be shared, under what licence and restrictions, where they "
-        "will be preserved, and how they will get a persistent identifier.",
+        "how and when the data will be shared, under what licence and restrictions, where and "
+        "for how long they will be preserved, and how they will get a persistent identifier.",
         (
             "How and when will the data be shared, and are there restrictions on sharing?",
             "How will the data to keep be chosen, and where will they be preserved in the long "
             "term?",
+            "How long will the data be kept, and why?",
             "What methods or software will be needed to access and use the data?",
             "How will each dataset get a unique and persistent identifier?",
-        ),
-        (
-            "sharing",
-            "share",
-            "preservation",
-            "archiv",
-            "long-term",
-            "long term",
-            "access",
-            "reuse",
-            "re-use",
-            "publication",
-            "repository",
         ),
     ),
     Section(
         "responsibilities-resources",
         "Responsibilities and resources",
-        "who will be responsible for managing the data, and what time and money will be spent "
-        "on it.",
+        "who will be responsible for managing the data, what time and money will be spent on "
+        "it, and how this plan will be kept up to date.",
         (
             "Who will be responsible for data management?",
             "What resources will be given to managing the data and making them FAIR?",
+            "How and when will this plan be reviewed and updated, and by whom?",
         ),
-        ("responsib", "resource", "cost", "roles", "budget"),
     ),
 )

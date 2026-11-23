@@ -17,6 +17,7 @@ from dd_sdk.process_flow import (
     REQUIREMENTS,
     STEPS,
     entry,
+    passed_over,
     plan,
     progress,
     requirements_of,
@@ -68,19 +69,14 @@ def test_every_step_has_a_unique_id_under_its_phase_and_none_is_a_requirement() 
     assert all(len(prefix) == 1 for prefix in prefixes.values())
 
 
-def test_updating_the_data_management_plan_is_in_the_flow_and_out_of_scope_for_now() -> None:
-    assert {"post.dmp-update"} == OUT_OF_SCOPE
-    assert OUT_OF_SCOPE <= STEPS
-    # Writing and reviewing a plan, and verifying a deposit against it (R8), are in scope.
-    assert not {"setup.dmp-create", "setup.dmp-review", "governance.dmp"} & OUT_OF_SCOPE
-    # An out-of-scope step is still planned, so an orchestrator and the phase tracker show it,
-    # with no agent.
-    planned = {p.step.id: p for p in plan(entry(1), [])}
-    assert all(planned[i].agent_ids == () for i in OUT_OF_SCOPE)
+def test_the_data_management_plan_steps_are_in_the_flow_and_in_scope() -> None:
+    dmp_steps = {"setup.dmp-create", "setup.dmp-review", "governance.dmp", "post.dmp-update"}
+    assert dmp_steps <= STEPS
+    assert not dmp_steps & OUT_OF_SCOPE
     assert [s.id for s in PHASES[0].steps][-2:] == ["setup.dmp-create", "setup.dmp-review"]
     text = describe_flow()
     line = next(x for x in text.splitlines() if "[post.dmp-update]" in x)
-    assert "out of scope for now" in line
+    assert "out of scope for now" not in line
     line = next(x for x in text.splitlines() if "[setup.dmp-create]" in x)
     assert "optional" in line and "out of scope for now" not in line
 
@@ -218,7 +214,7 @@ def test_the_suggestion_is_the_first_open_step_from_the_entry_and_never_a_gate()
 
 
 def test_a_step_an_agent_serves_is_suggested_before_one_no_agent_does() -> None:
-    """Entry 1's first step has no agent (#1017), so a served step is put first (#1377); a step
+    """Where Entry 1's first step has no agent, a served step is put first (#1377); a step
     begun still comes first, and with nothing served the first open step is suggested."""
     start = entry(1)
     manifest = [{"agent_id": "advisor.standards", "serves": ["setup.vocabularies"]}]
@@ -232,6 +228,27 @@ def test_a_step_an_agent_serves_is_suggested_before_one_no_agent_does() -> None:
     later = [{"agent_id": "advisor.files", "serves": ["preparation.files"]}]
     held = suggested_next(progress(entry(2), {}, later), entry(2))
     assert held is not None and held.step.id == "governance.policies"
+
+
+def test_the_steps_passed_over_for_a_served_one_are_named() -> None:
+    """The app says why the suggestion is not the phase's first step (#1377): the open, required
+    steps before it that no agent serves. Nothing is passed over when the first is served, when
+    a step begun is suggested, or when nothing is served at all."""
+    start = entry(1)
+    manifest = [{"agent_id": "advisor.standards", "serves": ["setup.vocabularies"]}]
+    steps = progress(start, {}, manifest)
+    found = suggested_next(steps, start)
+    assert [s.step.id for s in passed_over(steps, found)] == ["setup.documentation"]
+    both = [{"agent_id": "a", "serves": ["setup.documentation", "setup.vocabularies"]}]
+    served = progress(start, {}, both)
+    assert passed_over(served, suggested_next(served, start)) == []
+    begun = progress(start, {"setup.vocabularies": "started"}, manifest)
+    assert passed_over(begun, suggested_next(begun, start)) == []
+    unserved = progress(start, {}, [])
+    assert passed_over(unserved, suggested_next(unserved, start)) == []
+    done = progress(start, {"setup.documentation": "done"}, manifest)
+    assert passed_over(done, suggested_next(done, start)) == []
+    assert passed_over(steps, None) == []
 
 
 def test_the_suggestion_passes_optional_and_out_of_scope_steps_and_ends_when_all_are_done() -> None:

@@ -162,17 +162,17 @@ def test_an_unusable_reply_suggests_nothing_and_changes_no_cell(
     assert document.document_questions == template.document_questions
 
 
-def test_the_model_is_given_the_facts_and_never_the_answers_or_descriptions(
+def test_the_model_is_shown_the_researchers_answers_and_asked_only_the_rest(
     runs_dir: Path,
 ) -> None:
     asked = sample(DICTIONARY)
     template = template_draft(runs_dir, asked)
-    secret = "Answered by the researcher in confidence"
+    given = "Soil pH measured in water"
     answered = suggestible(template)[0]
     asked = asked.model_copy(
         update={
             "draft_answers": [
-                DraftAnswer(answered_question=answered.question_id, answer_text=secret)
+                DraftAnswer(answered_question=answered.question_id, answer_text=given)
             ]
         }
     )
@@ -182,7 +182,8 @@ def test_the_model_is_given_the_facts_and_never_the_answers_or_descriptions(
     (sent,) = client.sent
     assert sent["system"] == SUGGEST_PROMPT
     content = sent["messages"][0]["content"]
-    assert secret not in content
+    # The researcher's own answer is shown as an example (docs/specs/drafting.md, invariant 7).
+    assert given in content
     # Asked only about the unanswered definitions and units.
     questions = json.loads(
         content.split("Questions you may suggest an answer to:\n", 1)[1].split("\n\nFacts:", 1)[0]
@@ -196,7 +197,7 @@ def test_the_model_is_given_the_facts_and_never_the_answers_or_descriptions(
         if c.field_description
     ]
     for description in descriptions:
-        assert description not in content
+        assert description in content
     # The call is recorded with the run.
     assert len(env.telemetry.model_calls) == 1 and env.telemetry.model_calls[0].model_id == MODEL
 

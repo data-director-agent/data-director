@@ -410,7 +410,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
       project starts at and the suggested step, both from the project summary. The suggested step
       is one an enabled agent serves wherever its phase has one ([Orchestration](orchestration.md),
       invariant 19), so **Start with …** does not open on a step Data Director cannot help with.
-      Before the project's first turn, the card's ending then offers "Start with" the suggested
+      Where that passes over earlier steps of the phase that no enabled agent serves (the
+      progress's `passed_over`), the ending names them and says that they come first in the
+      process but Data Director cannot help with them yet, so that a suggestion out of §8's order
+      is explained. Before the project's first turn, the card's ending then offers "Start with" the suggested
       step and "Not now". Start closes the card and sends the researcher's opening turn, which
       names that step, by the ordinary turn path, so the conversation begins with Data
       Director's guidance on it. Not now closes the card and sends nothing. Asked again from the
@@ -513,7 +516,14 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     pane names links to it. Such a link names the facts by kind and subject
     (`/projects/{id}/facts?fact={kind}:{subject}`, repeated), and the panel marks them, brings the
     first into view and moves focus to it, or says that none of them is there any more
-    (`ProposedFacts.test.tsx`, `app/web/e2e/facts.spec.ts`). Nothing but the panel decides one.
+    (`ProposedFacts.test.tsx`, `app/web/e2e/facts.spec.ts`). Each proposal also offers **Discuss
+    this with Data Director**, a link to a new conversation (`/?fact={proposal}`) whose message
+    box holds, unsent, a request for help deciding it, in the researcher's voice: the fact in one
+    sentence, the plan's words for a sharing commitment, which agent proposed it and why. The app
+    never gives an agent the reason itself; the person passes it on by sending their message, and
+    may change or remove it first. The address then drops the proposal, and one no longer waiting
+    for a decision fills nothing (`useAskAboutFact.test.tsx`, `app/web/e2e/facts.spec.ts`).
+    Nothing but the panel decides one.
 30. **A person's own settings are on the Settings page.** `/settings`, reached from the cog
     labelled **Settings** in the banner on every page and from the profile page, holds what a
     person sets for themselves, in tabs (**AI account**, **Appearance**, **Dates and times** and

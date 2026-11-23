@@ -1,25 +1,25 @@
-"""Reviewers: a model's reading of an attached plan against the core requirements' questions
-(`review.py`, docs/specs/agents.md, Model-backed personas).
+"""Reviewers: a model's reading of an attached plan against the core requirements and good
+practice (`review.py`, `review_prompt.md`, docs/specs/agents.md, Model-backed personas).
 
-`TemplateReviewer` reads nothing, and the rules' review stands. `ModelReviewer` gives the model the
-plan, the requirements with their questions and the rules' finding for each, and the reply is
-constrained to a schema (`ReviewReply`). What it says is checked before it is used (`merged`):
+The review has no rules to fall back on: `TemplateReviewer` reads nothing and says no model is
+configured, and the agent abstains. `ModelReviewer` gives the model the requirements with their
+questions, the decisions people in the project made, and the plan, and the reply is constrained to
+a schema (`ReviewReply`). What it says is checked before it is used (`merged`):
 
 - it names a requirement by an id it was given, once;
-- a quote is found in the plan once case, whitespace, quotation marks and dashes are set aside;
-- it gives a reason.
+- it gives a reason;
+- where it says the plan answers a requirement, wholly or in part, it gives a quote, and the quote
+  is found in the plan once case, whitespace, quotation marks and dashes are set aside.
 
-A reading that passes may only raise a finding: a `covered` requirement the model reads as not
-answering its questions becomes `vague`, with the model's reason and quote, and a `missing` one
-the model finds answered under another heading stays `missing`, with the model's reason and quote,
-so that a person judges it. A rule's finding is never lowered. Anything else is dropped and said.
+A reading that passes becomes a finding: `fully` is `covered`, `partly` is `vague` and `not` is
+`missing`. A reading that fails is dropped and said, and its requirement has no finding.
 """
 
 from __future__ import annotations
 
 import json
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Literal, Protocol
 
@@ -28,24 +28,27 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from dd_agent_advisor_dmp.classes import SectionFinding
 from dd_agent_advisor_dmp.match import _unfenced
 from dd_agent_advisor_dmp.read_plan import MAX_PLAN, normalise
-from dd_dmp_template import SECTIONS
+from dd_agent_advisor_dmp.review import decisions_of
+from dd_dmp_template import SECTIONS, Section
 from dd_sdk.agent import RunContext
-from dd_sdk.contract.facts import ProjectDocument
-from dd_sdk.contract.models import Derivation
+from dd_sdk.contract.facts import ProjectDocument, ProjectFact
 from dd_sdk.model import CallOptions, Model, ModelCallError, ModelOutputError, Usage, call
 from dd_sdk.prompts import ModelCallLog
 
 REVIEW_PROMPT = Path(__file__).with_name("review_prompt.md").read_text(encoding="utf-8").strip()
 # The most of a reason kept, in characters.
-MAX_REASON = 400
+MAX_REASON = 600
+COVERED = (
+    "A model read the plan as answering this specifically enough: {reason} Check it against: "
+    "{questions}"
+)
 VAGUE = (
-    "The plan has a section for this, '{heading}', but a model read it as not answering the "
-    "requirement's questions: {reason} Check it, and answer what it leaves out."
+    "A model read the plan as answering this only in part, or in general terms: {reason} Check "
+    "it, and answer what it leaves out: {questions}"
 )
-ELSEWHERE = (
-    "No heading of the plan names this requirement, but a model read it as answered elsewhere in "
-    "the plan: {reason} Check whether it answers: {questions}"
-)
+MISSING = "A model read the plan as not answering this: {reason} A plan should answer: {questions}"
+MESSAGES = {"covered": COVERED, "vague": VAGUE, "missing": MISSING}
+FINDING_OF = {"fully": "covered", "partly": "vague", "not": "missing"}
 
 
 class _Reply(BaseModel):
@@ -70,7 +73,7 @@ class ReviewReply(_Reply):
 class ModelReview:
     """What a reviewer's model said and the checks kept."""
 
-    findings: list[SectionFinding]
+    findings: list[SectionFinding] = field(default_factory=list)
     dropped: tuple[str, ...] = ()
     # Why the reply as a whole was not used, if so.
     unused: str | None = None
@@ -85,19 +88,19 @@ class Reviewer(Protocol):
     model_id: str | None
 
     def review(
-        self, plan: ProjectDocument, findings: list[SectionFinding], ctx: RunContext
+        self, plan: ProjectDocument, decisions: Sequence[ProjectFact], ctx: RunContext
     ) -> ModelReview: ...
 
 
 class TemplateReviewer:
-    """Reads nothing: the rules' review stands."""
+    """Reads nothing: no model is configured, so there is no review."""
 
     model_id: str | None = None
 
     def review(
-        self, plan: ProjectDocument, findings: list[SectionFinding], ctx: RunContext
+        self, plan: ProjectDocument, decisions: Sequence[ProjectFact], ctx: RunContext
     ) -> ModelReview:
-        return ModelReview(findings)
+        return ModelReview()
 
 
 class ModelReviewer:
@@ -109,12 +112,12 @@ class ModelReviewer:
         self.model_id: str | None = model.model_id
 
     def review(
-        self, plan: ProjectDocument, findings: list[SectionFinding], ctx: RunContext
+        self, plan: ProjectDocument, decisions: Sequence[ProjectFact], ctx: RunContext
     ) -> ModelReview:
         text = plan.documentation_text[:MAX_PLAN]
         cut = len(text) < len(plan.documentation_text)
         log = ModelCallLog(self.model.provider)
-        messages = [{"role": "user", "content": prompt(text, findings, cut=cut)}]
+        messages = [{"role": "user", "content": prompt(text, decisions_of(decisions), cut=cut)}]
         try:
             reply = call(
                 self.model,
@@ -126,68 +129,72 @@ class ModelReviewer:
             )
         except ModelCallError as error:
             why = f"the model could not be reached ({error})"
-            return ModelReview(findings, unused=why, model_id=self.model_id, cut=cut, calls=log)
+            return ModelReview(unused=why, model_id=self.model_id, cut=cut, calls=log)
         except ModelOutputError as error:
             got = error.reply
             try:
                 parsed = ReviewReply.model_validate_json(_unfenced(got.text))
             except ValidationError:
                 why = "the model's reply did not match its schema"
-                return ModelReview(findings, (), why, got.model_id, cut, got.usage, got.calls)
-            kept, dropped = merged(parsed, findings, text)
-            return ModelReview(kept, dropped, None, got.model_id, cut, got.usage, got.calls)
-        if reply.parsed is None:
-            return ModelReview(
-                findings, (), "the model declined", reply.model_id, cut, reply.usage, reply.calls
+                return ModelReview([], (), why, got.model_id, cut, got.usage, got.calls)
+            return _used(
+                parsed, text, ModelReview([], (), None, got.model_id, cut, got.usage, got.calls)
             )
-        kept, dropped = merged(reply.parsed, findings, text)
-        return ModelReview(kept, dropped, None, reply.model_id, cut, reply.usage, reply.calls)
+        if reply.parsed is None:
+            why = "the model declined"
+            return ModelReview([], (), why, reply.model_id, cut, reply.usage, reply.calls)
+        return _used(
+            reply.parsed,
+            text,
+            ModelReview([], (), None, reply.model_id, cut, reply.usage, reply.calls),
+        )
 
 
-def prompt(text: str, findings: Sequence[SectionFinding], *, cut: bool) -> str:
-    """The user message: the requirements with their questions and the rules' findings, then the
-    plan, as JSON."""
-    by_heading = {f.section: f for f in findings}
+def _used(reply: ReviewReply, text: str, given: ModelReview) -> ModelReview:
+    """A reply's findings that pass the checks; unused as a whole if none does. `given` carries
+    what the call returned: the model, whether the plan was cut, usage and the calls."""
+    findings, dropped = merged(reply, text)
+    why = None if findings else "none of its readings could be used"
+    return replace(given, findings=findings, dropped=dropped, unused=why)
+
+
+def prompt(text: str, decisions: Sequence[Mapping[str, str]], *, cut: bool) -> str:
+    """The user message: the requirements with their questions, the decisions made in the project,
+    then the plan, as JSON."""
     requirements = [
-        {
-            "requirement": s.id,
-            "heading": s.heading,
-            "questions": list(s.questions),
-            "found_by_headings": by_heading[s.heading].finding,
-        }
+        {"requirement": s.id, "heading": s.heading, "questions": list(s.questions)}
         for s in SECTIONS
     ]
     plan = {"text": text, **({"cut": True} if cut else {})}
     return (
         "The core requirements, as JSON:\n"
         + json.dumps(requirements, ensure_ascii=False, indent=1)
+        + "\n\nThe decisions people in the project have made, as JSON:\n"
+        + json.dumps(list(decisions), ensure_ascii=False, indent=1)
         + "\n\nThe plan the researcher attached, as JSON:\n"
         + json.dumps(plan, ensure_ascii=False)
     )
 
 
-def merged(
-    reply: ReviewReply, findings: Sequence[SectionFinding], text: str
-) -> tuple[list[SectionFinding], tuple[str, ...]]:
-    """The findings with the model's readings that pass the checks, and why any others were
-    not used. A reading may only raise a finding."""
+def merged(reply: ReviewReply, text: str) -> tuple[list[SectionFinding], tuple[str, ...]]:
+    """A finding for each reading that passes the checks, in the requirements' order, and why any
+    others were not used."""
     ids = {s.id: s for s in SECTIONS}
     plan = normalise(text)
-    by_heading = {f.section: f for f in findings}
     dropped: list[str] = []
     seen: set[str] = set()
+    found: dict[str, SectionFinding] = {}
     for reading in reply.readings:
         why = _unusable(reading, ids, seen, plan)
         seen.add(reading.requirement)
         if why:
             dropped.append(f"{reading.requirement}: {why}")
             continue
-        section = ids[reading.requirement]
-        found = by_heading[section.heading]
-        raised = _raised(found, reading, " ".join(section.questions))
-        if raised is not None:
-            by_heading[section.heading] = raised
-    return [by_heading[f.section] for f in findings], tuple(dropped)
+        found[reading.requirement] = finding(ids[reading.requirement], reading)
+    for section in SECTIONS:
+        if section.id not in seen:
+            dropped.append(f"{section.id}: not read")
+    return [found[s.id] for s in SECTIONS if s.id in found], tuple(dropped)
 
 
 def _unusable(reading: Reading, ids: Mapping[str, object], seen: set[str], plan: str) -> str | None:
@@ -197,34 +204,23 @@ def _unusable(reading: Reading, ids: Mapping[str, object], seen: set[str], plan:
         return "read twice"
     if not reading.reason.strip():
         return "gives no reason"
+    if reading.answered != "not" and not (reading.quote and reading.quote.strip()):
+        return "says the plan answers it but quotes nothing"
     if reading.quote is not None and normalise(reading.quote) not in plan:
         return "quotes words that are not in the plan"
     return None
 
 
-def _raised(found: SectionFinding, reading: Reading, questions: str) -> SectionFinding | None:
-    """`found` raised by the model's reading, or None if the reading changes nothing."""
+def finding(section: Section, reading: Reading) -> SectionFinding:
+    """One requirement's finding from a reading that passed the checks."""
     reason = " ".join(reading.reason.split())[:MAX_REASON]
     if not reason.endswith((".", "?", "!")):
         reason += "."
-    quote = " ".join(reading.quote.split()) if reading.quote else None
-    if found.finding == "covered" and reading.answered != "fully":
-        return found.model_copy(
-            update={
-                "finding": "vague",
-                "quote": quote or found.quote,
-                "message": VAGUE.format(heading=found.plan_heading, reason=reason),
-                "finding_derivation": Derivation.MODEL,
-                "reason": reason,
-            }
-        )
-    if found.finding == "missing" and reading.answered != "not" and quote:
-        # Pointed out, not settled: the finding stays missing for a person to judge.
-        return found.model_copy(
-            update={
-                "quote": quote,
-                "message": ELSEWHERE.format(reason=reason, questions=questions),
-                "reason": reason,
-            }
-        )
-    return None
+    kind = FINDING_OF[reading.answered]
+    return SectionFinding(
+        section=section.heading,
+        finding=kind,
+        quote=" ".join(reading.quote.split()) if reading.quote else None,
+        message=MESSAGES[kind].format(reason=reason, questions=" ".join(section.questions)),
+        reason=reason,
+    )

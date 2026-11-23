@@ -16,9 +16,13 @@ disclosed ([Disclosure](disclosure.md)).
 
 The Documentation Editor (`advisor.documentation`) is the first drafter. It serves
 `preparation.documentation` and drafts a README or a data dictionary from a `DraftRequest`. It
-does not serve `setup.documentation`, planning the documentation before data are collected,
-because a drafter infers only from a file inventory (invariant 1), which a project has only once
-its data exist; that step has no agent yet (#1017). Where a model is configured, as it is by
+also serves `setup.documentation`, planning the documentation before data are collected (#1017).
+A drafter infers only from a file inventory (invariant 1), which a project has only once its data
+exist, so before then it infers nothing: a README is drafted from the approved metadata record and
+the decisions, if any, with the sections that plan what to record (`plan_ask`) asking what the
+researcher expects to produce, under the same questions as the README drafted later, which places
+their answers. A data dictionary needs the inventory's tables, and the drafter abstains without
+them. Where a model is configured, as it is by
 default, a model writes the README's prose
 ([`agents/advisor-documentation/README.md`](../../agents/advisor-documentation/README.md)). The
 researcher answers its questions in the conversation, and the next draft places their answers.
@@ -147,11 +151,19 @@ the same requirements (`setup.dmp-review`).
    Access and licence, Software requirements), never a part of General information or the
    citation, which only the researcher can give. Methods is marked `suggest: documents`: it is
    asked about only when the draft carries documents the researcher attached, and its suggestion
-   says only what those documents state, never a method inferred from the files. Its model is given the same input as the
-   README's prose (invariant 4), never the researcher's answers, and the documents the researcher attached to
-   the project (`project_documents`), the latest first and cut to a stated length, as data and
-   never as instructions, so that what their field notes or codebook say can be offered for them
-   to confirm; never an answer, a field's description or an earlier version. The outcome's
+   says only what those documents state, never a method inferred from the files. Its model is
+   given the same input as the README's prose (invariant 4) and the documents the researcher
+   attached to the project (`project_documents`), the latest first and cut to a stated length, as
+   data and never as instructions, so that what their field notes or codebook say can be offered
+   for them to confirm. For a README it is never given an answer or an earlier version. For a data
+   dictionary it is also given, as examples, the definitions and units the researcher already
+   gave (`supplied` in the drafted dictionary, at most a stated number of rows), so that it can
+   suggest the rest in their wording and with the naming conventions they show; and the
+   project's decisions (`project_decisions`, such as the standards and vocabularies chosen),
+   which are structured values. These are content of the `documentation` and `decisions` classes
+   and reach a hosted model only as the profile's `hosted_models` allows
+   ([Projects](projects.md), invariant 8). The model still never writes a cell
+   (`agents/advisor-documentation/tests/test_dictionary_context.py`). The outcome's
    statement names the documents it was given and any cut short
    (`agents/advisor-documentation/tests/test_attached_documents.py`). A
    dictionary suggestion is offered only if it is one short line of plain text that names no

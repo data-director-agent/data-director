@@ -15,7 +15,7 @@ import type {
 
 /** A project with no entry point, nothing started and nothing suggested. */
 export function projectProgress(over: Partial<ProjectProgress> = {}): ProjectProgress {
-  return { entry: null, entry_source: null, steps: {}, reasons: {}, suggested: null, decisions: [], ...over };
+  return { entry: null, entry_source: null, steps: {}, reasons: {}, suggested: null, passed_over: [], decisions: [], ...over };
 }
 
 /** A project just created by the reference researcher, with nothing in it. */

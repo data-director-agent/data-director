@@ -18,6 +18,11 @@
 # A section drafted from a fact still shows its `ask`, for what the fact cannot say, unless the
 # fact named by `complete_from` gives it: that fact says all the section asks.
 #
+# A section may also have a `plan_ask`: what it asks before the data are collected, when the
+# project has no file inventory yet and the README plans the documentation (`setup.documentation`,
+# #1017). It is asked under the same question, so an answer given then is kept for the README
+# drafted once the data exist, where the researcher may revise it.
+#
 # A section may list `parts` instead of one `ask`: each part is asked as a question of its own,
 # with its own `label` and `ask`, and placed as a `- **label:** answer` line. A part with
 # `given_by` is not asked when the approved metadata record gives it:
@@ -74,17 +79,25 @@
   from: files
   suggest: true
   ask: how the files relate to one another, and any related data not included.
+  plan_ask: >-
+    the files you expect to produce, in which formats, and how you will name and organise them.
 - heading: Methods
   suggest: documents
   ask: >-
     how the data were collected and processed; the software and instruments, with their versions;
     the standards, calibration and quality assurance applied.
+  plan_ask: >-
+    how you will collect and process the data; the software and instruments you will use; what you
+    will record as you go, such as versions, calibration and quality checks.
 - heading: Variables
   from: standards
   suggest: true
   ask: >-
     where the data dictionary is, which describes each field's definition, type, unit and missing
     value codes; any abbreviations or coding conventions shared across the tables.
+  plan_ask: >-
+    the variables you expect to record, with their units and how missing values will be coded; any
+    abbreviations or naming conventions you will use.
 - heading: Access and licence
   from: [record_rights, licences]
   suggest: true

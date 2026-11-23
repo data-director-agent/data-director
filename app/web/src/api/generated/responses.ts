@@ -431,6 +431,11 @@ export interface ProjectProgress {
    */
   entry_source: ("researcher" | "model") | null;
   /**
+   * The steps before `suggested` in its phase that it passed over because no agent the
+   * deployment enables serves them (#1377), in order; empty when none was.
+   */
+  passed_over: string[];
+  /**
    * Why each step in `steps` is in its state, keyed the same.
    */
   reasons: {
