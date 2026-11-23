@@ -19,6 +19,8 @@ import {
 import type { Conversation } from "../../conversation/types";
 import { type FlowApi, FlowApiContext } from "../../flow/api";
 import { ActiveProjectProvider } from "../../project/active";
+import { ConversationSessionProvider } from "../../conversation/session";
+import { homePath } from "../../route";
 import intakeCompleteFixture from "../../../fixtures/intake-complete.json";
 import intakePendingFixture from "../../../fixtures/intake-pending.json";
 import projectCreatedFixture from "../../../fixtures/project-created.json";
@@ -884,6 +886,60 @@ describe("ConversationHome", () => {
       await renderHome(withOrchestrator(), fakeApi({ get }));
       expect(await screen.findByText(/could not open that conversation/)).toBeVisible();
       expect(location.search).toBe("");
+    });
+
+    describe("a step asked about from the journey map", () => {
+      const asked = flowFixture.phases.flatMap((p) => p.steps)[0];
+      if (!asked) throw new Error("the flow fixture has no step");
+
+      /** The page drawn, left and drawn again in one session, as on going to the journey map
+       * and back; `back` is the address it comes back to. */
+      async function leaveAndComeBack(back: string, sendTurn: TurnSent) {
+        localStorage.setItem("dd-project", CONVERSATION.project_id ?? "p1");
+        history.replaceState(null, "", "/?conversation=c9");
+        const api = fakeApi({ sendTurn });
+        const page = (shown: boolean) => (
+          <AnnouncerProvider>
+            <FlowApiContext.Provider value={FLOW}>
+              <ProjectApiContext.Provider value={httpProjectApi}>
+                <ActiveProjectProvider>
+                  <ConversationApiContext.Provider value={api}>
+                    <RunTransportContext.Provider value={api.turns}>
+                      <ConversationSessionProvider>
+                        {shown && <ConversationHome directory={withOrchestrator()} />}
+                      </ConversationSessionProvider>
+                    </RunTransportContext.Provider>
+                  </ConversationApiContext.Provider>
+                </ActiveProjectProvider>
+              </ProjectApiContext.Provider>
+            </FlowApiContext.Provider>
+          </AnnouncerProvider>
+        );
+        const rendered = await opened(render(page(true)));
+        await screen.findByRole("list", { name: "Conversation" });
+        rendered.rerender(page(false));
+        history.replaceState(null, "", back);
+        rendered.rerender(page(true));
+        return opened(rendered);
+      }
+
+      it("starts a new conversation with the step's prompt in the box, unsent", async () => {
+        const sendTurn = vi.fn(() => Promise.resolve());
+        await leaveAndComeBack(homePath({ ask: asked.id }), sendTurn);
+        const box = screen.getByRole("textbox", { name: "What would you like to do?" });
+        await waitFor(() => expect(box).toHaveValue(asked.prompt));
+        expect(screen.queryByRole("list", { name: "Conversation" })).not.toBeInTheDocument();
+        await waitFor(() => expect(box).toHaveFocus());
+        expect(new URLSearchParams(location.search).has("ask")).toBe(false);
+        expect(new URLSearchParams(location.search).has("conversation")).toBe(false);
+        expect(sendTurn).not.toHaveBeenCalled();
+      });
+
+      it("keeps the open conversation when the step is not in the flow", async () => {
+        await leaveAndComeBack(homePath({ ask: "no.such-step" }), vi.fn(() => Promise.resolve()));
+        expect(await screen.findByRole("list", { name: "Conversation" })).toBeVisible();
+        expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toHaveValue("");
+      });
     });
   });
 

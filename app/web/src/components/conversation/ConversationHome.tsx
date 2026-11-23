@@ -128,6 +128,8 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     orchestratorId: orchestrator?.id,
     runId,
     urlConversation,
+    // A step asked about from the journey map is a new conversation (`useAskAbout`).
+    fresh: params.has("ask"),
     box: reply,
     announce: announce,
     setText: putText,
@@ -164,7 +166,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const flow = useFlowLoad();
 
   const askInto = { setText: putText, box: reply, keep: { conversation: urlConversation, run: runId } };
-  useAskAbout(flow, askInto);
+  useAskAbout(flow, askInto, beginWith);
   useAskAboutQuestion(documents, askInto);
   useAskForFairFeedback(askInto);
   useAskAboutFact(projectId, askInto);

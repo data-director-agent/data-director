@@ -102,6 +102,7 @@ export function JourneyPage({ projectId, query = "" }: { projectId: string; quer
       (e: unknown) => setMarkError(errorMessage(e)),
     );
   }
+  /** Opens a new conversation in this project with the step's prompt in the box (`useAskAbout`). */
   function ask(stepId: string) {
     setProjectId(projectId);
     navigate(homePath({ ask: stepId }));

@@ -832,6 +832,47 @@ test("a step of the journey starts a conversation with its prompt, sent only whe
   expect(JSON.stringify(sent)).toContain(suggested.prompt);
 });
 
+test("asking about a step on the journey map starts a new conversation with the step's prompt", async ({
+  page,
+}) => {
+  const [first] = projects;
+  const [step] = flow.phases.flatMap((p) => p.steps);
+  if (!first || !step) throw new Error("the fixtures list no project or no step");
+  // The project the conversation fixture is in, so the conversation stays open in it.
+  const active = { ...first, project_id: conversation.project_id };
+  await serveConversation(page);
+  await page.route("/api/projects", (route) => route.fulfill({ json: [active] }));
+  await page.route(`/api/projects/${active.project_id}/progress`, (route) =>
+    route.fulfill({ json: intakeComplete.progress }),
+  );
+  await page.route(`/api/projects/${active.project_id}/intake`, (route) =>
+    route.fulfill({ json: intakeComplete }),
+  );
+  await page.addInitScript((id) => localStorage.setItem("dd-project", id), active.project_id);
+  let turns = 0;
+  await page.route("/api/conversations/*/turns/stream", (route) => {
+    turns += 1;
+    return streamTurn(route);
+  });
+  await page.goto("/");
+  // A conversation is open before the journey map is visited.
+  await page.getByRole("textbox", { name: "What would you like to do?" }).fill("Hello");
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByRole("list", { name: "Conversation" })).toBeVisible();
+
+  await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Journey map" }).click();
+  await page.getByRole("button", { name: new RegExp(`^${step.label}: `) }).click();
+  await page.getByRole("button", { name: "Ask Data Director about this" }).click();
+
+  const box = page.getByRole("textbox", { name: "What would you like to do?" });
+  await expect(box).toHaveValue(step.prompt);
+  await expect(box).toBeFocused();
+  await expect(page.getByRole("list", { name: "Conversation" })).toHaveCount(0);
+  await expect(page).not.toHaveURL(/[?&](ask|conversation)=/);
+  // Only the first conversation's message was sent; the new one waits for the researcher.
+  expect(turns).toBe(1);
+});
+
 test("a pending intake takes the message box's place, which is a press away", async ({ page }) => {
   const [active] = projects;
   const [entry] = intakePending.questions;

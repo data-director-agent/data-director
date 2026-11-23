@@ -43,17 +43,26 @@ export function useAskedInAddress(
   return { pending: asked && handled !== asked ? asked : null, handle: () => setHandled(asked) };
 }
 
-/** A step asked about from the journey map (`?ask=`) fills the message box, unsent. */
+/**
+ * A step asked about from the journey map (`?ask=`) starts a new conversation by `begin`, with
+ * the step's prompt in the message box, unsent. A step the flow does not hold is ignored.
+ */
 export function useAskAbout(
   flow: { state: "loaded"; flow: ProcessFlow } | { state: string },
   into: AskInto,
+  begin: (step: FlowStep) => void,
 ): void {
   const { pending, handle } = useAskedInAddress("ask", into);
-  if (pending && "flow" in flow) {
+  const loaded = "flow" in flow ? flow.flow : null;
+  // Starting a conversation resets what the page holds, so it waits until the render is done.
+  useEffect(() => {
+    if (!pending || !loaded) return;
     handle();
-    const found = locate(flow.flow, pending);
-    if (found) into.setText(askAboutStep(found));
-  }
+    const found = locate(loaded, pending);
+    if (found) begin(found.step.prompt ? found.step : { ...found.step, prompt: askAboutStep(found) });
+    // Only the step asked about is acted on, once, when the flow is there to find it in.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending, loaded]);
 }
 
 /**
