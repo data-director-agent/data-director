@@ -1,0 +1,6 @@
+{
+  "schema_class": "StorageNeeds",
+  "expected_volume_gb": 200,
+  "involves_personal_data": "yes",
+  "external_collaborators": true
+}

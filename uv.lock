@@ -26,6 +26,7 @@ members = [
     "data-director-agent-advisor-repository",
     "data-director-agent-advisor-rights",
     "data-director-agent-advisor-standards",
+    "data-director-agent-advisor-storage",
     "data-director-agent-example-hello",
     "data-director-agent-orchestrator-model",
     "data-director-agent-orchestrator-stub",
@@ -1165,6 +1166,7 @@ dependencies = [
     { name = "data-director-agent-advisor-repository" },
     { name = "data-director-agent-advisor-rights" },
     { name = "data-director-agent-advisor-standards" },
+    { name = "data-director-agent-advisor-storage" },
     { name = "data-director-agent-example-hello" },
     { name = "data-director-agent-orchestrator-model" },
     { name = "data-director-agent-orchestrator-stub" },
@@ -1238,6 +1240,7 @@ requires-dist = [
     { name = "data-director-agent-advisor-repository", editable = "agents/advisor-repository" },
     { name = "data-director-agent-advisor-rights", editable = "agents/advisor-rights" },
     { name = "data-director-agent-advisor-standards", editable = "agents/advisor-standards" },
+    { name = "data-director-agent-advisor-storage", editable = "agents/advisor-storage" },
     { name = "data-director-agent-example-hello", editable = "agents/example-hello" },
     { name = "data-director-agent-orchestrator-model", editable = "agents/orchestrator-model" },
     { name = "data-director-agent-orchestrator-stub", editable = "agents/orchestrator-stub" },
@@ -1708,6 +1711,29 @@ dev = [
     { name = "data-director-harness", editable = "harness" },
     { name = "data-director-workbench", editable = "workbench" },
 ]
+
+[[package]]
+name = "data-director-agent-advisor-storage"
+version = "0.1.0a1"
+source = { editable = "agents/advisor-storage" }
+dependencies = [
+    { name = "data-director-sdk" },
+    { name = "pydantic" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "data-director-harness" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "data-director-sdk", editable = "sdk" },
+    { name = "pydantic", specifier = ">=2.14.1,<3" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-example-hello"

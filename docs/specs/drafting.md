@@ -278,7 +278,14 @@ classes are in the core contract because the conductor, the app and an orchestra
 without knowing the drafter. A question may carry a suggested answer (`suggested_answer`) with
 how it was derived (`suggestion_derivation`); the one is present exactly when the other is. A
 question may name the shared value it asks for (`shared_field`), and a suggestion derived as
-`answer` names where it came from (`suggested_from`, invariant 11). A set
+`answer` names where it came from (`suggested_from`, invariant 11). A suggestion a drafter composed
+by rule from what the deployment's profile vouches for is derived as `template` with
+`suggested_from` `institution`: the Documentation Editor offers the institution's storage
+services (`institution_storage`, which the conductor fills into every `DraftRequest`) to a Data
+Management Plan's question on storage and backup. They say what is available, not what the
+project will use, so they are only offered, as any suggestion is (invariant 7), and the app says
+they come from the institution's own list, not a model
+(`agents/advisor-documentation/tests/test_dmp_storage.py`). A set
 of choices, as a reply's choice `Question` has, is added with the first drafter that
 sets one, TODO(#529).
 

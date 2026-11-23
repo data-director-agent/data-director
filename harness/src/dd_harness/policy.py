@@ -22,10 +22,12 @@ from dd_harness.content_classes import DEFAULT_HOSTED_MODELS, DEFAULT_REMOTE_TOO
 from dd_harness.content_classes import tool_servers as granted_servers
 from dd_harness.footprint import FootprintTable
 from dd_harness.institution_repositories import parse as institution_repositories
+from dd_harness.institution_storage import parse as institution_storage
 from dd_harness.profile_model_accounts import ModelAccounts
 from dd_harness.stewardship import DeploymentRoles, Stewardship, deployment_roles, principals
 from dd_harness.stewardship import parse as stewardship
 from dd_sdk.agent import Setting
+from dd_sdk.contract.facts import InstitutionStorage
 from dd_sdk.contract.models import InstitutionRepository
 
 # The whole vocabulary. A key outside it is refused: a key nothing enforces would tell a steward
@@ -47,6 +49,7 @@ PROFILE_KEYS = frozenset(
         "attached_documents",
         "deposit_transports",
         "institution_repositories",
+        "institution_storage",
         "stewardship",
         "administrators",
     }
@@ -111,6 +114,9 @@ class Profile:
     # The repositories the deployment names as its institution's, by a registry's identifier,
     # with what it vouches for of each (dd_harness.institution_repositories). None unless written.
     institution_repositories: tuple[InstitutionRepository, ...] = ()
+    # The storage services the deployment names as its institution's, for keeping data while a
+    # project runs, with what it vouches for of each (dd_harness.institution_storage).
+    institution_storage: tuple[InstitutionStorage, ...] = ()
     # The deployment's steward teams, and who administers it: deployment roles
     # (docs/specs/stewardship.md, invariant 1; dd_harness.stewardship). None unless written.
     stewardship: Stewardship = field(default_factory=Stewardship)
@@ -153,6 +159,7 @@ class Profile:
                     f"attached_documents is {documents!r}; it is one of "
                     f"{', '.join(ATTACHED_DOCUMENTS)}"
                 )
+            ref = f"profile:{data['profile_id']}@v{int(data.get('version', 1))}"
             return cls(
                 profile_id=str(data["profile_id"]),
                 version=int(data.get("version", 1)),
@@ -173,9 +180,9 @@ class Profile:
                 attached_documents=str(documents),
                 deposit_transports=_deposit_transports(data.get("deposit_transports")),
                 institution_repositories=institution_repositories(
-                    data.get("institution_repositories"),
-                    f"profile:{data['profile_id']}@v{int(data.get('version', 1))}",
+                    data.get("institution_repositories"), ref
                 ),
+                institution_storage=institution_storage(data.get("institution_storage"), ref),
                 stewardship=stewardship(data.get("stewardship")),
                 administrators=principals(data.get("administrators"), "administrators"),
             )

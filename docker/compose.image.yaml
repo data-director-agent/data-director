@@ -39,6 +39,15 @@ services:
     environment:
       PORT: "8101"
 
+  advisor-storage:
+    <<: *agent
+    command: dd-advisor-storage serve --host 0.0.0.0 --port 8118 --public-url http://advisor-storage:8118
+    environment:
+      PORT: "8118"
+      # As for the files advisor: its model is on by default and this stack gives it no key, so
+      # it runs with `template` unless the shell exports DD_STORAGE_SUMMARISER=model.
+      DD_STORAGE_SUMMARISER: ${DD_STORAGE_SUMMARISER:-template}
+
   advisor-quality:
     <<: *agent
     command: dd-advisor-quality serve --host 0.0.0.0 --port 8102 --public-url http://advisor-quality:8102
@@ -160,6 +169,8 @@ services:
     <<: *image
     depends_on:
       example-hello:
+        condition: service_healthy
+      advisor-storage:
         condition: service_healthy
       advisor-quality:
         condition: service_healthy

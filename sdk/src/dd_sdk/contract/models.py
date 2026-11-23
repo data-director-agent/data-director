@@ -20,9 +20,14 @@ from dd_sdk.contract import inventory, questions, reply_questions
 from dd_sdk.contract.base import RE3DATA_ID_PATTERN as RE3DATA_ID_PATTERN
 from dd_sdk.contract.base import REPOSITORY_ID_PATTERN as REPOSITORY_ID_PATTERN
 from dd_sdk.contract.base import SHA256_PATTERN as SHA256_PATTERN
+from dd_sdk.contract.base import UUID7_PATTERN as UUID7_PATTERN
 from dd_sdk.contract.base import Frozen as Frozen
 from dd_sdk.contract.deposit import DepositConnector as DepositConnector
 from dd_sdk.contract.deposit import Obligation as Obligation
+from dd_sdk.contract.drafting import ApprovedMetadataRecord as ApprovedMetadataRecord
+from dd_sdk.contract.drafting import CurrentVersion as CurrentVersion
+from dd_sdk.contract.drafting import DocumentVersionRef as DocumentVersionRef
+from dd_sdk.contract.drafting import DraftRequest as DraftRequest
 from dd_sdk.contract.facts import Affiliation as Affiliation
 from dd_sdk.contract.facts import AffiliationKind as AffiliationKind
 from dd_sdk.contract.facts import ChosenRepository as ChosenRepository
@@ -78,7 +83,6 @@ QuestionKind = reply_questions.QuestionKind
 ChoiceOption = reply_questions.ChoiceOption
 Question = reply_questions.Question
 
-UUID7_PATTERN = r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 POLICY_BUNDLE_REF_PATTERN = r"^profile:[a-z0-9][a-z0-9.-]*@v[0-9]+$"
 IRI_PATTERN = r"^[a-z][a-z0-9+.-]*:\S+$"
 VERSION_PATTERN = r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$"
@@ -367,13 +371,6 @@ class Reply(Grounded):
         return self
 
 
-class DocumentVersionRef(Frozen):
-    """One version of a project document, numbered from 1 within it (docs/specs/projects.md)."""
-
-    document_id: str = Field(pattern=UUID7_PATTERN)
-    version: int = Field(ge=1)  # not in the schema (#333)
-
-
 class Document(Grounded):
     """A project document an agent drafts or regenerates, as text (docs/specs/projects.md)."""
 
@@ -394,52 +391,6 @@ class Document(Grounded):
         if len(set(ids)) != len(ids):
             raise ValueError("each question of a document has an identifier of its own")
         return self
-
-
-# --- Drafting ---------------------------------------------------------------------------------
-# The input every drafter accepts (docs/specs/projects.md). A core input class, like
-# Message, so that one drafter can replace another without its caller changing.
-
-
-class CurrentVersion(Frozen):
-    """The version of a project document a drafter is to regenerate, with any decision on it."""
-
-    version_ref: DocumentVersionRef
-    document_title: str | None = None
-    media_type: str
-    document_text: str
-    version_state: VersionState
-    decision_reason: str | None = None
-    revision_request: str | None = None
-
-
-class ApprovedMetadataRecord(Frozen):
-    """The version of the project's metadata record a person approved last
-    (docs/specs/projects.md)."""
-
-    version_ref: DocumentVersionRef
-    media_type: str
-    conforms_to: str | None = None
-    document_text: str
-
-
-class DraftRequest(Frozen):
-    """A project document of one kind to draft from the project's facts (docs/specs/projects.md)."""
-
-    schema_class: Literal["DraftRequest"] = "DraftRequest"
-    document_kind: DocumentKind
-    inventory: FileInventory | None = None
-    requirements: RepositoryRequirements | None = None
-    metadata_record: ApprovedMetadataRecord | None = None
-    current_version: CurrentVersion | None = None
-    # In a project the conductor fills every slot but these two (data_director.yaml says each).
-    draft_answers: list[DraftAnswer] = Field(default_factory=list)
-    shared_answers: list[questions.SharedAnswer] = Field(default_factory=list)
-    redraft_document: str | None = Field(default=None, pattern=UUID7_PATTERN)
-    revise: bool = False
-    researchers: list[ResearcherRecord] = Field(default_factory=list)
-    project_documents: list[ProjectDocument] = Field(default_factory=list)
-    project_decisions: list[ProjectFact] = Field(default_factory=list)
 
 
 # --- Evidence and telemetry -----------------------------------------------------------------

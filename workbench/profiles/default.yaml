@@ -11,6 +11,7 @@ agents:
   advisor.policy: advise
   advisor.repository: advise
   example.hello: advise
+  advisor.storage: advise
   advisor.ethics: advise
   advisor.files: advise
   advisor.dmp: advise

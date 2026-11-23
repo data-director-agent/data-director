@@ -1,0 +1,72 @@
+{
+   "@context": {
+      "@vocab": "https://w3id.org/data-director/agents/storage/",
+      "InstitutionStorage": {
+         "@id": "https://w3id.org/data-director/InstitutionStorage"
+      },
+      "StorageNeeds": {
+         "@id": "https://w3id.org/data-director/agents/storage/StorageNeeds"
+      },
+      "allowance_gb": {
+         "@id": "https://w3id.org/data-director/allowance_gb",
+         "@type": "http://www.w3.org/2001/XMLSchema#float"
+      },
+      "allows_external_collaborators": {
+         "@id": "https://w3id.org/data-director/allows_external_collaborators"
+      },
+      "approved_for_sensitive": {
+         "@id": "https://w3id.org/data-director/approved_for_sensitive"
+      },
+      "charges_for_storage": {
+         "@id": "https://w3id.org/data-director/charges_for_storage"
+      },
+      "dcat": "http://www.w3.org/ns/dcat#",
+      "dcterms": "http://purl.org/dc/terms/",
+      "dd": "https://w3id.org/data-director/",
+      "expected_volume_gb": {
+         "@id": "https://w3id.org/data-director/agents/storage/expected_volume_gb"
+      },
+      "external_collaborators": {
+         "@id": "https://w3id.org/data-director/agents/storage/external_collaborators"
+      },
+      "guidance": {
+         "@id": "https://w3id.org/data-director/guidance",
+         "@type": "@id"
+      },
+      "institution_storage": {
+         "@id": "https://w3id.org/data-director/institution_storage",
+         "@type": "@id"
+      },
+      "involves_personal_data": {
+         "@id": "https://w3id.org/data-director/agents/storage/involves_personal_data"
+      },
+      "linkml": "https://w3id.org/linkml/",
+      "profile_ref": {
+         "@id": "https://w3id.org/data-director/profile_ref"
+      },
+      "prov": "http://www.w3.org/ns/prov#",
+      "schema": "http://schema.org/",
+      "schema_class": {
+         "@id": "https://w3id.org/data-director/schema_class"
+      },
+      "shex": "http://www.w3.org/ns/shex#",
+      "spdx": "http://spdx.org/rdf/terms#",
+      "storage": "https://w3id.org/data-director/agents/storage/",
+      "storage_backup": {
+         "@id": "https://w3id.org/data-director/storage_backup"
+      },
+      "storage_description": {
+         "@id": "https://w3id.org/data-director/storage_description"
+      },
+      "storage_id": {
+         "@id": "https://w3id.org/data-director/storage_id"
+      },
+      "storage_kind": {
+         "@id": "https://w3id.org/data-director/storage_kind"
+      },
+      "storage_name": {
+         "@id": "https://w3id.org/data-director/storage_name"
+      },
+      "xsd": "http://www.w3.org/2001/XMLSchema#"
+   }
+}

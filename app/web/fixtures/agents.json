@@ -38,7 +38,7 @@
           "recorded_in": null
         }
       },
-      "description": "Recommends controlled vocabularies, ontologies and data formats from FAIRsharing for a dataset profile, grounded on the registry records it retrieved. Ranking rules choose first; a model may add records it found and note doubts, never remove one. Each recommendation is proposed for the researcher to choose in their project.",
+      "description": "Recommends controlled vocabularies, ontologies and data formats from FAIRsharing for a dataset profile, whether its data are collected or still being planned, grounded on the registry records it retrieved. Ranking rules choose first; a model may add records it found and note doubts, never remove one. Each recommendation is proposed for the researcher to choose in their project.",
       "grounding_mode": "retrieval",
       "icon": "📚",
       "models": [],
@@ -1317,6 +1317,7 @@
       },
       "serves": [
         "setup.vocabularies",
+        "setup.formats",
         "preparation.formats"
       ],
       "settings": {},
@@ -1329,7 +1330,7 @@
   "incompatible": {},
   "profile": {
     "attached_documents": "allowed",
-    "digest": "fdd639935b125fe88e0705ea629a3e7d521bb11aee877d2b6b0b1d19da1705de",
+    "digest": "4016460a25bd3570b2b5be9c3022c23842b890807a9137fa95f5fd32879899ce",
     "orchestrator": "orchestrator.stub",
     "ref": "profile:data-director-app@v10"
   },

@@ -30,4 +30,4 @@ lines = 584
 
 [[file]]
 path = "sdk/src/dd_sdk/contract/models.py"
-lines = 579
+lines = 530

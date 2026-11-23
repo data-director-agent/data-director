@@ -303,6 +303,24 @@ describe("DocumentQuestions", () => {
     );
   });
 
+  it("says when a suggestion is the institution's own list, not a model's", () => {
+    const storage: DocumentQuestion = {
+      question_id: "q-" + "2".repeat(16),
+      question_prompt: "Storage and backup during the project: where the data will be stored.",
+      gap_section: "Storage and backup during the project",
+      suggested_answer: "The data will be kept on the institution's storage:\n\n- Research filestore.",
+      suggestion_derivation: "template",
+      suggested_from: "institution",
+    };
+    renderQuestions(
+      { ...UNANSWERED, versions: [{ ...VERSION, questions: [storage] }] },
+      vi.fn<ProjectApi["answer"]>(),
+    );
+    const box = screen.getByRole("textbox", { name: storage.question_prompt });
+    expect(box).toHaveAccessibleDescription(/your institution's own list/);
+    expect(box).not.toHaveAccessibleDescription(/by a model/);
+  });
+
   it("says when a suggestion is the researcher's own answer for another document, and records it only when accepted", async () => {
     const title: DocumentQuestion = {
       question_id: "q-" + "1".repeat(16),

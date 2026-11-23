@@ -4,11 +4,13 @@
 ([Agents](../../docs/specs/agents.md)). It recommends vocabularies, ontologies and formats from
 FAIRsharing and chooses none of them for the researcher.
 
-The Standards Librarian serves two steps of the Blueprint's process flow (§8.2):
+The Standards Librarian serves three steps of the process flow (§8.2), one of them this
+repository's addition:
 
 | Step | What it does |
 |---|---|
 | `setup.vocabularies` | Recommends controlled vocabularies and ontologies for the dataset's subject. |
+| `setup.formats` | Before collection: recommends data formats for the media types the researcher plans to save the data in, so that they are collected in an open format from the start. Our addition to Figure 1. The profile may have no fields yet. |
 | `preparation.formats` | Recommends data formats for the declared media types, and a field-level standard such as ISO 8601 for date and time fields. |
 
 ## Input and output
@@ -128,6 +130,10 @@ and the Documentation Editor.
   record's name and description, recorded as `classification_derivation: lexical`, with
   `terminology_unclassified` when neither pattern fires. FAIRsharing's curated subtype is not
   exposed on the public record route. **TODO(#4):** read it from the authenticated API.
+- **It does not judge whether a format is open.** FAIRsharing's records do not say, and the
+  ranking does not weigh it; the model is asked to prefer open formats and say why. Whether a file
+  already saved is in an open format is the File Archivist's judgement (`advisor.files`,
+  `preparation.files`), once there are files.
 - **It does not choose.** A recommendation is advice; a person confirms or rejects each proposal. A model can add a record or note a doubt but never removes a rule's pick.
 - **Live search needs a FAIRsharing account** (`FAIRSHARING_LOGIN` / `FAIRSHARING_PASSWORD`);
   record fetch does not. No live-search cassette is committed, so that path is unsubstantiated in
