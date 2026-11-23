@@ -95,7 +95,8 @@ def test_no_case_scores_below_the_committed_baseline(tmp_path: Path, principal: 
     regressions, changes = differences(baseline["scores"], current["scores"])
     assert regressions == []
     assert changes == [], "scores improved: rewrite baseline.json in its own commit"
-    for key in ("cases_sha256", "rule_table_sha256", "system_prompt_sha256", "spec_version"):
+    keys = ("cases_sha256", "definition_sha256", "shares_sha256", "system_prompt_sha256")
+    for key in (*keys, "spec_version"):
         assert current["identity"][key] == baseline["identity"][key], key
 
 
