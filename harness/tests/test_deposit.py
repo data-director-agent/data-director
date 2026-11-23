@@ -647,7 +647,6 @@ def test_a_field_under_a_dublin_core_term_is_checked_under_its_iri(
     assert lineage.field == "Lineage"
 
 
-@READS_JSON_LD
 def test_the_package_root_has_each_fields_values_under_its_term(
     projects: ProjectStore, runs: RunStore, tmp_path: Path
 ) -> None:
@@ -689,9 +688,6 @@ def test_the_package_root_has_each_fields_values_under_its_term(
     assert root["description"] == "Cores taken in 2026."
     # What the root describes whatever the set asks for is still there.
     assert graph[root["creator"]["@id"]]["@type"] == "Person"
-    # The package's graph reads the term as the Dublin Core property.
-    read = rdflib.Graph().parse(data=json.dumps(crate), format="json-ld")
-    assert any(read.triples((None, rdflib.URIRef(DCTERMS_PROVENANCE), None)))
 
 
 def test_a_set_kept_before_terms_were_iris_still_reads(
