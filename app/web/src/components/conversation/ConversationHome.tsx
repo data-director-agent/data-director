@@ -54,7 +54,7 @@
  * late never moves a button the researcher is about to press.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { useSessionState } from "../../conversation/session";
 import { documentReaders } from "../../conversation/documentation";
@@ -96,7 +96,7 @@ import {
   workspaceReady,
 } from "./ConversationHomeParts";
 import { whyUnusable } from "./orchestrator";
-import { type Asking, type ReplyFocus, ReplyArea, useReplyMode } from "./ReplyArea";
+import { type Asking, type ReplyFocus, ReplyArea, useReplyMode, useShowDraft } from "./ReplyArea";
 import { nameOf } from "./Speaker";
 import { StartFromStep } from "./StartFromStep";
 import { Transcript } from "./Transcript";
@@ -380,19 +380,6 @@ export function ConversationHome({ directory }: { directory: Directory }) {
       </StewardProvider>
     </PageLoading>
   );
-}
-
-/**
- * Shows the message box once, when the page is drawn again with a message being written, after
- * the intake has been read so that its opening does not hide the box again.
- */
-function useShowDraft(text: string, intakeSettled: boolean, show: (mode: "words") => void) {
-  const shown = useRef(false);
-  useEffect(() => {
-    if (shown.current || !intakeSettled) return;
-    shown.current = true;
-    if (text.trim()) show("words");
-  }, [text, intakeSettled, show]);
 }
 
 /** The questions the open conversation's latest turn asks, if it asks any. */
