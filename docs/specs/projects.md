@@ -456,7 +456,7 @@ intended design, and each part says where it is not built yet.
     under the same `hosted_models` and `attached_documents` rules (invariant 8), so a profile that
     refuses attached documents has no plan to mark. The DMP Checker reads the marked plan alone,
     and every document while none is marked. A plan does not change the phase tracker: no step is
-    marked by it, and `setup.dmp-review` and `post.dmp-update` stay out of scope. When the
+    marked by it, and `setup.dmp-review` and `post.dmp-update` are not marked by it. When the
     researcher answered "Yes" to `intake.dmp` and no plan is marked, the orchestrator invites them
     to attach their plan, or to mark which attached document it is ([Orchestration](orchestration.md),
     invariant 20). A plan given by its DMP ID, a link or a machine-actionable plan (RDA DMP Common

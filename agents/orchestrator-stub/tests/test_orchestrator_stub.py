@@ -230,15 +230,16 @@ def test_entry_two_lists_phases_two_to_six_with_the_agents_and_the_gaps(runs_dir
 
 
 @pytest.mark.requirement("DD-ENTRY-POINTS")
-def test_data_management_plan_steps_are_named_and_said_to_be_out_of_scope(
+def test_data_management_plan_steps_are_in_scope(
     runs_dir: Path,
 ) -> None:
     c, env = ask(runs_dir, "We are starting a new project and have not collected data yet")
     steps = listed(env.payload_as(Reply).reply_text, 1, c.registry.manifest())
     plan_steps = [p.step for p, _ in steps if "Data Management Plan" in p.step.text]
-    assert any(step.out_of_scope for step in plan_steps)
-    # Checking a deposit against an existing plan (R8) is in scope: a gap, not out of scope.
-    assert any("R8" in step.requirements and not step.out_of_scope for step in plan_steps)
+    assert plan_steps
+    assert not any(step.out_of_scope for step in plan_steps)
+    # Checking a deposit against an existing plan (R8) is a gap, as no agent serves it yet.
+    assert any("R8" in step.requirements for step in plan_steps)
     assert env.delegations == []
 
 

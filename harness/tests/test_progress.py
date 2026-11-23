@@ -21,7 +21,6 @@ from dd_harness.projects import (
 )
 from dd_harness.testing import TEST_PRINCIPAL
 from dd_sdk.intake import NO, NOT_SURE, YES, question
-from dd_sdk.process_flow import OUT_OF_SCOPE
 
 
 def added(document_id: str, kind: str) -> dict[str, Any]:
@@ -260,7 +259,7 @@ def test_the_store_refuses_what_is_no_entry_step_or_mark(store: ProjectStore) ->
         store.choose_entry(project, 4, acted_for=TEST_PRINCIPAL, caused_by="test")
     for step_id, mark in (
         ("R5", "done"),
-        (next(iter(OUT_OF_SCOPE)), "done"),
+        ("no.such-step", "done"),
         ("governance.embargo", "maybe"),
     ):
         with pytest.raises(ProjectError):

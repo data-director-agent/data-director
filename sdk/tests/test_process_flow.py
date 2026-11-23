@@ -68,19 +68,14 @@ def test_every_step_has_a_unique_id_under_its_phase_and_none_is_a_requirement() 
     assert all(len(prefix) == 1 for prefix in prefixes.values())
 
 
-def test_updating_the_data_management_plan_is_in_the_flow_and_out_of_scope_for_now() -> None:
-    assert {"post.dmp-update"} == OUT_OF_SCOPE
-    assert OUT_OF_SCOPE <= STEPS
-    # Writing and reviewing a plan, and verifying a deposit against it (R8), are in scope.
-    assert not {"setup.dmp-create", "setup.dmp-review", "governance.dmp"} & OUT_OF_SCOPE
-    # An out-of-scope step is still planned, so an orchestrator and the phase tracker show it,
-    # with no agent.
-    planned = {p.step.id: p for p in plan(entry(1), [])}
-    assert all(planned[i].agent_ids == () for i in OUT_OF_SCOPE)
+def test_the_data_management_plan_steps_are_in_the_flow_and_in_scope() -> None:
+    dmp_steps = {"setup.dmp-create", "setup.dmp-review", "governance.dmp", "post.dmp-update"}
+    assert dmp_steps <= STEPS
+    assert not dmp_steps & OUT_OF_SCOPE
     assert [s.id for s in PHASES[0].steps][-2:] == ["setup.dmp-create", "setup.dmp-review"]
     text = describe_flow()
     line = next(x for x in text.splitlines() if "[post.dmp-update]" in x)
-    assert "out of scope for now" in line
+    assert "out of scope for now" not in line
     line = next(x for x in text.splitlines() if "[setup.dmp-create]" in x)
     assert "optional" in line and "out of scope for now" not in line
 

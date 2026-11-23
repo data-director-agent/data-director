@@ -376,7 +376,7 @@
           "id": "post.dmp-update",
           "label": "Update your Data Management Plan with what you published",
           "optional": false,
-          "out_of_scope": true,
+          "out_of_scope": false,
           "person_decides": false,
           "prompt": "Help me update my Data Management Plan with what I published.",
           "requirements": [],

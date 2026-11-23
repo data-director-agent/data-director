@@ -152,8 +152,8 @@ alone (`suggest_dmp_prompt.md`), checked as a README's suggestions are, and offe
 question, never placed. Without attached documents it is not asked.
 
 What it does not do: it follows one funder-neutral template, not a funder's own; it does not
-export a machine-actionable plan (RDA DMP Common Standard, #701); and updating a plan after
-publication (`post.dmp-update`) is out of scope.
+export a machine-actionable plan (RDA DMP Common Standard, #701); and it does not update a
+plan after publication (`post.dmp-update`), which no agent serves yet.
 
 ## Prose written by a model
 

@@ -1595,15 +1595,10 @@ describe("ConversationHome", () => {
       await userEvent.click(
         within(phases).getByText("Show what happens in each phase"),
       );
-      // A step done or skipped, or out of scope, offers no conversation.
+      // A step done or skipped offers no conversation.
       expect(
         within(phases).queryByRole("button", {
           name: `Start a conversation: ${label("preparation.files")}`,
-        }),
-      ).not.toBeInTheDocument();
-      expect(
-        within(phases).queryByRole("button", {
-          name: `Start a conversation: ${label("post.dmp-update")}`,
         }),
       ).not.toBeInTheDocument();
 
