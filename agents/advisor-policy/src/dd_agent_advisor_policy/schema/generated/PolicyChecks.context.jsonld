@@ -134,6 +134,9 @@
       "fact_subject": {
          "@id": "https://w3id.org/data-director/fact_subject"
       },
+      "field_name": {
+         "@id": "https://w3id.org/data-director/field_name"
+      },
       "file_decision": {
          "@id": "https://w3id.org/data-director/file_decision"
       },
@@ -188,6 +191,12 @@
       "obligations": {
          "@id": "https://w3id.org/data-director/agents/policy/obligations",
          "@type": "@id"
+      },
+      "period_end": {
+         "@id": "https://w3id.org/data-director/period_end"
+      },
+      "period_start": {
+         "@id": "https://w3id.org/data-director/period_start"
       },
       "plan_document": {
          "@id": "https://w3id.org/data-director/plan_document"
@@ -289,6 +298,9 @@
       },
       "strength": {
          "@id": "https://w3id.org/data-director/agents/policy/strength"
+      },
+      "summary_text": {
+         "@id": "https://w3id.org/data-director/summary_text"
       },
       "value": {
          "@id": "https://w3id.org/data-director/agents/policy/value"

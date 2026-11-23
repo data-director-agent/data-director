@@ -1,6 +1,6 @@
 # advisor.documentation
 
-**Alpha** (`0.9.0a1`): the Documentation Editor persona of the agent roster
+**Alpha** (`0.10.0a1`): the Documentation Editor persona of the agent roster
 (docs/specs/agents.md), and the drafter of a project's README, data dictionary and Data Management
 Plan ([Drafting documents](../../docs/specs/drafting.md)). It is likely to change shape.
 

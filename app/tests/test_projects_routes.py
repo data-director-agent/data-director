@@ -28,7 +28,7 @@ from dd_app.governance import (
     CREATED_BY_ROUTE,
     Governance,
 )
-from dd_app.routes.projects import DeletedProject, ProjectSummary
+from dd_app.routes.projects import DeletedProject, ListedProject, ProjectSummary
 from dd_harness.projects import PROJECT_CREATED, TITLE_MAX_LENGTH, ProjectStore
 from dd_harness.testing import (
     TEST_PRINCIPAL,
@@ -99,7 +99,7 @@ def test_a_person_sees_the_projects_they_started_with_what_each_holds(
     check_fixture(
         "projects.json",
         normalised_conversation(response.json()),
-        model=list[ProjectSummary],
+        model=list[ListedProject],
     )
 
 
@@ -174,7 +174,8 @@ def test_a_person_creates_a_project_with_no_conversation(in_projects: tuple[Gove
     store.create(acted_for=TEST_PRINCIPAL, caused_by="test")
     listed = client.get("/api/projects").json()
     assert len(listed) == 4
-    assert listed[-1] == body
+    assert {k: v for k, v in listed[-1].items() if k != "permitted_actions"} == body
+    assert listed[-1]["permitted_actions"]["acting_as"] == "member"
 
 
 @pytest.mark.parametrize(

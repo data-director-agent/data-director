@@ -413,6 +413,19 @@ def _description(fact: ProjectFact) -> str:
     return "data description: " + ", ".join(said)
 
 
+def _summary(fact: ProjectFact) -> str:
+    return f"what the project is for: {json.dumps(fact.summary_text)}"
+
+
+def _field_of_study(fact: ProjectFact) -> str:
+    return f"field of study: {json.dumps(fact.field_name)}"
+
+
+def _period(fact: ProjectFact) -> str:
+    end = f" to {fact.period_end}" if fact.period_end else ""
+    return f"the project runs from {fact.period_start}{end}"
+
+
 _SAYS: dict[FactKind, Callable[[ProjectFact], str]] = {
     FactKind.FUNDER: _funder,
     FactKind.REQUIRED_REPOSITORY: _required,
@@ -423,6 +436,9 @@ _SAYS: dict[FactKind, Callable[[ProjectFact], str]] = {
     FactKind.STANDARD: _standard,
     FactKind.DATA_MANAGEMENT_PLAN: _plan,
     FactKind.DATA_DESCRIPTION: _description,
+    FactKind.PROJECT_SUMMARY: _summary,
+    FactKind.FIELD_OF_STUDY: _field_of_study,
+    FactKind.PROJECT_PERIOD: _period,
 }
 
 

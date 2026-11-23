@@ -187,13 +187,13 @@ describe("DocumentReviewDialog", () => {
       const text = shown({
         readers: [
           { name: "the Documentation Editor", readsAttached: "to suggest answers to a README's questions" },
-          { name: "the Data Management Plan Checker", readsAttached: "to find a plan's commitments" },
+          { name: "the Data Management Planner", readsAttached: "to find a plan's commitments" },
         ],
         others: ["the Policy Adviser", "the Metadata Librarian"],
       });
       expect(text).toHaveTextContent(
         "The Documentation Editor reads its text to suggest answers to a README's questions and " +
-          "the Data Management Plan Checker reads it to find a plan's commitments.",
+          "the Data Management Planner reads it to find a plan's commitments.",
       );
       expect(text).toHaveTextContent(
         "The Policy Adviser and the Metadata Librarian are told only its name, type and size, and cannot use its text.",

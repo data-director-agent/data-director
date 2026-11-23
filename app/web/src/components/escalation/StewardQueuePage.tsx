@@ -22,6 +22,7 @@ import { useResource } from "../../useResource";
 import { PageHeader } from "../frame/PageHeader";
 import { TableScroll } from "../ui/TableScroll";
 import { MoveControls } from "./MoveControls";
+import { StewardNav } from "./StewardNav";
 import { originSaid, stewardStateSaid } from "./wording";
 
 const FILTERS: { value: string; label: string; states: readonly EscalationState[] }[] = [
@@ -106,6 +107,7 @@ export function StewardQueuePage() {
           can see you have it, then open its project to work on it with the researcher.
         </p>
       </PageHeader>
+      <StewardNav current="/steward" />
       <div className="field steward-queue-filter">
         <label htmlFor={`${id}-filter`}>Show</label>
         <select id={`${id}-filter`} value={filter} onChange={(event) => setFilter(event.target.value)}>

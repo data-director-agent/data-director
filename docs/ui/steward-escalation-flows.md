@@ -123,6 +123,8 @@ A single place listing escalations routed to the signed-in steward:
 
 ### The project overview (read-only, #232)
 
+Built: the **Projects** page beside the queue (`/steward/projects`, from `GET /api/steward/projects`).
+
 Beside the queue, a list of projects the steward may see, with owner, current phase, recent runs and outcomes (including abstentions and referrals), and anything awaiting human review. Which projects appear is decided by the harness from the profile.
 
 By default a steward sees only a project with an escalation routed to their team, because the overview discloses a person's work (C2, P4). Under that default the overview lists the same projects as the queue, adding the project details beside each escalation. It is a separate view only where the profile sets `stewardship.visibility: scope`, and then lists the projects whose owners chose the team as their support team ([Data stewards](../specs/stewardship.md), invariant 3).

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "data-director-agent-advisor-dmp"
 version = "0.2.0a1"
-description = "advisor.dmp: the Data Management Plan Checker persona (alpha)"
+description = "advisor.dmp: the Data Management Planner persona (alpha)"
 requires-python = ">=3.14"
 license = "MIT"
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]

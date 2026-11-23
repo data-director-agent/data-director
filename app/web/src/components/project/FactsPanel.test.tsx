@@ -228,6 +228,37 @@ describe("FactsPanel", () => {
     });
   });
 
+  it("records what the project is for, about the project as a whole", async () => {
+    const decideFact = vi.fn<FactsApi["decideFact"]>(() =>
+      Promise.resolve(DECIDED),
+    );
+    renderPanel({ decideFact });
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: /Add a fact/ }));
+    const form = screen.getByRole("form", { name: "A fact nobody proposed" });
+    await user.selectOptions(
+      within(form).getByLabelText("What the fact is about"),
+      "project_summary",
+    );
+    await user.type(
+      within(form).getByLabelText(/What the project is for/),
+      "How moorland vegetation responds to drought.",
+    );
+    await user.click(
+      within(form).getByRole("button", { name: "Record this fact" }),
+    );
+
+    expect(decideFact).toHaveBeenCalledWith(PROJECT, {
+      verdict: "changed",
+      fact: {
+        fact_kind: "project_summary",
+        fact_subject: "project",
+        summary_text: "How moorland vegetation responds to drought.",
+      },
+    });
+  });
+
   it("removes a fact that stands by rejecting its kind and subject", async () => {
     const decideFact = vi.fn<FactsApi["decideFact"]>(() =>
       Promise.resolve(OFFERED),
@@ -353,13 +384,19 @@ describe("FactsPanel", () => {
     renderPanel({ facts: () => Promise.resolve(DECIDED) });
     const [proposal] = DECIDED.proposals;
     if (!proposal) throw new Error("the fixture has no proposal left");
-    const card = await screen.findByRole("article", { name: new RegExp(KIND_LABELS[proposal.fact.fact_kind]) });
-    expect(within(card).getByRole("link", { name: /Discuss this with Data Director/ })).toHaveAttribute(
-      "href",
-      homePath({ fact: proposal.proposal }),
-    );
-    const decided = screen.getByRole("heading", { name: "Decided" }).nextElementSibling as HTMLElement;
-    expect(within(decided).queryByRole("link", { name: /Discuss this/ })).toBeNull();
+    const card = await screen.findByRole("article", {
+      name: new RegExp(KIND_LABELS[proposal.fact.fact_kind]),
+    });
+    expect(
+      within(card).getByRole("link", {
+        name: /Discuss this with Data Director/,
+      }),
+    ).toHaveAttribute("href", homePath({ fact: proposal.proposal }));
+    const decided = screen.getByRole("heading", { name: "Decided" })
+      .nextElementSibling as HTMLElement;
+    expect(
+      within(decided).queryByRole("link", { name: /Discuss this/ }),
+    ).toBeNull();
   });
 
   describe("reached by a link to some of its facts", () => {

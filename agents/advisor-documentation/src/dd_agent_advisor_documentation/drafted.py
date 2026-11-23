@@ -3,8 +3,9 @@ docs/specs/drafting.md): the inventory's files, the licences the repository offe
 metadata record's values, the standards, vocabularies and formats people in the project chose
 (`standard` project facts, docs/specs/projects.md, #1391), and, for a Data Management Plan, the
 funders, repository, licence and handling of sensitive data people decided, and the description of
-the data a person confirmed (`data_description`, #160). Each is placed as a person decided it:
-supplied, never inferred (invariant 2)."""
+the data a person confirmed (`data_description`, #160), and what the project is for, its field and
+period, as decided at "Describe your project" (`project`, `setup.project`). Each is placed as a
+person decided it: supplied, never inferred (invariant 2)."""
 
 from __future__ import annotations
 
@@ -59,9 +60,25 @@ def from_decisions(source: str, decisions: Sequence[ProjectFact]) -> str | None:
     """A section's text drafted from the facts people decided, or None if there is nothing."""
     if source == "standards":
         return standards(decisions)
+    if source == "project":
+        return project(decisions)
     if source in (DESCRIBED, DESCRIBED_SO_FAR):
         return data_description(decisions, complete=source == DESCRIBED)
     return decided(source, decisions)
+
+
+def project(decisions: Sequence[ProjectFact]) -> str | None:
+    """What the project is for, its field and when it runs, as decided; None if none is."""
+    lines = []
+    for fact in decisions:
+        if fact.fact_kind == FactKind.PROJECT_SUMMARY and fact.summary_text:
+            lines.append(fact.summary_text)
+        elif fact.fact_kind == FactKind.FIELD_OF_STUDY:
+            lines.append(f"Field of study: {fact.field_name}.")
+        elif fact.fact_kind == FactKind.PROJECT_PERIOD:
+            end = f" to {fact.period_end}" if fact.period_end else ""
+            lines.append(f"The project runs from {fact.period_start}{end}.")
+    return "\n\n".join(lines) or None
 
 
 def _funder(fact: ProjectFact) -> str:

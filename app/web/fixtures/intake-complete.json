@@ -42,6 +42,7 @@
     "entry": 1,
     "entry_source": "researcher",
     "passed_over": [
+      "setup.project",
       "setup.documentation",
       "setup.storage"
     ],

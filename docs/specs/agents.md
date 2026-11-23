@@ -168,6 +168,16 @@ assessor also serves `deposit.fairness`, our addition to Figure 5, with the same
 that the check comes before submission as well as after publication (`post.fairness`). That step
 is advice: it gates nothing and marks no other step done.
 
+The Data Management Planner (`advisor.dmp`) is the persona for the project's plan: it describes the
+project before its data are collected (`setup.project`, our addition to Figure 1), reviews an
+attached plan (`setup.dmp-review`) and checks sharing at publication against the plan's commitments
+(`governance.dmp`). Each reads the researcher's own planning documents, a proposal, an award
+letter or a plan, and proposes what it reads as project facts that count only once a person
+confirms them, quoting the passage each rests on; its failure mode is a misreading, which the
+quote lets a person check. Describing the project was a step no persona served, and the Blueprint's
+Planning Agent is the role it fills. Writing a plan stays with the Documentation Editor, since a
+written plan is a project document (`Document`) and an agent returns one payload class.
+
 The Storage Adviser (`advisor.storage`) is the persona for where a project's data live while it
 runs: its own sources (the deployment's `institution_storage`, which no registry holds), its own
 failure modes (offering storage not approved for personal data) and its own step,

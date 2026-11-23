@@ -5,13 +5,24 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 dmp:DmpDiscrepancies a sh:NodeShape ;
-    rdfs:comment "The payload of advisor.dmp: where the planned sharing differs from the plan's commitments, for a person to review (R8). It flags and never enforces; a reviewed decision not to share is a valid outcome. Where it has read an attached plan and nobody has confirmed its commitments yet, it proposes each commitment as a project fact for the researcher to confirm, quoting the passage it rests on, and compares nothing until they do. A review of an attached plan (setup.dmp-review) fills section_findings instead." ;
+    rdfs:comment "The payload of advisor.dmp: where the planned sharing differs from the plan's commitments, for a person to review (R8). It flags and never enforces; a reviewed decision not to share is a valid outcome. Where it has read an attached plan and nobody has confirmed its commitments yet, it proposes each commitment as a project fact for the researcher to confirm, quoting the passage it rests on, and compares nothing until they do. A review of an attached plan (setup.dmp-review) fills section_findings instead, and describing the project (setup.project) proposes what it is and the data it will produce, as project facts, and says in still_needed what is still to be asked." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:class <https://w3id.org/data-director/ProjectFact> ;
-            sh:description "Facts the agent proposes for a person to confirm. A proposal is never a fact until a person decides it (docs/specs/projects.md)." ;
+    sh:property [ sh:class <https://w3id.org/data-director/GroundingRef> ;
+            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
+            sh:minCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 7 ;
+            sh:path <https://w3id.org/data-director/grounded_on> ],
+        [ sh:datatype xsd:string ;
+            sh:description "What the model proposed that was not used, and why: a pairing or reconciliation naming something not in the input, or a second pairing for one output." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dmp:dropped ],
+        [ sh:class <https://w3id.org/data-director/ProjectFact> ;
+            sh:description "Facts the agent proposes for a person to confirm. A proposal is never a fact until a person decides it (docs/specs/projects.md)." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 8 ;
             sh:path <https://w3id.org/data-director/proposed_facts> ],
         [ sh:class dmp:Discrepancy ;
             sh:nodeKind sh:BlankNodeOrIRI ;
@@ -22,27 +33,21 @@ dmp:DmpDiscrepancies a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 3 ;
             sh:path dmp:section_findings ],
-        [ sh:class <https://w3id.org/data-director/GroundingRef> ;
-            sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 6 ;
-            sh:path <https://w3id.org/data-director/grounded_on> ],
+        [ sh:datatype xsd:string ;
+            sh:description "What describing the project still needs from the researcher, each in a few words, such as what the project is for or the data it will produce: neither they nor an attached document gave it, and no decided fact holds it." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path dmp:still_needed ],
         [ sh:datatype xsd:string ;
             sh:description "What this checker does not yet do." ;
             sh:nodeKind sh:Literal ;
-            sh:order 5 ;
+            sh:order 6 ;
             sh:path dmp:limitations ],
         [ sh:class dmp:Reconciliation ;
             sh:description "Differences in repository, access or licence that a model judged to be the same thing, each with its reason, for a person to check. Empty when no model is configured." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 2 ;
             sh:path dmp:reconciled ],
-        [ sh:datatype xsd:string ;
-            sh:description "What the model proposed that was not used, and why: a pairing or reconciliation naming something not in the input, or a second pairing for one output." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path dmp:dropped ],
         [ sh:datatype xsd:string ;
             sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
             sh:maxCount 1 ;
@@ -72,7 +77,7 @@ dmp:DmpDiscrepancies a sh:NodeShape ;
     sh:targetClass <https://w3id.org/data-director/GroundingRef> .
 
 <https://w3id.org/data-director/ProjectFact> a sh:NodeShape ;
-    rdfs:comment "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, an output a data management plan committed to share, a standard, vocabulary or format the researcher chose for the dataset, which attached document is the project's data management plan, or what data the project collects and how (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because." ;
+    rdfs:comment "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, an output a data management plan committed to share, a standard, vocabulary or format the researcher chose for the dataset, which attached document is the project's data management plan, or what data the project collects and how, or what the project is for, its field of study and when it runs (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
@@ -119,6 +124,19 @@ dmp:DmpDiscrepancies a sh:NodeShape ;
             sh:order 7 ;
             sh:path <https://w3id.org/data-director/fact_required_by> ],
         [ sh:datatype xsd:string ;
+            sh:description "For a field of study fact, the project's field, as the researcher names it or a subject classification gives it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 31 ;
+            sh:path <https://w3id.org/data-director/field_name> ;
+            sh:pattern "\\S" ],
+        [ sh:datatype xsd:string ;
+            sh:description "Why the agent proposes the fact, in a sentence for the person deciding. Kept with the proposal and shown to the person, never given to an agent." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 34 ;
+            sh:path <https://w3id.org/data-director/proposed_because> ],
+        [ sh:datatype xsd:string ;
             sh:description "For a data description fact, which existing data the project reuses, and how, in the researcher's words." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -147,11 +165,25 @@ dmp:DmpDiscrepancies a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 17 ;
             sh:path <https://w3id.org/data-director/commitment_licence> ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a project summary fact, what the project is for, in a few sentences: its aims and the questions it asks." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 30 ;
+            sh:path <https://w3id.org/data-director/summary_text> ;
+            sh:pattern "\\S" ],
         [ sh:description "Whether the file is to be deposited." ;
             sh:in ( "include" "exclude" "undecided" ) ;
             sh:maxCount 1 ;
             sh:order 9 ;
             sh:path <https://w3id.org/data-director/file_decision> ],
+        [ sh:datatype xsd:string ;
+            sh:description "When the project starts, as a year, a month or a day." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 32 ;
+            sh:path dmp:period_start ;
+            sh:pattern "^\\d{4}(-\\d{2}(-\\d{2})?)?$" ],
         [ sh:datatype xsd:string ;
             sh:description "For a data description fact, how much data the project expects, in the researcher's words." ;
             sh:maxCount 1 ;
@@ -190,11 +222,12 @@ dmp:DmpDiscrepancies a sh:NodeShape ;
             sh:order 5 ;
             sh:path <https://w3id.org/data-director/fact_repository_name> ],
         [ sh:datatype xsd:string ;
-            sh:description "Why the agent proposes the fact, in a sentence for the person deciding. Kept with the proposal and shown to the person, never given to an agent." ;
+            sh:description "When the project ends, as a year, a month or a day." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 30 ;
-            sh:path <https://w3id.org/data-director/proposed_because> ],
+            sh:order 33 ;
+            sh:path dmp:period_end ;
+            sh:pattern "^\\d{4}(-\\d{2}(-\\d{2})?)?$" ],
         [ sh:datatype xsd:string ;
             sh:description "For a standard fact, what the standard is chosen for: dataset, or field:<name> for one field of the dataset's tables. Absent means the dataset." ;
             sh:maxCount 1 ;
@@ -203,7 +236,7 @@ dmp:DmpDiscrepancies a sh:NodeShape ;
             sh:path <https://w3id.org/data-director/standard_target> ;
             sh:pattern "^(dataset|field:\\S.*)$" ],
         [ sh:description "What the fact is about, which says which value slots apply." ;
-            sh:in ( "funder" "required_repository" "file_inclusion" "sensitivity" "licence" "sharing_commitment" "standard" "data_management_plan" "data_description" ) ;
+            sh:in ( "funder" "required_repository" "file_inclusion" "sensitivity" "licence" "sharing_commitment" "standard" "data_management_plan" "data_description" "project_summary" "field_of_study" "project_period" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 0 ;

@@ -1,6 +1,7 @@
 /**
  * What a data steward reads and does across projects (docs/specs/stewardship.md, invariants 3, 4
- * and 6; #376): the escalations routed to their teams (`GET /api/steward/escalations`), the moves
+ * and 6; #376): the escalations routed to their teams (`GET /api/steward/escalations`), the
+ * projects they may see (`GET /api/steward/projects`, #232), each listing a recorded read, the moves
  * they make on one (`POST /api/steward/escalations/{project_id}/{escalation_id}`), a project as
  * they may see it, with what they may do in it (`GET /api/projects/{id}`), and the steps they take
  * there (`POST /api/projects/{id}/steward/…`). The harness decides each; the shell renders what it
@@ -17,9 +18,11 @@ import type {
   ProjectView,
   ProposedVersion,
   QueuedEscalation,
+  StewardProject,
   StewardQueue,
 } from "../api/generated/responses";
 import { json } from "../http";
+import { nextCursor } from "../run/api";
 import { EscalationRefused } from "./escalations";
 
 export type {
@@ -27,7 +30,14 @@ export type {
   ProjectView,
   ProposedVersion,
   QueuedEscalation,
+  StewardProject,
 } from "../api/generated/responses";
+
+/** One page of the projects a steward may see, and the cursor of the next, null on the last. */
+export interface StewardProjectsPage {
+  items: StewardProject[];
+  next: string | null;
+}
 
 /** A move on an escalation, on either side. */
 export type MoveName = PermittedMove["move"];
@@ -46,6 +56,9 @@ export interface StewardApi {
   /** The escalations routed to the signed-in person's teams; by default the live ones. */
   queue(states: readonly EscalationState[], signal?: AbortSignal): Promise<QueuedEscalation[]>;
   move(projectId: string, escalationId: string, move: MoveName, note?: string): Promise<Escalation>;
+  /** A page of the projects the person may see as a data steward, the one created last first;
+   * the server records each one listed as read by them. */
+  projects(before: string | null, signal?: AbortSignal): Promise<StewardProjectsPage>;
   /** The project as the person may see it, with whether they act in it as a member or a steward. */
   view(projectId: string, signal?: AbortSignal): Promise<ProjectView>;
   /** A message to the researchers, or a pause or its lifting, with its note. */
@@ -86,6 +99,12 @@ export const httpStewardApi: StewardApi = {
   async move(projectId, escalationId, move, note) {
     const path = `/api/steward/escalations/${encodeURIComponent(projectId)}/${encodeURIComponent(escalationId)}`;
     return parse(await fetch(path, posting(note === undefined ? { move } : { move, note })));
+  },
+  async projects(before, signal) {
+    const query = before ? `?${new URLSearchParams({ before }).toString()}` : "";
+    const response = await fetch(`/api/steward/projects${query}`, signal ? { signal } : {});
+    const items = await parse<StewardProject[]>(response);
+    return { items, next: nextCursor(response.headers.get("Link")) };
   },
   async view(projectId, signal) {
     return parse(await fetch(projectPath(projectId), signal ? { signal } : {}));

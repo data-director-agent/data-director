@@ -22,6 +22,9 @@ export const KIND_LABELS: Record<FactKind, string> = {
   standard: "Standard, vocabulary or format",
   data_management_plan: "Data Management Plan",
   data_description: "The project's data",
+  project_summary: "What the project is for",
+  field_of_study: "Field of study",
+  project_period: "When the project runs",
 };
 
 export const FILE_DECISION_LABELS: Record<FileDecision, string> = {
@@ -58,7 +61,9 @@ export const OWNERS_KINDS: readonly FactKind[] = ["sensitivity", "licence"];
 
 function fileSentence(fact: ProjectFact): string {
   const path = fact.fact_file_path ?? fact.fact_subject;
-  const because = fact.fact_check_kind ? ` (${fact.fact_check_kind.replace(/_/g, " ")})` : "";
+  const because = fact.fact_check_kind
+    ? ` (${fact.fact_check_kind.replace(/_/g, " ")})`
+    : "";
   switch (fact.file_decision) {
     case "include":
       return `Deposit ${path}${because}.`;
@@ -87,9 +92,15 @@ function sensitivitySentence(fact: ProjectFact): string {
 }
 
 function commitmentSentence(fact: ProjectFact): string {
-  const where = fact.commitment_repository ? ` in ${fact.commitment_repository}` : "";
-  const access = fact.commitment_access ? ` with ${fact.commitment_access} access` : "";
-  const licence = fact.commitment_licence ? ` under ${fact.commitment_licence}` : "";
+  const where = fact.commitment_repository
+    ? ` in ${fact.commitment_repository}`
+    : "";
+  const access = fact.commitment_access
+    ? ` with ${fact.commitment_access} access`
+    : "";
+  const licence = fact.commitment_licence
+    ? ` under ${fact.commitment_licence}`
+    : "";
   return `The plan commits to share ${fact.fact_subject}${where}${access}${licence}.`;
 }
 
@@ -111,6 +122,22 @@ function descriptionSentence(fact: ProjectFact): string {
   return [fact.data_collected ?? fact.fact_subject, ...said].join(" ");
 }
 
+/** What a fact that describes the project says, decided at "Describe your project". */
+function projectSentence(fact: ProjectFact): string {
+  switch (fact.fact_kind) {
+    case "project_summary":
+      return fact.summary_text ?? fact.fact_subject;
+    case "field_of_study":
+      return `The project's field of study is ${fact.field_name ?? fact.fact_subject}.`;
+    case "project_period":
+      return fact.period_end
+        ? `The project runs from ${fact.period_start} to ${fact.period_end}.`
+        : `The project starts in ${fact.period_start}.`;
+    default:
+      return fact.fact_subject;
+  }
+}
+
 /** One sentence that says what `fact` decides. */
 export function describeFact(fact: ProjectFact): string {
   switch (fact.fact_kind) {
@@ -121,7 +148,9 @@ export function describeFact(fact: ProjectFact): string {
     case "funder":
       return `The work was funded by ${fact.fact_funder_name ?? fact.fact_subject}.`;
     case "required_repository": {
-      const by = fact.fact_required_by?.length ? `, as ${fact.fact_required_by.join(" and ")} require` : "";
+      const by = fact.fact_required_by?.length
+        ? `, as ${fact.fact_required_by.join(" and ")} require`
+        : "";
       return `The data must go to ${fact.fact_repository_name ?? fact.fact_subject}${by}.`;
     }
     case "licence":
@@ -134,5 +163,7 @@ export function describeFact(fact: ProjectFact): string {
       return "One attached document is the project's Data Management Plan; the Documents page shows which.";
     case "data_description":
       return descriptionSentence(fact);
+    default:
+      return projectSentence(fact);
   }
 }

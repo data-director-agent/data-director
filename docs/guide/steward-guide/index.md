@@ -44,7 +44,8 @@ now; anything not built carries a note linking to its issue.
 | Clearing a referred step | Your decision is recorded and shown; the step does not resume yet | [#16](https://github.com/data-director-agent/data-director/issues/16) |
 | Pausing a project | Works | [#374](https://github.com/data-director-agent/data-director/issues/374), [#376](https://github.com/data-director-agent/data-director/issues/376) |
 | Notes and co-approval before deposit | Not built yet | [#1306](https://github.com/data-director-agent/data-director/issues/1306) |
-| Overviews | Not built yet | [#232](https://github.com/data-director-agent/data-director/issues/232), [#1307](https://github.com/data-director-agent/data-director/issues/1307) |
+| Your teams' projects | Works | [#232](https://github.com/data-director-agent/data-director/issues/232) |
+| The community and compliance overview | Not built yet | [#1307](https://github.com/data-director-agent/data-director/issues/1307) |
 | Notifications: your team emailed, and a request nobody takes sent again | Works | [#378](https://github.com/data-director-agent/data-director/issues/378) |
 
 ## In this guide

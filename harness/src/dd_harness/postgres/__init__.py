@@ -223,22 +223,7 @@ class PostgresRunStore(BatchReads):
         query, params = runs_query(readable=readable, limit=limit, before=before)
         with self._pool.connection() as conn:
             rows = conn.execute(query, params).fetchall()
-        return paged(
-            [
-                (
-                    seq,
-                    {
-                        "invocation_id": invocation_id,
-                        "agent_id": agent_id,
-                        "status": status,
-                        "completed_at": completed_at,
-                        "acting_for": acting_for,
-                    },
-                )
-                for seq, invocation_id, agent_id, status, completed_at, acting_for in rows
-            ],
-            limit,
-        )
+        return paged([(seq, dict(zip(_RUN_KEYS, rest, strict=True))) for seq, *rest in rows], limit)
 
     @recovering
     def list_conversations(
@@ -369,7 +354,18 @@ def _index_turn(conn: psycopg.Connection[Any], envelope: dict[str, Any], seq: in
 
 _RUN_COLUMNS = (
     "seq, invocation_id, envelope ->> 'agent_id', envelope -> 'outcome' ->> 'status',"
-    " envelope ->> 'completed_at', envelope -> 'acting_for' ->> 'name'"
+    " envelope ->> 'completed_at', envelope -> 'acting_for' ->> 'name', project_id,"
+    " envelope -> 'outcome' ->> 'reason_code'"
+)
+# What `run_summary` names each of `_RUN_COLUMNS` after the first, the stored place.
+_RUN_KEYS = (
+    "invocation_id",
+    "agent_id",
+    "status",
+    "completed_at",
+    "acting_for",
+    "project_id",
+    "reason_code",
 )
 _CONVERSATION_COLUMNS = (
     "last_seq, conversation_id, project_id, agent_id, first_invocation_id, turns, started_at,"

@@ -61,6 +61,13 @@ rules:
     mention_input: { schema_class: DraftRequest, document_kind: dmp }
     example: write the data management plan from my answers
 
+  - name: describe
+    agent_id: advisor.dmp
+    pattern: '^(?:please\s+)?describe\s+(?:the|my)\s+project\b.*$'
+    input: { schema_class: ProjectDescriptionRequest }
+    mention_input: { schema_class: ProjectDescriptionRequest }
+    example: describe my project from my proposal
+
   - name: plan-review
     agent_id: advisor.dmp
     pattern: '^(?:please\s+)?(?:review|check)\s+(?:the|my)\s+(?:data\s+management\s+plan|dmp)\b.*$'
@@ -87,6 +94,10 @@ entries:
 next: '^\s*(?:what(?:[''’]s|\s+is)?\s+next|next(?:\s+step)?|what\s+now|continue|carry\s+on|where\s+(?:am\s+i|are\s+we|is\s+my\s+project))\b'
 
 steps:
+  # First in planning: what the project is and the data it will produce, proposed as project
+  # facts from the documents the researcher attached, for them to confirm.
+  setup.project:
+    - { schema_class: ProjectDescriptionRequest }
   setup.storage:
     - { schema_class: StorageNeeds }
   # Before the data are collected: a README that plans the documentation (#1017).
