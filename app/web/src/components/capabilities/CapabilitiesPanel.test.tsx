@@ -21,6 +21,17 @@ function agent(id: string) {
   return found;
 }
 
+/** An agent of the fixture that also declares an MCP server and a skill. */
+function withTools(id: string) {
+  const raw = severalAgents.agents.find((a) => a.agent_id === id);
+  if (!raw) throw new Error(`no ${id} in the fixture`);
+  return normaliseAgent({
+    ...raw,
+    tools: [{ server: "mcp-pid", tools: ["resolve"] }],
+    skills: [{ name: "licence-matching", version: "1.0.0", sha256: "0".repeat(64) }],
+  });
+}
+
 describe("CapabilitiesPanel", () => {
   it.each(directory.agents.map((a) => a.id))("%s has no axe violations", async (id) => {
     const { container } = render(<CapabilitiesPanel agent={agent(id)} />);
@@ -86,6 +97,22 @@ describe("CapabilitiesPanel", () => {
     });
     render(<CapabilitiesPanel agent={view} />);
     expect(screen.getByRole("listitem")).toHaveTextContent(/local.*llama-test/);
+  });
+
+  it("says when an agent uses no MCP servers or skills", () => {
+    render(<CapabilitiesPanel agent={agent("advisor.standards")} />);
+    expect(screen.getByRole("heading", { name: "Tools and skills it uses" })).toBeVisible();
+    expect(screen.getByText(/uses no MCP servers or skills/)).toBeVisible();
+  });
+
+  it("names the MCP servers, their tools and the skills an agent uses, without unfolding anything", async () => {
+    const view = withTools("advisor.standards");
+    const { container } = render(<CapabilitiesPanel agent={view} />);
+    expect(screen.queryByText(/uses no MCP servers or skills/)).toBeNull();
+    expect(screen.getByText("mcp-pid")).toBeVisible();
+    expect(screen.getByText("resolve")).toBeVisible();
+    expect(screen.getByText("licence-matching")).toBeVisible();
+    expect(await axe(container)).toHaveNoViolations();
   });
 
   it("says when the profile does not permit the agent", () => {
@@ -183,6 +210,25 @@ describe("AgentDirectory", () => {
       render(<AgentDirectory directory={withOrchestrator} initial="advisor.quality" />);
       expect(screen.getByRole("heading", { level: 2, name: "Metadata Reviewer" })).toBeVisible();
     });
+  });
+
+  it("tags an agent that uses tools or skills in the list, and one that does not is untagged", () => {
+    const tooled = withTools("advisor.standards");
+    render(
+      <AgentDirectory
+        directory={{
+          ...directory,
+          agents: directory.agents.map((a) => (a.id === tooled.id ? tooled : a)),
+        }}
+      />,
+    );
+    const options = screen.getAllByRole("option");
+    const tagged = options.filter((o) => /MCP server/.test(o.textContent ?? ""));
+    expect(tagged).toHaveLength(1);
+    expect(tagged[0]).toHaveTextContent(/skill/);
+    expect(screen.getByRole("option", { name: /^Metadata Reviewer/ })).not.toHaveTextContent(
+      /MCP server/,
+    );
   });
 
   it("keeps the list flat without an orchestrator", () => {

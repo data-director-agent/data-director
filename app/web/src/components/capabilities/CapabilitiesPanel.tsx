@@ -1,6 +1,6 @@
 /**
  * What one agent can do for a person and whether this deployment will run it, drawn from its
- * manifest. Nothing here names an agent. How it grounds results, how each field is produced, its
+ * manifest, including the MCP servers and skills it uses. Nothing here names an agent. How it grounds results, how each field is produced, its
  * version and its oversight declarations are for the workbench, not for end users.
  */
 
@@ -9,6 +9,7 @@ import "./CapabilitiesPanel.css";
 import type { AgentView, GateStatus } from "../../manifest/normalise";
 import { className } from "../../manifest/wording";
 import { Models, OwnAccount } from "./ModelDisclosure";
+import { Tools } from "./ToolDisclosure";
 
 export function CapabilitiesPanel({
   agent,
@@ -37,6 +38,9 @@ export function CapabilitiesPanel({
       <h3>What powers it, and what it is given</h3>
       <Models agent={agent} />
       {ownAccounts && agent.models.length > 0 && <OwnAccount />}
+
+      <h3>Tools and skills it uses</h3>
+      <Tools agent={agent} />
     </div>
   );
 }
