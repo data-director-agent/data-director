@@ -129,22 +129,18 @@ export function DocumentReviewDialog({
             )}
             {pending.data && (
               <p>
-                Data Director read this text from the{" "}
-                {pending.media_type === "application/pdf" ? "PDF" : "Word document"} inside this
-                deployment. The project keeps the file beside the text, and agents are given the
-                text.
+                Read from the {pending.media_type === "application/pdf" ? "PDF" : "Word document"}{" "}
+                inside this deployment; the project keeps the file too.
               </p>
             )}
             <p>
               <strong>{pending.name}</strong> ({describeSize(pending.size)}) will be stored in the
-              project, where anyone working on the project can read it.{" "}
-              {whoReads(readers.readers, readers.others)} Its text goes to an AI model hosted
-              outside your institution only if this deployment allows that.
+              project, where anyone working on it can read it.{" "}
+              {whoReads(readers.readers, readers.others)}
             </p>
             <p>
-              Attach documents <em>about</em> your data, such as a protocol or a codebook, never
-              the data themselves, and nothing that identifies a person.{" "}
-              <a href={DOCUMENT_GUIDE}>What to attach</a>
+              Attach documents <em>about</em> your data, never the data themselves, and nothing that
+              identifies a person. <a href={DOCUMENT_GUIDE}>What to attach</a>
             </p>
           </div>
           <h3 className="document-review-heading">What it says</h3>
