@@ -212,6 +212,19 @@ def questions_of(calls: Sequence[ToolCall]) -> tuple[list[Question] | None, str 
         )
 
 
+def unexplained(questions: Sequence[Question], *, said: str, delegated: bool) -> str | None:
+    """Why questions are not shown yet, or None: a reply that asks after an agent has answered,
+    or that offers a reserved choice (a data steward, the way on without consent), says first
+    what was found and why it asks. Without that the researcher would see the bare question
+    and never the agents' results."""
+    if said or not (delegated or any(q.question_key in RESERVED_KEYS for q in questions)):
+        return None
+    return (
+        "Not shown: first write your reply, saying what the agents found and, when you offer "
+        "a data steward, why. Then call ask_questions again in the same message."
+    )
+
+
 def name_of(call: ToolCall, *, offered: bool) -> tuple[str | None, ToolResult]:
     """The name a `name_project` call gives, tidied as a title is, and the tool result to send
     back: None and an error when the tool was not offered or the name is empty."""

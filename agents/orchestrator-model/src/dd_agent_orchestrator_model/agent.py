@@ -90,7 +90,13 @@ from dd_agent_orchestrator_model.own_tools import QUESTIONS_TOOL as QUESTIONS_TO
 from dd_agent_orchestrator_model.own_tools import (
     QUESTIONS_TOOL_DEFINITION as QUESTIONS_TOOL_DEFINITION,
 )
-from dd_agent_orchestrator_model.own_tools import entry_of, name_of, questions_of, tool_result
+from dd_agent_orchestrator_model.own_tools import (
+    entry_of,
+    name_of,
+    questions_of,
+    tool_result,
+    unexplained,
+)
 from dd_agent_orchestrator_model.prompt import SYSTEM_PROMPT
 from dd_agent_orchestrator_model.title import titled
 from dd_sdk.agent import (
@@ -182,7 +188,9 @@ def conversation(
 class _Turns:
     """One run's exchange with the model: the conversation, the tools offered, the delegations
     made and attempted, the tokens spent, each call and what it sent (kept by digest with the
-    run, docs/specs/disclosure.md), and what the model's own tools took."""
+    run, docs/specs/disclosure.md), and what the model's own tools took. `said` is the model's
+    latest text since it last delegated: text beside a call to its own tools, such as recording
+    the entry point, is part of the reply, and a preamble to a delegation is not."""
 
     messages: list[ModelMessage]
     definitions: list[ToolSpec]
@@ -198,6 +206,7 @@ class _Turns:
     name: str | None = None
     entry_point: int | None = None
     description: ProjectFact | None = None
+    said: str = ""
 
     def answer_own(self, made: Sequence[ToolCall]) -> tuple[dict[str, ToolResult], list[ToolCall]]:
         """Answer the calls that delegate nothing (unreadable ones, a name, an entry point), and
@@ -288,6 +297,7 @@ class ModelOrchestrator:
             state.input_tokens += turn.usage.input_tokens or 0
             state.output_tokens += turn.usage.output_tokens or 0
             state.messages.append(turn.message)
+            state.said = turn.text.strip() or state.said
             if turn.stop != "tool_use" or not turn.tool_calls:
                 break
             results = self._results(turn, state, ctx)
@@ -327,7 +337,16 @@ class ModelOrchestrator:
         answered, others = state.answer_own(turn.tool_calls)
         state.questions, problem = questions_of(others)
         if state.questions is not None:
-            return None
+            problem = None
+            if state.attempts < self.max_delegations:
+                problem = unexplained(
+                    state.questions, said=state.said, delegated=bool(state.delegated)
+                )
+            if problem is None:
+                return None
+            # Sent back once more, counting against the limit, so that the loop ends.
+            state.questions = None
+            state.attempts += 1
         results = []
         for made in turn.tool_calls:
             if made.id in answered:
@@ -337,6 +356,7 @@ class ModelOrchestrator:
                 results.append(tool_result(made, problem or "", is_error=True))
                 continue
             state.attempts += 1
+            state.said = ""
             results.append(self._call(made, state.tools, state.attempts, ctx, state.delegated))
         return results
 
@@ -413,7 +433,7 @@ class ModelOrchestrator:
         delegated, calls = state.delegated, state.calls
         questions = asking.shown(state.questions, ctx, self.spec)
         input_tokens, output_tokens = state.input_tokens, state.output_tokens
-        text = asking.reply_text(turn.text.strip(), questions)
+        text = asking.reply_text(state.said, questions)
         model_id = turn.model_id
         if turn.stop == "max_tokens":
             text = f"{text}\n\n{CUT_SHORT}" if text else CUT_SHORT
