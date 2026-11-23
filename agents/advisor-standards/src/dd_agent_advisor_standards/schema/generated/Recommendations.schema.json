@@ -745,6 +745,16 @@
                   "integer",
                   "null"
                ]
+            },
+            "from_project_record": {
+               "description": "Each value of the profile taken from a fact people in the project decided, because the input left it empty, said in a few words, such as the subject from the decided field of study.",
+               "items": {
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
             }
          },
          "title": "SearchedSummary",

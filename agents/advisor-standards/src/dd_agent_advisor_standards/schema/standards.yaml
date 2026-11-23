@@ -30,6 +30,11 @@ classes:
     description: >-
       A minimal description of a dataset being planned or prepared: what it is about and how it
       is shaped. Every slot maps onto an external vocabulary rather than a Data Director namespace.
+      In a project the conductor also gives the facts people decided; a decided field of study,
+      description of the data or summary of the project fills what the profile leaves empty
+      (#1529).
+    mixins:
+      - GivenProjectDecisions
     slots:
       - schema_class
       - title
@@ -78,6 +83,7 @@ classes:
       - snapshot_ref
       - candidates_retrieved
       - candidates_qualifying
+      - from_project_record
 
 slots:
 
@@ -146,6 +152,11 @@ slots:
     range: integer
   candidates_qualifying:
     range: integer
+  from_project_record:
+    description: >-
+      Each value of the profile taken from a fact people in the project decided, because the input
+      left it empty, said in a few words, such as the subject from the decided field of study.
+    multivalued: true
 
 enums:
 

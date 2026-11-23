@@ -22,11 +22,21 @@ repository's addition:
 file covers what is specific to this one. Its classes are in
 `src/dd_agent_advisor_standards/schema/standards.yaml`.
 
+In a project the conductor also gives the profile the facts people decided (`project_decisions`,
+#1529). What the profile leaves empty is filled from them (`decided.py`):
+
+- a decided field of study (`field_of_study`) becomes the subject it searches on (`themes`);
+- the decided description of the data (`data_description`), or else the summary of the project
+  (`project_summary`), becomes the `description` its model reads.
+
+A value the input gives always stands, and free-text formats are never turned into media types.
+`searched.from_project_record` and the statement say which values came from the record.
+
 It abstains, and does not return an empty list, in four cases:
 
 | Reason code | When |
 |---|---|
-| `insufficient_input` | The profile has no title, keywords, themes, media types or temporal fields to search on. |
+| `insufficient_input` | The profile has no title, keywords, themes, media types or temporal fields to search on, and the project has no decided field of study. |
 | `registry_unavailable` | The registry could not be searched (live search failed and the snapshot could not be used). |
 | `no_candidates_retrieved` | The search returned nothing. |
 | `no_qualifying_resource` | Records were retrieved but none scored at or above the confidence floor in `ranking.yaml`. |
