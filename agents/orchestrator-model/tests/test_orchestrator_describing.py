@@ -64,7 +64,7 @@ def test_a_description_is_proposed_for_a_person_and_given_to_later_runs(tmp_path
 @pytest.mark.parametrize(
     "given", [{"quote": SAID}, {"data_collected": "  ", "quote": SAID}], ids=["none", "blank"]
 )
-def test_a_description_that_says_no_data_is_refused(tmp_path: Path, given: dict) -> None:
+def test_a_description_that_says_no_data_is_refused(tmp_path: Path, given: dict[str, str]) -> None:
     model = ScriptedModel([call((DESCRIBE_TOOL, given)), say("Hello.")])
     conductor, project, conversation_id = in_project(tmp_path, model)
     env = turn(conductor, conversation_id)
