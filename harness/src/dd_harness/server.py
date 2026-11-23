@@ -116,6 +116,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
     if args.host not in LOOPBACK and isinstance(authenticator, OperatorAssertion):
         sys.stderr.write(UNTRUSTED_WARNING.format(host=args.host))
     security_log.configure()
+    conductor.profile.record_loaded("harness")
     try:
         uvicorn.run(build_app(conductor, authenticator, base_url), host=args.host, port=args.port)
     finally:

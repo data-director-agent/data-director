@@ -25,6 +25,16 @@ class NewEscalation:
     support: bool = False
 
 
+@dataclass(frozen=True)
+class MoveAsked:
+    """A move asked for on an escalation: its name, the note it carries, and the target a move
+    that names one names: the colleague for `reassign`, a team's id for `transfer`."""
+
+    move: str
+    note: str | None = None
+    to: str | Principal | None = None
+
+
 class ProjectEscalations(Protocol):
     def events(self, project_id: str) -> list[dict[str, Any]]:
         """Every event of the project, oldest first."""
@@ -47,14 +57,14 @@ class ProjectEscalations(Protocol):
         self,
         project_id: str,
         escalation_id: str,
-        move: str,
+        move: str | MoveAsked,
         *,
         side: Literal["researcher", "steward"],
-        note: str | None = None,
         acted_for: Principal,
         caused_by: str,
     ) -> dict[str, Any]:
-        """Make a move on an escalation, for the researcher's or the steward's side."""
+        """Make a move on an escalation, for the researcher's or the steward's side: a move's
+        name alone, or with its note and target."""
         ...
 
     def reroute_escalation(

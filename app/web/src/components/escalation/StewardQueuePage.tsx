@@ -84,9 +84,9 @@ export function StewardQueuePage() {
               <QueueRow
                 key={row.escalation_id}
                 row={row}
-                onMove={async (move, note) => {
+                onMove={async (move, note, to) => {
                   try {
-                    await api.move(row.project_id, row.escalation_id, move, note);
+                    await api.move(row.project_id, row.escalation_id, move, note, to);
                   } finally {
                     reload();
                   }

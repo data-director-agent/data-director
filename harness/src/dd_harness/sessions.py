@@ -19,6 +19,10 @@ time to the nearest `TOUCH_EVERY_S`, so the store is not written on every reques
 end up to that much early, never late. A sign-in still at the provider is held in memory only, so a
 restart in the middle of one asks the person to sign in again.
 
+A way in may also say whom it admits (`SessionAuthenticator.admit`, `dd_harness.access`). The check
+is made on every request, not only at sign-in, so a person the deployment stops admitting loses
+their session at their next request: it is deleted, and the request is refused with `NotAdmitted`.
+
 A run that is still going when its session ends finishes, and acts for whoever started it, because
 `acting_for` is fixed when the conductor is invoked.
 
@@ -58,6 +62,18 @@ TOKEN_BYTES = 32
 # Seconds a session's last use is rounded to: a request restarts the idle time, and writes it,
 # only once this much has passed since the last write.
 TOUCH_EVERY_S = 60
+
+
+class NotAdmitted(Unauthenticated):
+    """The provider vouched for the person, and the way in does not admit them: no session is
+    opened, and one already open is ended (docs/specs/policy-and-identity.md, Admission). Raised by
+    `SignIn.finish` and `SessionAuthenticator.session` when their `admit` refuses the principal."""
+
+    def __init__(self, principal: Principal) -> None:
+        super().__init__(
+            f"{principal.principal_id} may not use this server", RefusalReason.NOT_ADMITTED
+        )
+        self.principal = principal
 
 
 @dataclass
@@ -277,16 +293,25 @@ def cookie(headers: Mapping[str, str] | None, name: str) -> str | None:
 class SessionAuthenticator:
     """The person a request's session cookie names (docs/specs/policy-and-identity.md). A request
     with no session, or one that has ended, is refused; it is never given the operator's
-    principal."""
+    principal. `admit`, if given, decides whom a session still serves: a session of anyone it
+    refuses is ended."""
 
     store: SessionStore
     cookie_name: str = SESSION_COOKIE
+    admit: Callable[[Principal], bool] | None = None
 
     def session(self, headers: Mapping[str, str] | None, *, touch: bool = True) -> Session | None:
         """The live session the request's cookie names. Reading it restarts its idle time, unless
-        `touch` is false: asking when a session ends does not keep it going."""
+        `touch` is false: asking when a session ends does not keep it going. Raises `NotAdmitted`,
+        having deleted the session, if `admit` no longer admits its person."""
         session_id = cookie(headers, self.cookie_name)
-        return self.store.get(session_id, touch=touch) if session_id else None
+        if not session_id:
+            return None
+        session = self.store.get(session_id, touch=touch)
+        if session is not None and self.admit is not None and not self.admit(session.principal):
+            self.store.delete(session_id)
+            raise NotAdmitted(session.principal)
+        return session
 
     def principal_for(self, headers: Mapping[str, str] | None) -> Principal:
         session = self.session(headers)

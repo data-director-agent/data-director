@@ -85,11 +85,11 @@
         },
         {
           "id": "setup.formats",
-          "label": "Choose open file formats for your data",
+          "label": "Plan which open file formats to collect your data in",
           "optional": false,
           "out_of_scope": false,
           "person_decides": false,
-          "prompt": "Help me choose open file formats to collect my data in.",
+          "prompt": "Before I start collecting, help me choose open file formats to save my data in.",
           "requirements": [
             "R3"
           ],
@@ -247,7 +247,7 @@
         },
         {
           "id": "preparation.formats",
-          "label": "Save your data in open formats",
+          "label": "Check your files are in open formats",
           "optional": false,
           "out_of_scope": false,
           "person_decides": false,

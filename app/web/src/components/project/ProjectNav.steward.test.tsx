@@ -53,7 +53,7 @@ describe("a project opened as its data steward", () => {
 
     await userEvent.click(within(requests).getByRole("button", { name: /^Take/ }));
     const [first] = routed.escalations;
-    expect(api.move).toHaveBeenCalledWith(PROJECT, first?.escalation_id, "take", undefined);
+    expect(api.move).toHaveBeenCalledWith(PROJECT, first?.escalation_id, "take", undefined, undefined);
   });
 
   it("offers only the steps the harness permits, each with a note", async () => {

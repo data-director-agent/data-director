@@ -43,6 +43,7 @@ from dd_harness.sessions import (
     DEFAULT_IDLE_S,
     DEFAULT_LIFETIME_S,
     SESSION_COOKIE,
+    NotAdmitted,
     SessionAuthenticator,
     SessionStore,
 )
@@ -120,17 +121,6 @@ def _seconds(env: Mapping[str, str], name: str, default: int) -> int:
     return seconds
 
 
-class NotAdmitted(Unauthenticated):
-    """The provider vouched for the person, and the way in does not admit them: no session is
-    opened. Raised by `SignIn.finish` when its `admit` refuses the principal."""
-
-    def __init__(self, principal: Principal) -> None:
-        super().__init__(
-            f"{principal.principal_id} may not use this server", RefusalReason.NOT_ADMITTED
-        )
-        self.principal = principal
-
-
 def safe_return_to(value: str | None) -> str:
     """A page of this way in to come back to after signing in: a path, never another site's
     URL."""
@@ -153,7 +143,8 @@ class SignIn:
         client: httpx.AsyncClient | None = None,
     ) -> None:
         """`session_cookie` names the cookie the way in keeps the session identifier in. `admit`,
-        if given, decides whom a verified sign-in opens a session for; the app admits everyone,
+        if given, decides whom a verified sign-in opens a session for, and whom a session still
+        serves on each request; the app admits whom its profile does (`dd_harness.access`),
         the workbench its admins. `keys` and `client` let a test stand in for the provider's keys
         and endpoints (`dd_harness.testing.FakeIdentityProvider`)."""
         self.settings = settings
@@ -161,7 +152,7 @@ class SignIn:
         self.store = store or SessionStore.open(
             settings.sessions_file, settings.idle_s, settings.lifetime_s
         )
-        self.authenticator = SessionAuthenticator(self.store, session_cookie)
+        self.authenticator = SessionAuthenticator(self.store, session_cookie, admit)
         self._keys = keys or IssuerKeys(settings.provider.issuer)
         self._client = client
         self._configuration: dict[str, Any] | None = None

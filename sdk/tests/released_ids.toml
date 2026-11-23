@@ -1,0 +1,56 @@
+# Every process-flow step id and intake question id a release has had (docs/specs/projects.md).
+#
+# A project log stores these ids and outlives the release that wrote it, so this list only grows:
+# add an id when you add a step or question, and never remove one. An id the flow no longer has
+# is retired in `dd_sdk.flow_phases.RETIRED_STEPS` or `dd_sdk.intake.RETIRED_QUESTIONS`, and
+# `test_released_ids.py` fails until it is. Edit it by hand; no test rewrites it.
+
+steps = [
+  "deposit.access",
+  "deposit.fairness",
+  "deposit.finalise",
+  "deposit.licence",
+  "deposit.links",
+  "deposit.review-link",
+  "deposit.upload",
+  "deposit.validate",
+  "governance.constraints",
+  "governance.dmp",
+  "governance.embargo",
+  "governance.policies",
+  "governance.sensitive-data-handle",
+  "governance.sensitive-data-identify",
+  "post.dmp-update",
+  "post.embargo-release",
+  "post.fairness",
+  "post.institutional-record",
+  "post.links",
+  "post.monitor",
+  "post.retrofit",
+  "preparation.documentation",
+  "preparation.files",
+  "preparation.formats",
+  "preparation.metadata",
+  "preparation.metadata-standard",
+  "preparation.vocabularies",
+  "repository.access-and-costs",
+  "repository.certification",
+  "repository.mandated",
+  "repository.pid",
+  "repository.recommend",
+  "setup.dmp-create",
+  "setup.dmp-review",
+  "setup.documentation",
+  "setup.formats",
+  "setup.project",
+  "setup.requirements",
+  "setup.storage",
+  "setup.vocabularies",
+]
+
+intake_questions = [
+  "intake.dmp",
+  "intake.entry",
+  "intake.repository-mandated",
+  "intake.sensitive",
+]

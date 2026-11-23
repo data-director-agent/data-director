@@ -27,10 +27,16 @@ backed up while the project runs; `setup.formats`, choosing open formats before 
 TODO(#245):
 check the rest against Figures 1 to 6 themselves, which may show other steps or decisions the
 captions leave out.
+
+A step's `id` is stored: a researcher's `step_marked` names it in the project log, which outlives
+any release. So an id is never deleted or reused. A step taken out of the flow is retired in
+`RETIRED_STEPS`, with the step that replaces it where one does, and readers of the log resolve a
+stored id through `dd_sdk.process_flow.current_step` (docs/specs/projects.md).
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 
@@ -150,8 +156,11 @@ PHASES: tuple[Phase, ...] = (
                 "setup.formats",
                 "Choose open formats to collect data in",
                 ("R3",),
-                label="Choose open file formats for your data",
-                prompt="Help me choose open file formats to collect my data in.",
+                label="Plan which open file formats to collect your data in",
+                prompt=(
+                    "Before I start collecting, help me choose open file formats to save my data "
+                    "in."
+                ),
             ),
         ),
         name="Plan your data management",
@@ -274,7 +283,7 @@ PHASES: tuple[Phase, ...] = (
                 "preparation.formats",
                 "Recommend open formats",
                 ("R3",),
-                label="Save your data in open formats",
+                label="Check your files are in open formats",
                 prompt=(
                     "Help me check whether my files are in open formats, "
                     "and what to save them as if not."
@@ -438,3 +447,11 @@ PHASES: tuple[Phase, ...] = (
         summary="Follow how your data are used and keep their records up to date.",
     ),
 )
+
+# The step ids an earlier release had and this one does not, each with the step that replaces it,
+# or None where none does, so that a project log naming one still reads. Never remove an entry.
+RETIRED_STEPS: Mapping[str, str | None] = {
+    # Figure 1's selection of vocabularies, moved to Phase 4 (#1512). Starting a list before
+    # collection is not choosing the terms for a repository, so a mark of it is not carried over.
+    "setup.vocabularies": None,
+}

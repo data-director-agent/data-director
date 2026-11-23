@@ -2766,7 +2766,7 @@
   "incompatible": {},
   "profile": {
     "attached_documents": "allowed",
-    "digest": "eb9e658efce29dcf9adfa72e72d07822201f108b0d5457687c94efc566ecbd47",
+    "digest": "5693bc178414ae39ea19c9c1935c6f64daa787215d71d067241798e06db6c11c",
     "orchestrator": "orchestrator.stub",
     "ref": "profile:data-director-app@v10"
   },

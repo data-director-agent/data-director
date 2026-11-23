@@ -11,7 +11,7 @@ import { useMemo } from "react";
 import { useSteward } from "./StewardContext";
 import { type StewardEvent, eventsBetween, stewardEvents } from "./events";
 import { formatDateTime } from "../../format";
-import { MOVE_SAID } from "./wording";
+import { moveSaid } from "./wording";
 
 /** The steward events after `from` and at or before `to` (or since `from`, with no `to`). */
 export function StewardItems({ from, to }: { from: string; to: string | null }) {
@@ -26,11 +26,11 @@ export function StewardItems({ from, to }: { from: string; to: string | null }) 
 function StewardItem({ event }: { event: StewardEvent }) {
   const when = <time dateTime={event.at}>{formatDateTime(event.at, { dateStyle: "medium", timeStyle: "short" })}</time>;
   if (!event.fromSteward) {
-    const said = event.kind === "open" ? `sent this to ${event.team ?? "the data stewards"}` : MOVE_SAID[event.kind];
+    const said = event.kind === "open" ? `sent this to ${event.team ?? "the data stewards"}` : moveSaid(event.kind, event.target);
     return (
       <li className="turn steward-marker">
         <p className="hint">
-          <LifeBuoy size="1em" aria-hidden="true" /> {event.by.name} {said ?? event.kind}, {when}
+          <LifeBuoy size="1em" aria-hidden="true" /> {event.by.name} {said}, {when}
           {event.note && event.kind !== "open" ? `: ${event.note}` : ""}
         </p>
       </li>
@@ -47,7 +47,7 @@ function StewardItem({ event }: { event: StewardEvent }) {
             Data steward: {event.by.name}
           </strong>{" "}
           <span className="hint">
-            {event.kind === "message" ? "" : `${MOVE_SAID[event.kind] ?? event.kind}, `}
+            {event.kind === "message" ? "" : `${moveSaid(event.kind, event.target)}, `}
             {when}
           </span>
         </p>

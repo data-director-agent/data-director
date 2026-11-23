@@ -4,7 +4,7 @@
  */
 
 import type { Problem } from "./run/types";
-import { checkSignedIn } from "./session/api";
+import { checkAdmitted, checkSignedIn } from "./session/api";
 import { serverAnswered } from "./status";
 
 /** The server refused the request before any run began (a 400 with Problem Details). */
@@ -21,7 +21,8 @@ export class RunRefused extends Error {
 export type Refine = (status: number, problem: Problem | null) => Error | null;
 
 /**
- * The body of `response` as `T`, or the error it carries: `SignedOut` for a 401, what `refine`
+ * The body of `response` as `T`, or the error it carries: `SignedOut` for a 401 or for a 403 that
+ * says the deployment does not admit the person, what `refine`
  * makes of it, `RunRefused` for a 400 with Problem Details, and otherwise an error in the
  * server's words, or with its status if it gave none.
  */
@@ -29,6 +30,7 @@ export async function json<T>(response: Response, refine?: Refine): Promise<T> {
   if (response.ok) return (await response.json()) as T;
   checkSignedIn(response);
   const problem = (await response.json().catch(() => null)) as Problem | null;
+  checkAdmitted(response.status, problem);
   const refined = refine?.(response.status, problem);
   if (refined) throw refined;
   if (response.status === 400 && problem) throw new RunRefused(problem);

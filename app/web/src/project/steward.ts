@@ -55,7 +55,8 @@ export type StewardStep = "messages" | "pause" | "resume";
 export interface StewardApi {
   /** The escalations routed to the signed-in person's teams; by default the live ones. */
   queue(states: readonly EscalationState[], signal?: AbortSignal): Promise<QueuedEscalation[]>;
-  move(projectId: string, escalationId: string, move: MoveName, note?: string): Promise<Escalation>;
+  /** Makes a move, with its note and, for `reassign` or `transfer`, the colleague's or team's id. */
+  move(projectId: string, escalationId: string, move: MoveName, note?: string, to?: string): Promise<Escalation>;
   /** A page of the projects the person may see as a data steward, the one created last first;
    * the server records each one listed as read by them. */
   projects(before: string | null, signal?: AbortSignal): Promise<StewardProjectsPage>;
@@ -96,9 +97,11 @@ export const httpStewardApi: StewardApi = {
     );
     return found.escalations;
   },
-  async move(projectId, escalationId, move, note) {
+  async move(projectId, escalationId, move, note, to) {
     const path = `/api/steward/escalations/${encodeURIComponent(projectId)}/${encodeURIComponent(escalationId)}`;
-    return parse(await fetch(path, posting(note === undefined ? { move } : { move, note })));
+    return parse(
+      await fetch(path, posting({ move, ...(note === undefined ? {} : { note }), ...(to === undefined ? {} : { to }) })),
+    );
   },
   async projects(before, signal) {
     const query = before ? `?${new URLSearchParams({ before }).toString()}` : "";

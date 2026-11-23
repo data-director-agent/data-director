@@ -25,6 +25,10 @@ opens the step that reviews it (`REOPENED_BY_DOCUMENT`).
 
 Nothing here orders the steps or keeps a current one. The order, and the step to suggest next, are
 `dd_sdk.process_flow`'s; any step may be done, marked or reopened at any time.
+
+The log outlives the release that wrote it, so a step or question it names may since have been
+retired. Every such id is read through `dd_sdk.process_flow.current_step` and
+`dd_sdk.intake.current_question`: a retired one counts for its successor, or not at all.
 """
 
 from __future__ import annotations
@@ -34,12 +38,13 @@ from dataclasses import dataclass, field
 from typing import Any, Final, Literal
 
 from dd_sdk.contract.facts import FactKind
-from dd_sdk.intake import ENTRY, INTAKE, question
+from dd_sdk.intake import ENTRY, INTAKE, current_question, question
 from dd_sdk.process_flow import (
     OUT_OF_SCOPE,
     PHASES,
     STEPS,
     StepState,
+    current_step,
     entry,
     passed_over,
     progress,
@@ -126,9 +131,13 @@ def entry_and_source(events: Iterable[Mapping[str, Any]]) -> tuple[int | None, E
 
 def intake_answers(events: Iterable[Mapping[str, Any]]) -> dict[str, tuple[str, ...]]:
     """The values of the latest answer to each intake question but the entry question, whose
-    answer is an `entry_chosen`."""
+    answer is an `entry_chosen`. An answer to a retired question counts for its successor, or not
+    at all."""
     return {
-        e["question_id"]: tuple(e["answer_values"]) for e in events if e["event"] == INTAKE_ANSWERED
+        question_id: tuple(e["answer_values"])
+        for e in events
+        if e["event"] == INTAKE_ANSWERED
+        and (question_id := current_question(e["question_id"])) is not None
     }
 
 
@@ -173,8 +182,7 @@ def step_reasons(events: Iterable[Mapping[str, Any]]) -> dict[str, dict[str, Any
             reasons[step_id] = _reason(mark, "marked", tally.marked_by[step_id])
     reopened = {s for s, kind in REOPENED_BY_DOCUMENT.items() if kind in tally.kinds_approved}
     reasons |= _intake_reasons(events, reasons.keys() | reopened)
-    # A step the flow has since retired (a stored mark from an earlier release) shows nothing.
-    reasons = {k: v for k, v in reasons.items() if v["state"] != "open" and k in _ORDER}
+    reasons = {k: v for k, v in reasons.items() if v["state"] != "open"}
     return {k: reasons[k] for k in sorted(reasons, key=_ORDER.__getitem__)}
 
 
@@ -225,10 +233,10 @@ def _tally(events: Iterable[Mapping[str, Any]]) -> _Tally:
             # The last validation decides: one that fails after a pass shows the step begun again.
             tally.produced[VALIDATE_STEP] = "done" if event["conforms"] else "started"
             tally.produced_by[VALIDATE_STEP] = event
-        elif name == STEP_MARKED:
+        elif name == STEP_MARKED and (step_id := current_step(event["step_id"])) is not None:
             # An "open" mark is kept: it withdraws an earlier mark and overrides the intake.
-            tally.marked[event["step_id"]] = event["mark"]
-            tally.marked_by[event["step_id"]] = event
+            tally.marked[step_id] = event["mark"]
+            tally.marked_by[step_id] = event
     return tally
 
 
@@ -301,7 +309,9 @@ def _produced(state: str, event: Mapping[str, Any], kind_of: Mapping[str, str]) 
 
 def _answered_at(events: Iterable[Mapping[str, Any]], question_id: str) -> str | None:
     answers = [
-        e for e in events if e["event"] == INTAKE_ANSWERED and e["question_id"] == question_id
+        e
+        for e in events
+        if e["event"] == INTAKE_ANSWERED and current_question(e["question_id"]) == question_id
     ]
     return answers[-1].get("at") if answers else None
 

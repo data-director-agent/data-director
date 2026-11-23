@@ -7,9 +7,11 @@ import reference from "../../../fixtures/agents.json";
 import { normalise } from "../../manifest/normalise";
 import type { RawAgentsResponse } from "../../manifest/types";
 import {
+  NOT_ADMITTED,
   SIGNED_OUT as SIGNED_OUT_EVENT,
   SignedOut,
   assuranceText,
+  checkAdmitted,
   checkSignedIn,
   fromRaw,
   providerName,
@@ -97,6 +99,7 @@ describe("signing in", () => {
   it.each([
     ["declined", "You did not sign in"],
     ["failed", "Signing in did not work"],
+    ["not-admitted", "does not let your account sign in"],
     ["anything", "Signing in did not work"],
   ])(
     "says why a sign-in that came back with %s opened no session",
@@ -302,7 +305,11 @@ describe("the session API", () => {
           vouched_by: "https://orcid.org",
           roles: ["researcher", "steward"],
           teams: [
-            { team_id: "library-rdm", name: "Library Research Data Team", notify_on: [] },
+            {
+              team_id: "library-rdm",
+              name: "Library Research Data Team",
+              notify_on: [],
+            },
           ],
         },
         expires_at: "2026-10-29T18:00:00Z",
@@ -319,7 +326,13 @@ describe("the session API", () => {
         assurance: "authenticated",
         vouchedBy: "https://orcid.org",
         roles: ["researcher", "steward"],
-        teams: [{ teamId: "library-rdm", name: "Library Research Data Team", notifyOn: [] }],
+        teams: [
+          {
+            teamId: "library-rdm",
+            name: "Library Research Data Team",
+            notifyOn: [],
+          },
+        ],
       },
       expiresAt: "2026-10-29T18:00:00Z",
       modelAccounts: false,
@@ -342,6 +355,27 @@ describe("the session API", () => {
       SignedOut,
     );
     expect(ended).toHaveBeenCalledTimes(1);
+    window.removeEventListener(SIGNED_OUT_EVENT, ended);
+  });
+
+  it("treats a 403 saying the person is not admitted as signed out, and goes to sign in", () => {
+    const ended = vi.fn();
+    window.addEventListener(SIGNED_OUT_EVENT, ended);
+    at("/projects");
+    expect(() =>
+      checkAdmitted(403, {
+        type: "https://w3id.org/data-director/problems/forbidden",
+      }),
+    ).not.toThrow();
+    expect(() => checkAdmitted(403, null)).not.toThrow();
+    expect(() => checkAdmitted(401, { type: NOT_ADMITTED })).not.toThrow();
+    expect(ended).not.toHaveBeenCalled();
+    expect(location.pathname).toBe("/projects");
+    expect(() => checkAdmitted(403, { type: NOT_ADMITTED })).toThrow(SignedOut);
+    expect(ended).toHaveBeenCalledTimes(1);
+    expect(location.pathname + location.search).toBe(
+      "/sign-in?problem=not-admitted",
+    );
     window.removeEventListener(SIGNED_OUT_EVENT, ended);
   });
 

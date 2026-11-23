@@ -41,7 +41,7 @@ The Data Director is the assistant you talk to, at every step from planning to d
 
 ### Standards Librarian (`advisor.standards`)
 
-The Standards Librarian suggests standard vocabularies, ontologies and file formats for your data: when you select vocabularies at setup, when you choose open formats to collect your data in, and when you prepare your data in open formats.
+The Standards Librarian suggests standard vocabularies, ontologies and file formats for your data: when you select vocabularies at setup, when you plan which open formats to collect your data in, and when you check that your files are in open formats.
 
 - **You give it** a short description of your dataset: title, description, keywords, themes, file types, and column names and types. Before you collect anything, the file types you plan to use are enough. It never needs your data values.
 - **You get back** a short list from the FAIRsharing registry, each tied to the dataset or one column (for example ISO 8601 for a date column), with a reason and any doubt. Each is offered as a proposal in your project; nothing is adopted until you confirm it.

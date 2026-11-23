@@ -9,8 +9,8 @@ the profile sets `visibility: scope`, a project that only chose the team as its 
 are not listed. Each team's projects are one indexed read, as the team's queue is.
 
 Listing a project is a read of it: each project on the page returned is recorded as viewed by
-the steward (`steward_viewed`, at most once a day), as opening it is, and the researcher sees
-it. A project on another page is not.
+the steward (`steward_viewed`, and the security event `steward.viewed`, at most once a day), as
+opening it is, and the researcher sees it. A project on another page is not.
 
 Each row is the project's summary, as a person's own list gives it, with what a steward needs
 beside it: who owns it, through which of the steward's teams they reach it, its live
@@ -31,7 +31,7 @@ from dd_harness.projects.facts import open_proposals
 from dd_harness.projects.stewarding import gate_decisions, pause_of, viewed_today
 from dd_harness.role_events import team_key
 from dd_harness.steward_access import StewardAccess, access_in
-from dd_harness.steward_api import permitted_actions_in
+from dd_harness.steward_api import permitted_actions_in, record_view
 from dd_harness.storage import ProjectStorage, RunStorage
 from dd_sdk.contract.models import Principal, now
 
@@ -161,4 +161,4 @@ def _record_view(
     """Record that `steward` saw the project, unless the log just read shows they did today
     (`record_view` checks again, under the project's lock)."""
     if not viewed_today(events, steward.principal_id, now().date().isoformat()):
-        store.record_view(project_id, acted_for=steward, caused_by=caused_by)
+        record_view(store, project_id, steward, caused_by=caused_by)

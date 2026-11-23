@@ -206,6 +206,36 @@ institution's policy.
 For a workshop or any group session, have each participant sign in with their own ORCID iD. People
 who share one sign-in act as one person, and each of them sees all the others' conversations.
 
+### Who may sign in
+
+The profile's `access` key says who may use an instance that signs people in
+([Policy and identity](../../specs/policy-and-identity.md), Admission). On a VM write it in
+`deployment.yaml`; `apply` copies it into the profile.
+
+```yaml
+access:
+  admit: listed         # or anyone
+  allow:                # read only with admit: listed
+    - https://orcid.org/0000-0001-5000-0007
+  block:                # refused whatever else lists them
+    - https://orcid.org/0000-0003-1415-9269
+```
+
+- **`admit: listed`** lets in the people `allow` lists, the steward teams' members and the
+  administrators. It is what `apply` writes when `deployment.yaml` has no `access`, so a new
+  instance is closed until you open it. **`admit: anyone`** lets in anyone with an ORCID iD.
+- **`block`** refuses a person even if they are an administrator or a steward.
+- Name each person by their ORCID iD as a URL, as for administrators. The name they sign in with
+  is never matched.
+
+The app checks this when a person signs in and on each request they make. After `apply` restarts
+the app, a person you have blocked or taken off `allow` loses their session at their next request,
+and the sign-in page tells them that their account cannot use this instance. A run they had
+already started finishes, and their projects and runs are kept. Removing someone's access fully is
+in [Deploying to a VM](../../../deploy/README.md#removing-access).
+
+An ORCID-only instance cannot require a second factor at sign-in (TODO(#293)).
+
 ### Trying sign-in against the ORCID sandbox
 
 To test sign-in without real iDs, on a development server or on your own machine, use the ORCID
@@ -320,10 +350,12 @@ that time to its team again; `journalctl -u data-director-escalations` shows wha
 
 1. Check that sign-in works (above): sign in with an ORCID iD, and confirm that a request with no
    session is answered 401 (`curl -i https://<your host>/api/agents`).
-2. Review the profile. List only the agents you intend to offer, and add to
+2. Decide who may sign in (`access`, above), and check that someone you have not listed is
+   refused.
+3. Review the profile. List only the agents you intend to offer, and add to
    `actions_requiring_approval` any action that must be referred to a person.
-3. Decide on [AI models](ai-models.md): whether either model-backed agent is on, which model, and
+4. Decide on [AI models](ai-models.md): whether either model-backed agent is on, which model, and
    whose key. Tell users when the answer is yes, since their conversation then goes to a
    provider.
-4. Confirm the app and agent ports are on loopback or a private network.
-5. Open the app and read each agent's page in the agent directory: it states what the instance is configured to do.
+5. Confirm the app and agent ports are on loopback or a private network.
+6. Open the app and read each agent's page in the agent directory: it states what the instance is configured to do.

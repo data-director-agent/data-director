@@ -20,6 +20,8 @@ from dd_sdk.contract.models import Principal, new_invocation_id
 
 MEMBER = "https://orcid.org/0000-0002-1694-233X"
 TEAM = "research-data-team"
+OTHER_TEAM = "library-team"
+COLLEAGUE = "https://orcid.org/0000-0001-5109-3700"
 
 
 def digest(label: str) -> str:
@@ -214,6 +216,21 @@ def _changes(
         {"event": "escalation_handed_back", **escalation, "acting_as": "steward"},
         {"event": "escalation_resolved", **escalation, "acting_as": "steward"},
         {"event": "escalation_rerouted", **escalation, "team_id": TEAM},
+        {
+            "event": "escalation_reassigned",
+            **escalation,
+            "from_steward": {"principal_id": MEMBER, "name": "A steward"},
+            "to_steward": {"principal_id": COLLEAGUE, "name": "Another steward"},
+            "acting_as": "steward",
+        },
+        {
+            "event": "escalation_transferred",
+            **escalation,
+            "from_team": TEAM,
+            "team_id": OTHER_TEAM,
+            "note": "This is a matter for the library.",
+            "acting_as": "steward",
+        },
         {"event": "escalation_reopened", **escalation},
         {"event": "escalation_withdrawn", **escalation},
         {"event": "steward_viewed", "acting_as": "steward"},

@@ -11,12 +11,14 @@ from dd_harness.projects.rules import (
     DEPOSIT_RECORDED,
     ESCALATION_HANDED_BACK,
     ESCALATION_OPENED,
+    ESCALATION_REASSIGNED,
     ESCALATION_RELEASED,
     ESCALATION_REOPENED,
     ESCALATION_REPLIED,
     ESCALATION_REROUTED,
     ESCALATION_RESOLVED,
     ESCALATION_TAKEN,
+    ESCALATION_TRANSFERRED,
     ESCALATION_WAITING,
     ESCALATION_WITHDRAWN,
     GATE_CLEARED,
@@ -161,6 +163,20 @@ def _rerouted(ctx: Context, activity: str, event: Event) -> None:
     ctx.graph.put(activity, dd__team=event.get("team_id"))
 
 
+def _reassigned(ctx: Context, activity: str, event: Event) -> None:
+    """The escalation given to a colleague in its team, named by their principal's identifier
+    alone, as a member is."""
+    _move(ctx, activity, event)
+    colleague = ctx.graph.put(event["to_steward"]["principal_id"], "prov:Agent")
+    ctx.graph.put(activity, dd__steward=ref(colleague))
+
+
+def _transferred(ctx: Context, activity: str, event: Event) -> None:
+    """The escalation sent to another team, from the team it was with."""
+    _move(ctx, activity, event)
+    ctx.graph.put(activity, dd__team=event.get("team_id"), dd__fromTeam=event.get("from_team"))
+
+
 def _viewed(ctx: Context, activity: str, event: Event) -> None:
     uses(ctx, activity, ctx.project)
     ctx.graph.put(activity, dd__actingAs=event.get("acting_as"))
@@ -206,6 +222,8 @@ MAPPINGS: dict[str, EventMapping] = {
     ESCALATION_WITHDRAWN: EventMapping("dd:EscalationWithdrawal", _move),
     ESCALATION_REOPENED: EventMapping("dd:EscalationReopening", _move),
     ESCALATION_REROUTED: EventMapping("dd:EscalationRerouting", _rerouted, harness=True),
+    ESCALATION_REASSIGNED: EventMapping("dd:EscalationReassignment", _reassigned),
+    ESCALATION_TRANSFERRED: EventMapping("dd:EscalationTransfer", _transferred),
     STEWARD_VIEWED: EventMapping("dd:StewardView", _viewed),
     STEWARD_MESSAGE: EventMapping("dd:StewardMessage", _steward_message),
     PROJECT_PAUSED: EventMapping("dd:ProjectPause", _pause),
