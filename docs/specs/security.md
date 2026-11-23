@@ -104,7 +104,7 @@ each unit's `SyslogIdentifier`.
 | `service` | The component that recorded it: `app`, `harness` or `model-broker`. |
 | `principal` | The person's identifier (their ORCID iD URL) in the app and the harness. In the broker, which knows nobody by name, the person's pseudonym (see [A person's own model account](model-accounts.md)). `null` where nobody has been verified. |
 | `reason` | A reason code for a failure, or `null`. Never a message. |
-| `agent_id`, `invocation_id`, `profile_id`, `profile_version`, `project_id`, `action`, `roles`, `provider`, `models`, `account`, `transport` | Present where they apply. No other field can be written. |
+| `agent_id`, `invocation_id`, `conversation_id`, `profile_id`, `profile_version`, `project_id`, `action`, `roles`, `provider`, `models`, `account`, `transport` | Present where they apply. No other field can be written. |
 
 ### Events
 
@@ -121,6 +121,7 @@ each unit's `SyslogIdentifier`.
 | `steward.acted` | harness | A data steward takes an action of the closed list in a project, with its `project_id` and `action` (`message`, `pause`, `resume`, `clear_gate`, `refuse_gate`, `propose_edit`). A note's text is never recorded. A refused action is not a security event; it is answered as an outcome. | |
 | `grant.minted` | harness | A model grant is minted, with its agent, invocation, models and account. | |
 | `agent.span-secret-dropped` | harness | A remote agent's span carried an attribute that could hold a secret, and the harness dropped it before storing the span ([Transport and tracing](transport.md), invariant 11). One event per reason in a run, with its `agent_id` and `invocation_id`; never the attribute's name or value. | `dd_harness.span_scrub.Reason` |
+| `case.exported` | harness | An operator exports a run, conversation or project as a case for debugging ([Case files](casefile.md)), with `action` the scope and the `invocation_id`, `conversation_id` or `project_id` it names. | |
 | `agent.broker-bypass-refused` | harness | An agent is refused because it does not call through the model broker. | `model-broker-bypassed` |
 | `broker.enrolled`, `broker.account-removed` | model-broker | A person adds, replaces or removes their own model account. | |
 | `broker.enrolment-refused`, `broker.call-refused` | model-broker | A request is refused for its ticket, grant, agent credential or base URL (`dd_broker.reasons.ACCESS`). A refusal about a provider or an account is not a security event. | `dd_broker.reasons.Reason` |

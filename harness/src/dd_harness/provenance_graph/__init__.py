@@ -62,19 +62,28 @@ class ProvenanceGraph:
         return validate(self.jsonld())
 
 
-def project_graph(projects: ProjectRecord, runs: RunStorage, project_id: str) -> ProvenanceGraph:
-    """The provenance graph of a project, read from its log and the run store."""
-    events = projects.events(project_id)
-    ctx = Context(graph=Graph(), project=uuid_iri(project_id))
+def project_runs(events: list[dict[str, Any]], runs: RunStorage) -> dict[str, Mapping[str, Any]]:
+    """Every stored run of a project, by `invocation_id`: each run of the conversations its log
+    started, delegated children included, and each run an event names
+    (docs/specs/provenance.md). The case export reads a project's runs the same way
+    (`dd_harness.casefile`)."""
     stored: dict[str, Mapping[str, Any]] = {}
     for event in events:
         if event["event"] == "conversation_started":
             for turn in runs.iter_envelopes(conversation_id=event["conversation_id"]):
                 stored[turn["invocation_id"]] = turn
-    named = runs_named(events)
-    for invocation_id in sorted(set(named) - set(stored)):
+    for invocation_id in sorted(set(runs_named(events)) - set(stored)):
         if (found := runs.get(invocation_id)) is not None:
             stored[invocation_id] = found
+    return stored
+
+
+def project_graph(projects: ProjectRecord, runs: RunStorage, project_id: str) -> ProvenanceGraph:
+    """The provenance graph of a project, read from its log and the run store."""
+    events = projects.events(project_id)
+    ctx = Context(graph=Graph(), project=uuid_iri(project_id))
+    stored = project_runs(events, runs)
+    named = runs_named(events)
     for invocation_id, kept in sorted(stored.items()):
         ctx.agents[invocation_id] = kept["agent_id"]
         add_run(ctx.graph, runs, kept)
