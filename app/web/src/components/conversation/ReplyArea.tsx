@@ -173,8 +173,9 @@ export function ReplyArea({
   return (
     <div className="reply-area">
       {asking !== null && (
-        <div hidden={mode !== "questions"}>
-          {/* Kept while a message is sent, disabled, so a failed send keeps the answers. */}
+        <div hidden={mode !== "questions" || answering}>
+          {/* Kept drawn while a message is sent, but hidden and disabled, so the form does not sit
+              beneath the "working on a reply" line and a failed send keeps the answers. */}
           {steward && asking.questions[0] && isStewardOffer(asking.questions) ? (
             <StewardOfferQuestion
               key={asking.askedBy}
