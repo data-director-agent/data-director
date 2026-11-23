@@ -858,7 +858,7 @@ test("asking about a step on the journey map starts a new conversation with the 
   // A conversation is open before the journey map is visited.
   await page.getByRole("textbox", { name: "What would you like to do?" }).fill("Hello");
   await page.getByRole("button", { name: "Send" }).click();
-  await expect(page.getByRole("list", { name: "Conversation" })).toBeVisible();
+  await expect(page.getByRole("list", { name: "Conversation", exact: true })).toBeVisible();
 
   await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Journey map" }).click();
   await page.getByRole("button", { name: new RegExp(`^${step.label}: `) }).click();
@@ -867,7 +867,7 @@ test("asking about a step on the journey map starts a new conversation with the 
   const box = page.getByRole("textbox", { name: "What would you like to do?" });
   await expect(box).toHaveValue(step.prompt);
   await expect(box).toBeFocused();
-  await expect(page.getByRole("list", { name: "Conversation" })).toHaveCount(0);
+  await expect(page.getByRole("list", { name: "Conversation", exact: true })).toHaveCount(0);
   await expect(page).not.toHaveURL(/[?&](ask|conversation)=/);
   // Only the first conversation's message was sent; the new one waits for the researcher.
   expect(turns).toBe(1);
@@ -899,7 +899,7 @@ test("Talk this through on a draft's question starts a new conversation with the
   // A conversation is open before the draft is visited.
   await page.getByRole("textbox", { name: "What would you like to do?" }).fill("Hello");
   await page.getByRole("button", { name: "Send" }).click();
-  await expect(page.getByRole("list", { name: "Conversation" })).toBeVisible();
+  await expect(page.getByRole("list", { name: "Conversation", exact: true })).toBeVisible();
 
   // To the draft within the page, as a link does, so the open conversation is still held.
   await page.evaluate((to) => {
@@ -914,7 +914,7 @@ test("Talk this through on a draft's question starts a new conversation with the
   const box = page.getByRole("textbox", { name: "What would you like to do?" });
   await expect(box).toHaveValue(new RegExp(question.question_prompt.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   await expect(box).toBeFocused();
-  await expect(page.getByRole("list", { name: "Conversation" })).toHaveCount(0);
+  await expect(page.getByRole("list", { name: "Conversation", exact: true })).toHaveCount(0);
   await expect(page).not.toHaveURL(/[?&](question|conversation)=/);
   // Only the first conversation's message was sent; the new one waits for the researcher.
   expect(turns).toBe(1);
