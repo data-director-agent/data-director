@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import logging
+import subprocess
 import zipfile
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -14,6 +15,8 @@ from typing import Any
 import pytest
 
 from dd_harness import casefile
+from dd_harness.casefile import journal as journal_module
+from dd_harness.casefile.journal import journal_lines
 from dd_harness.conductor import Conductor
 from dd_harness.projects import ProjectStore
 from dd_harness.server import main
@@ -413,3 +416,61 @@ def test_the_journal_command_names_the_deployments_units_and_a_span() -> None:
     assert command[0] == "journalctl"
     assert command[command.index("--unit") + 1].startswith("data-director")
     assert command[command.index("--output") + 1] == "json"
+
+
+def test_journal_lines_read_bytes_and_skip_what_is_not_a_line() -> None:
+    run = "0190a000-0000-7000-8000-000000000001"
+    text = "\n".join(
+        [
+            json.dumps({"MESSAGE": list(f"bytes {run}".encode()), "PRIORITY": "3"}),
+            json.dumps(["not", "an", "entry", run]),
+            json.dumps({"MESSAGE": f"{{not json {run}"}),
+            json.dumps({"MESSAGE": json.dumps([run])}),
+        ]
+    )
+    lines = list(journal_lines(text, [run, ""]))
+    assert [("message" in line, "record" in line) for line in lines] == [(True, False)] * 3
+    assert run in lines[0]["message"]
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        subprocess.CalledProcessError(1, "journalctl", stderr="No journal files were found."),
+        subprocess.TimeoutExpired("journalctl", 60),
+    ],
+)
+def test_a_journal_that_cannot_be_read_stops_the_export(
+    world: dict[str, Any],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    error: Exception,
+) -> None:
+    def fail(*_: object, **__: object) -> None:
+        raise error
+
+    monkeypatch.setattr(journal_module.subprocess, "run", fail)
+    since = datetime(2026, 11, 23, 9, 0, tzinfo=UTC)
+    with pytest.raises(OSError, match="journalctl"):
+        casefile.read_journal(since, since)
+    monkeypatch.setenv("DD_RUNS_DIR", str(world["conductor"].store.root))
+    monkeypatch.setenv("DD_PRINCIPAL_ID", TEST_PRINCIPAL.principal_id)
+    monkeypatch.setenv("DD_PRINCIPAL_NAME", "An operator")
+    target = world["out"] / "journal.zip"
+    run = world["elsewhere"].invocation_id
+    assert main(["case", "export", "--run", run, "--journal", "-o", str(target)]) == 2
+    assert "journalctl" in capsys.readouterr().err
+    assert not target.exists()
+
+
+def test_the_journal_is_read_as_journalctl_prints_it(monkeypatch: pytest.MonkeyPatch) -> None:
+    asked: list[list[str]] = []
+
+    def run(command: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        asked.append(command)
+        return subprocess.CompletedProcess(command, 0, stdout="{}\n")
+
+    monkeypatch.setattr(journal_module.subprocess, "run", run)
+    since = datetime(2026, 11, 23, 9, 0, tzinfo=UTC)
+    assert casefile.read_journal(since, since) == "{}\n"
+    assert asked == [casefile.journal_command(since, since)]

@@ -804,3 +804,15 @@ def test_the_pages_that_name_a_case_offer_its_download(
     for page, action in pages.items():
         assert f'action="{action}"' in client.get(page).text
     assert "/case/" not in client.get("/runs").text
+
+
+def test_a_journal_that_cannot_be_read_stops_the_download(
+    client: TestClient, system: FakeSystem, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def broken(*cmd: str, timeout_s: float = 60.0) -> Done:
+        return Done(1, "", "No journal files were found.")
+
+    monkeypatch.setattr(system, "run", broken)
+    response = client.get("/case/conversation/c1?journal=1")
+    assert response.status_code == 502
+    assert "No journal files" in response.text

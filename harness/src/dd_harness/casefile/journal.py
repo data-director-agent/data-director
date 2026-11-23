@@ -102,8 +102,10 @@ def journal_lines(text: str, identifiers: Iterable[str]) -> Iterator[dict[str, A
             entry = json.loads(raw)
         except ValueError:
             continue
+        if not isinstance(entry, dict):
+            continue
         message = _message(entry)
-        if not isinstance(entry, dict) or not any(name in message for name in names):
+        if not any(name in message for name in names):
             continue
         micros = int(entry.get("__REALTIME_TIMESTAMP") or 0)
         at = datetime.fromtimestamp(micros / 1_000_000, UTC)
