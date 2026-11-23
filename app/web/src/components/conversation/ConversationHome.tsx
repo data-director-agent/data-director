@@ -373,6 +373,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             fairFeedback={directory.agents.some((a) => a.payload === FAIRNESS_CLASS)}
             refresh={turnCount}
             onAsk={(question) => askInBox(question, text, putText, reply)}
+            onStartStep={busy ? undefined : startStep}
             onInventorySaved={() => void reloadProjects()}
           />
         }
