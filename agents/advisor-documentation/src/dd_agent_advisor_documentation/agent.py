@@ -385,7 +385,9 @@ class DocumentationEditor:
     ) -> tuple[list[DocumentQuestion], Suggestions, str]:
         """A README's questions with a person's own words offered first, from another document or
         a decision, then a model's suggestions, and what the statement says of them."""
-        questions = shared_answers.offer(questions, asked.shared_answers, asked.project_decisions)
+        questions = shared_answers.offer(
+            questions, asked.shared_answers, asked.project_decisions, asked.researchers
+        )
         sections = self._sections(asked)
         questions, suggested = self._suggest(
             with_documents(_facts(asked.inventory, asked.requirements, record), asked),

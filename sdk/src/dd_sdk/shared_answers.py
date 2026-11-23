@@ -17,9 +17,15 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from dd_sdk.contract.facts import FactKind, ProjectFact
+from dd_sdk.contract.facts import (
+    AffiliationKind,
+    FactKind,
+    ProjectFact,
+    ResearcherRecord,
+)
 from dd_sdk.contract.questions import (
     SUGGESTED_FROM_DECISION,
+    SUGGESTED_FROM_RESEARCHERS,
     Derivation,
     DocumentQuestion,
     SharedAnswer,
@@ -31,11 +37,13 @@ def offer(
     questions: Sequence[DocumentQuestion],
     shared: Sequence[SharedAnswer],
     decisions: Sequence[ProjectFact] = (),
+    researchers: Sequence[ResearcherRecord] = (),
 ) -> list[DocumentQuestion]:
     """`questions`, each open one on a shared field offered the person's answer to it in another
-    document, or else the fact people decided, as its suggestion."""
+    document, or else the fact people decided, or else the project's people, as its suggestion."""
     answered = {a.shared_field: a for a in shared if a.answer_text.strip()}
     decided = decided_values(decisions)
+    people = creators_of(researchers)
     out: list[DocumentQuestion] = []
     for q in questions:
         field = q.shared_field
@@ -45,6 +53,8 @@ def offer(
             out.append(_offered(q, answer.answer_text, answer.answered_in.value))
         elif (value := decided.get(field)) is not None:
             out.append(_offered(q, value, SUGGESTED_FROM_DECISION))
+        elif field == SharedField.CREATORS and people:
+            out.append(_offered(q, people, SUGGESTED_FROM_RESEARCHERS))
         else:
             out.append(q)
     return out
@@ -84,6 +94,25 @@ def decided_values(decisions: Sequence[ProjectFact]) -> dict[SharedField, str]:
     if licences:
         out[SharedField.LICENCE] = str(licences[-1])
     return out
+
+
+def creators_of(researchers: Sequence[ResearcherRecord]) -> str:
+    """The project's people who kept a name, one per line as `Name (ORCID iD, employer)`, for the
+    creators question; empty when none did. Which of them answers questions about the data is not
+    known, so it is left for the person to say."""
+    lines: list[str] = []
+    for r in researchers:
+        name = (r.researcher_name or "").strip()
+        if not name:
+            continue
+        employers = [
+            a.organisation_name
+            for a in r.affiliations
+            if a.affiliation_kind == AffiliationKind.EMPLOYMENT and a.end_year is None
+        ]
+        details = ", ".join([r.orcid_id, *employers])
+        lines.append(f"{name} ({details})")
+    return "\n".join(lines)
 
 
 def _offered(question: DocumentQuestion, text: str, source: str) -> DocumentQuestion:
