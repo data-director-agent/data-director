@@ -39,12 +39,15 @@ export function homePath({
   ask,
   question,
   fair,
+  fact,
 }: {
   conversation?: string | null;
   run?: string | null;
   ask?: string | null;
   question?: string | null;
   fair?: boolean;
+  /** A proposed fact to discuss, by its proposal's id. */
+  fact?: string | null;
 }): string {
   const query = new URLSearchParams();
   if (conversation) query.set("conversation", conversation);
@@ -52,6 +55,7 @@ export function homePath({
   if (ask) query.set("ask", ask);
   if (question) query.set("question", question);
   if (fair) query.set("fair", "check");
+  if (fact) query.set("fact", fact);
   const text = query.toString();
   return text ? `/?${text}` : "/";
 }

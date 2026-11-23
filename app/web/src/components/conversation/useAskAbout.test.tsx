@@ -18,7 +18,7 @@ function ask(question: string, documents: DocumentsRead) {
   const setText = vi.fn();
   const box = { current: document.createElement("textarea") };
   const view = renderHook((read: DocumentsRead) =>
-    useAskAboutQuestion(read, setText, box, { conversation: null, run: null }), {
+    useAskAboutQuestion(read, { setText, box, keep: { conversation: null, run: null } }), {
     initialProps: documents,
   });
   return { setText, ...view };

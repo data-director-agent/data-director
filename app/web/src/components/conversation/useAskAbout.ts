@@ -13,33 +13,47 @@ export function askAboutStep(found: { phase: FlowPhase; step: FlowStep }): strin
   return `Can you help me with this step: ${found.step.label} (phase ${found.phase.number}, ${found.phase.name})?`;
 }
 
+/** Where an asked-for question goes: the message box's text, the box to focus, and what of the
+ * address to keep once the ask is dropped from it. */
+export interface AskInto {
+  setText(text: string): void;
+  box: RefObject<{ focus(): void } | null>;
+  keep: { conversation: string | null; run: string | null };
+}
+
 /**
- * A step asked about from the journey map (`?ask=`) fills the message box, unsent, so that the
- * researcher's own word starts the turn; the address then drops it so a reload does not refill.
+ * What the address asks the message box to hold (`?{param}=`), until it is handled: `handle`
+ * marks it filled, after which the box is focused and the address drops it so that a reload does
+ * not refill. The text is the researcher's to send or change.
  */
-export function useAskAbout(
-  flow: { state: "loaded"; flow: ProcessFlow } | { state: string },
-  setText: (text: string) => void,
-  box: RefObject<{ focus(): void } | null>,
-  keep: { conversation: string | null; run: string | null },
-): void {
-  const askAbout = new URLSearchParams(useLocation().split("?")[1] ?? "").get("ask");
-  const [askedAbout, setAskedAbout] = useState<string | null>(null);
-  if (askAbout && "flow" in flow && askedAbout !== askAbout) {
-    setAskedAbout(askAbout);
-    const found = locate(flow.flow, askAbout);
-    if (found) {
-      setText(askAboutStep(found));
-    }
-  }
+export function useAskedInAddress(
+  param: string,
+  { box, keep }: AskInto,
+): { pending: string | null; handle(): void } {
+  const asked = new URLSearchParams(useLocation().split("?")[1] ?? "").get(param);
+  const [handled, setHandled] = useState<string | null>(null);
   const focus = useFocusOnceDrawn(box);
   useEffect(() => {
-    if (!askAbout || askedAbout !== askAbout) return;
+    if (!asked || handled !== asked) return;
     focus();
     navigate(homePath(keep), true);
-    // Only the step asked about, once its text is in the box, is acted on.
+    // Only what was asked, once its text is in the box, is acted on.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [askAbout, askedAbout]);
+  }, [asked, handled]);
+  return { pending: asked && handled !== asked ? asked : null, handle: () => setHandled(asked) };
+}
+
+/** A step asked about from the journey map (`?ask=`) fills the message box, unsent. */
+export function useAskAbout(
+  flow: { state: "loaded"; flow: ProcessFlow } | { state: string },
+  into: AskInto,
+): void {
+  const { pending, handle } = useAskedInAddress("ask", into);
+  if (pending && "flow" in flow) {
+    handle();
+    const found = locate(flow.flow, pending);
+    if (found) into.setText(askAboutStep(found));
+  }
 }
 
 /**
@@ -61,28 +75,16 @@ function useFocusOnceDrawn(box: RefObject<{ focus(): void } | null>): () => void
 
 /**
  * FAIR feedback asked for from the project's FAIR feedback tab (`?fair=check`) fills the message
- * box, unsent, so that the researcher's own word starts the turn; the address then drops it so a
- * reload does not refill. The orchestrator delegates the check; the shell does not route.
+ * box, unsent. The orchestrator delegates the check; the shell does not route.
  */
 export function useAskForFairFeedback(
-  setText: (text: string) => void,
-  box: RefObject<{ focus(): void } | null>,
-  keep: { conversation: string | null; run: string | null },
+  into: AskInto,
 ): void {
-  const asked = new URLSearchParams(useLocation().split("?")[1] ?? "").get("fair") === "check";
-  const [handled, setHandled] = useState(false);
-  if (asked && !handled) {
-    setHandled(true);
-    setText(ASK_FOR_FEEDBACK);
+  const { pending, handle } = useAskedInAddress("fair", into);
+  if (pending === "check") {
+    handle();
+    into.setText(ASK_FOR_FEEDBACK);
   }
-  const focus = useFocusOnceDrawn(box);
-  useEffect(() => {
-    if (!asked || !handled) return;
-    focus();
-    navigate(homePath(keep), true);
-    // Only the request, once its text is in the box, is acted on.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [asked, handled]);
 }
 
 /** The message that asks for help with a draft's question, in the researcher's voice. */
@@ -96,32 +98,21 @@ export function askAboutQuestion(name: string, question: DocumentQuestion): stri
 /**
  * A draft's question to talk through (`?question={document_id}/{question_id}`, from its
  * "Talk this through" link) fills the message box of a new conversation, unsent, once the
- * project's documents are read; the address then drops it so a reload does not refill. A question
- * the documents do not ask is ignored. The answer is still recorded on the draft, never here.
+ * project's documents are read. A question the documents do not ask is ignored. The answer is
+ * still recorded on the draft, never here.
  */
 export function useAskAboutQuestion(
   documents: DocumentsRead,
-  setText: (text: string) => void,
-  box: RefObject<{ focus(): void } | null>,
-  keep: { conversation: string | null; run: string | null },
+  into: AskInto,
 ): void {
-  const asked = new URLSearchParams(useLocation().split("?")[1] ?? "").get("question");
-  const [handled, setHandled] = useState<string | null>(null);
-  if (asked && documents.state === "loaded" && handled !== asked) {
-    setHandled(asked);
-    const [documentId, questionId] = asked.split("/");
+  const { pending, handle } = useAskedInAddress("question", into);
+  if (pending && documents.state === "loaded") {
+    handle();
+    const [documentId, questionId] = pending.split("/");
     const document = documents.documents.find((d) => d.document_id === documentId);
     const question = document?.versions
       .flatMap((v) => v.questions)
       .find((q) => q.question_id === questionId);
-    if (document && question) setText(askAboutQuestion(documentName(document), question));
+    if (document && question) into.setText(askAboutQuestion(documentName(document), question));
   }
-  const focus = useFocusOnceDrawn(box);
-  useEffect(() => {
-    if (!asked || handled !== asked) return;
-    focus();
-    navigate(homePath(keep), true);
-    // Only the question asked about, once its text is in the box, is acted on.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [asked, handled]);
 }

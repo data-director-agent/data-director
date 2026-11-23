@@ -8,7 +8,7 @@
  * sensitive data may be published, and the licence, are an owner's to decide.
  */
 
-import { Plus, Trash2 } from "lucide-react";
+import { MessageCircle, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { formatDateTime } from "../../format";
@@ -19,7 +19,7 @@ import {
   factKey,
   useFactsApi,
 } from "../../project/facts";
-import { factsPath, Link, useLocation } from "../../route";
+import { factsPath, homePath, Link, useLocation } from "../../route";
 import { Button } from "../ui/Button";
 import { loadInto, message, type PanelLoad } from "./panelLoad";
 import { FactDecisionForm } from "./FactDecisionForm";
@@ -86,6 +86,12 @@ function Proposal({
       <p className="hint">
         Proposed by {proposal.agent_id} on{" "}
         <time dateTime={proposal.proposed_at}>{formatDateTime(proposal.proposed_at)}</time>.
+      </p>
+      <p className="hint">
+        <Link to={homePath({ fact: proposal.proposal })}>
+          <MessageCircle aria-hidden="true" size={16} /> Discuss this with Data Director{" "}
+          <span className="visually-hidden">in a new conversation: {describeFact(fact)}</span>
+        </Link>
       </p>
       <OwnersNote fact={fact} />
       <FactDecisionForm
