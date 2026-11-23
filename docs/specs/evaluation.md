@@ -18,7 +18,7 @@ evaluation score measures quality over a case set; a review records what one per
 within a stated scope at one commit. None of these is a claim that a requirement is met in
 general, and the report says so.
 
-Five agents have an evaluation so far. The Documentation Editor's
+Six agents have an evaluation so far. The Documentation Editor's
 (`agents/advisor-documentation/src/dd_agent_advisor_documentation/evals/`) takes its labels from
 the crib sheet of a synthetic workshop dataset, Dataset A of `data-director-agent/sample-data`, and
 runs the template path. The standards advisor's also runs its template path, the ranking rules
@@ -44,7 +44,14 @@ content are those a data steward would list. Its false negatives are the steward
 leading access levels and questions it leaves out, and licences that do not fit are scored apart
 (#702). Its baseline runs the rules; a fake-model test shows that free-word wishes, read, score in
 full, and that a misread wish is caught. The recall and "none listed" scorers it uses are the
-workbench's, for any agent whose payload lists options by id.
+workbench's, for any agent whose payload lists options by id. The Metadata Librarian's
+(`agents/advisor-metadata/src/dd_agent_advisor_metadata/evals/`) drafts records for ORDA from
+hand-written inventories, and asks whether the categories it suggests from the repository's
+controlled vocabulary are those a curator would choose. It also asks whether each category cites
+the vocabulary record it came from, and whether every value only the researcher can give is asked
+about and left null. A repository asking for another standard must be told the capability is not
+implemented. The librarian suggests no category yet, so its baseline recalls none (TODO(#703));
+the cases are to be replaced by the ORDA corpus (TODO(#22)).
 
 ## Invariants
 

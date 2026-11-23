@@ -1,0 +1,301 @@
+# The Metadata Librarian's evaluation cases (README.md beside this file).
+#
+# Every case drafts a metadata record for ORDA, the University of Sheffield's repository, whose
+# requirements (`requirements`, below) ask for keywords and for categories from the ANZSRC Fields
+# of Research. A case gives what the librarian is given (`input`):
+#
+# - `files`: the inventory, as `[path, media type, size in bytes]` with, for a table, `fields` as
+#   `[name, type]` pairs. The loader fills what the inventory tool would (hashes, how a file was
+#   identified), so that a case says only what a curator reads;
+# - `keywords`: optional, the keywords the project's one researcher kept from their ORCID record;
+# - `conforms_to` and `document_kind`: optional, to ask for another standard or another kind;
+# - `no_repository: true`: optional, the request names no repository's requirements.
+#
+# And what a curator would expect of the draft (`expect`):
+#
+# - `status`, and `reason_code` for a stop;
+# - `subjects`: the ANZSRC Fields of Research a curator would choose for the dataset's
+#   categories, by code, with the label as ANZSRC 2020 gives it. A suggested category matches by
+#   code or by label;
+# - `asked`: the properties the researcher must be asked about;
+# - `never_placed`: the properties only the researcher can give, which must stay null in the
+#   record (docs/specs/drafting.md).
+#
+# The cases are hand-written to look like ORDA deposits, and none is a real record. A labelled
+# corpus of ORDA records is to replace them (TODO(#22)).
+requirements:
+  re3data_id: r3d100012124
+  repository_name: ORDA
+  conforms_to: http://datacite.org/schema/kernel-4
+  requirement_sets:
+  - ref: datacite-4@v1
+    sha256: e01c4ac3818d7e718ada0930d8bcec78756ec9d1c7f7049dd967895196e898e8
+  - ref: orda@v2
+    sha256: aefc6e9d7ad7b59bb32708e5c4387c6e7947ba6a36f86f2dc02dd1108bc1afc7
+  media_types: []
+  licences:
+  - CC-BY-4.0
+  - CC0-1.0
+  - CC-BY-SA-4.0
+  - CC-BY-NC-4.0
+  - CC-BY-NC-SA-4.0
+  - CC-BY-ND-4.0
+  - CC-BY-NC-ND-4.0
+  - MIT
+  - Apache-2.0
+  - GPL-2.0-or-later
+  - GPL-3.0-or-later
+  - https://orda.shef.ac.uk/articles/workflow/Terms_for_access_to_closed_data_sensitive_data_not_openly_available_/24878301
+  - https://orda.shef.ac.uk/articles/workflow/Terms_for_access_to_content_with_a_custom_licence/26030305
+  fields:
+  - property: titles
+    schema_org: name
+    obligation: required
+    form_label: Title
+  - property: creators
+    schema_org: creator
+    obligation: required
+    form_label: Authors
+  - property: types.resourceTypeGeneral
+    schema_org: additionalType
+    obligation: required
+    form_label: Item type
+  - property: subjects
+    schema_org: keywords
+    obligation: required
+    form_label: Keywords
+  - property: contributors
+    schema_org: contributor
+    obligation: recommended
+  - property: dates
+    qualifier:
+      dateType: Created
+    schema_org: dateCreated
+    obligation: recommended
+  - property: relatedIdentifiers
+    schema_org: citation
+    obligation: recommended
+    form_label: Related materials
+  - property: descriptions
+    qualifier:
+      descriptionType: Abstract
+    schema_org: description
+    obligation: required
+    form_label: Description
+  - property: geoLocations
+    schema_org: spatialCoverage
+    obligation: recommended
+  - property: subjects
+    qualifier:
+      subjectScheme: ANZSRC Fields of Research
+    schema_org: about
+    obligation: required
+    form_label: Categories
+  - property: rightsList
+    schema_org: license
+    obligation: required
+    form_label: License
+  - property: fundingReferences
+    schema_org: funding
+    obligation: recommended
+    form_label: Funding
+  required_documents:
+  - metadata_record
+  recommended_documents:
+  - readme
+  - data_dictionary
+  warnings: []
+
+
+cases:
+  # --- Environmental and earth sciences --------------------------------------------------------
+  - id: soil-nitrate
+    input:
+      files:
+        - [README.md, text/markdown, 1840]
+        - [data/readings.csv, text/csv, 48211, {fields: [[site, string], [sampled_on, date], [ph, number], [nitrate_mg_kg, number]]}]
+        - [data/sites.tsv, text/tab-separated-values, 2210, {fields: [[site, string], [latitude, number], [longitude, number]]}]
+    expect:
+      status: succeeded
+      subjects: {"4106": Soil sciences, "4105": Pollution and contamination}
+      asked: [titles, descriptions, subjects, rightsList, geoLocations]
+      never_placed: [titles, descriptions, rightsList]
+  - id: river-flow
+    input:
+      files:
+        - [README.txt, text/plain, 912]
+        - [gauges/don_at_sheffield.csv, text/csv, 1302112, {fields: [[timestamp, datetime], [stage_m, number], [flow_m3_s, number]]}]
+        - [gauges/stations.csv, text/csv, 1033, {fields: [[station_id, string], [easting, integer], [northing, integer]]}]
+    expect:
+      status: succeeded
+      subjects: {"3707": Hydrology}
+      asked: [titles, descriptions, subjects, rightsList]
+      never_placed: [titles, descriptions, rightsList]
+  - id: air-quality-sensors
+    input:
+      files:
+        - [readme.md, text/markdown, 2401]
+        - [pm25_hourly.csv, text/csv, 880412, {fields: [[sensor, string], [hour, datetime], [pm2_5_ug_m3, number], [no2_ug_m3, number], [temperature_c, number]]}]
+      keywords: [air pollution, low-cost sensors]
+    expect:
+      status: succeeded
+      subjects: {"3701": Atmospheric sciences, "4105": Pollution and contamination}
+      asked: [titles, descriptions, subjects, rightsList]
+      never_placed: [titles, descriptions, rightsList]
+  - id: microplastics-ftir
+    input:
+      files:
+        - [README.md, text/markdown, 3120]
+        - [particles.csv, text/csv, 64410, {fields: [[sample_id, string], [length_um, number], [ftir_polymer, string], [site_id, string]]}]
+        - [spectra/spectra.zip, application/zip, 20494112]
+    expect:
+      status: succeeded
+      subjects: {"4105": Pollution and contamination, "3401": Analytical chemistry}
+      asked: [titles, descriptions, subjects, rightsList]
+      never_placed: [titles, descriptions, rightsList]
+
+  # --- Life and health sciences ----------------------------------------------------------------
+  - id: bee-foraging
+    input:
+      files:
+        - [README.md, text/markdown, 1502]
+        - [visits.csv, text/csv, 98112, {fields: [[transect, string], [date, date], [species, string], [flower_genus, string], [visits, integer]]}]
+      keywords: [pollinators, ecology]
+    expect:
+      status: succeeded
+      subjects: {"3103": Ecology, "3109": Zoology}
+      asked: [titles, descriptions, subjects, rightsList]
+      never_placed: [titles, descriptions, rightsList]
+  - id: rna-seq-counts
+    input:
+      files:
+        - [README.md, text/markdown, 2208]
+        - [counts/gene_counts.tsv, text/tab-separated-values, 15520331, {fields: [[gene_id, string], [ctrl_1, integer], [ctrl_2, integer], [treated_1, integer], [treated_2, integer]]}]
+        - [samples.csv, text/csv, 412, {fields: [[sample, string], [condition, string], [replicate, integer]]}]
+    expect:
+      status: succeeded
+      subjects: {"3105": Genetics, "3102": Bioinformatics and computational biology}
+      asked: [titles, descriptions, subjects, rightsList]
+      never_placed: [titles, descriptions, rightsList]
+  - id: gait-trial
+    input:
+      files:
+        - [README.md, text/markdown, 2740]
+        - [gait_summary.csv, text/csv, 30120, {fields: [[participant, string], [visit, integer], [cadence_steps_min, number], [stride_length_m, number], [walking_speed_m_s, number]]}]
+        - [protocol.pdf, application/pdf, 512331]
+    expect:
+      status: succeeded
+      subjects: {"4201": Allied health and rehabilitation science, "4207": Sports science and exercise}
+      asked: [titles, descriptions, subjects, rightsList]
+      never_placed: [titles, descriptions, rightsList]
+
+  # --- Physical sciences and engineering -------------------------------------------------------
+  - id: battery-cycling
+    input:
+      files:
+        - [README.md, text/markdown, 1930]
+        - [cycling/cell_01.csv, text/csv, 4410023, {fields: [[cycle, integer], [voltage_v, number], [current_a, number], [capacity_mah, number]]}]
+        - [cycling/cell_02.csv, text/csv, 4398110, {fields: [[cycle, integer], [voltage_v, number], [current_a, number], [capacity_mah, number]]}]
+    expect:
+      status: succeeded
+      subjects: {"3406": Physical chemistry, "4016": Materials engineering}
+      asked: [titles, descriptions, subjects, rightsList]
+      never_placed: [titles, descriptions, rightsList]
+  - id: wind-tunnel
+    input:
+      files:
+        - [README.md, text/markdown, 1210]
+        - [runs.csv, text/csv, 220114, {fields: [[run, integer], [reynolds_number, number], [angle_of_attack_deg, number], [lift_coefficient, number], [drag_coefficient, number]]}]
+        - [piv/frames.h5, application/x-hdf5, 1048576000]
+    expect:
+      status: succeeded
+      subjects: {"4012": Fluid mechanics and thermal engineering, "4001": Aerospace engineering}
+      asked: [titles, descriptions, subjects, rightsList]
+      never_placed: [titles, descriptions, rightsList]
+  - id: simulation-code
+    input:
+      files:
+        - [README.md, text/markdown, 4410]
+        - [src/solver.py, text/x-python, 22018]
+        - [results/convergence.csv, text/csv, 5120, {fields: [[mesh_size, number], [l2_error, number], [runtime_s, number]]}]
+    expect:
+      status: succeeded
+      subjects: {"4903": Numerical and computational mathematics}
+      asked: [titles, descriptions, subjects, rightsList]
+      never_placed: [titles, descriptions, rightsList]
+
+  # --- Social sciences and humanities ----------------------------------------------------------
+  - id: interview-transcripts
+    input:
+      files:
+        - [README.md, text/markdown, 2980]
+        - [transcripts/participant_01.docx, application/vnd.openxmlformats-officedocument.wordprocessingml.document, 41202]
+        - [transcripts/participant_02.docx, application/vnd.openxmlformats-officedocument.wordprocessingml.document, 39981]
+        - [consent_form_template.pdf, application/pdf, 101223]
+      keywords: [housing, qualitative methods]
+    expect:
+      status: succeeded
+      subjects: {"4410": Sociology, "4406": Human geography}
+      asked: [titles, descriptions, subjects, rightsList]
+      never_placed: [titles, descriptions, rightsList]
+  - id: survey-wellbeing
+    input:
+      files:
+        - [README.md, text/markdown, 2004]
+        - [survey_responses.csv, text/csv, 310442, {fields: [[respondent, string], [age_band, string], [wellbeing_score, integer], [hours_online, number]]}]
+        - [questionnaire.pdf, application/pdf, 88412]
+    expect:
+      status: succeeded
+      subjects: {"5205": Social and personality psychology, "4206": Public health}
+      asked: [titles, descriptions, subjects, rightsList]
+      never_placed: [titles, descriptions, rightsList]
+  - id: parish-records
+    input:
+      files:
+        - [README.md, text/markdown, 1330]
+        - [baptisms_1750_1850.csv, text/csv, 812330, {fields: [[parish, string], [year, integer], [child_name, string], [father_occupation, string]]}]
+        - [images/register_001.tif, image/tiff, 30441210]
+    expect:
+      status: succeeded
+      subjects: {"4303": Historical studies, "4403": Demography}
+      asked: [titles, descriptions, subjects, rightsList]
+      never_placed: [titles, descriptions, rightsList]
+  - id: corpus-dialect
+    input:
+      files:
+        - [README.md, text/markdown, 2200]
+        - [audio/speaker_01.wav, audio/x-wav, 52004112]
+        - [annotations.csv, text/csv, 120440, {fields: [[speaker, string], [token, string], [vowel, string], [f1_hz, number], [f2_hz, number]]}]
+    expect:
+      status: succeeded
+      subjects: {"4704": Linguistics}
+      asked: [titles, descriptions, subjects, rightsList]
+      never_placed: [titles, descriptions, rightsList]
+
+  # --- When the librarian must stop ------------------------------------------------------------
+  - id: dublin-core-repository
+    # A repository asking for Dublin Core: the librarian drafts DataCite only and maps nothing
+    # between schemas (R6), so it says the capability is not implemented (TODO(#1363)).
+    input:
+      conforms_to: http://purl.org/dc/elements/1.1/
+      files:
+        - [README.md, text/markdown, 1840]
+    expect:
+      status: abstained
+      reason_code: capability_not_implemented
+  - id: no-repository-chosen
+    input:
+      no_repository: true
+      files:
+        - [README.md, text/markdown, 1840]
+    expect:
+      status: abstained
+      reason_code: insufficient_input
+  - id: readme-asked-for
+    input:
+      document_kind: readme
+      files:
+        - [README.md, text/markdown, 1840]
+    expect:
+      status: abstained
+      reason_code: outside_agent_scope

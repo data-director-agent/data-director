@@ -226,6 +226,18 @@ def listed_ids(envelope: dict[str, Any], field: str, id_key: str) -> list[str]:
     return [str(item[id_key]) for item in items]
 
 
+def recall(wanted: list[str], missing: list[str], done: str, answer: str | None = None) -> Score:
+    """The share of `wanted` not `missing`, with each one missed (a false negative) in the score's
+    metadata; `done` explains a score that missed none. `answer` defaults to the count found."""
+    found = len(wanted) - len(missing)
+    return Score(
+        value=found / len(wanted),
+        answer=f"{found}/{len(wanted)}" if answer is None else answer,
+        explanation="missing: " + ", ".join(missing) if missing else done,
+        metadata={"missing": missing},
+    )
+
+
 @scorer(metrics=[mean_applicable()])
 def ids_recalled(field: str, id_key: str) -> Scorer:
     """The share of the case's `include` ids that the payload lists under `field`: recall, with
@@ -237,14 +249,7 @@ def ids_recalled(field: str, id_key: str) -> Scorer:
         if not wanted:
             return Score(value=NOANSWER, explanation="the case names no id it must list")
         listed = {i.casefold() for i in listed_ids(envelope_of(state), field, id_key)}
-        missing = [i for i in wanted if i.casefold() not in listed]
-        found = len(wanted) - len(missing)
-        return Score(
-            value=found / len(wanted),
-            answer=f"{found}/{len(wanted)}",
-            explanation="missing: " + ", ".join(missing) if missing else "all listed",
-            metadata={"missing": missing},
-        )
+        return recall(wanted, [i for i in wanted if i.casefold() not in listed], "all listed")
 
     return score
 
