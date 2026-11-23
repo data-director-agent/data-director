@@ -341,18 +341,18 @@ ethics:SensitivityContext a sh:NodeShape ;
     rdfs:comment "A value that a field may use for missing data, such as -99 or NA, and how many rows hold it, rounded." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:datatype xsd:string ;
-            sh:maxCount 1 ;
-            sh:minCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 0 ;
-            sh:path <https://w3id.org/data-director/missing_code> ],
-        [ sh:datatype xsd:integer ;
+    sh:property [ sh:datatype xsd:integer ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
-            sh:path <https://w3id.org/data-director/missing_code_count> ] ;
+            sh:path <https://w3id.org/data-director/missing_code_count> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/missing_code> ] ;
     sh:targetClass <https://w3id.org/data-director/MissingCodeCount> .
 
 <https://w3id.org/data-director/TableField> a sh:NodeShape ;

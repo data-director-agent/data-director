@@ -1,0 +1,51 @@
+<?xml version="1.0"?>
+<rdf:RDF xmlns:obo="http://purl.obolibrary.org/obo/"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+     xmlns:oboInOwl="http://www.geneontology.org/formats/oboInOwl#">
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/DUO_0000001">
+        <oboInOwl:id>DUO:0000001</oboInOwl:id>
+        <rdfs:label xml:lang="en">data use permission</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/DUO_0000017">
+        <oboInOwl:id>DUO:0000017</oboInOwl:id>
+        <rdfs:label xml:lang="en">data use modifier</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/DUO_0000042">
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/DUO_0000001"/>
+        <obo:IAO_0000115 xml:lang="en">A permission.</obo:IAO_0000115>
+        <oboInOwl:id>DUO:0000042</oboInOwl:id>
+        <oboInOwl:shorthand>GRU</oboInOwl:shorthand>
+        <rdfs:label xml:lang="en">general research use</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/DUO_0000006">
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/DUO_0000042"/>
+        <oboInOwl:id>DUO:0000006</oboInOwl:id>
+        <oboInOwl:shorthand>HMB</oboInOwl:shorthand>
+        <rdfs:label xml:lang="en">health or medical or biomedical research</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/DUO_0000021">
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/DUO_0000017"/>
+        <rdfs:subClassOf>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="http://purl.obolibrary.org/obo/DUO_0000010"/>
+                <owl:someValuesFrom rdf:resource="http://purl.obolibrary.org/obo/GAZ_00000448"/>
+            </owl:Restriction>
+        </rdfs:subClassOf>
+        <oboInOwl:id>DUO:0000021</oboInOwl:id>
+        <oboInOwl:shorthand>IRB</oboInOwl:shorthand>
+        <rdfs:label xml:lang="en">ethics approval required</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/DUO_0000014">
+        <rdfs:subClassOf rdf:resource="http://www.geneontology.org/formats/oboInOwl#ObsoleteClass"/>
+        <oboInOwl:id>DUO:0000014</oboInOwl:id>
+        <oboInOwl:shorthand>RU</oboInOwl:shorthand>
+        <rdfs:label xml:lang="en">obsolete research use only</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://purl.obolibrary.org/obo/DUO_0000037">
+        <rdfs:subClassOf rdf:resource="http://purl.obolibrary.org/obo/OBI_0000066"/>
+        <oboInOwl:id>DUO:0000037</oboInOwl:id>
+        <rdfs:label xml:lang="en">biomedical research</rdfs:label>
+    </owl:Class>
+</rdf:RDF>

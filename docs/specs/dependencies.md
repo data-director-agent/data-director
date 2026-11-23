@@ -107,6 +107,7 @@ no runtime dependency.
 | Jisc Open Policy Finder, Crossref journals | Policy adviser (`opf`, `crossref`) | Live only | An ISSN, a journal title, a publisher or funder name | Nothing kept | FAIRsharing answers |
 | Directory of Open Access Journals (DOAJ) | Policy adviser (`doaj`), through `mcp-doaj`'s client | Live only | An ISSN or a journal title | CC0 (metadata); nothing kept | The run says DOAJ could not be asked; the other registries answer |
 | PRONOM | `dd_inventory.identify`, through `opf-fido`; the files adviser, through `dd-formats` | For identification, a committed signature file built from a recent release by `inventory/scripts/pin_pronom.py`; for describing a format, the same release's records, committed as JSON Lines by `formats/scripts/pin_pronom_records.py`; each checked against its hash. A live record lookup is TODO(#1475) | Nothing: identification and lookup are local | Open Government Licence v3.0, kept with each copy (`LICENCE.md`) | Media types from extensions; a file with no PUID is described by extension only |
+| GA4GH Data Use Ontology (DUO) | Ethics adviser, through `dd-duo` | A committed copy of the current permissions and modifiers of one tagged release (`v2021-02-23`), reduced from its `duo.owl` by `duo/scripts/pin_duo.py` and checked against its hash | Nothing: lookup is local | CC BY 4.0, kept with the copy (`LICENCE.md`) | — |
 | SPDX licence list | The gateway's `spdx` server; rights adviser | A pinned copy served by the gateway | A licence identifier | Pinned with the gateway | The adviser's packaged `licences.yaml` |
 
 A query never carries a researcher's unpublished text, file contents or names taken from their
@@ -119,9 +120,9 @@ Adopted for later, each with its implementing issue: the OpenAIRE Graph API v3 a
 grant resolution (#953); related-data discovery through DataCite's REST search, with OpenAlex
 and ScholeXplorer v3 if the spike shows they add links (#954); terminology services, chosen by
 #956; the Library of Congress format descriptions, as links only (#955); the Open Definition
-list, as a pinned copy (#877); a self-hosted F-UJI, given published identifiers only (#704); the
-RDA DMP Common Standard as a format, and DMPonline and DMPTool through the person's own
-authorisation (#701, #284); and the GA4GH Data Use Ontology as a committed copy (#787).
+list, as a pinned copy (#877); a self-hosted F-UJI, given published identifiers only (#704); and
+the RDA DMP Common Standard as a format, and DMPonline and DMPTool through the person's own
+authorisation (#701, #284).
 
 ### Evaluation and CI
 

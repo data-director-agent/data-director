@@ -33,6 +33,7 @@ members = [
     "data-director-app",
     "data-director-deposit-broker",
     "data-director-dmp-template",
+    "data-director-duo",
     "data-director-formats",
     "data-director-harness",
     "data-director-inventory",
@@ -1176,6 +1177,7 @@ dependencies = [
     { name = "data-director-app" },
     { name = "data-director-deposit-broker" },
     { name = "data-director-dmp-template" },
+    { name = "data-director-duo" },
     { name = "data-director-formats" },
     { name = "data-director-harness", extra = ["serve"] },
     { name = "data-director-inventory" },
@@ -1253,6 +1255,7 @@ requires-dist = [
     { name = "data-director-app", editable = "app" },
     { name = "data-director-deposit-broker", editable = "deposit-broker" },
     { name = "data-director-dmp-template", editable = "dmp-template" },
+    { name = "data-director-duo", editable = "duo" },
     { name = "data-director-formats", editable = "formats" },
     { name = "data-director-harness", extras = ["serve"], editable = "harness" },
     { name = "data-director-inventory", editable = "inventory" },
@@ -1403,9 +1406,10 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-ethics"
-version = "0.1.0a2"
+version = "0.1.0a3"
 source = { editable = "agents/advisor-ethics" }
 dependencies = [
+    { name = "data-director-duo" },
     { name = "data-director-sdk" },
     { name = "pydantic" },
     { name = "pyyaml" },
@@ -1423,6 +1427,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "data-director-duo", editable = "duo" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "data-director-sdk", extras = ["anthropic", "openai"], marker = "extra == 'model'", editable = "sdk" },
     { name = "pydantic", specifier = ">=2.14.1,<3" },
@@ -1931,6 +1936,11 @@ requires-dist = [
 name = "data-director-dmp-template"
 version = "0.1.0a1"
 source = { editable = "dmp-template" }
+
+[[package]]
+name = "data-director-duo"
+version = "0.1.0a0"
+source = { editable = "duo" }
 
 [[package]]
 name = "data-director-formats"

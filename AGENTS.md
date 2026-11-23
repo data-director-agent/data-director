@@ -30,7 +30,8 @@ Put code in the package whose job it is, not the one you have open; the full tab
   written into a UCUM code, by rule; depends on no other member. `subjects/`: `dd-subjects`,
   subject classifications to suggest a field of study from; depends on no other member.
   `formats/`: `dd-formats`, file formats described from a pinned PRONOM release's records;
-  depends on no other member.
+  depends on no other member. `duo/`: `dd-duo`, data use conditions from a pinned GA4GH Data Use
+  Ontology release; depends on no other member.
   `journals/`: `dd-journals`, journals by ISSN and title, from a pinned OpenAlex snapshot built at
   install; depends on no other member.
   `dmp-template/`: `dd-dmp-template`, the core requirements of a Data Management Plan;
