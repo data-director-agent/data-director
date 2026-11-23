@@ -64,6 +64,12 @@ class Relation(BaseModel):
     numeric_id: str | None = None
 
 
+def prompt_json(document: dict[str, Any], limit: int) -> str:
+    """A record's document as sorted JSON for a model's prompt, cut at `limit` characters."""
+    text = json.dumps(document, ensure_ascii=False, sort_keys=True)
+    return text if len(text) <= limit else text[:limit] + " …(truncated)"
+
+
 def _sorted(values: list[str]) -> list[str]:
     return sorted(set(values))
 
@@ -124,8 +130,7 @@ class PolicyRecord(BaseModel):
         return self.names()
 
     def prompt_text(self, limit: int = 6000) -> str:
-        text = json.dumps(self.document(), ensure_ascii=False, sort_keys=True)
-        return text if len(text) <= limit else text[:limit] + " …(truncated)"
+        return prompt_json(self.document(), limit)
 
     def document(self) -> dict[str, Any]:
         return self.model_dump(mode="json")

@@ -1,0 +1,828 @@
+{
+  "snapshot_date": "2026-10-14",
+  "parts": [
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-02-09/part_0000.gz",
+      "content_length": 498021,
+      "record_count": 8223,
+      "sha256": "0160d0260a7b4bc45a664d68dbe0f5d148b4caa4188ee3c260b26679e38eb2b1"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-02-10/part_0000.gz",
+      "content_length": 19094,
+      "record_count": 279,
+      "sha256": "f93a9d31ac8a3e39dd31fd58d7cdf5762109d6542c5c70d5a2df2fa4d807b9ac"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-02-14/part_0000.gz",
+      "content_length": 565,
+      "record_count": 2,
+      "sha256": "b29c98b1b4119cd5d289cf07a3f5c85c634d293f7a99c84e1273c3f1b3264c77"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-02-18/part_0000.gz",
+      "content_length": 490,
+      "record_count": 1,
+      "sha256": "c813f43aa6fe6d0952d829ba6e42b213802118b24715a735f1a29d6e3b4dcf6b"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-02-26/part_0000.gz",
+      "content_length": 124055,
+      "record_count": 1504,
+      "sha256": "5a8a0dacea6583028603e3dcfbd67cce491997c3a3ce1686f63162815fa0166e"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-02-28/part_0000.gz",
+      "content_length": 669,
+      "record_count": 3,
+      "sha256": "411be49d467194de9919a2a076301b35e32151f410d53173dfd6e844aa3287ac"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-03-02/part_0000.gz",
+      "content_length": 4249,
+      "record_count": 29,
+      "sha256": "1336962d9c734ee154ea97080d35cbb6d4a97b5c2e4c96c517492cd2f66106c0"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-03-08/part_0000.gz",
+      "content_length": 491,
+      "record_count": 1,
+      "sha256": "f385ddba86ab7ca07169154cfe96fee28e54e052b260ba25c13d5d19c9a5f41d"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-03-11/part_0000.gz",
+      "content_length": 1443,
+      "record_count": 9,
+      "sha256": "274ffc7ec1389ae73c323be10515ad108e402e952ce94df6da818039b047f918"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-03-12/part_0000.gz",
+      "content_length": 727,
+      "record_count": 2,
+      "sha256": "456237c6808f0021c7f8ed920ae54582025bf2220b4efc24be94f9b8ee9ed6d3"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-03-14/part_0000.gz",
+      "content_length": 529,
+      "record_count": 1,
+      "sha256": "fba0d9c3b556c3b881f7ae282bce58f32ff3e6e6b3e67aa27696804f0c6cc5e1"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-03-15/part_0000.gz",
+      "content_length": 796,
+      "record_count": 4,
+      "sha256": "be7e0014e5d76f0167ef1d68303426fe5d031e337df3d722dab4adefbc191646"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-03-17/part_0000.gz",
+      "content_length": 879,
+      "record_count": 5,
+      "sha256": "8c7f584c31af49fcb8563c687bfc7153c1ea291dbefeb50889623c4024a15838"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-03-18/part_0000.gz",
+      "content_length": 815,
+      "record_count": 4,
+      "sha256": "1e0fc77ee6f3d0440172adfe08c527f6c4bab37dd7c01da31262c0ff841ecc89"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-03-21/part_0000.gz",
+      "content_length": 4929,
+      "record_count": 57,
+      "sha256": "72a1502a73cb039c2ca8ace4ab8630d5e6db4b0636b25cdb2e6f36ca50c5eeb8"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-03-22/part_0000.gz",
+      "content_length": 496,
+      "record_count": 1,
+      "sha256": "dbea794e26247e394f099a4c7781835e3e207597ee420fb651759021cec412ad"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-03-28/part_0000.gz",
+      "content_length": 729,
+      "record_count": 3,
+      "sha256": "06802841cc5e3163df0e9a12506a7b1729ebf54c9b4b332c0bff74d8d43b7027"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-03-29/part_0000.gz",
+      "content_length": 543,
+      "record_count": 1,
+      "sha256": "5a1d931affebac9cf0df34524fc16b09a6249e962240a33acca719bd88c31eef"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-04-03/part_0000.gz",
+      "content_length": 647,
+      "record_count": 3,
+      "sha256": "e8e6c88cb575684198f9fd5166ce9fe9e2d4a291f3505c95718d543fcb914a0f"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-04-04/part_0000.gz",
+      "content_length": 3580,
+      "record_count": 24,
+      "sha256": "6f2d509876dc2430429b542c9eb8ad6507d2025f2e954d16b45e8fdad4f89ef6"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-04-05/part_0000.gz",
+      "content_length": 2423,
+      "record_count": 22,
+      "sha256": "6400aa9d8e113fc2f0778ad518fb89df14ae21be177e0e873823e9c8a08deb6f"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-04-11/part_0000.gz",
+      "content_length": 814,
+      "record_count": 5,
+      "sha256": "1b41223c04f0cd1e20ee340b286b07105c5b00ca25127030571b4c6bbbba69cf"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-04-18/part_0000.gz",
+      "content_length": 591,
+      "record_count": 2,
+      "sha256": "2253bc009683f05c8b9e7d7dd232bd4ef1118a9e0f7e54c012dd77037122f114"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-04-21/part_0000.gz",
+      "content_length": 547,
+      "record_count": 1,
+      "sha256": "1796118a9333c0514abc66a413133960a0279fcdc5aebabff2c9e4770c5dcb7f"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-04-22/part_0000.gz",
+      "content_length": 692,
+      "record_count": 2,
+      "sha256": "92cfdbe317e99b2e0243bd27158a977c925d58b1f9a09aa60206bfc9b8f90096"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-04-23/part_0000.gz",
+      "content_length": 531,
+      "record_count": 1,
+      "sha256": "f571ffadbceefe3e2936617ba72b19e4b2a3ecd203e774255554d71e3035870e"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-05-01/part_0000.gz",
+      "content_length": 503,
+      "record_count": 1,
+      "sha256": "6d72af0e644f4aaa0be356468a124f6a002a7c393cf07e12e0363672d6b41229"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-05-02/part_0000.gz",
+      "content_length": 645,
+      "record_count": 3,
+      "sha256": "aaa1b92f91a2355776d317a3d499b757ee99b3bdcf8881947fda0bf704922f14"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-05-05/part_0000.gz",
+      "content_length": 488,
+      "record_count": 1,
+      "sha256": "cf7d9bb8e9460ae21a081a90bccd4fe10d0ab7cb71311c111ceda7557b6bce18"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-05-07/part_0000.gz",
+      "content_length": 530,
+      "record_count": 1,
+      "sha256": "e4a20e25ad1682c2c586aa46d2a0c3f4bc031188d112fb7a148f48794aa01fb3"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-05-09/part_0000.gz",
+      "content_length": 495,
+      "record_count": 1,
+      "sha256": "ec3ddd16ccde41c132b29abc536bf534e69b4e86429d4a96c9971545048caef0"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-05-12/part_0000.gz",
+      "content_length": 540,
+      "record_count": 1,
+      "sha256": "348963f22a99c1a573f3b4379de1ad5b1bf3099b2786891dff548f4ee03c392e"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-05-13/part_0000.gz",
+      "content_length": 518,
+      "record_count": 1,
+      "sha256": "666d9e3a33e401aa541599775e547e258701cf6ee6353afcca8c91ef0cc11977"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-05-15/part_0000.gz",
+      "content_length": 551,
+      "record_count": 1,
+      "sha256": "8070487f01b5044b09cf5e8563e1e4c6590fef35b44ad65cb495aabe1e3e905b"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-05-17/part_0000.gz",
+      "content_length": 497,
+      "record_count": 1,
+      "sha256": "9ff565fe9896face75373d6e67b2ea6fc11ac1cbe03509c91a83af05f44e525f"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-05-31/part_0000.gz",
+      "content_length": 648,
+      "record_count": 3,
+      "sha256": "58c23f1f7beefceac6150b1807f2322d16da219f9912b3e254ef3400b5787c92"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-06-03/part_0000.gz",
+      "content_length": 640,
+      "record_count": 2,
+      "sha256": "226c9ab0e47ecf5cff643ff08f7911c5509a298667a2c7f8eb342673983939ff"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-06-04/part_0000.gz",
+      "content_length": 647,
+      "record_count": 2,
+      "sha256": "198f0f0b9494f7d5456d2a183468a6c7cd6f3ee09cd6738bf8b8e1bd83d186d5"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-06-06/part_0000.gz",
+      "content_length": 730,
+      "record_count": 2,
+      "sha256": "f2b1db88347ae9066e3013f8e5d579e8b78ff186dad331804c35f65dded716b5"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-06-07/part_0000.gz",
+      "content_length": 491,
+      "record_count": 1,
+      "sha256": "adc8132e1a54283ce63a3feb5b8e2a376b5e4ceed98f16aa3c01f162cd533439"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-06-11/part_0000.gz",
+      "content_length": 584,
+      "record_count": 1,
+      "sha256": "93cf98d44833a0307d9ed86255a411f7050309c82103f81a6e8ca21053b9dc57"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-06-12/part_0000.gz",
+      "content_length": 857,
+      "record_count": 4,
+      "sha256": "f109e6a8498a0c94867991111177b537baa5881cfd7c908a42a26ec45d4b1af2"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-06-14/part_0000.gz",
+      "content_length": 611,
+      "record_count": 2,
+      "sha256": "0482a547636ba95d504b0aad8721a539e3d5def2552ad428afc04c193ea95e91"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-06-15/part_0000.gz",
+      "content_length": 836,
+      "record_count": 1,
+      "sha256": "5bcbbcc9bdc598db989818ac6a731532ba5e726d69ec5b51a0f6e0921523f4de"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-06-20/part_0000.gz",
+      "content_length": 1264,
+      "record_count": 9,
+      "sha256": "2b3d38756f686e9fd6aff558e013e41ebc769fe34ca3320c98248cd94a8244d0"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-06-21/part_0000.gz",
+      "content_length": 531,
+      "record_count": 1,
+      "sha256": "37aba2f8dde44854e984c8cd0618d94fcf8c191e30919426ee606e86c9421c99"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-06-22/part_0000.gz",
+      "content_length": 715,
+      "record_count": 2,
+      "sha256": "78c7c5207f92da9e8dcc20e64c8ad101216375c20a60c3190c869c5dab11b1df"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-06-23/part_0000.gz",
+      "content_length": 525,
+      "record_count": 1,
+      "sha256": "fe1582624f3135ae9d8bc10a46e6e18facae7fd0bd6f3e0a842688d6792c6aae"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-06-24/part_0000.gz",
+      "content_length": 804,
+      "record_count": 1,
+      "sha256": "fef513d775740bbb2b213bbc5cf6ef6ea461f74086fa1bf03521c39cd34b3d84"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-06-25/part_0000.gz",
+      "content_length": 534,
+      "record_count": 1,
+      "sha256": "df1372ce09a1df2e2b8ea86232a40742beb20d099f42e69655d85831c72cc530"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-06-26/part_0000.gz",
+      "content_length": 690,
+      "record_count": 2,
+      "sha256": "eac774f89acf55e1c0d9938bc5eb7430b48d9d1372a01d35f98d7b1c0dc4e712"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-06-30/part_0000.gz",
+      "content_length": 1027,
+      "record_count": 7,
+      "sha256": "b1121e16a05c33259b9711c6b0fabcc64703a500705bffef4382b5b6d1907255"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-07-02/part_0000.gz",
+      "content_length": 1329,
+      "record_count": 10,
+      "sha256": "184f1025fb710193900c37be7a0a0975903731cc4fb8d8229847dd70359d015a"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-07-03/part_0000.gz",
+      "content_length": 495,
+      "record_count": 1,
+      "sha256": "7171283cc4fbb6451385031933967ce7b0c6c9ceb89449e9ab479d5ea561c664"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-07-05/part_0000.gz",
+      "content_length": 502,
+      "record_count": 1,
+      "sha256": "e976e1cebc3a8101a1117e07fbc55cee26cd902383d284d2a414d3d8a33ed929"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-07-06/part_0000.gz",
+      "content_length": 488,
+      "record_count": 1,
+      "sha256": "59e4aec7fb4c413a78acf0eb51c1fc5d5c0006b55c8934af98a991b53c981d56"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-07-07/part_0000.gz",
+      "content_length": 11117,
+      "record_count": 170,
+      "sha256": "68ffd5ebb883cada312aea61fce064f74e8b9baf8129929d4dc92ec28be6eed5"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-07-08/part_0000.gz",
+      "content_length": 1073,
+      "record_count": 10,
+      "sha256": "ccfd7392aa0d7d9222b9240821bd230b2d0799bedbf6d1b4c23241aa1d1b0525"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-07-09/part_0000.gz",
+      "content_length": 574,
+      "record_count": 1,
+      "sha256": "916eeecbead16cd472f8a485bca363ac4579f45b65479a44e524ffcae73def21"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-07-10/part_0000.gz",
+      "content_length": 530,
+      "record_count": 1,
+      "sha256": "adddb43c3f97fde6b328af0f6b26dea1f01a4f225ad35056358ac096b7ff161e"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-07-11/part_0000.gz",
+      "content_length": 514,
+      "record_count": 1,
+      "sha256": "cb5e7c7e882b97d96f054d88887841101ba83e4a4a9efd59393817daa612e0ad"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-07-12/part_0000.gz",
+      "content_length": 8414,
+      "record_count": 57,
+      "sha256": "6b1a39ae21b24d0c788094cc8a9455feec265a3545193f9d5b570713cbeacfac"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-07-14/part_0000.gz",
+      "content_length": 787,
+      "record_count": 4,
+      "sha256": "5d1bedfb44672a8205f782dbedff10f29e72e0c22407cda0a6eef7715bff72d4"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-07-17/part_0000.gz",
+      "content_length": 554,
+      "record_count": 1,
+      "sha256": "d5c99990095e47406bb69cbbf32b4b1f1a277da751e773a045fdef8e5364b9d8"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-07-18/part_0000.gz",
+      "content_length": 634,
+      "record_count": 2,
+      "sha256": "b5f679ada749ed0fa9d28bc2ff52cefd8c0251f69e95b8700ae17b8733bb1339"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-07-20/part_0000.gz",
+      "content_length": 612,
+      "record_count": 1,
+      "sha256": "b2586746c26d72459ded34939070d6557d8b154ee22631962bfc250fe339c5c6"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-07-21/part_0000.gz",
+      "content_length": 692,
+      "record_count": 4,
+      "sha256": "34d696f6a8323d84b02d58215108a85d7e62f499542e6b15a0b1e759ffdc3572"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-07-23/part_0000.gz",
+      "content_length": 1565,
+      "record_count": 10,
+      "sha256": "2c2153babc239d9d9c53ef21bc02ad94f9d4d1e5d6636decf96fcf2dcf368675"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-07-24/part_0000.gz",
+      "content_length": 983,
+      "record_count": 3,
+      "sha256": "0bd32aa7b15883a76cb52a495337c0555f3f2d7ac92e33f06c3b014a7f16cefc"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-07-26/part_0000.gz",
+      "content_length": 1891,
+      "record_count": 18,
+      "sha256": "d23bd81be8391307bc7b3e62dde1ff56f2197fccbf15b19f51c22076fd54f92e"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-07-27/part_0000.gz",
+      "content_length": 10582,
+      "record_count": 116,
+      "sha256": "8fde7d4d2d60820c8f2f548166a834ba2cc46be4c96c8a4efa3f027ed6d8ad3f"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-07-29/part_0000.gz",
+      "content_length": 914,
+      "record_count": 3,
+      "sha256": "13d38ad481c38abda7541898c31879f0822e455f3039d4946172a4323a4b9816"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-07-31/part_0000.gz",
+      "content_length": 675,
+      "record_count": 3,
+      "sha256": "557257d8a8dd54b155d0ca5d1487da71d1b09200cd5dd259cffa41180b1e9bfc"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-03/part_0000.gz",
+      "content_length": 829,
+      "record_count": 5,
+      "sha256": "438c0576e6e8eaa4076776bffd44fbdf9e2f39c2a6f8ae19731869d9a13244fe"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-04/part_0000.gz",
+      "content_length": 1067,
+      "record_count": 4,
+      "sha256": "2599f596d28cdf7df850013c5b733956f948c10044d534179b4e514fefbe3e1c"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-05/part_0000.gz",
+      "content_length": 505,
+      "record_count": 1,
+      "sha256": "1c92c216b7df2e45a7ed4a4d94da80230d6bfc35a487f48603368c407b04a1c6"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-06/part_0000.gz",
+      "content_length": 824,
+      "record_count": 3,
+      "sha256": "fb84794eed05b4760253d1a78a7c6d1c97e184313d1cf219fe75f1720f09411b"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-08/part_0000.gz",
+      "content_length": 81421,
+      "record_count": 1095,
+      "sha256": "e4486f19c9efba5798b11d2cc66747b4c081d237520e7cafc97a6df35efc8ead"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-09/part_0000.gz",
+      "content_length": 523,
+      "record_count": 1,
+      "sha256": "92346b3616c3a950f06f5527a8d9e4745f106d6d90b33f28d8dfa3ba5614ba7a"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-10/part_0000.gz",
+      "content_length": 644,
+      "record_count": 2,
+      "sha256": "f506fd3d05b31849f9ce47b49a313e8460d9ccb9cf82b83618a7a43e38138c2a"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-11/part_0000.gz",
+      "content_length": 4314,
+      "record_count": 47,
+      "sha256": "bf5c1999671c164430bc270eec901260f4dcb697bfa4b4640551c14e38b61492"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-12/part_0000.gz",
+      "content_length": 572,
+      "record_count": 1,
+      "sha256": "b3e7de81385976e7941cbf635ac8ef2884ed51c53a9b43500da0d709bcd1a743"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-13/part_0000.gz",
+      "content_length": 18432,
+      "record_count": 215,
+      "sha256": "23ad0a2b49cd19cdcd5ec00ff5cf063e174d3af2037a1811a89afca1bac41c72"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-14/part_0000.gz",
+      "content_length": 863,
+      "record_count": 4,
+      "sha256": "f254c213d6100a06254edba6f3ab6604f8ce72c464ce65ec2174d9a01446e252"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-15/part_0000.gz",
+      "content_length": 5520,
+      "record_count": 50,
+      "sha256": "146adf060e03375fad88e9b966d6fd80d5f9fb54e1bf2d5f9e26f7d8cb0ed089"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-17/part_0000.gz",
+      "content_length": 1415,
+      "record_count": 9,
+      "sha256": "74b9c72177fb45d6c491c684afa0827fcde94250023118d7947b825e43b65b6f"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-18/part_0000.gz",
+      "content_length": 2227,
+      "record_count": 15,
+      "sha256": "84daed46b3de3034ab0b5fa652caf8eecf3a7193254d9f93a6f7ef0dd81f000c"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-19/part_0000.gz",
+      "content_length": 4593,
+      "record_count": 60,
+      "sha256": "4be5d7d6c9e01373bc9668a4d2b1ebcb51f16e684694a2d5921d207fc7f54964"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-20/part_0000.gz",
+      "content_length": 2765,
+      "record_count": 26,
+      "sha256": "c8f3656feab6513402502e972f088f3c9aa0683850bc861a3d473ab0c218d45f"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-21/part_0000.gz",
+      "content_length": 2222,
+      "record_count": 9,
+      "sha256": "04b62a42f043b8b09b5046f43ca8c1991b5ba0953a115da7ea951b8dcfd339f5"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-22/part_0000.gz",
+      "content_length": 725,
+      "record_count": 3,
+      "sha256": "01f4fcfdc974cf9bf0b598763ee2065f994622fb3d153f66d68128346494d916"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-25/part_0000.gz",
+      "content_length": 505,
+      "record_count": 1,
+      "sha256": "cd86f859db95bb2ab576b2d28c10cbc64f0c9956e5d550ca795273ea1d6e21d6"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-27/part_0000.gz",
+      "content_length": 562,
+      "record_count": 1,
+      "sha256": "16c5b5776c0ad021b40b419390a5d5186ffea4743fa23b009916efa4d20a777c"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-28/part_0000.gz",
+      "content_length": 1708,
+      "record_count": 14,
+      "sha256": "cf2e62c9b5e4dbd26ad132bac74cbf797872f401bb8ad52fa4932a9ccbb43eba"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-29/part_0000.gz",
+      "content_length": 4660,
+      "record_count": 58,
+      "sha256": "3d1655f635ad83f7b3308f0431afb2c8030e4874eda541fecbe203e5db23d1c7"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-30/part_0000.gz",
+      "content_length": 746,
+      "record_count": 2,
+      "sha256": "8326c8ae5641ff6f3fc4bf615ec48123e7db92a7853ec6c8c4d067943cf7c445"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-08-31/part_0000.gz",
+      "content_length": 1865,
+      "record_count": 11,
+      "sha256": "157a51cd3fa67a849a9e377f1b78933b5d37cfd946826c93d76bb484c25e6d03"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-01/part_0000.gz",
+      "content_length": 1226,
+      "record_count": 6,
+      "sha256": "cd40ff0f78bbd42fcd6fd9b1ca2bcbb14e6143d4590960b2936143c9e257beca"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-02/part_0000.gz",
+      "content_length": 2737,
+      "record_count": 31,
+      "sha256": "d8933c833ce8eba2e4a5fa7b0679d45c134943047c09f6133f29dc485b863d63"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-03/part_0000.gz",
+      "content_length": 2584,
+      "record_count": 28,
+      "sha256": "fca3bd1ac874fabf68e15dde581ecee2fa523b8d8bf19cd1d98d4457d3043be6"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-04/part_0000.gz",
+      "content_length": 528,
+      "record_count": 1,
+      "sha256": "77d7ed78efc68ab1a928aabe42b013bfb8d43a80c95ac7ef83e812b77852572e"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-05/part_0000.gz",
+      "content_length": 4178,
+      "record_count": 45,
+      "sha256": "bc5cdb622a2ebe8b5fbb125b26339bf9a277472a58216819ffe7b1a308fe6748"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-06/part_0000.gz",
+      "content_length": 1322,
+      "record_count": 5,
+      "sha256": "92213f9ddcae3d376d6e6ba3f3c724282d004b3eb07c90c0a0b16ad6d950849b"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-07/part_0000.gz",
+      "content_length": 667,
+      "record_count": 2,
+      "sha256": "1ad3a42d3340f743b43a08bfb368449b510e038f7202856f513f40e070c2ae3d"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-08/part_0000.gz",
+      "content_length": 1501,
+      "record_count": 15,
+      "sha256": "1f27116ffbf71e743312cd98ed9462d2274493f1d45c56edd6d03a6d1d9caea1"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-09/part_0000.gz",
+      "content_length": 1517,
+      "record_count": 13,
+      "sha256": "2cfba3179f3707eb452ab44e0874ab9a9d7ebb64ce43e960dbc54b79b1c9b329"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-10/part_0000.gz",
+      "content_length": 728,
+      "record_count": 2,
+      "sha256": "8e4fc0e1c9c1ab79e9fb90b3a5fcbe78fde5adae00ac878e529f25e5d46da124"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-11/part_0000.gz",
+      "content_length": 695,
+      "record_count": 2,
+      "sha256": "bff120a572d4969434c69c6672c57b5755c6a885e6440fcd5c5cd4d8f6d8b99d"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-12/part_0000.gz",
+      "content_length": 6312,
+      "record_count": 80,
+      "sha256": "68429e2b0346d6d70ca544869bd7bb4529adb8b2fa0983f58573dc7d27b414d5"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-15/part_0000.gz",
+      "content_length": 1024,
+      "record_count": 3,
+      "sha256": "0a1a88ee6383502dcfd61bae1fe77bdf71b914232a18f8986f2ea5613107ff8f"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-17/part_0000.gz",
+      "content_length": 54077,
+      "record_count": 702,
+      "sha256": "4ecbfc03e2fa1bdc2109b6264cecb1e063b63dfd870bb1c504b3e98ed1592149"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-18/part_0000.gz",
+      "content_length": 615,
+      "record_count": 2,
+      "sha256": "b745c8602b0032e22fc4fe39d170ded338b72f4054fe64018717964b61a3b10d"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-19/part_0000.gz",
+      "content_length": 19344,
+      "record_count": 231,
+      "sha256": "3ceb1b01cbaa72a11da1b1eaacd5a5d813b6e73225eb49a6882d3132ac76df24"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-20/part_0000.gz",
+      "content_length": 654,
+      "record_count": 2,
+      "sha256": "774b17a52d8330bcf75f7bcb227cf020cd64920716dd7c123da89aedbdc74757"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-21/part_0000.gz",
+      "content_length": 610,
+      "record_count": 3,
+      "sha256": "e6de2f43e0231c86e6a6f4b756c4dd5eaba2141d3b9f96b0f5a6f6467cbed88e"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-22/part_0000.gz",
+      "content_length": 2622,
+      "record_count": 25,
+      "sha256": "20dbaeea296c30615a99f880ac3b0f70902ace8bc79b5028c25388e26b596a22"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-23/part_0000.gz",
+      "content_length": 687,
+      "record_count": 2,
+      "sha256": "4754bf1a5f5de338aabf5611631f622facbff378fe42ee43c1c8892b5dfe894c"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-25/part_0000.gz",
+      "content_length": 12248,
+      "record_count": 153,
+      "sha256": "eb53b10cce873e4a07c7bb31c37993e84b163c3a6174668707d62d3bc965cf56"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-26/part_0000.gz",
+      "content_length": 847,
+      "record_count": 4,
+      "sha256": "58a8ef6a472992f0cd40148734a151399a98085d18bfce81afbf088d3ce39236"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-27/part_0000.gz",
+      "content_length": 512,
+      "record_count": 1,
+      "sha256": "32128d29b50ae92e90fb1ec872c679a9d83c1c3b1e49e7e0859b14f1ed435cba"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-28/part_0000.gz",
+      "content_length": 7752,
+      "record_count": 91,
+      "sha256": "278b4890a1291645f18aee230436b812535d59713742d92326f35ce6ebe089e8"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-29/part_0000.gz",
+      "content_length": 1259,
+      "record_count": 9,
+      "sha256": "ff9f061faeb34d7cbccc218844d0529f7471103bc7238f08c02e0e049728c6bd"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-09-30/part_0000.gz",
+      "content_length": 9399,
+      "record_count": 96,
+      "sha256": "1facba06a53c555980530558e290e00bf9c9e3a0809085ad556f18eacd9c6098"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-10-01/part_0000.gz",
+      "content_length": 1192,
+      "record_count": 8,
+      "sha256": "e04645f63f7c74168152a90ef2cc9c9512bf51818f5b5d141a74c136142c68f6"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-10-02/part_0000.gz",
+      "content_length": 791,
+      "record_count": 3,
+      "sha256": "f6ba6ca444b0eaf8e25e72fe8eb271b271caf114fdef6aa5a68e490bf2275c0e"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-10-04/part_0000.gz",
+      "content_length": 7772,
+      "record_count": 92,
+      "sha256": "cec2c39248cad87ba8058f3a50d8b25b9cd66631de4d8b055610519691b85e80"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-10-05/part_0000.gz",
+      "content_length": 124014531,
+      "record_count": 104189,
+      "sha256": "775dcfc80f1f8cfd849c3bdd105915ee46e9c30c4bbd9d2d55cfd120fe90f946"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-10-06/part_0000.gz",
+      "content_length": 15281211,
+      "record_count": 11979,
+      "sha256": "7f9549162eaa158a9d1380877657feb469d219f864f2511f285d01adc21b9cea"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-10-07/part_0000.gz",
+      "content_length": 7229660,
+      "record_count": 5316,
+      "sha256": "9644f6e29e86bc718ac5f92703ac68ffce9a22a323aa2f904b5776ce6e613844"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-10-08/part_0000.gz",
+      "content_length": 12969589,
+      "record_count": 8699,
+      "sha256": "0a4ab9ae5ebcf2b431ba0ffa4b36c631a300b2f9e305d9e6815cc572525e1c01"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-10-09/part_0000.gz",
+      "content_length": 13359047,
+      "record_count": 9594,
+      "sha256": "2d02db5f574d5cd2a618a7cbed4710db30aa8b79f1e7a9a7b17efc533db9b20f"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-10-10/part_0000.gz",
+      "content_length": 5286341,
+      "record_count": 3621,
+      "sha256": "f6d9e4444b31186045535608c3fb79144ae730829e6b1809d261892e262db2aa"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-10-11/part_0000.gz",
+      "content_length": 2930330,
+      "record_count": 1984,
+      "sha256": "00f9ffab0260d6f4321b8f3b7373f9a7860b87db4310369c7bec88078eac4b68"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-10-12/part_0000.gz",
+      "content_length": 99710033,
+      "record_count": 62924,
+      "sha256": "300a912caa73239ca0ee15c437b81bcdcb230570bd96f9f924ea1359fe8cd967"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-10-13/part_0000.gz",
+      "content_length": 82523437,
+      "record_count": 46357,
+      "sha256": "e1ff7475c8ecf431f3c158208b20fd1437f5d4512280d88a4c14e168e60a6ddb"
+    },
+    {
+      "url": "https://openalex.s3.amazonaws.com/data/jsonl/sources/updated_date=2026-10-14/part_0000.gz",
+      "content_length": 4641,
+      "record_count": 12,
+      "sha256": "6d24156a433d75ee2566d95112f34da56baaf59e9f66af589bb796ab78349695"
+    }
+  ],
+  "journals": 168639,
+  "registry_sha256": "90be1a22fad0a2e0be11fdd01591cdbb80c0241b37b9a0fd3a9f56991e000788",
+  "fetched_at": "2026-11-23T11:41:52+00:00",
+  "snapshot_manifest": "https://openalex.s3.amazonaws.com/data/jsonl/manifest.json",
+  "source": "OpenAlex snapshot, Sources entity",
+  "citation": "Priem, J., Piwowar, H., & Orr, R. (2022). OpenAlex: A fully-open index of scholarly works, authors, venues, institutions, and concepts. https://doi.org/10.48550/arXiv.2205.01833",
+  "licence": "CC0 1.0 (OpenAlex data); see SOURCE.md"
+}

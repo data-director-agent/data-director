@@ -40,6 +40,7 @@ class ReadingStatus(StrEnum):
 class PolicyRegistry(StrEnum):
     FAIRSHARING = "fairsharing"
     OPEN_POLICY_FINDER = "open_policy_finder"
+    DOAJ = "doaj"
 
 
 class PolicyScope(StrEnum):

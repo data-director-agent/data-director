@@ -211,6 +211,10 @@ export const SUBJECT_OF: Record<FactKind, keyof ProjectFact | null> = {
 
 /** The one subject a Data Management Plan or data description fact has, so a project has at most
  * one current plan and one description. */
+/** What the shell puts in the message box to ask for a review of the marked plan, unsent. */
+export const ASK_TO_REVIEW_PLAN =
+  "Please have the Data Management Planner review the plan I marked for this project against the core requirements of a plan.";
+
 export const PLAN_SUBJECT = "project";
 
 /** The fact that marks the attached document whose text has `digest` as the project's plan. */

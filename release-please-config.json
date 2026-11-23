@@ -145,6 +145,13 @@
         "mcp-spdx/tests"
       ]
     },
+    "mcp-doaj": {
+      "component": "mcp-doaj",
+      "release-type": "python",
+      "exclude-paths": [
+        "mcp-doaj/tests"
+      ]
+    },
     "units": {
       "component": "units",
       "release-type": "python",

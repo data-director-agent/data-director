@@ -32,13 +32,15 @@ export function navigate(to: string, replace = false): void {
 /** The conversation page's address: the open conversation (`?conversation=`), the run shown
  * (`?run=`), a step of the journey to ask about in a new conversation (`?ask=`) and a draft's question to talk through
  * (`?question=`, as `{document_id}/{question_id}`) and FAIR feedback to ask for (`?fair=check`,
- * from the FAIR feedback tab's button), each left out when none. */
+ * from the FAIR feedback tab's button) and a review of the project's plan to ask for (`?dmp=review`,
+ * from the Documents tab's button), each left out when none. */
 export function homePath({
   conversation,
   run,
   ask,
   question,
   fair,
+  dmp,
   fact,
 }: {
   conversation?: string | null;
@@ -46,6 +48,7 @@ export function homePath({
   ask?: string | null;
   question?: string | null;
   fair?: boolean;
+  dmp?: boolean;
   /** A proposed fact to discuss, by its proposal's id. */
   fact?: string | null;
 }): string {
@@ -55,6 +58,7 @@ export function homePath({
   if (ask) query.set("ask", ask);
   if (question) query.set("question", question);
   if (fair) query.set("fair", "check");
+  if (dmp) query.set("dmp", "review");
   if (fact) query.set("fact", fact);
   const text = query.toString();
   return text ? `/?${text}` : "/";

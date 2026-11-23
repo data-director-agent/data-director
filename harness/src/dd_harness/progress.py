@@ -173,7 +173,8 @@ def step_reasons(events: Iterable[Mapping[str, Any]]) -> dict[str, dict[str, Any
             reasons[step_id] = _reason(mark, "marked", tally.marked_by[step_id])
     reopened = {s for s, kind in REOPENED_BY_DOCUMENT.items() if kind in tally.kinds_approved}
     reasons |= _intake_reasons(events, reasons.keys() | reopened)
-    reasons = {k: v for k, v in reasons.items() if v["state"] != "open"}
+    # A step the flow has since retired (a stored mark from an earlier release) shows nothing.
+    reasons = {k: v for k, v in reasons.items() if v["state"] != "open" and k in _ORDER}
     return {k: reasons[k] for k in sorted(reasons, key=_ORDER.__getitem__)}
 
 

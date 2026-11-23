@@ -417,7 +417,7 @@ intended design, and each part says where it is not built yet.
     a fact that stands, or state one nobody proposed
     (`GET /api/projects/{project_id}/facts`, `READ`; `POST …/facts/decisions`, `CONTRIBUTE`, or
     `DECIDE` for `sensitivity` and `licence`). A sharing commitment is shown with the plan's words
-    and is only proposed, never stated, since it quotes the plan; the DMP Checker compares only
+    and is only proposed, never stated, since it quotes the plan; the Data Management Planner compares only
     those a person decided ([Agents](agents.md)). The Policy Adviser proposes each funder it
     identifies in ROR, with its ROR identifier and its Crossref Funder ID from the same record,
     and never one whose name ROR gives to more than one organisation, which the researcher is
@@ -471,7 +471,7 @@ intended design, and each part says where it is not built yet.
     document as the plan by stating the fact, on the project's Documents page (**Mark as the Data
     Management Plan**, `PlanMark.tsx`), and removes the mark by rejecting it (**Not the
     plan**); a member may do either (`CONTRIBUTE`). An agent may only propose which document is
-    the plan: the DMP Checker, given no marked plan, proposes the document it read the plan's
+    the plan: the Data Management Planner, given no marked plan, proposes the document it read the plan's
     commitments from, for a person to confirm on the **Project facts** panel. A decision naming a
     document the project does not hold is refused and the refusal recorded
     (`documentation-not-found`), and a proposal naming one is left out
@@ -484,7 +484,7 @@ intended design, and each part says where it is not built yet.
     ([Contract](contract.md), invariant 36; `dd_harness.projects.holdings`). Which agents read the
     plan's text is which read attached documents (invariant 6, an agent card's `reads_attached`),
     under the same `hosted_models` and `attached_documents` rules (invariant 8), so a profile that
-    refuses attached documents has no plan to mark. The DMP Checker reads the marked plan alone,
+    refuses attached documents has no plan to mark. The Data Management Planner reads the marked plan alone,
     and, while none is marked, the plan written in the project as a person approved it last
     (`GivenProjectPlan`, `project_plan_approved`, invariant 6), and every document while there is
     neither. An attached plan does not change the phase tracker: no step is marked by it, and

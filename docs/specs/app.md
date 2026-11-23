@@ -200,7 +200,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     mark one as the project's Data Management Plan: the reader offers **Mark as the Data Management
     Plan** and, on the one marked, **Not the plan**; both are a person's decision on the project's
     `data_management_plan` fact, sent to `POST /api/projects/{id}/facts/decisions`, after which the
-    documents are read again ([Projects](projects.md), invariant 32; `PlanMark.test.tsx`). The page lists no
+    documents are read again ([Projects](projects.md), invariant 32; `PlanMark.test.tsx`). On the plan, **Ask the Data Management Planner to review it** opens the conversation (`?dmp=review`) with the request in the message box, unsent, as the FAIR feedback tab's button does; the orchestrator delegates the review, and the page runs no agent. The page lists no
     conversations: they are on the Conversations tab
     (`app/web/src/components/project/AttachDocument.test.tsx`, `AttachedReader.tsx`,
     `ProjectPage.test.tsx`, `app/tests/test_project_materials.py`).

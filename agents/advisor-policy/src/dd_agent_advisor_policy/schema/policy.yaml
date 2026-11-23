@@ -439,6 +439,10 @@ enums:
         description: FAIRsharing's policy records.
       open_policy_finder:
         description: Jisc Open Policy Finder (formerly Sherpa Romeo and Juliet).
+      doaj:
+        description: >-
+          The Directory of Open Access Journals: an open access journal's licences, copyright,
+          deposit policy and charges.
 
   PolicyScope:
     permissible_values:
