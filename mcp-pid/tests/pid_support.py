@@ -3,7 +3,11 @@
 The files in `data/` are real answers, recorded on 19 November 2026 from DataCite
 (`/dois/10.15497/rda00157`), Crossref (`/works/10.1038/sdata.2016.18`), ORCID
 (`/v3.0/0000-0002-1825-0097/person`, ORCID's test record for Josiah Carberry) and ROR
-(`/v2/organizations/02b5d8509`).
+(`/v2/organizations/02b5d8509`). The grants were recorded on 23 November 2026: from Crossref, the
+grant `/works/10.35802/100000` and `/works?filter=type:grant,award.number:…` for awards `100000`
+and `NE/X007197/1`; from the OpenAIRE Graph, `/graph/v4/projects?filter=code:…` for the same two
+awards. Award 100000 is a Wellcome grant with a DOI and also a Swiss National Science Foundation
+project; NE/X007197/1 is a UKRI (NERC) grant with no DOI.
 """
 
 from __future__ import annotations
@@ -17,6 +21,8 @@ import httpx
 from dd_journals import Journal
 from dd_journals import Registry as JournalIndex
 from dd_mcp_pid.dois import Crossref, DataCite
+from dd_mcp_pid.grant_server import GrantSources, grant_registry
+from dd_mcp_pid.grants import CrossrefGrants, OpenAireGraph
 from dd_mcp_pid.http import Http
 from dd_mcp_pid.journals import JournalSource, journal_registry
 from dd_mcp_pid.orcid import Orcid
@@ -30,6 +36,9 @@ DATACITE_DOI = "10.15497/rda00157"
 CROSSREF_DOI = "10.1038/sdata.2016.18"
 ORCID_ID = "0000-0002-1825-0097"
 NERC = "https://ror.org/02b5d8509"
+WELLCOME_AWARD = "100000"
+WELLCOME_GRANT_DOI = "10.35802/100000"
+UKRI_AWARD = "NE/X007197/1"
 
 # Path on each API -> recorded answer.
 ANSWERS = {
@@ -38,11 +47,35 @@ ANSWERS = {
     "pub.orcid.org": {f"/v3.0/{ORCID_ID}/person": "orcid-0000-0002-1825-0097.person.json"},
     "api.ror.org": {"/v2/organizations/02b5d8509": "ror-02b5d8509.api.json"},
 }
+# Searches, by host and path, then by the `filter` asked for -> recorded answer.
+SEARCHES = {
+    ("api.crossref.org", "/works"): {
+        f"type:grant,award.number:{WELLCOME_AWARD}": "crossref-grants-award-100000.json",
+        f"type:grant,award.number:{UKRI_AWARD}": "crossref-grants-award-NE-X007197-1.json",
+    },
+    ("api.openaire.eu", "/graph/v4/projects"): {
+        f"code:{WELLCOME_AWARD}": "openaire-projects-code-100000.json",
+        f"code:{UKRI_AWARD}": "openaire-projects-code-NE-X007197-1.json",
+    },
+}
+ANSWERS["api.crossref.org"][f"/works/{WELLCOME_GRANT_DOI}"] = "crossref-10.35802-100000.json"
+EMPTY = {
+    "api.crossref.org": {"message": {"total-results": 0, "items": []}},
+    "api.openaire.eu": {"header": {"numFound": 0}, "results": []},
+}
 
 
 def recorded(request: httpx.Request) -> httpx.Response:
-    """The recorded answer to `request`, or 404 as the registries answer an unknown identifier."""
-    name = ANSWERS.get(request.url.host, {}).get(request.url.path)
+    """The recorded answer to `request`, or 404 as the registries answer an unknown identifier
+    (and an empty list for a search nothing was recorded for)."""
+    url = request.url
+    searches = SEARCHES.get((url.host, url.path))
+    if searches is not None:
+        name = searches.get(url.params.get("filter", ""))
+        if name is None:
+            return httpx.Response(200, json=EMPTY[url.host])
+        return httpx.Response(200, content=(DATA / name).read_bytes())
+    name = ANSWERS.get(url.host, {}).get(url.path)
     if name is None:
         return httpx.Response(404, json={"errors": [{"status": "404", "title": "Not found"}]})
     return httpx.Response(200, content=(DATA / name).read_bytes())
@@ -118,4 +151,16 @@ def registries(
             )
         ),
         journal_registry(JournalSource(journals or Path("/nonexistent/journals.sqlite"))),
+        grant_registry(grants(handler)),
     ]
+
+
+def grants(
+    handler: Callable[[httpx.Request], httpx.Response] = recorded,
+    openaire: Callable[[httpx.Request], httpx.Response] | None = None,
+) -> GrantSources:
+    """The grant sources, answering from the recorded files (OpenAIRE from `openaire` if given)."""
+    return GrantSources(
+        CrossrefGrants(http("Crossref", handler)),
+        OpenAireGraph(http("OpenAIRE", openaire or handler)),
+    )

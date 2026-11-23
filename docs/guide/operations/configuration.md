@@ -51,7 +51,7 @@ servers:
 In development, `pid_resolver: true` in `deployment.yaml` sets this up for you: `apply` names
 `app/config/tools.yaml` here and grants the Linking Adviser its servers, and `dd.py start` (or
 Docker Compose, with `docker/tools.yaml`) runs the PID resolver, an MCP server that resolves
-DOIs, ORCID iDs and ROR identifiers, and looks journals up by ISSN or title ([`mcp-pid/README.md`](../../../mcp-pid/README.md)). A VM
+DOIs, ORCID iDs, ROR identifiers and grant numbers, and looks journals up by ISSN or title ([`mcp-pid/README.md`](../../../mcp-pid/README.md)). A VM
 refuses the setting until the server has a unit there.
 
 `DD_REGISTRY_CONTACT` gives Crossref and DataCite an address where they can reach your operators.
@@ -65,7 +65,14 @@ is an environment variable rather than a profile key: set it in the PID resolver
 (Docker Compose passes `DD_REGISTRY_CONTACT` from yours) and in the agents' settings file
 (`config/local/agents.env`, or `/etc/data-director/agents.env` on a VM; see
 [`config/examples/agents.env`](../../../config/examples/agents.env)). Unset, no address is sent; a value that is not one plain address
-stops the service at start-up.
+stops the service at start-up. The PID resolver also sends it to the OpenAIRE Graph as `mailto`.
+
+The PID resolver looks grant numbers up in the OpenAIRE Graph, which answers 60 anonymous
+requests an hour ([terms](https://graph.openaire.eu/docs/apis/terms/)). That is too few for a
+deployment in use. Register with OpenAIRE, get a refresh token from your personal access token
+page, and give it to the PID resolver as `DD_OPENAIRE_REFRESH_TOKEN` (Docker Compose passes it from
+yours). The limit is then 7,200 requests an hour. It is a secret: keep it out of committed files.
+A refresh token lasts a month, and once it has run out OpenAIRE is asked anonymously again.
 
 The harness needs its `gateway` extra (`data-director-harness[gateway]`) for this file, and an
 agent that calls tools needs the SDK's `tools` extra. A server whose tools have changed is
