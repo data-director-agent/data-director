@@ -5,9 +5,7 @@
  * decides on as any other. A revision changes only prose, never a gap, a table or a value a person
  * gave, and a fact the request states counts as given by the person, as the form says.
  *
- * The outcome is said in a status the form keeps: the new version's number, or why the agent drew
- * none, in its own statement. A request the server refused because the document has moved on is
- * passed to `onStale`, as a decision is. It is offered only beneath a README's latest draft:
+ * The outcome is said as `DraftRun` says it. It is offered only beneath a README's latest draft:
  * a version that only asks questions is not the document yet, and only a README is revised so
  * (#1469).
  */
@@ -16,13 +14,13 @@ import { MessageSquareText } from "lucide-react";
 import { type FormEvent, useId, useState } from "react";
 
 import {
-  DecisionConflict,
   type DocumentVersion,
   type ProjectDocuments,
   digestOf,
   useProjectApi,
 } from "../../project/api";
 import { Button } from "../ui/Button";
+import { DraftRunStatus, useDraftRun } from "./DraftRun";
 
 export function RevisionRequest({
   projectId,
@@ -50,42 +48,25 @@ export function RevisionRequest({
   const api = useProjectApi();
   const id = useId();
   const [instruction, setInstruction] = useState("");
-  const [sending, setSending] = useState(false);
-  const [said, setSaid] = useState<{ text: string; drafted: boolean } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const run = useDraftRun(onRevised, onStale);
   if (!isLatest || version.stage !== "draft" || kind !== "readme") return null;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (!instruction.trim()) return;
-    setSending(true);
-    setError(null);
-    setSaid(null);
-    try {
-      const value = await api.revise(projectId, version.document_id, {
-        version: version.version,
-        // The text this page showed, as it showed it.
-        digest: digestOf(version.text),
-        instruction,
-      });
-      const revised = value.revised;
-      const drafted = revised?.version ?? null;
-      setSaid(
-        drafted
-          ? {
-              text: `Version ${drafted.version} revises version ${version.version} as you asked. Read it, and compare them in Versions, before you decide on it.`,
-              drafted: true,
-            }
-          : { text: `No new version: ${revised?.statement ?? "the agent drafted none."}`, drafted: false },
-      );
-      if (drafted) setInstruction("");
-      onRevised(value);
-    } catch (caught) {
-      if (caught instanceof DecisionConflict) await onStale(caught.message);
-      else setError(caught instanceof Error ? caught.message : String(caught));
-    } finally {
-      setSending(false);
-    }
+    const drafted = await run.start(
+      () =>
+        api.revise(projectId, version.document_id, {
+          version: version.version,
+          // The text this page showed, as it showed it.
+          digest: digestOf(version.text),
+          instruction,
+        }),
+      (value) => value.revised,
+      (n) =>
+        `Version ${n} revises version ${version.version} as you asked. Read it, and compare them in Versions, before you decide on it.`,
+    );
+    if (drafted) setInstruction("");
   }
 
   return (
@@ -109,16 +90,9 @@ export function RevisionRequest({
           onChange={(event) => setInstruction(event.target.value)}
         />
       </fieldset>
-      {error && (
-        <div role="alert" className="callout status-danger">
-          <p>The request was not sent: {error}</p>
-        </div>
-      )}
-      <p role="status" className={said && !said.drafted ? "callout status-warn" : undefined}>
-        {sending ? `Asking for a new version of the ${name}…` : (said?.text ?? "")}
-      </p>
-      <Button type="submit" variant="secondary" icon={MessageSquareText} isDisabled={sending}>
-        {sending ? "Revising…" : "Ask for changes"}
+      <DraftRunStatus run={run} sending={`Asking for a new version of the ${name}…`} />
+      <Button type="submit" variant="secondary" icon={MessageSquareText} isDisabled={run.sending}>
+        {run.sending ? "Revising…" : "Ask for changes"}
       </Button>
     </form>
   );

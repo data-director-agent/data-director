@@ -17,7 +17,7 @@ from dd_agent_advisor_documentation.suggestions import SUGGEST_DMP_PROMPT
 from dd_agent_advisor_documentation.testing import suggestion_reply
 from dd_dmp_template import SECTIONS
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
-from dd_sdk.contract.facts import FactKind, ProjectFact, SensitivityDecision
+from dd_sdk.contract.facts import PLAN_SUBJECT, FactKind, ProjectFact, SensitivityDecision
 from dd_sdk.contract.models import (
     CurrentVersion,
     Derivation,
@@ -172,3 +172,33 @@ def test_without_attached_documents_no_model_is_asked(runs_dir: Path) -> None:
     _, plan = draft(runs_dir, redrafted(asked()), DocumentationEditor(writer=ModelWriter(model)))
     assert plan.document_stage == "draft"
     assert model.sent == []
+
+
+def described(**values: str) -> ProjectFact:
+    return ProjectFact(fact_kind=FactKind.DATA_DESCRIPTION, fact_subject=PLAN_SUBJECT, **values)
+
+
+def test_a_confirmed_data_description_fills_the_data_section(runs_dir: Path) -> None:
+    """What the researcher said of their data in any conversation, once a person confirmed it,
+    is placed as given, and the section asks nothing more (#160)."""
+    description = described(
+        data_collected="Eddy covariance flux measurements.",
+        data_collection_method="Two flux towers logging every 30 minutes.",
+        data_volume="About 50 GB a year.",
+    )
+    given = redrafted(asked(project_decisions=[*DECISIONS, description]))
+    _, plan = draft(runs_dir, given)
+
+    text = plan.document_text
+    for value in ("data_collected", "data_collection_method", "data_volume"):
+        assert getattr(description, value) in text
+    assert SECTIONS[0].heading not in {q.gap_section for q in plan.document_questions}
+
+
+def test_a_description_that_does_not_say_how_leaves_the_question_asked(runs_dir: Path) -> None:
+    description = described(data_collected="Eddy covariance flux measurements.")
+    given = redrafted(asked(project_decisions=[*DECISIONS, description]))
+    _, plan = draft(runs_dir, given)
+
+    assert description.data_collected and description.data_collected in plan.document_text
+    assert SECTIONS[0].heading in {q.gap_section for q in plan.document_questions}

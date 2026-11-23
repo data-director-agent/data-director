@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.26.0
+version: 0.27.0
 license: MIT
 
 prefixes:
@@ -747,6 +747,18 @@ classes:
       - conforms_to
       - document_text
 
+  ApprovedPlan:
+    description: >-
+      The data management plan written in the project as a person approved it: the version named
+      by the last approval of a dmp document in the project (docs/specs/projects.md). It is the
+      project's own document, not one a researcher attached, so no data_management_plan fact
+      names it.
+    slots:
+      - version_ref
+      - document_title
+      - media_type
+      - document_text
+
   DraftAnswer:
     description: >-
       A person's answer to one question a version of the document asked (DocumentQuestion). The
@@ -782,8 +794,8 @@ classes:
       sensitive field or file may be published and at what precision, the licence, an output a
       data management plan committed to share, a standard, vocabulary or format the researcher
       chose for the dataset, which attached document is the project's data management plan, or
-      what the project is and the data it expects to produce: its summary, field of study,
-      period and planned data (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the
+      what data the project collects and how, or what the project is for, its field of study and
+      when it runs (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the
       key a person's decision counts by, so the last decision on a subject stands. An agent's
       payload carries proposals in proposed_facts; only a person's decision makes one a fact, and
       the conductor gives the facts a person decided to every drafter and orchestrator in the
@@ -814,14 +826,15 @@ classes:
       - standard_kind
       - standard_target
       - plan_document
+      - data_collected
+      - data_collection_method
+      - data_formats
+      - data_volume
+      - data_reused
       - summary_text
       - field_name
       - period_start
       - period_end
-      - planned_description
-      - planned_collection_method
-      - planned_format
-      - planned_volume
       - proposed_because
     rules:
       - description: A funder fact names the funder.
@@ -906,6 +919,19 @@ classes:
               required: true
             fact_subject:
               equals_string: project
+      - description: >-
+          A data description fact says what data the project collects or produces. Its subject is
+          the project, so a project has one current description.
+        preconditions:
+          slot_conditions:
+            fact_kind:
+              equals_string: data_description
+        postconditions:
+          slot_conditions:
+            data_collected:
+              required: true
+            fact_subject:
+              equals_string: project
       - description: A project summary says what the project is for and is about the project.
         preconditions:
           slot_conditions:
@@ -939,15 +965,6 @@ classes:
               required: true
             fact_subject:
               equals_string: project
-      - description: A planned data fact describes the output it is about.
-        preconditions:
-          slot_conditions:
-            fact_kind:
-              equals_string: planned_data
-        postconditions:
-          slot_conditions:
-            planned_description:
-              required: true
 
   GivenProjectDocuments:
     mixin: true
@@ -990,6 +1007,16 @@ classes:
     slots:
       - project_metadata_draft
       - project_metadata_approved
+
+  GivenProjectPlan:
+    mixin: true
+    description: >-
+      Mixed into an agent's own input class when the agent reads the data management plan written
+      in the project, as a person approved it last. In a project the conductor fills
+      project_plan_approved by this name and never needs to know the input class
+      (docs/specs/projects.md, invariant 6); outside one, the caller sends it.
+    slots:
+      - project_plan_approved
 
   GivenInstitutionRepositories:
     mixin: true
@@ -1070,9 +1097,12 @@ classes:
   Reply:
     description: >-
       The payload of a conversational agent: the text of its reply. An orchestrator's reply is
-      grounded on its input and on the envelopes of the invocations it delegated to.
+      grounded on its input and on the envelopes of the invocations it delegated to. An
+      orchestrator may propose a data description fact from what the researcher said, for a
+      person to confirm (docs/specs/orchestration.md).
     mixins:
       - Grounded
+      - ProposesFacts
     slots:
       - schema_class
       - reply_text
@@ -2014,6 +2044,13 @@ slots:
       conductor fills it and a caller leaves it out. Absent when no version has been approved.
     range: ApprovedMetadataRecord
     inlined: true
+  project_plan_approved:
+    description: >-
+      The version of the project's data management plan (a dmp document) a person approved last.
+      In a project the conductor fills it and a caller leaves it out. Absent when no version has
+      been approved.
+    range: ApprovedPlan
+    inlined: true
   chosen_repository_name:
     description: The chosen repository's name, as the pinned re3data export gives it.
     required: true
@@ -2193,6 +2230,25 @@ slots:
       For a data management plan fact, the digest of the attached document's text (its
       documentation_digest) that is the project's plan.
     pattern: "^[0-9a-f]{64}$"
+  data_collected:
+    description: >-
+      For a data description fact, what data the project collects, produces or reuses, and of
+      which types, in the researcher's words.
+  data_collection_method:
+    description: >-
+      For a data description fact, how the data are collected or produced, in the researcher's
+      words.
+  data_formats:
+    description: >-
+      For a data description fact, the file formats the data are kept in, in the researcher's
+      words.
+  data_volume:
+    description: >-
+      For a data description fact, how much data the project expects, in the researcher's words.
+  data_reused:
+    description: >-
+      For a data description fact, which existing data the project reuses, and how, in the
+      researcher's words.
   summary_text:
     description: >-
       For a project summary fact, what the project is for, in a few sentences: its aims and the
@@ -2212,17 +2268,6 @@ slots:
       For a project period fact, when the project ends, as a year, a month or a day; absent where
       it is not known.
     pattern: "^\\d{4}(-\\d{2}(-\\d{2})?)?$"
-  planned_description:
-    description: >-
-      For a planned data fact, what the output will hold, in a sentence or two. Its fact_subject
-      is a short name for the output.
-    pattern: "\\S"
-  planned_collection_method:
-    description: For a planned data fact, how the data will be collected or generated.
-  planned_format:
-    description: For a planned data fact, the kinds of file or format expected, as given.
-  planned_volume:
-    description: For a planned data fact, how much data is expected, as given.
   standard_name:
     description: >-
       For a standard fact, the name of the standard, vocabulary, ontology or format chosen, as its
@@ -3055,6 +3100,11 @@ enums:
         description: >-
           Which attached document is the project's data management plan. Its subject is always
           "project", so a project has at most one current plan (docs/specs/projects.md, #1447).
+      data_description:
+        description: >-
+          What data the project collects, produces or reuses, how, in which formats and in what
+          volume, in the researcher's words, for a project whose data may not exist yet. Its
+          subject is always "project" (docs/specs/projects.md, #160).
       project_summary:
         description: >-
           What the project is for: its aims and questions, in a few sentences. Its subject is
@@ -3063,11 +3113,6 @@ enums:
         description: The project's field of study. Its subject is always "project".
       project_period:
         description: When the project starts and ends. Its subject is always "project".
-      planned_data:
-        description: >-
-          One output of data the project expects to produce, described before the data exist: what
-          it will hold, how it will be collected, its formats and volume. Its subject is a short
-          name for the output.
 
   FileDecision:
     description: Whether a file of the inventory is to be deposited.

@@ -18,6 +18,7 @@ import { ProjectsPage } from "./components/project/ProjectsPage";
 import { SettingsPage } from "./components/settings/SettingsPage";
 import { PageHeader } from "./components/frame/PageHeader";
 import { Account } from "./components/session/Account";
+import { NoticesMenu } from "./components/session/Notices";
 import { SessionTimeout } from "./components/session/SessionTimeout";
 import { SignedOutPage } from "./components/session/SignedOutPage";
 import { SignInPage } from "./components/session/SignInPage";
@@ -112,6 +113,12 @@ function hasPage(path: string): boolean {
   const { projectId } = projectRoute(path);
   if (projectId !== null) return projectId !== "" && !projectId.includes("/");
   return path === "/" || path === "/agents" || path === "/policy" || path in SESSION_PAGES;
+}
+
+/** Whether the banner shows what data stewards did: for someone signed in, or anyone on a
+ * development server, where every run acts for the operator. */
+function hearsNotices(session: Session | null): boolean {
+  return session !== null && (session.principal !== null || !session.signsIn);
 }
 
 /** Whether the profile names the person signed in a data steward, for the main navigation. */
@@ -249,6 +256,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
       current={current}
       from={onFeedback ? (new URLSearchParams(query).get("from") ?? "/") : location}
       account={known && <Account session={known} />}
+      notices={hearsNotices(known) && <NoticesMenu />}
       steward={isSteward(known)}
     >
       {known?.signsIn && known.principal && (

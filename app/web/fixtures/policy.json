@@ -117,21 +117,6 @@
       "step_id": "setup.documentation"
     },
     {
-      "action_classes": [
-        "advise"
-      ],
-      "agent_ids": [
-        "advisor.standards"
-      ],
-      "autonomy": "delegated",
-      "label": "Start a list of standard terms to describe your data",
-      "phase_name": "Plan your data management",
-      "phase_number": 1,
-      "reason": null,
-      "refers_to": null,
-      "step_id": "setup.vocabularies"
-    },
-    {
       "action_classes": [],
       "agent_ids": [],
       "autonomy": "not_offered",
@@ -349,13 +334,17 @@
       "step_id": "preparation.metadata-standard"
     },
     {
-      "action_classes": [],
-      "agent_ids": [],
-      "autonomy": "not_offered",
-      "label": "Confirm the standard terms you will use",
+      "action_classes": [
+        "advise"
+      ],
+      "agent_ids": [
+        "advisor.standards"
+      ],
+      "autonomy": "delegated",
+      "label": "Choose the standard terms to describe your data",
       "phase_name": "Get your data ready",
       "phase_number": 4,
-      "reason": "no_agent",
+      "reason": null,
       "refers_to": null,
       "step_id": "preparation.vocabularies"
     },

@@ -248,7 +248,7 @@ NEEDED_VALUES: dict[str, object] = {
     "summary_text": "How peat bogs respond to drought.",
     "field_name": "Ecohydrology",
     "period_start": "2027-01",
-    "planned_description": "Water-table depth every 15 minutes.",
+    "data_collected": "Water-table depth every 15 minutes.",
 }
 
 

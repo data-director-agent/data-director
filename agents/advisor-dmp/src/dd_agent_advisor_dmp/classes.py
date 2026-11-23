@@ -10,6 +10,7 @@ from typing import Literal
 
 from pydantic import Field
 
+from dd_sdk.contract.drafting import ApprovedPlan
 from dd_sdk.contract.facts import PARTIAL_DATE_PATTERN, ProjectDocument, ProjectFact
 from dd_sdk.contract.models import Derivation, Frozen, Grounded
 
@@ -31,21 +32,12 @@ class DmpCommitments(Frozen):
     project_decisions: list[ProjectFact] = Field(default_factory=list)
 
 
-class ExpectedOutput(Frozen):
-    output: str
-    output_description: str
-    collection_method: str | None = None
-    formats: str | None = None
-    volume: str | None = None
-
-
 class ProjectDescriptionRequest(Frozen):
     schema_class: Literal["ProjectDescriptionRequest"] = "ProjectDescriptionRequest"
     research_summary: str | None = None
     field_of_study: str | None = None
     period_start: str | None = Field(default=None, pattern=PARTIAL_DATE_PATTERN)
     period_end: str | None = Field(default=None, pattern=PARTIAL_DATE_PATTERN)
-    expected_outputs: list[ExpectedOutput] = Field(default_factory=list)
     # Filled by the conductor in a project (`GivenProjectDocuments`, `GivenProjectDecisions`).
     project_documents: list[ProjectDocument] = Field(default_factory=list)
     project_decisions: list[ProjectFact] = Field(default_factory=list)
@@ -53,9 +45,11 @@ class ProjectDescriptionRequest(Frozen):
 
 class DmpReviewRequest(Frozen):
     schema_class: Literal["DmpReviewRequest"] = "DmpReviewRequest"
-    # Filled by the conductor in a project (`GivenProjectDocuments`, `GivenProjectDecisions`).
+    # Filled by the conductor in a project (`GivenProjectDocuments`, `GivenProjectDecisions`,
+    # `GivenProjectPlan`).
     project_documents: list[ProjectDocument] = Field(default_factory=list)
     project_decisions: list[ProjectFact] = Field(default_factory=list)
+    project_plan_approved: ApprovedPlan | None = None
 
 
 class SectionFinding(Frozen):

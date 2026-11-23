@@ -25,10 +25,10 @@ export type FactKind =
   | "sharing_commitment"
   | "standard"
   | "data_management_plan"
+  | "data_description"
   | "project_summary"
   | "field_of_study"
-  | "project_period"
-  | "planned_data";
+  | "project_period";
 export type FileDecision = "include" | "exclude" | "undecided";
 export type SensitivityDecision =
   "publish" | "generalise" | "withhold" | "undecided";
@@ -51,13 +51,13 @@ export const FACT_KINDS: readonly FactKind[] = [
   "project_summary",
   "field_of_study",
   "project_period",
-  "planned_data",
   "file_inclusion",
   "sensitivity",
   "funder",
   "required_repository",
   "licence",
   "standard",
+  "data_description",
 ];
 export const FILE_DECISIONS: readonly FileDecision[] = [
   "include",
@@ -117,16 +117,18 @@ export interface ProjectFact {
   standard_target?: string;
   /** Which attached document is the project's Data Management Plan, by its text's SHA-256. */
   plan_document?: string;
+  /** What data the project collects, how, in which formats and volume, and what it reuses, in the
+   * researcher's words. */
+  data_collected?: string;
+  data_collection_method?: string;
+  data_formats?: string;
+  data_volume?: string;
+  data_reused?: string;
   /** What the project is for, its field of study, and when it starts and ends (YYYY[-MM[-DD]]). */
   summary_text?: string;
   field_name?: string;
   period_start?: string;
   period_end?: string;
-  /** One kind of data the project will produce, named by its subject, before the data exist. */
-  planned_description?: string;
-  planned_collection_method?: string;
-  planned_format?: string;
-  planned_volume?: string;
   /** Why an agent proposed it, for the person deciding; never given to an agent. */
   proposed_because?: string;
 }
@@ -185,10 +187,10 @@ export const FACT_NEEDS: Record<FactKind, readonly (keyof ProjectFact)[]> = {
   sharing_commitment: ["commitment_quote", "commitment_document"],
   standard: ["standard_name"],
   data_management_plan: ["plan_document"],
+  data_description: ["data_collected"],
   project_summary: ["summary_text"],
   field_of_study: ["field_name"],
   project_period: ["period_start"],
-  planned_data: ["planned_description"],
 };
 
 /** The slot a fact's subject is copied from, so a person names the subject once. */
@@ -201,13 +203,14 @@ export const SUBJECT_OF: Record<FactKind, keyof ProjectFact | null> = {
   sharing_commitment: null,
   standard: "standard_name",
   data_management_plan: null,
+  data_description: null,
   project_summary: null,
   field_of_study: null,
   project_period: null,
-  planned_data: null,
 };
 
-/** The one subject a Data Management Plan fact has, so a project has at most one current plan. */
+/** The one subject a Data Management Plan or data description fact has, so a project has at most
+ * one current plan and one description. */
 export const PLAN_SUBJECT = "project";
 
 /** The fact that marks the attached document whose text has `digest` as the project's plan. */

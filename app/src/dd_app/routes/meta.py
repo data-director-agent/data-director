@@ -56,6 +56,7 @@ SHELL_PAGES = (
     "/settings",
     "/sign-in",
     "/signed-out",
+    "/steward",
 )
 
 

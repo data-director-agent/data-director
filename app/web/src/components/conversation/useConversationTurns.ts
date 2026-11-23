@@ -63,6 +63,8 @@ export interface TurnsOptions {
   runId: string | null;
   /** The conversation the address names. */
   urlConversation: string | null;
+  /** The address asks for a new conversation, so the one still held is not put back in it. */
+  fresh?: boolean;
   box: RefObject<{ focus(): void } | null>;
   announce(said: string): void;
   /** Puts text in the message box. */
@@ -121,7 +123,7 @@ function readReply(api: ConversationApi, id: string): Promise<Conversation> {
 }
 
 export function useConversationTurns(options: TurnsOptions): Turns {
-  const { orchestratorId, runId, urlConversation, box, announce, setText } = options;
+  const { orchestratorId, runId, urlConversation, fresh = false, box, announce, setText } = options;
   const api = useConversationApi();
   const { projectId, setProjectId, reloadProjects } = useActiveProject();
   // Kept in the conversation session, not the page, so that leaving the page while a reply is
@@ -182,12 +184,12 @@ export function useConversationTurns(options: TurnsOptions): Turns {
   // A conversation named in the address and not yet held, as after a reload or Back, is read and
   // opened in its own project.
   // Coming back to the page by a link with no conversation in it, as the menu's, puts the one still
-  // open back in the address.
+  // open back in the address, unless the link asks for a new conversation.
   useEffect(() => {
     const arrived = arriving.current;
     arriving.current = false;
     if (!urlConversation) {
-      if (arrived && conversationId) {
+      if (arrived && conversationId && !fresh) {
         handled.current = conversationId;
         navigate(homePath({ conversation: conversationId, run: runId }), true);
         return;

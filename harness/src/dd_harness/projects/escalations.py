@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Final, Literal
 
 from dd_harness.escalation_storage import NewEscalation as NewEscalation
@@ -32,6 +33,7 @@ from dd_harness.projects.rules import (
     ESCALATION_RELEASED,
     ESCALATION_REOPENED,
     ESCALATION_REPLIED,
+    ESCALATION_REROUTED,
     ESCALATION_RESOLVED,
     ESCALATION_TAKEN,
     ESCALATION_WAITING,
@@ -82,7 +84,8 @@ class Step:
 
 
 # The table in docs/ui/steward-escalation-flows.md, "Escalation states". Routing an escalation
-# again when no steward takes it (`open` to `open`) is TODO(#378).
+# again when no steward takes it (`open` to `open`) is no person's move, so it is not here: the
+# deployment's sweep records it (`Escalations.reroute_escalation`, invariant 13).
 MOVES: Final[Mapping[str, Step]] = {
     "take": Step(ESCALATION_TAKEN, frozenset({OPEN}), TAKEN, STEWARD, "none"),
     "release": Step(ESCALATION_RELEASED, frozenset({TAKEN}), OPEN, STEWARD, "optional"),
@@ -129,6 +132,8 @@ def escalations(events: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
                 "opened_by": event["acted_for"],
                 "opened_at": event["at"],
                 "updated_at": event["at"],
+                # When the team was last asked to take it: opened, released, re-opened or rerouted.
+                "routed_at": event["at"],
                 "taken_by": None,
                 "history": [_history("open", event)],
             }
@@ -141,12 +146,25 @@ def escalations(events: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
                 escalation["taken_by"] = event["acted_for"]
             elif move in ("release", "reopen"):
                 escalation["taken_by"] = None
+            if move in ("release", "reopen"):
+                escalation["routed_at"] = event["at"]
             escalation["history"].append(_history(move, event))
+        elif (
+            kind == ESCALATION_REROUTED
+            and (escalation := found.get(event["escalation_id"])) is not None
+        ):
+            escalation["updated_at"] = escalation["routed_at"] = event["at"]
+            escalation["history"].append(_history("reroute", event))
     return list(found.values())
 
 
 def _history(move: str, event: Mapping[str, Any]) -> dict[str, Any]:
-    entry = {"move": move, "by": event["acted_for"], "at": event["at"]}
+    entry = {
+        "move": move,
+        "event_id": event["event_id"],
+        "by": event["acted_for"],
+        "at": event["at"],
+    }
     if event.get("note"):
         entry["note"] = event["note"]
     if event.get("acting_as"):
@@ -294,3 +312,29 @@ class Escalations(ProjectRules):
             moved = self._event(project_id, step.event, acted_for, caused_by, detail)
             section.append([moved])
         return {e["escalation_id"]: e for e in escalations([*events, moved])}[escalation_id]
+
+    def reroute_escalation(
+        self,
+        project_id: str,
+        escalation_id: str,
+        *,
+        routed_before: datetime,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> dict[str, Any] | None:
+        """Send the escalation to its team again, if it is still `open` and was last routed
+        before `routed_before`, and return it; otherwise record nothing and
+        return None. Checked inside the section, so that a steward taking it meanwhile wins."""
+        with self._section(project_id) as section:
+            events = section.events()
+            found = {e["escalation_id"]: e for e in escalations(events)}.get(escalation_id)
+            if (
+                found is None
+                or found["state"] != OPEN
+                or datetime.fromisoformat(found["routed_at"]) >= routed_before
+            ):
+                return None
+            detail = {"escalation_id": escalation_id, "team_id": found["team_id"]}
+            rerouted = self._event(project_id, ESCALATION_REROUTED, acted_for, caused_by, detail)
+            section.append([rerouted])
+        return {e["escalation_id"]: e for e in escalations([*events, rerouted])}[escalation_id]

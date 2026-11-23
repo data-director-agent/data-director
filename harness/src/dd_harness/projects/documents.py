@@ -377,23 +377,37 @@ class Documents(ProjectRules):
         version named by the last approval in the log of any `metadata_record` document. None if
         no version of one has been approved. A later version proposed or rejected does not
         displace it."""
+        return self._approved(project_id, DocumentKind.METADATA_RECORD, "conforms_to")
+
+    def approved_plan(self, project_id: str) -> dict[str, Any] | None:
+        """The data management plan written in the project as a person approved it last, as an
+        `ApprovedPlan`: the version named by the last approval of any `dmp` document. None if no
+        version of one has been approved; a later version proposed or rejected does not displace
+        it."""
+        return self._approved(project_id, DocumentKind.DMP, "document_title")
+
+    def _approved(
+        self, project_id: str, kind: DocumentKind, optional: str
+    ) -> dict[str, Any] | None:
+        """The version of a document of `kind` named by the last approval in the log, with its
+        text and, where the version has one, its `optional` detail; None if none is approved."""
         events = self.events(project_id)
         documents = fold(events)
         for event in reversed(events):
             if event["event"] != DOCUMENT_VERSION_DECIDED or event["decision"] != APPROVED:
                 continue
             document = documents[event["document_id"]]
-            if document["document_kind"] != DocumentKind.METADATA_RECORD.value:
+            if document["document_kind"] != kind.value:
                 continue
             version = document["versions"][event["version"] - 1]
-            record: dict[str, Any] = {
+            found: dict[str, Any] = {
                 "version_ref": {"document_id": event["document_id"], "version": event["version"]},
                 "media_type": version["media_type"],
                 "document_text": self._text(project_id, version["digest"]),
             }
-            if version["conforms_to"] is not None:
-                record["conforms_to"] = version["conforms_to"]
-            return record
+            if version[optional] is not None:
+                found[optional] = version[optional]
+            return found
         return None
 
     def _text(self, project_id: str, digest: str) -> str:

@@ -229,17 +229,15 @@ def test_the_store_suggests_a_step_the_deployments_agents_serve(store: ProjectSt
     store.choose_entry(project, 1, acted_for=TEST_PRINCIPAL, caused_by="test")
     assert store.progress(project)["suggested"] == "setup.project"
     assert store.progress(project)["passed_over"] == []
-    store.serving = lambda: [{"agent_id": "advisor.standards", "serves": ["setup.vocabularies"]}]
-    assert store.progress(project)["suggested"] == "setup.vocabularies"
-    # The step passed over is named, so the app can say why (#1377).
-    assert store.progress(project)["passed_over"] == ["setup.project", "setup.documentation"]
-    assert store.intake(project)["progress"]["passed_over"] == [
-        "setup.project",
-        "setup.documentation",
-    ]
-    assert store.summary(project)["progress"]["suggested"] == "setup.vocabularies"
-    assert store.intake(project)["progress"]["suggested"] == "setup.vocabularies"
-    assert store.snapshot(project).progress(project)["suggested"] == "setup.vocabularies"
+    store.serving = lambda: [{"agent_id": "advisor.standards", "serves": ["setup.formats"]}]
+    assert store.progress(project)["suggested"] == "setup.formats"
+    # The steps passed over are named, so the app can say why (#1377).
+    passed = ["setup.project", "setup.documentation", "setup.storage"]
+    assert store.progress(project)["passed_over"] == passed
+    assert store.intake(project)["progress"]["passed_over"] == passed
+    assert store.summary(project)["progress"]["suggested"] == "setup.formats"
+    assert store.intake(project)["progress"]["suggested"] == "setup.formats"
+    assert store.snapshot(project).progress(project)["suggested"] == "setup.formats"
 
 
 def test_each_state_has_the_reason_that_decided_it() -> None:
@@ -381,6 +379,17 @@ def test_an_answer_to_the_dmp_question_skips_the_branch_not_taken_and_marks_noth
         states = progress.step_states([chose(1), answered("intake.dmp", value)])
         assert states == dict.fromkeys(question("intake.dmp").skips([value]), "skipped")
     assert progress.step_states([chose(1), answered("intake.dmp", YES)])
+
+
+def test_an_approved_plan_written_after_no_reopens_its_review() -> None:
+    review = "setup.dmp-review"
+    no = [chose(1), answered("intake.dmp", NO)]
+    assert progress.step_states([*no, added("p", "dmp")])[review] == "skipped"
+    states = progress.step_states([*no, added("p", "dmp"), decided("p")])
+    assert review not in states
+    assert states["setup.dmp-create"] == "done"
+    kept = [*no, added("p", "dmp"), decided("p"), marked(review, "skipped")]
+    assert progress.step_reasons(kept)[review]["source"] == "marked"
 
 
 def test_the_latest_answer_to_an_intake_question_counts() -> None:

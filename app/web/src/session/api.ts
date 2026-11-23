@@ -19,6 +19,10 @@ export type { RawSession } from "../api/generated/responses";
 export interface StewardTeam {
   teamId: string;
   name: string;
+  /** The address the team is emailed at, if the profile names one, and what it is told about
+   * there (docs/specs/stewardship.md, invariant 13). */
+  notify?: string;
+  notifyOn: string[];
 }
 
 export interface SessionPrincipal {
@@ -75,7 +79,12 @@ export function fromRaw(raw: RawSession): Session {
           assurance: p.assurance,
           ...(p.vouched_by ? { vouchedBy: p.vouched_by } : {}),
           roles: p.roles,
-          teams: p.teams.map((t) => ({ teamId: t.team_id, name: t.name })),
+          teams: p.teams.map((t) => ({
+            teamId: t.team_id,
+            name: t.name,
+            ...(t.notify === undefined ? {} : { notify: t.notify }),
+            notifyOn: t.notify_on,
+          })),
         }
       : null,
     expiresAt: raw.expires_at,

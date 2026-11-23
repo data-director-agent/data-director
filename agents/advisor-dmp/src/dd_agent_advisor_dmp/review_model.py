@@ -28,10 +28,10 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from dd_agent_advisor_dmp.classes import SectionFinding
 from dd_agent_advisor_dmp.match import _unfenced
 from dd_agent_advisor_dmp.read_plan import MAX_PLAN, normalise
-from dd_agent_advisor_dmp.review import decisions_of
+from dd_agent_advisor_dmp.review import Plan, decisions_of
 from dd_dmp_template import SECTIONS, Section
 from dd_sdk.agent import RunContext
-from dd_sdk.contract.facts import ProjectDocument, ProjectFact
+from dd_sdk.contract.facts import ProjectFact
 from dd_sdk.model import CallOptions, Model, ModelCallError, ModelOutputError, Usage, call
 from dd_sdk.prompts import ModelCallLog
 
@@ -88,7 +88,7 @@ class Reviewer(Protocol):
     model_id: str | None
 
     def review(
-        self, plan: ProjectDocument, decisions: Sequence[ProjectFact], ctx: RunContext
+        self, plan: Plan, decisions: Sequence[ProjectFact], ctx: RunContext
     ) -> ModelReview: ...
 
 
@@ -97,9 +97,7 @@ class TemplateReviewer:
 
     model_id: str | None = None
 
-    def review(
-        self, plan: ProjectDocument, decisions: Sequence[ProjectFact], ctx: RunContext
-    ) -> ModelReview:
+    def review(self, plan: Plan, decisions: Sequence[ProjectFact], ctx: RunContext) -> ModelReview:
         return ModelReview()
 
 
@@ -111,11 +109,9 @@ class ModelReviewer:
         self.model = model
         self.model_id: str | None = model.model_id
 
-    def review(
-        self, plan: ProjectDocument, decisions: Sequence[ProjectFact], ctx: RunContext
-    ) -> ModelReview:
-        text = plan.documentation_text[:MAX_PLAN]
-        cut = len(text) < len(plan.documentation_text)
+    def review(self, plan: Plan, decisions: Sequence[ProjectFact], ctx: RunContext) -> ModelReview:
+        text = plan.text[:MAX_PLAN]
+        cut = len(text) < len(plan.text)
         log = ModelCallLog(self.model.provider)
         messages = [{"role": "user", "content": prompt(text, decisions_of(decisions), cut=cut)}]
         try:

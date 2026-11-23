@@ -46,13 +46,16 @@ def test_every_requirement_a_step_names_is_a_blueprint_requirement_in_the_regist
 def test_a_plan_runs_from_the_entry_to_the_last_phase_and_names_who_serves_each_step() -> None:
     manifest: list[dict[str, Any]] = [
         {"agent_id": "advisor.quality", "serves": ["deposit.validate"]},
-        {"agent_id": "advisor.standards", "serves": ["setup.vocabularies", "preparation.formats"]},
+        {
+            "agent_id": "advisor.standards",
+            "serves": ["preparation.vocabularies", "preparation.formats"],
+        },
         {"agent_id": "example.hello"},
     ]
     first = plan(entry(1), manifest)
     assert first[0].phase.number == 1 and first[-1].phase.number == 6
     by_text = {p.step.text: p.agent_ids for p in first}
-    assert by_text["Select controlled vocabularies and ontologies"] == ("advisor.standards",)
+    assert by_text["Finalise controlled vocabularies and ontologies"] == ("advisor.standards",)
     assert by_text["Recommend open formats"] == ("advisor.standards",)
     assert by_text["Validate metadata quality"] == ("advisor.quality",)
     assert by_text["Draft the data documentation"] == ()
@@ -81,13 +84,14 @@ def test_the_data_management_plan_steps_are_in_the_flow_and_in_scope() -> None:
     assert "optional" in line and "out of scope for now" not in line
 
 
-def test_vocabularies_are_chosen_before_collection_and_finalised_once_the_standard_is_known() -> (
-    None
-):
-    # Figure 1 makes a first choice; Figure 4 finalises it after the repository's metadata
-    # standard is identified and before the metadata are completed.
+def test_vocabularies_are_chosen_once_the_repository_and_its_standard_are_known() -> None:
+    # Figure 1's selection is moved to Figure 4's step: a Data Management Plan does not need it,
+    # and the repository's metadata standard decides which vocabularies apply.
+    assert not any("vocabular" in s.text.lower() for s in PHASES[0].steps)
     order = [s.id for p in PHASES for s in p.steps]
-    assert order.index("setup.vocabularies") < order.index("governance.policies")
+    step = next(s for p in PHASES for s in p.steps if s.id == "preparation.vocabularies")
+    assert "R3" in step.requirements
+    assert order.index("repository.recommend") < order.index("preparation.vocabularies")
     assert (
         order.index("preparation.metadata-standard")
         < order.index("preparation.vocabularies")
@@ -119,7 +123,7 @@ def test_open_formats_are_chosen_before_collection_and_checked_once_files_exist(
     # Our addition to Figure 1: formats chosen before collection, checked again in Phase 4.
     order = [s.id for p in PHASES for s in p.steps]
     assert (
-        order.index("setup.vocabularies")
+        order.index("setup.documentation")
         < order.index("setup.formats")
         < order.index("setup.dmp-create")
         < order.index("preparation.formats")
@@ -160,20 +164,22 @@ def test_the_flow_for_a_researcher_facing_model_names_no_requirement() -> None:
 def test_an_agent_is_planned_at_the_steps_it_names_and_no_other() -> None:
     manifest: list[dict[str, Any]] = [
         {"agent_id": "advisor.policy", "serves": ["governance.policies", "repository.mandated"]},
-        {"agent_id": "metadata.advisor", "serves": ["setup.vocabularies"]},
+        {"agent_id": "metadata.advisor", "serves": ["preparation.vocabularies"]},
     ]
     by_id = {p.step.id: p.agent_ids for p in plan(entry(1), manifest)}
     assert by_id["governance.policies"] == ("advisor.policy",)
     assert by_id["repository.mandated"] == ("advisor.policy",)
     assert by_id["governance.embargo"] == ()
     # Serving one R3 step does not place an agent at every step that names R3.
-    assert by_id["setup.vocabularies"] == ("metadata.advisor",)
+    assert by_id["preparation.vocabularies"] == ("metadata.advisor",)
     assert by_id["preparation.formats"] == ()
 
 
 def test_the_requirements_an_agent_bears_on_follow_from_its_steps() -> None:
     assert requirements_of(["deposit.validate"]) == ("R4",)
-    assert requirements_of(["preparation.metadata", "setup.vocabularies", "post.retrofit"]) == (
+    assert requirements_of(
+        ["preparation.metadata", "preparation.vocabularies", "post.retrofit"]
+    ) == (
         "R2",
         "R3",
         "R6",
@@ -207,12 +213,12 @@ def test_progress_from_an_entry_keeps_earlier_work_and_marks_each_step() -> None
     manifest: list[dict[str, Any]] = [
         {"agent_id": "advisor.files", "serves": ["preparation.files"]}
     ]
-    states = {"setup.vocabularies": "done", "preparation.files": "started"}
+    states = {"setup.formats": "done", "preparation.files": "started"}
     steps = progress(entry(3), states, manifest)
     # Phase 1 work done before the researcher's entry point still shows; Phase 2 does not.
     assert {s.phase.number for s in steps} == {1, 3, 4, 5, 6}
     by_id = {s.step.id: s for s in steps}
-    assert by_id["setup.vocabularies"].state == "done"
+    assert by_id["setup.formats"].state == "done"
     assert by_id["preparation.files"].state == "started"
     assert by_id["preparation.files"].agent_ids == ("advisor.files",)
     assert by_id["deposit.upload"].state == "open"
@@ -240,9 +246,9 @@ def test_a_step_an_agent_serves_is_suggested_before_one_no_agent_does() -> None:
     """Where Entry 1's first step has no agent, a served step is put first (#1377); a step
     begun still comes first, and with nothing served the first open step is suggested."""
     start = entry(1)
-    manifest = [{"agent_id": "advisor.standards", "serves": ["setup.vocabularies"]}]
+    manifest = [{"agent_id": "advisor.standards", "serves": ["setup.formats"]}]
     found = suggested_next(progress(start, {}, manifest), start)
-    assert found is not None and found.step.id == "setup.vocabularies"
+    assert found is not None and found.step.id == "setup.formats"
     begun = suggested_next(progress(start, {"setup.documentation": "started"}, manifest), start)
     assert begun is not None and begun.step.id == "setup.documentation"
     unserved = suggested_next(progress(start, {}, []), start)
@@ -258,21 +264,26 @@ def test_the_steps_passed_over_for_a_served_one_are_named() -> None:
     steps before it that no agent serves. Nothing is passed over when the first is served, when
     a step begun is suggested, or when nothing is served at all."""
     start = entry(1)
-    manifest = [{"agent_id": "advisor.standards", "serves": ["setup.vocabularies"]}]
+    manifest = [{"agent_id": "advisor.standards", "serves": ["setup.formats"]}]
     steps = progress(start, {}, manifest)
     found = suggested_next(steps, start)
     assert [s.step.id for s in passed_over(steps, found)] == [
         "setup.project",
         "setup.documentation",
+        "setup.storage",
     ]
-    both = [{"agent_id": "a", "serves": ["setup.project", "setup.vocabularies"]}]
+    both = [{"agent_id": "a", "serves": ["setup.project", "setup.formats"]}]
     served = progress(start, {}, both)
     assert passed_over(served, suggested_next(served, start)) == []
-    begun = progress(start, {"setup.vocabularies": "started"}, manifest)
+    begun = progress(start, {"setup.formats": "started"}, manifest)
     assert passed_over(begun, suggested_next(begun, start)) == []
     unserved = progress(start, {}, [])
     assert passed_over(unserved, suggested_next(unserved, start)) == []
-    done = progress(start, {"setup.project": "done", "setup.documentation": "done"}, manifest)
+    done = progress(
+        start,
+        {"setup.project": "done", "setup.documentation": "done", "setup.storage": "done"},
+        manifest,
+    )
     assert passed_over(done, suggested_next(done, start)) == []
     assert passed_over(steps, None) == []
 
@@ -282,7 +293,6 @@ def test_the_suggestion_passes_optional_and_out_of_scope_steps_and_ends_when_all
     states = {
         "setup.project": "done",
         "setup.documentation": "done",
-        "setup.vocabularies": "done",
         "setup.storage": "done",
         "setup.formats": "done",
     }

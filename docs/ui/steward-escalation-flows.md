@@ -45,7 +45,7 @@ The states ([Data stewards](../specs/stewardship.md), invariant 4) are `open`, `
 |---|---|---|
 | (new) | `open` | The researcher sends it (Flow A) or confirms an agent's offer (Flow B). |
 | `open` | `taken` | A steward takes it. |
-| `open` | `open` | No steward takes it within the time the profile sets; it is routed again and the researcher is told. TODO(#378) |
+| `open` | `open` | No steward takes it within the time the profile sets (`stewardship.reroute_after`); it is sent to the same team again and the researcher is told ([Data stewards](../specs/stewardship.md), invariant 13). Moving it to another team is TODO(#1308). |
 | `taken` | `open` | The steward releases it without resolving it, so a colleague can take it. |
 | `taken` | `waiting for researcher` | The steward asks the researcher something. |
 | `waiting for researcher` | `taken` | The researcher replies. |
@@ -63,11 +63,11 @@ The researcher can ask at any point in a project, not only after something goes 
 1. **Entry point.** A persistent, labelled control in the project, "Ask a data steward", reachable by keyboard from every project page.
 2. **Compose.** A short note box (what do you need help with?) and a summary of what will be shared: the project's title, its recent conversation and runs, and the matter in question. The summary says plainly that, while the escalation is open, the steward team can open the whole project, and that every look is recorded and shown to the researcher. What the researcher saw is recorded with the escalation ([Data stewards](../specs/stewardship.md), invariants 3 and 4).
 3. **Confirm.** "Send to a data steward". The researcher is told who will receive it in general terms (the steward team, or the team the profile routes it to) and roughly what happens next. It goes to the project's support team, the team its owners chose; with none chosen, to the deployment's only team, or, where the profile names several, to the team the researcher picks here, which an owner's pick also makes the project's support team ([Data stewards](../specs/stewardship.md), invariant 4).
-4. **Waiting.** The project shows an open escalation in a visible but unobtrusive place (the side bar and a marker in the conversation): its state, its age, the note sent and an **expected response time**. Proposed default: the profile sets the expected time, and the researcher is told plainly when it has passed; TODO(#378). The researcher can carry on working, and the agents' help stays available while the escalation waits, so the researcher is never blocked on a steward for anything an agent can do. The researcher can also **withdraw** it. Withdrawing does not lift a pause the steward has applied, and a steward's run already in progress finishes and is recorded. The steward's team keeps access to the project until the pause is lifted, so it is never locked out of its own hold; the researcher sees that the pause remains and who can lift it ([Data stewards](../specs/stewardship.md), invariant 8).
+4. **Waiting.** The project shows an open escalation in a visible but unobtrusive place (the side bar and a marker in the conversation): its state, its age, the note sent and an **expected response time**. The profile sets the expected time, as text the researcher reads; if nobody has taken it within the profile's `reroute_after`, it is sent to the team again and the status line says so ("Sent again on …"). The researcher can carry on working, and the agents' help stays available while the escalation waits, so the researcher is never blocked on a steward for anything an agent can do. The researcher can also **withdraw** it. Withdrawing does not lift a pause the steward has applied, and a steward's run already in progress finishes and is recorded. The steward's team keeps access to the project until the pause is lifted, so it is never locked out of its own hold; the researcher sees that the pause remains and who can lift it ([Data stewards](../specs/stewardship.md), invariant 8).
 5. **Reply.** The steward's reply appears inside the project's conversation, marked plainly as from a named person ("Steward: Name"), and the researcher is notified (Flow D). The researcher can reply in the same place, which moves the escalation back to `taken`.
 6. **Close.** The steward resolves or hands back with a note. The researcher sees the outcome and can say they disagree or re-open it (see "Escalation states"). Re-opening keeps the escalation's history.
 
-Empty and failure states: if the profile names no steward route, the control says so instead of failing silently, and points to the institution's usual contact if the profile supplies one. If a steward does not take the escalation within a time the profile sets, the researcher is told and it is routed again, TODO(#378).
+Empty and failure states: if the profile names no steward route, the control says so instead of failing silently, and points to the institution's usual contact if the profile supplies one. If a steward does not take the escalation within the time the profile sets, it is sent to the team again and the researcher is told (Flow D).
 
 Stewards are scarce. The Blueprint's premise is that skilled support is limited, uneven and often unavailable at short notice (§3.1.1), so these flows must not recreate the bottleneck the tool is meant to relieve. Besides the expected response time and the agents' continued help, §13.2 suggests a first-pass review by another AI agent before human review, to manage volume. Whether an escalation gets such a first pass, and how its result is shown to the steward and the researcher, is a spike, TODO(#1310).
 
@@ -163,10 +163,12 @@ The Blueprint keeps two kinds of approval apart: the researcher approves their o
 
 ## Flow D: notifications (#378)
 
-- **Steward:** told when an escalation is routed to them. After that, the steward who has taken it (or the routed team, while nobody has) is told when the researcher replies, withdraws, re-opens or disagrees with an outcome, so nobody has to watch the queue to find out. Email first (likely default); a deployment may instead send to its own helpdesk, with the harness record staying authoritative, TODO(#378).
-- **Researcher:** told when a steward replies, hands back or resolves.
+The deployment holds no person's email address ([Policy and identity](../specs/policy-and-identity.md), invariant 15), so the team is emailed at its own address, and the researcher is told in the app ([Data stewards](../specs/stewardship.md), invariant 13).
+
+- **Steward team:** emailed at the address the profile names for the team when an escalation is routed to it, when one nobody took is sent again, and when the researcher replies, withdraws or re-opens one (re-opening is how a researcher disagrees with an outcome), so nobody has to watch the queue to find out. The address may be a shared mailbox, or a helpdesk's intake address, which makes each message a ticket there; the harness record stays authoritative. A team with no address is told nothing by email and reads **Requests**.
+- **Researcher:** **Updates** in the banner counts what stewards did that they have not seen: a question, a message, a resolution, a hand-back, or a request sent again. Opening it lists each with a link to the project and marks them seen; a new one is announced in the polite live region.
 - **Content:** a link and a short subject only, never research content or personal data beyond what is needed.
-- **Choice:** each person chooses what they are told about, including which of the events above.
+- **Choice:** a team chooses in the profile which of its events it is emailed about (`notify_on`). A researcher chooses on the Settings page, under Notifications, which kinds of update the banner shows; the choice is kept in their browser.
 
 ## Flow E: getting a project ready to deposit (#1306)
 
@@ -227,9 +229,6 @@ The rest is decided in the spec. Each question below is owned by the issue shown
 | Mapping identity-provider group claims to steward teams | #936 |
 | For a project that spans several institutions, whose steward team receives it (§5.1 asks for an inter-institutional agreement) | #371 |
 | Whether an escalation gets a first-pass AI review before a steward sees it (§13.2) | #1310 |
-| Does an escalation lapse or re-escalate after a time? | #378 |
-| Can an escalation go to an institution's helpdesk, and is the harness record then authoritative? | #378 |
-| Where mail settings and secrets live | #225 |
 | What happens to a project whose owners have all left | #1309 |
 | Whether these defaults (escalation-only visibility, a pause that never lapses) hold up with working teams and the RDA working group (Blueprint §13.1 names escalation and suspension the key community governance question) | #371 |
 

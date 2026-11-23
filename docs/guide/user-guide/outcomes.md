@@ -28,4 +28,9 @@ the steward's replies then show in the project panel and in the conversation, wh
 message is marked **Data steward** with their name. You can withdraw a request while it is open,
 reply when a steward asks you something, and re-open one that was resolved or handed back.
 
+**Updates** in the banner tells you when a steward asks you something, writes to you, resolves a
+request or hands it back, and when a request nobody had taken is sent to the team again. Data
+Director keeps no email address for you, so it tells you here rather than by email. Choose which
+of these it shows on the Settings page, under **Notifications**.
+
 TODO(#250): link to the outcome vocabulary in the contract once the reference pages are settled.

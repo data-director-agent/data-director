@@ -140,7 +140,9 @@ intended design, and each part says where it is not built yet.
    (`project_decisions`), `GivenProjectRepository` (`project_repository`) or
    `GivenProjectMetadataRecord` (`project_metadata_draft`, the latest version of the project's
    metadata record whatever its state, and `project_metadata_approved`, the version a person
-   approved last, as a `DraftRequest`'s `metadata_record` is; #432); an agent that reads
+   approved last, as a `DraftRequest`'s `metadata_record` is; #432) or `GivenProjectPlan`
+   (`project_plan_approved`, the version of the project's `dmp` document a person approved last,
+   an `ApprovedPlan`); an agent that reads
    the documents it is given also says so in its card's `reads_attached` ([Agents](agents.md),
    invariant 12): where the accepted schema on the agent's card declares the slot, the
    conductor fills it as it fills a `DraftRequest`'s, by slot name and never by the class's name,
@@ -151,7 +153,8 @@ intended design, and each part says where it is not built yet.
    when asked nothing else, `advisor.rights` takes a decided licence as the mandated licence and a
    decision to withhold or generalise as saying the data are sensitive, and `advisor.policy` looks
    up each decided funder's policy. Each takes a person's decision over what its caller wrote
-   (each agent's `given.py`). `advisor.fairness` gives feedback on the metadata record this way,
+   (each agent's `given.py`). `advisor.dmp` reviews the plan written in the project this way when no
+   attached document is marked as the plan (invariant 32). `advisor.fairness` gives feedback on the metadata record this way,
    at any point in the work and for no step of its own
    (`harness/tests/test_project_metadata_record_given.py`).
    Filling any other class is not built yet.
@@ -174,7 +177,7 @@ intended design, and each part says where it is not built yet.
    else before it is sent, with a Problem Details response, and records the refusal. The key is
    `hosted_models` (`dd_harness.policy`). A `DraftRequest`'s inventory, a plain `FileInventory`
    and a `Message`'s `project_inventory` are `inventory`; a metadata record, the version a
-   drafter regenerates, a person's answers, the `project_documents` of a `DraftRequest` or an agent's own class and the `project_metadata_draft` and `project_metadata_approved` of an agent's own class are
+   drafter regenerates, a person's answers, the `project_documents` of a `DraftRequest` or an agent's own class and the `project_metadata_draft`, `project_metadata_approved` and `project_plan_approved` of an agent's own class are
    `documentation`; a `Message`'s `project_researchers` and a `DraftRequest`'s `researchers` are
    `researcher`; the `project_decisions` of any of these, and the `project_repository` of a
    `Message` or an agent's own class, a researcher's choice, are `decisions`; a repository's
@@ -240,8 +243,9 @@ intended design, and each part says where it is not built yet.
     member (`member_id`, their principal identifier) and the role, and `member_removed` the member;
     `membership.member_roles` is the one fold of them (`Membership.add_member`, `change_role`,
     `remove_member`, `members`; `harness/tests/test_project_membership.py`). The project's support
-    team (`support_team_chosen`) and its escalations to a data steward (`escalation_opened` and
-    the moves after it) are events of the log too, which give no one a role
+    team (`support_team_chosen`) and its escalations to a data steward (`escalation_opened`, the
+    moves after it, and `escalation_rerouted` when nobody took one in time) are events of the log
+    too, which give no one a role
     ([Data stewards](stewardship.md), invariant 4), as are what a steward does in the project:
     `steward_viewed`, `steward_message`, `project_paused`, `project_resumed`, `gate_cleared`,
     `gate_refused`, and a proposed version marked `acting_as: steward` (invariants 3 and 6).
@@ -292,7 +296,11 @@ intended design, and each part says where it is not built yet.
     3. a skip implied by an intake answer.
 
     So answering again replaces the skips the earlier answer implied. Marking a step open from the tracker
-    overrides the intake without changing the answer. `dd_harness.intake.next_question` derives
+    overrides the intake without changing the answer. A skip also lapses once the log shows the
+    answer's premise no longer holds: after "No" to `intake.dmp`, an approved version of a plan
+    written in the project (a `dmp` document) leaves `setup.dmp-review` open, so that the plan is
+    offered for review; a draft alone does not, and the researcher's own mark still outranks it
+    (`dd_harness.progress.REOPENED_BY_DOCUMENT`). `dd_harness.intake.next_question` derives
     which question comes next in the same way, and none is stored; `ProjectStore.intake` reads the
     questions with their current answers for the app's card. Any entry point recorded,
     the researcher's or one a model worked out, places the project and decides which questions
@@ -379,13 +387,17 @@ intended design, and each part says where it is not built yet.
     document's text that holds them in `commitment_document`, both required), or a standard,
     vocabulary, ontology or format chosen for the dataset or one field of its tables (`standard`:
     its name, required, its identifier, its kind and what it is for, #1391), or which attached
-    document is the project's Data Management Plan (`data_management_plan`, invariant 32), or what
-    the project is and the data it will produce, before the data exist: what it is for
-    (`project_summary`), its field of study (`field_of_study`), when it starts and ends
-    (`project_period`, each a year, a month or a day), all three about the project as a whole and
-    so under the one subject `project`, and each kind of data it will produce (`planned_data`: a
-    description, required, and how it will be collected, its formats and volume, under a short
-    name for the output). A succeeded run's proposals are
+    document is the project's Data Management Plan (`data_management_plan`, invariant 32), or
+    what data the project collects, produces or reuses (`data_description`: what, required, and
+    how, which existing data, in which formats and in what volume, each in the researcher's own
+    words; its subject is always `project`, so the last decision is the project's one
+    description, #160). An orchestrator proposes a data description from what the researcher said
+    in a conversation ([Orchestration](orchestration.md), invariant 8), so that once a person
+    confirms it every agent in the project is given it, whichever conversation it runs in, and
+    what the researcher said of their data is not lost with the conversation. Also about the
+    project as a whole, under the same one subject, are what it is for (`project_summary`), its
+    field of study (`field_of_study`) and when it starts and ends (`project_period`, each a year,
+    a month or a day). A succeeded run's proposals are
     `fact_proposed` events, one each, caused by the run and naming its agent, from a payload of
     any class (`dd_harness.project_effects`); they are checked before anything is written and
     recorded only once the run's draft is kept, so a run that fails leaves none. A person decides each as a `fact_decided` event:
@@ -406,12 +418,15 @@ intended design, and each part says where it is not built yet.
     (`GET /api/projects/{project_id}/facts`, `READ`; `POST …/facts/decisions`, `CONTRIBUTE`, or
     `DECIDE` for `sensitivity` and `licence`). A sharing commitment is shown with the plan's words
     and is only proposed, never stated, since it quotes the plan; the DMP Checker compares only
-    those a person decided ([Agents](agents.md)). At "Describe your project" (`setup.project`) the
-    Data Management Planner proposes what the project is and the data it will produce, from what
-    the researcher said and a proposal or award letter they attached, each read from a document
-    quoting its passage in `proposed_because`; the step is started once a summary is proposed and
-    done once a person decides one (`dd_harness.progress`), and the README that plans the
-    documentation and the Data Management Plan place what was decided
+    those a person decided ([Agents](agents.md)). The Policy Adviser proposes each funder it
+    identifies in ROR, with its ROR identifier and its Crossref Funder ID from the same record,
+    and never one whose name ROR gives to more than one organisation, which the researcher is
+    asked about instead. At "Describe your project" (`setup.project`) the Data Management Planner
+    proposes what the project is for, its field and period from what the researcher said, and
+    those and a data description from a proposal or award letter they attached, each read from a
+    document quoting its passage in `proposed_because`; the step is started once a summary is
+    proposed and done once a person decides one (`dd_harness.progress`), and the README that plans
+    the documentation and the Data Management Plan place what was decided
     ([Drafting documents](drafting.md)). The Standards Librarian proposes each standard it
     recommends; a person confirms the ones they will use and rejects the others, and only those
     confirmed, or stated by a person, reach the Metadata Librarian, which names the vocabularies
@@ -467,8 +482,12 @@ intended design, and each part says where it is not built yet.
     plan's text is which read attached documents (invariant 6, an agent card's `reads_attached`),
     under the same `hosted_models` and `attached_documents` rules (invariant 8), so a profile that
     refuses attached documents has no plan to mark. The DMP Checker reads the marked plan alone,
-    and every document while none is marked. A plan does not change the phase tracker: no step is
-    marked by it, and `setup.dmp-review` and `post.dmp-update` are not marked by it. When the
+    and, while none is marked, the plan written in the project as a person approved it last
+    (`GivenProjectPlan`, `project_plan_approved`, invariant 6), and every document while there is
+    neither. An attached plan does not change the phase tracker: no step is marked by it, and
+    `setup.dmp-review` and `post.dmp-update` are not marked by it. A plan written in the project and
+    approved shows `setup.dmp-create` done and lifts a "No" answer's skip of `setup.dmp-review`
+    (rule 20); it marks the review neither started nor done. When the
     researcher answered "Yes" to `intake.dmp` and no plan is marked, the orchestrator invites them
     to attach their plan, or to mark which attached document it is ([Orchestration](orchestration.md),
     invariant 20). A plan given by its DMP ID, a link or a machine-actionable plan (RDA DMP Common

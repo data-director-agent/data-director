@@ -19,9 +19,7 @@ The Documentation Editor (`advisor.documentation`) is the first drafter. It serv
 also serves `setup.documentation`, planning the documentation before data are collected (#1017).
 A drafter infers only from a file inventory (invariant 1), which a project has only once its data
 exist, so before then it infers nothing: a README is drafted from the approved metadata record and
-the decisions, if any, among them what people decided at "Describe your project" (`setup.project`):
-what the project is for, its field and period, placed in Description, and the data it will
-produce, placed in Methods. The sections that plan what to record (`plan_ask`) ask what the
+the decisions, if any, with the sections that plan what to record (`plan_ask`) asking what the
 researcher expects to produce, under the same questions as the README drafted later, which places
 their answers. A data dictionary needs the inventory's tables, and the drafter abstains without
 them. Where a model is configured, as it is by
@@ -48,17 +46,23 @@ The Documentation Editor also drafts a Data Management Plan (`dmp`), an alpha th
 `setup.dmp-create`. Its sections are the core requirements of
 [`dd-dmp-template`](../../dmp-template/README.md), after Science Europe's, under a section of
 project details. A plan is drafted before data exist, so it needs no inventory: it infers nothing,
-and places only what is supplied (invariant 2): what the project is and the data it will
-produce, placed in Project details and Data collection, the funders, the required repository, the
-licence, the sensitive data and their handling, and the standards people in the project decided, as project
-facts give them, the inventory's files if the data already exist, and the researcher's answers. It
-asks first, as a README does, and every other gap is asked. Its sharing and preservation question
-asks for what is intended, since the repository and the licence are chosen later (Phases 3 and 5)
-and the plan is updated once they are (`setup.dmp-review`, `post.dmp-update`). No model writes a plan's text, so
+and places only what is supplied (invariant 2): the funders, the required repository, the licence,
+the sensitive data and their handling, the standards, the description of the data, and what the
+project is for, its field and period (placed in Project details), that people in the project
+decided, as project facts give them, the inventory's files if the data already exist, and
+the researcher's answers. A confirmed data description (`data_description`) fills the plan's data
+section, in the researcher's words, and completes it when it says how the data are collected or
+which existing data are reused; one that says only what is collected is placed and the section is
+still asked. It asks first, as a README does, and every other gap is asked. Its sharing and
+preservation question asks for what is intended, since the repository and the licence are chosen
+later (Phases 3 and 5) and the plan is updated once they are (`setup.dmp-review`,
+`post.dmp-update`). No model writes a plan's text, so
 `document_derivation` is always `template`; where a model is configured, it suggests answers only
 from the documents the researcher attached and the project's decisions, beside the questions
-(invariant 7). The Data Management Planner (`advisor.dmp`) reviews an attached plan against
-the same requirements (`setup.dmp-review`).
+(invariant 7). The Data Management Planner (`advisor.dmp`) reviews a plan against the same
+requirements (`setup.dmp-review`): an attached plan, or, once a version is approved, the plan
+written here, which reopens the review after a "No" to having a plan ([Projects](projects.md),
+rule 20 and invariant 32).
 
 ## Invariants
 
@@ -260,6 +264,16 @@ the same requirements (`setup.dmp-review`).
     `model`. If no model is configured, the document is not a README, or nothing usable changed,
     the editor abstains and drafts no version, saying why. A later redraft from the facts drafts
     the README afresh and does not keep a revision's wording, TODO(#1468).
+13. **A person asks for the next draft when they choose.** Nothing redrafts a document on its own
+    when answers are saved. A person may ask the agent that drafted a document to draft it again
+    from the project's recorded answers at any time: at either stage, and whether or not any
+    question is left open. The request names the latest version the person was shown and nothing
+    else; the app answers `409` and runs nothing if it is no longer the latest, or if no agent
+    drafted the document. The drafter is given `redraft_document` and not `revise`, so the
+    conductor fills `current_version`, `draft_answers` and `shared_answers` as for any redraft in a
+    project, and the drafter writes the document afresh, placing every answer recorded and asking
+    the gaps still open (invariants 6 and 10). The run is the request: no other event is recorded
+    (`app/tests/test_document_drafts.py`).
 
 ## Boundaries and contracts
 
@@ -402,7 +416,10 @@ as any other answer is.
   published as the researcher's, marked only by a column a reader may never look at.
 - **The orchestrator passing answers to the drafter.** A `DraftRequest` slot filled by the
   orchestrator would be simpler and would work with plain chat. But a model's interpretation of the
-  researcher's words would then become `supplied`, with only the approval to catch a mistake.
+  researcher's words would then become `supplied`, with only the approval to catch a mistake. What
+  the researcher says of their data in a conversation reaches a drafter instead as a
+  `data_description` fact the orchestrator proposes and a person confirms
+  ([Projects](projects.md), invariant 28): a person decides it before any drafter is given it.
 - **Answers only by editing the draft.** Editing still works, and its values become `supplied` on
   regeneration. As the only way, it leaves the researcher to find each gap themselves.
 - **A source marker on every README section.** It is more precise than marking only the gaps, but a

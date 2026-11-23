@@ -254,11 +254,12 @@ class DmpChecker:
     def _review(self, asked: DmpReviewRequest, ctx: RunContext) -> AgentResult:
         """A model's review of the attached plan; with no model, or none of its readings usable, the
         agent abstains, because nothing else reviews a plan."""
-        plan = plan_of(asked.project_documents)
+        plan = plan_of(asked.project_documents, asked.project_plan_approved)
         if plan is None:
             return abstain(
                 ReasonCode.INSUFFICIENT_INPUT,
-                "Attach your data management plan to the project, and ask for a review again.",
+                "Write and approve a data management plan in the project, or attach yours, and "
+                "ask for a review again.",
             )
         if self.reviewer.model_id is None:
             return abstain(
@@ -274,15 +275,14 @@ class DmpChecker:
                     status=OutcomeStatus.ABSTAINED,
                     reason_code=ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
                     statement=(
-                        f"It could not review '{plan.documentation_name}', because {read.unused} "
+                        f"It could not review '{plan.name}', because {read.unused} "
                         f"({read.model_id}). Try again."
                     ),
                 ),
                 **used,
             )
-        which = "the project's plan" if plan.documentation_is_plan else "the latest attached"
         statement = (
-            f"It reviewed '{plan.documentation_name}', {which}. {counted(read.findings)}. "
+            f"It reviewed '{plan.name}', {plan.which}. {counted(read.findings)}. "
             f"{_how_reviewed(read)} Each finding is advice for you to judge: the plan is not "
             "changed."
         )

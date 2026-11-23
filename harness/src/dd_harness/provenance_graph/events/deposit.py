@@ -14,6 +14,7 @@ from dd_harness.projects.rules import (
     ESCALATION_RELEASED,
     ESCALATION_REOPENED,
     ESCALATION_REPLIED,
+    ESCALATION_REROUTED,
     ESCALATION_RESOLVED,
     ESCALATION_TAKEN,
     ESCALATION_WAITING,
@@ -154,6 +155,12 @@ def _move(ctx: Context, activity: str, event: Event) -> None:
     _note(ctx, activity, event)
 
 
+def _rerouted(ctx: Context, activity: str, event: Event) -> None:
+    """The escalation sent to its team again, by the deployment, because nobody took it."""
+    uses(ctx, activity, escalation(event["escalation_id"]))
+    ctx.graph.put(activity, dd__team=event.get("team_id"))
+
+
 def _viewed(ctx: Context, activity: str, event: Event) -> None:
     uses(ctx, activity, ctx.project)
     ctx.graph.put(activity, dd__actingAs=event.get("acting_as"))
@@ -198,6 +205,7 @@ MAPPINGS: dict[str, EventMapping] = {
     ESCALATION_HANDED_BACK: EventMapping("dd:EscalationHandBack", _move),
     ESCALATION_WITHDRAWN: EventMapping("dd:EscalationWithdrawal", _move),
     ESCALATION_REOPENED: EventMapping("dd:EscalationReopening", _move),
+    ESCALATION_REROUTED: EventMapping("dd:EscalationRerouting", _rerouted, harness=True),
     STEWARD_VIEWED: EventMapping("dd:StewardView", _viewed),
     STEWARD_MESSAGE: EventMapping("dd:StewardMessage", _steward_message),
     PROJECT_PAUSED: EventMapping("dd:ProjectPause", _pause),

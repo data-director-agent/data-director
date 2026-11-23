@@ -16,7 +16,7 @@ from typing import Any
 import pytest
 
 from dd_agent_advisor_dmp.agent import DmpChecker
-from dd_agent_advisor_dmp.classes import DmpDiscrepancies, ExpectedOutput, ProjectDescriptionRequest
+from dd_agent_advisor_dmp.classes import DmpDiscrepancies, ProjectDescriptionRequest
 from dd_agent_advisor_dmp.describe import ModelDescriber
 from dd_harness.conductor import Conductor
 from dd_harness.projects import ProjectStore
@@ -46,7 +46,7 @@ def proposal(text: str = PROPOSAL, name: str = "proposal.md") -> ProjectDocument
 
 def reply(**found: Any) -> str:
     return json.dumps(
-        {"summary": None, "field_of_study": None, "period": None, "outputs": [], **found}
+        {"summary": None, "field_of_study": None, "period": None, "data": None, **found}
     )
 
 
@@ -63,17 +63,15 @@ READ = reply(
         "document": 1,
         "quote": "The project will run from 2027-01 to 2029-12.",
     },
-    outputs=[
-        {
-            "output": "Water-table depth",
-            "description": "Water-table depth every 15 minutes at 12 sites.",
-            "collection_method": "Pressure transducers",
-            "formats": "CSV",
-            "volume": None,
-            "document": 1,
-            "quote": "We will log water-table depth every 15 minutes with pressure transducers",
-        }
-    ],
+    data={
+        "collected": "Water-table depth every 15 minutes at 12 sites.",
+        "collection_method": "Pressure transducers",
+        "formats": "CSV",
+        "volume": None,
+        "reused": None,
+        "document": 1,
+        "quote": "We will log water-table depth every 15 minutes with pressure transducers",
+    },
 )
 
 
@@ -114,12 +112,12 @@ def test_a_proposal_is_read_into_facts_each_quoting_its_passage(runs_dir: Path) 
         FactKind.PROJECT_SUMMARY,
         FactKind.FIELD_OF_STUDY,
         FactKind.PROJECT_PERIOD,
-        FactKind.PLANNED_DATA,
+        FactKind.DATA_DESCRIPTION,
     }
     for fact in payload.proposed_facts:
         assert fact.proposed_because is not None and "proposal.md" in fact.proposed_because
     assert found[FactKind.PROJECT_SUMMARY][0].fact_subject == PLAN_SUBJECT
-    assert found[FactKind.PLANNED_DATA][0].planned_collection_method == "Pressure transducers"
+    assert found[FactKind.DATA_DESCRIPTION][0].data_collection_method == "Pressure transducers"
     assert payload.still_needed == []
 
 
@@ -141,16 +139,14 @@ def test_what_the_researcher_said_is_proposed_first_and_the_rest_is_asked(
     """Without a model nothing is read; what they said is proposed, and the gaps are named."""
     asked = ProjectDescriptionRequest(
         research_summary="How peat bogs respond to drought.",
-        expected_outputs=[
-            ExpectedOutput(output="Water-table depth", output_description="Logger readings.")
-        ],
+        field_of_study="Ecohydrology",
         project_documents=[proposal()],
     )
     env = run(runs_dir, DmpChecker(), asked)
     assert env.outcome.status == OutcomeStatus.SUCCEEDED
     payload = env.payload_as(DmpDiscrepancies)
-    assert set(kinds(payload)) == {FactKind.PROJECT_SUMMARY, FactKind.PLANNED_DATA}
-    assert len(payload.still_needed) == 2  # the field and the period
+    assert set(kinds(payload)) == {FactKind.PROJECT_SUMMARY, FactKind.FIELD_OF_STUDY}
+    assert len(payload.still_needed) == 2  # the data and the period
     assert env.telemetry.model_calls == []
 
 
@@ -169,9 +165,9 @@ def test_nothing_already_decided_is_proposed_again(runs_dir: Path) -> None:
             fact_kind=FactKind.PROJECT_SUMMARY, fact_subject=PLAN_SUBJECT, summary_text="Decided."
         ),
         ProjectFact(
-            fact_kind=FactKind.PLANNED_DATA,
-            fact_subject="water-table depth",
-            planned_description="Decided.",
+            fact_kind=FactKind.DATA_DESCRIPTION,
+            fact_subject=PLAN_SUBJECT,
+            data_collected="Decided.",
         ),
     ]
     asked = ProjectDescriptionRequest(project_documents=[proposal()], project_decisions=decided)

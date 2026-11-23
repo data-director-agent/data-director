@@ -9,9 +9,9 @@ repository's addition:
 
 | Step | What it does |
 |---|---|
-| `setup.vocabularies` | Recommends controlled vocabularies and ontologies for the dataset's subject. |
 | `setup.formats` | Before collection: recommends data formats for the media types the researcher plans to save the data in, so that they are collected in an open format from the start. Our addition to Figure 1. The profile may have no fields yet. |
 | `preparation.formats` | Recommends data formats for the declared media types, and a field-level standard such as ISO 8601 for date and time fields. |
+| `preparation.vocabularies` | Recommends controlled vocabularies and ontologies for the dataset's subject, once the repository and its metadata standard are known. |
 
 ## Input and output
 

@@ -26,6 +26,9 @@ export function stateSaid(state: EscalationState): string {
 export function statusLine(escalation: Escalation): string {
   const parts = [`Sent to ${escalation.team_name} on ${formatDate(escalation.opened_at)}`];
   if (escalation.taken_by && escalation.state !== "withdrawn") parts.push(`Taken by ${escalation.taken_by.name}`);
+  if (escalation.state === "open" && escalation.history.at(-1)?.move === "reroute") {
+    parts.push(`Sent again on ${formatDate(escalation.routed_at)}`);
+  }
   parts.push(STATE[escalation.state]);
   return parts.join(" · ");
 }
@@ -41,6 +44,7 @@ export const MOVE_SAID: Record<string, string> = {
   hand_back: "handed this back to you",
   withdraw: "withdrew this request",
   reopen: "re-opened this request",
+  reroute: "sent this to the team again, as nobody had taken it",
 };
 
 const REFUSED: Record<string, string> = {

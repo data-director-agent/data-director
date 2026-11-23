@@ -67,6 +67,13 @@ class Documents(Area):
         )
         return agent_id, kind
 
+    def drafter_of_latest(self, project_id: str, document_id: str, version: int) -> tuple[str, str]:
+        """The agent to draft `document_id` again from the project's answers, and the document's
+        kind, once `version` is checked to be the latest. Records nothing: the run the
+        conductor records is the request (docs/specs/drafting.md, invariant 10)."""
+        store: ProjectDocuments = self._store
+        return documents.drafter_of_latest(store, project_id, document_id, version)
+
 
 class Facts(Area):
     def facts(self, project_id: str) -> dict[str, Any]:

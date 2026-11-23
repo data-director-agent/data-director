@@ -28,13 +28,13 @@ valid outcome, and the checker says so.
 
 Phase 1 opens with "Describe your project" (`setup.project`), since every later planning step
 builds on what the project is and the data it will produce. `ProjectDescriptionRequest` carries
-what the researcher said, each optional: `research_summary`, `field_of_study`, `period_start`,
-`period_end` and `expected_outputs`. In a project the conductor also gives the attached documents
-and the decided facts.
+what the researcher said, each optional: `research_summary`, `field_of_study`, `period_start` and
+`period_end`. What they say of their data the orchestrator proposes itself, as a `data_description`
+(#1507). In a project the conductor also gives the attached documents and the decided facts.
 
-The Planner proposes what the researcher said first, as `project_summary`, `field_of_study`,
-`project_period` and `planned_data` facts. With a model (`describe.py`, `describe_prompt.md`), it
-reads the attached documents for what they did not say; each thing read must quote the document it
+The Planner proposes what the researcher said first, as `project_summary`, `field_of_study` and
+`project_period` facts. With a model (`describe.py`, `describe_prompt.md`), it
+reads the attached documents for what they did not say, a `data_description` among it; each thing read must quote the document it
 names, and is dropped and said otherwise (`read_plan.unquoted`), as a plan's commitments are. It
 never proposes a fact a person has already decided. The payload's `still_needed` names what neither
 gives, for the orchestrator to ask. Nothing counts until a person decides it, and the step is done

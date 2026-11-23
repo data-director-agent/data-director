@@ -44,18 +44,6 @@
           "text": "Draft the data documentation"
         },
         {
-          "id": "setup.vocabularies",
-          "label": "Start a list of standard terms to describe your data",
-          "optional": false,
-          "out_of_scope": false,
-          "person_decides": false,
-          "prompt": "Help me start a list of standard terms and vocabularies to describe my data as I collect it.",
-          "requirements": [
-            "R3"
-          ],
-          "text": "Select controlled vocabularies and ontologies"
-        },
-        {
           "id": "setup.storage",
           "label": "Plan where your data will be stored and backed up",
           "optional": false,
@@ -283,12 +271,14 @@
         },
         {
           "id": "preparation.vocabularies",
-          "label": "Confirm the standard terms you will use",
+          "label": "Choose the standard terms to describe your data",
           "optional": false,
           "out_of_scope": false,
           "person_decides": false,
-          "prompt": "Help me confirm the standard terms to use, now that I know what my repository needs.",
-          "requirements": [],
+          "prompt": "Help me choose the standard terms and vocabularies to describe my data, to suit my repository and metadata standard.",
+          "requirements": [
+            "R3"
+          ],
           "text": "Finalise controlled vocabularies and ontologies"
         },
         {

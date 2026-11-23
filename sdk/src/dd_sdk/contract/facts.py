@@ -108,10 +108,10 @@ class FactKind(StrEnum):
     SHARING_COMMITMENT = "sharing_commitment"
     STANDARD = "standard"
     DATA_MANAGEMENT_PLAN = "data_management_plan"
+    DATA_DESCRIPTION = "data_description"
     PROJECT_SUMMARY = "project_summary"
     FIELD_OF_STUDY = "field_of_study"
     PROJECT_PERIOD = "project_period"
-    PLANNED_DATA = "planned_data"
 
 
 class FileDecision(StrEnum):
@@ -149,15 +149,16 @@ class LocationPrecision(StrEnum):
 STANDARD_TARGET_PATTERN = r"^(dataset|field:\S.*)$"
 DATASET_TARGET = "dataset"
 
-# The one subject a `data_management_plan` fact has, so that a project has at most one current
-# plan: the last decision on it stands (docs/specs/projects.md, invariant 32).
+# The one subject a fact about the project as a whole has, so that a project has at most one
+# current plan, one description of its data, one summary, field and period: the last decision on
+# each stands (docs/specs/projects.md, invariant 32). The summary, field and period are decided at
+# "Describe your project" (`setup.project`).
 PLAN_SUBJECT = "project"
-
-# The kinds that describe the project as a whole, decided at "Describe your project"
-# (`setup.project`): each has the one subject "project", so the last decision stands.
-PROJECT_KINDS: frozenset[FactKind] = frozenset(
+# The kinds of fact whose subject is always `PLAN_SUBJECT`.
+PROJECT_WIDE = frozenset(
     {
         FactKind.DATA_MANAGEMENT_PLAN,
+        FactKind.DATA_DESCRIPTION,
         FactKind.PROJECT_SUMMARY,
         FactKind.FIELD_OF_STUDY,
         FactKind.PROJECT_PERIOD,
@@ -177,10 +178,10 @@ FACT_NEEDS: dict[FactKind, tuple[str, ...]] = {
     FactKind.SHARING_COMMITMENT: ("commitment_quote", "commitment_document"),
     FactKind.STANDARD: ("standard_name",),
     FactKind.DATA_MANAGEMENT_PLAN: ("plan_document",),
+    FactKind.DATA_DESCRIPTION: ("data_collected",),
     FactKind.PROJECT_SUMMARY: ("summary_text",),
     FactKind.FIELD_OF_STUDY: ("field_name",),
     FactKind.PROJECT_PERIOD: ("period_start",),
-    FactKind.PLANNED_DATA: ("planned_description",),
 }
 
 
@@ -217,16 +218,17 @@ class ProjectFact(Frozen):
     standard_target: str | None = Field(default=None, pattern=STANDARD_TARGET_PATTERN)
     # Which attached document is the project's data management plan, by its text's digest.
     plan_document: str | None = Field(default=None, pattern=SHA256_PATTERN)
+    # What data the project collects and how, in the researcher's words (`data_description`).
+    data_collected: str | None = None
+    data_collection_method: str | None = None
+    data_formats: str | None = None
+    data_volume: str | None = None
+    data_reused: str | None = None
     # What the project is: its aims and questions, its field of study, and when it runs.
     summary_text: str | None = Field(default=None, pattern=r"\S")
     field_name: str | None = Field(default=None, pattern=r"\S")
     period_start: str | None = Field(default=None, pattern=PARTIAL_DATE_PATTERN)
     period_end: str | None = Field(default=None, pattern=PARTIAL_DATE_PATTERN)
-    # Data the project expects to produce, one fact for each output, before the data exist.
-    planned_description: str | None = Field(default=None, pattern=r"\S")
-    planned_collection_method: str | None = None
-    planned_format: str | None = None
-    planned_volume: str | None = None
     # Shown to the person deciding; never given to an agent.
     proposed_because: str | None = None
 
@@ -235,7 +237,7 @@ class ProjectFact(Frozen):
         missing = [slot for slot in FACT_NEEDS[self.fact_kind] if getattr(self, slot) is None]
         if missing:
             raise ValueError(f"a {self.fact_kind} fact needs {', '.join(missing)}")
-        if self.fact_kind in PROJECT_KINDS and self.fact_subject != PLAN_SUBJECT:
+        if self.fact_kind in PROJECT_WIDE and self.fact_subject != PLAN_SUBJECT:
             raise ValueError(f"a {self.fact_kind} fact's subject is {PLAN_SUBJECT!r}")
         return self
 

@@ -2,7 +2,7 @@
  * The values of one project fact, as a person sets them: whether a file goes in, whether a
  * sensitive field or file may be published and how precisely, a funder, a required repository,
  * the licence, what the plan commits to share, a standard, vocabulary or format chosen, or what
- * the project is and the data it will produce (docs/specs/projects.md, invariant 28).
+ * data the project collects and how (docs/specs/projects.md, invariant 28).
  *
  * When a person changes a proposal, its kind and subject stay as proposed, since a decision is on
  * that fact; when they state a fact of their own, they choose the kind, and the subject is taken
@@ -191,8 +191,51 @@ function KindValues({
     case "project_summary":
     case "field_of_study":
     case "project_period":
-    case "planned_data":
-      return <ProjectFactValues fact={fact} set={set} isNew={isNew} />;
+      return <ProjectFactValues fact={fact} set={set} />;
+    case "data_description":
+      // In the researcher's own words: every agent in the project, such as the plan's drafter,
+      // is given them as written.
+      return (
+        <>
+          <TextValue
+            label="What data the project collects, produces or reuses"
+            hint="Of which types, such as interview recordings and survey responses."
+            slot="data_collected"
+            fact={fact}
+            set={set}
+            required
+            long
+          />
+          <TextValue
+            label="How they are collected or produced"
+            slot="data_collection_method"
+            fact={fact}
+            set={set}
+            long
+          />
+          <TextValue
+            label="Existing data reused, and how"
+            slot="data_reused"
+            fact={fact}
+            set={set}
+            long
+          />
+          <TextValue
+            label="Formats"
+            hint="Such as WAV audio and CSV tables."
+            slot="data_formats"
+            fact={fact}
+            set={set}
+          />
+          <TextValue
+            label="Volume"
+            hint="Such as about 20 GB."
+            slot="data_volume"
+            fact={fact}
+            set={set}
+          />
+        </>
+      );
     case "standard":
       // What it is chosen for stays as proposed; a standard a person states is for the dataset.
       return (
@@ -292,6 +335,7 @@ export function blankFact(kind: FactKind): ProjectFact {
       };
     case "licence":
       return { fact_kind: kind, fact_subject: "licence" };
+    case "data_description":
     case "project_summary":
     case "field_of_study":
     case "project_period":

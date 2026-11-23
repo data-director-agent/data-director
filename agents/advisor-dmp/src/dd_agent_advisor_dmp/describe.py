@@ -3,13 +3,15 @@
 Phase 1 opens by finding out what the project is and the data it will produce, since every later
 planning step builds on it: the README plan, the standards, storage, formats and the Data
 Management Plan. The Planner proposes each as a project fact for the researcher to confirm or
-correct: a `project_summary`, a `field_of_study`, a `project_period`, and a `planned_data` fact for
-each output. Nothing counts until a person decides it (invariant 28).
+correct: a `project_summary`, a `field_of_study`, a `project_period` and a `data_description`.
+Nothing counts until a person decides it (invariant 28).
 
 A fact comes from what the researcher said, which the orchestrator passes on in the request
 (`ProjectDescriptionRequest`), or else from a document they attached, such as a proposal or an
-award letter. A document is read only by a model (`ModelDescriber`), whose reply is constrained to
-a schema (`DescribeReply`); each thing it finds must quote the document it names, and is dropped
+award letter. What the researcher says of their data the orchestrator proposes itself as a
+`data_description` (#1507), so the request does not carry it; a document may still give it. A
+document is read only by a model (`ModelDescriber`), whose reply is constrained to a schema
+(`DescribeReply`); each thing it finds must quote the document it names, and is dropped
 and said otherwise (`read_plan.unquoted`), as a plan's commitments are. `TemplateDescriber` reads
 nothing. A fact a person has already decided is never proposed again, and what is still unknown
 is said in `still_needed`, for the orchestrator to ask.
@@ -53,7 +55,7 @@ LIMITATIONS = (
 # What each kind describes, as `still_needed` names it while no one has given it.
 NEEDED = {
     FactKind.PROJECT_SUMMARY: "what the project is for: its aims and questions",
-    FactKind.PLANNED_DATA: "the data it will produce, and how they will be collected",
+    FactKind.DATA_DESCRIPTION: "the data it will produce, and how they will be collected",
     FactKind.FIELD_OF_STUDY: "its field of study",
     FactKind.PROJECT_PERIOD: "when it starts and ends",
 }
@@ -77,12 +79,12 @@ class ReadPeriod(Quoted):
     end: str | None
 
 
-class ReadOutput(Quoted):
-    output: str
-    description: str
+class ReadData(Quoted):
+    collected: str
     collection_method: str | None
     formats: str | None
     volume: str | None
+    reused: str | None
 
 
 class DescribeReply(_Reply):
@@ -91,7 +93,7 @@ class DescribeReply(_Reply):
     summary: ReadSummary | None
     field_of_study: ReadField | None
     period: ReadPeriod | None
-    outputs: list[ReadOutput]
+    data: ReadData | None
 
 
 @dataclass(frozen=True)
@@ -159,7 +161,8 @@ def check(
         found.append(("the field of study", reply.field_of_study, _field(reply.field_of_study)))
     if reply.period is not None:
         found.append(("the period", reply.period, _period(reply.period)))
-    found += [(o.output.strip() or "an output", o, _output(o)) for o in reply.outputs]
+    if reply.data is not None:
+        found.append(("the data", reply.data, _data(reply.data)))
     kept: list[ProjectFact] = []
     dropped: list[str] = []
     for what, quoted, fact in found:
@@ -207,16 +210,17 @@ def _period(read: ReadPeriod) -> ProjectFact | str:
     )
 
 
-def _output(read: ReadOutput) -> ProjectFact | str:
-    if not read.output.strip() or not read.description.strip():
-        return "it names or describes no output"
+def _data(read: ReadData) -> ProjectFact | str:
+    if not read.collected.strip():
+        return "it says no data"
     return ProjectFact(
-        fact_kind=FactKind.PLANNED_DATA,
-        fact_subject=read.output.strip(),
-        planned_description=read.description.strip(),
-        planned_collection_method=_value(read.collection_method),
-        planned_format=_value(read.formats),
-        planned_volume=_value(read.volume),
+        fact_kind=FactKind.DATA_DESCRIPTION,
+        fact_subject=PLAN_SUBJECT,
+        data_collected=" ".join(read.collected.split()),
+        data_collection_method=_value(read.collection_method),
+        data_formats=_value(read.formats),
+        data_volume=_value(read.volume),
+        data_reused=_value(read.reused),
     )
 
 
@@ -252,40 +256,23 @@ def said(asked: ProjectDescriptionRequest) -> list[ProjectFact]:
                 period_end=asked.period_end,
             )
         )
-    facts += [
-        ProjectFact(
-            fact_kind=FactKind.PLANNED_DATA,
-            fact_subject=o.output.strip(),
-            planned_description=o.output_description.strip(),
-            planned_collection_method=_value(o.collection_method),
-            planned_format=_value(o.formats),
-            planned_volume=_value(o.volume),
-        )
-        for o in asked.expected_outputs
-        if o.output.strip() and o.output_description.strip()
-    ]
     return [f.model_copy(update={"proposed_because": SAID}) for f in facts]
 
 
 def proposed(asked: ProjectDescriptionRequest, read: Sequence[ProjectFact]) -> list[ProjectFact]:
     """What to propose: what the researcher said, then what was read of what they did not say,
     leaving out whatever a person has already decided."""
-    decided = {_key(f) for f in asked.project_decisions}
+    decided = {f.fact_kind for f in asked.project_decisions}
     given = said(asked)
-    kinds = {f.fact_kind for f in given if f.fact_kind != FactKind.PLANNED_DATA}
-    keys = {_key(f) for f in given}
-    from_documents = [f for f in read if f.fact_kind not in kinds and _key(f) not in keys]
-    return [f for f in [*given, *from_documents] if _key(f) not in decided]
+    kinds = {f.fact_kind for f in given}
+    from_documents = [f for f in read if f.fact_kind not in kinds]
+    return [f for f in [*given, *from_documents] if f.fact_kind not in decided]
 
 
 def still_needed(asked: ProjectDescriptionRequest, proposals: Sequence[ProjectFact]) -> list[str]:
     """What neither a decision nor a proposal gives, in `NEEDED`'s order."""
     held = {f.fact_kind for f in [*asked.project_decisions, *proposals]}
     return [what for kind, what in NEEDED.items() if kind not in held]
-
-
-def _key(fact: ProjectFact) -> tuple[FactKind, str]:
-    return fact.fact_kind, fact.fact_subject.casefold()
 
 
 def describe(

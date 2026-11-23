@@ -18,7 +18,11 @@ escalation. What they cannot know is here, because it needs the profile or the r
   escalation's state allows, or, for a member reaching it as a steward, each steward move refused
   with why, so that the shell renders the moves and decides none;
 - **the queue** (`queue`): the escalations routed to a steward's teams, found through the team
-  index (`dd_harness.role_events.team_key`) in one read per team.
+  index (`dd_harness.role_events.team_key`) in one read per team;
+- **telling the team** (`tell_team`): each escalation opened, or moved by the researcher, is
+  emailed to the team's address, where the profile names one (invariant 13);
+- **the sweep** (`sweep`): an escalation nobody has taken within the profile's `reroute_after` is
+  sent to its team again, for the deployment, and the team and the researchers are told.
 
 A steward reaches only an escalation's record and moves here; opening the project as a steward
 is `dd_harness.steward_api`.
@@ -28,9 +32,11 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from dd_harness import project_access
+from dd_harness.notifications import Notifier, dispatch
 from dd_harness.policy import Profile
 from dd_harness.project_access import Action, Role
 from dd_harness.projects import (
@@ -54,12 +60,37 @@ from dd_harness.projects.escalations import (
 from dd_harness.role_events import team_key
 from dd_harness.stewardship import StewardTeam
 from dd_harness.storage import ProjectStorage
-from dd_sdk.contract.models import Principal
+from dd_sdk.contract.models import Principal, PrincipalKind
 
 type EnvelopeOf = Callable[[str], Mapping[str, Any] | None]
 
 # What each origin that names a run asks of the run's outcome.
 _POLICY_REASON = "policy_requires_approval"
+
+# Whom the sweep acts for when it sends an escalation to its team again: the deployment, an
+# accountable role that no person signs in as (invariant 13).
+SWEEP = Principal(
+    principal_id="urn:dd:deployment:escalation-sweep",
+    name="Data Director",
+    principal_kind=PrincipalKind.ACCOUNTABLE_ROLE,
+)
+SWEEP_CAUSED_BY = "dd-harness escalations sweep"
+
+
+def tell_team(
+    notifier: Notifier,
+    store: ProjectStorage,
+    profile: Profile,
+    project_id: str,
+    escalation: Mapping[str, Any],
+) -> None:
+    """Tell the escalation's team about its latest move, as `open_escalation`, `move` or `sweep`
+    returned it, if that move is one the team hears of (`dd_harness.notifications.dispatch`).
+    Every way in calls it after a move it made, outside the move, so that a mail server that is
+    slow or down never holds a project's log."""
+    event_id = escalation["history"][-1]["event_id"]
+    events = store.events(project_id)
+    dispatch(notifier, profile, events, [e for e in events if e["event_id"] == event_id])
 
 
 def route(
@@ -331,6 +362,43 @@ def move(
         **_named(profile, moved),
         "permitted_moves": permitted_moves(STEWARD if as_steward else RESEARCHER, moved),
     }
+
+
+def sweep(
+    store: ProjectStorage, profile: Profile, notifier: Notifier, *, now: datetime
+) -> list[dict[str, Any]]:
+    """Send each `open` escalation that its team was last asked to take more than the profile's
+    `reroute_after` before `now` to that team again, and tell the team; the researchers read it
+    in the app. Returns each escalation sent again, with its project. Nothing, where the profile
+    sets no `reroute_after` (invariant 13)."""
+    after = profile.stewardship.reroute_after
+    if after is None:
+        return []
+    due = now - after
+    sent = []
+    for team in profile.stewardship.teams:
+        for project_id, events in store.logs_naming(team_key(team.team_id)).items():
+            if deletion(events) is not None:
+                continue
+            for escalation in escalations(events):
+                if (
+                    escalation["team_id"] != team.team_id
+                    or escalation["state"] != "open"
+                    or datetime.fromisoformat(escalation["routed_at"]) >= due
+                ):
+                    continue
+                rerouted = store.reroute_escalation(
+                    project_id,
+                    escalation["escalation_id"],
+                    routed_before=due,
+                    acted_for=SWEEP,
+                    caused_by=SWEEP_CAUSED_BY,
+                )
+                if rerouted is not None:
+                    found = {**_named(profile, rerouted), "project_id": project_id}
+                    tell_team(notifier, store, profile, project_id, rerouted)
+                    sent.append(found)
+    return sent
 
 
 def queue(

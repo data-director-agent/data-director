@@ -68,6 +68,8 @@ export type AppResponse =
   | IntakeState
   | ItemDecisionMade
   | MoveName
+  | Notice
+  | Notices
   | OriginKind
   | OutcomeStatus
   | PackageLink
@@ -136,7 +138,8 @@ export type AppResponse =
   | VersionDecision;
 export type StepState = "started" | "done" | "skipped";
 export type OutcomeStatus = "succeeded" | "abstained" | "referred" | "failed" | "suspended";
-export type MoveName = "open" | "take" | "release" | "wait" | "reply" | "resolve" | "hand_back" | "withdraw" | "reopen";
+export type MoveName =
+  "open" | "take" | "release" | "wait" | "reply" | "resolve" | "hand_back" | "withdraw" | "reopen" | "reroute";
 export type OriginKind = "researcher" | "policy_gate" | "agent" | "orchestrator";
 export type EscalationState = "open" | "taken" | "waiting_for_researcher" | "resolved" | "handed_back" | "withdrawn";
 export type IntakeState = "pending" | "complete" | "dismissed";
@@ -884,6 +887,10 @@ export interface Escalation {
    */
   permitted_moves: PermittedMove[];
   /**
+   * When its team was last asked to take it: opened, released, re-opened or sent again.
+   */
+  routed_at: string;
+  /**
    * What the researcher was told would be shared, as they saw it when they confirmed it.
    */
   scope_shared: string[];
@@ -894,7 +901,8 @@ export interface Escalation {
   updated_at: string;
 }
 /**
- * One move in an escalation's history, the opening first.
+ * One move in an escalation's history, the opening first. `reroute` is the deployment
+ * sending it to its team again because nobody took it in time, which no person makes.
  */
 export interface EscalationMove {
   /**
@@ -903,6 +911,10 @@ export interface EscalationMove {
   acting_as?: "steward";
   at: string;
   by: Principal;
+  /**
+   * The project event that made the move.
+   */
+  event_id: string;
   move: MoveName;
   note?: string;
 }
@@ -1067,6 +1079,31 @@ export interface IntakeQuestion {
    * The intake's stable id, `intake.<name>`, which an answer is posted to.
    */
   question_id: string;
+}
+/**
+ * Something a data steward did in one of the person's projects (docs/specs/stewardship.md,
+ * invariant 13): a subject and where to look, never research content.
+ */
+export interface Notice {
+  at: string;
+  escalation_id?: string;
+  /**
+   * The project event it tells of, which the shell remembers as seen.
+   */
+  event_id: string;
+  kind: "waiting" | "resolved" | "handed_back" | "rerouted" | "message";
+  /**
+   * The app's page to look at.
+   */
+  path: string;
+  project_id: string;
+  subject: string;
+}
+/**
+ * What data stewards did in the person's projects in the last 30 days, the newest first.
+ */
+export interface Notices {
+  notices: Notice[];
 }
 /**
  * No package was built because the project is not valid: `validation` says why.
@@ -1336,6 +1373,10 @@ export interface ProjectDocuments {
    */
   decided?: DocumentVersionRef;
   documents: ProjectDocument[];
+  /**
+   * After a request for a new draft: the run that drafted the document again, or declined to.
+   */
+  drafted?: RevisionRun;
   project_id: string;
   /**
    * The longest request for changes the harness keeps, in characters.
@@ -1346,6 +1387,16 @@ export interface ProjectDocuments {
    * After a request for changes: the run that revised the document, or declined to.
    */
   revised?: RevisionRun;
+}
+/**
+ * The run asked to revise or draft a document again: its outcome, and the version it
+ * drafted, if any.
+ */
+export interface RevisionRun {
+  invocation_id: string;
+  statement: string;
+  status: "succeeded" | "abstained" | "referred" | "failed";
+  version: DocumentVersionRef | null;
 }
 /**
  * The harness's rule for when a decision needs a reason, which the form states.
@@ -1361,15 +1412,6 @@ export interface ReasonRequired {
   approved: boolean;
   edited_and_approved: boolean;
   rejected: boolean;
-}
-/**
- * The run asked to revise a document: its outcome, and the version it drafted, if any.
- */
-export interface RevisionRun {
-  invocation_id: string;
-  statement: string;
-  status: "succeeded" | "abstained" | "referred" | "failed";
-  version: DocumentVersionRef | null;
 }
 /**
  * A project's escalations, the teams it may send to, and where a new one would go.
@@ -1635,6 +1677,10 @@ export interface QueuedEscalation {
   project_id: string;
   project_title: string | null;
   /**
+   * When its team was last asked to take it: opened, released, re-opened or sent again.
+   */
+  routed_at: string;
+  /**
    * What the researcher was told would be shared, as they saw it when they confirmed it.
    */
   scope_shared: string[];
@@ -1781,6 +1827,14 @@ export interface RawSessionPrincipal {
  */
 export interface RawStewardTeam {
   name: string;
+  /**
+   * The address the team is emailed at, if the profile names one.
+   */
+  notify?: string;
+  /**
+   * What the team is told about at that address, in the profile's vocabulary.
+   */
+  notify_on: ("opened" | "rerouted" | "replied" | "withdrawn" | "reopened")[];
   team_id: string;
 }
 /**

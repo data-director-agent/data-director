@@ -15,14 +15,16 @@ grounding mode `delegation`, with `reply_derivation` `model`.
 
 ## What it cannot do
 
-**The orchestrator has no tools except its delegations and three of its own that reach nothing**
+**The orchestrator has no tools except its delegations and four of its own that reach nothing**
 ([Orchestration](../../docs/specs/orchestration.md), invariant 8). The model is offered one tool
-per input class of each agent in the harness's manifest, and `ask_questions`, `name_project` and
-`set_entry_point` (`own_tools.py`), and nothing else: no MCP server, no web search or fetch, no
+per input class of each agent in the harness's manifest, and `ask_questions`, `name_project`,
+`set_entry_point` (`own_tools.py`) and `propose_data_description` (`describing.py`), and nothing else: no MCP server, no web search or fetch, no
 code execution and no Agent Skills. `ask_questions` ends the turn with questions for the
 researcher; `name_project` and `set_entry_point` are offered only while a person has not named the
 project or chosen its entry point, and put the name or the entry point on the reply for the
-conductor to record. A fourth, `suggest_setup_answers`, is specified but not built, TODO(#908). Every lookup is therefore a child run that the harness governs, stores and grounds.
+conductor to record. `propose_data_description` is offered in a project, and puts a description
+of the project's data, in the researcher's words, on the reply's `proposed_facts`, for a person to
+confirm; once confirmed, every agent in the project is given it. A fifth, `suggest_setup_answers`, is specified but not built, TODO(#908). Every lookup is therefore a child run that the harness governs, stores and grounds.
 
 If the orchestrator needs to know something new, such as a registry, a funder's policy or a PID
 service, write or extend an agent that serves the step and let the orchestrator delegate to it.

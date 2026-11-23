@@ -16,7 +16,7 @@
 #   standards        the standards, vocabularies and formats people in the project chose
 #   project          what the project is for, its field and period, as people decided them at
 #                    "Describe your project" (`setup.project`)
-#   planned_data     the data the project expects to produce, as decided at that step
+#   data_description_so_far  what data the project collects and how, as a person confirmed it
 #
 # A section drafted from a fact still shows its `ask`, for what the fact cannot say, unless the
 # fact named by `complete_from` gives it: that fact says all the section asks.
@@ -85,7 +85,7 @@
   plan_ask: >-
     the files you expect to produce, in which formats, and how you will name and organise them.
 - heading: Methods
-  from: planned_data
+  from: data_description_so_far
   suggest: documents
   ask: >-
     how the data were collected and processed; the software and instruments, with their versions;

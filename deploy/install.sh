@@ -348,8 +348,9 @@ if [[ ! -L "$ROOT/current" ]]; then
   rm -f "$ROOT/first-deploy.sh"
 fi
 
-step "Enabling the services, the deployment timer and the backup timer"
-systemctl enable --now data-director.target data-director-deploy.timer data-director-backup.timer
+step "Enabling the services, the deployment, backup and escalation timers"
+systemctl enable --now data-director.target data-director-deploy.timer data-director-backup.timer \
+  data-director-escalations.timer
 
 step "Admin service, on the VM's loopback only, port 8200"
 # Read-only and with no sign-in, so it listens on 127.0.0.1 alone and NGINX does not serve it;

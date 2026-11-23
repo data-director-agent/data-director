@@ -19,7 +19,7 @@ export function TextValue({
   fact,
   set,
   required = false,
-  multiline = false,
+  long = false,
 }: {
   label: string;
   hint?: string;
@@ -27,7 +27,8 @@ export function TextValue({
   fact: ProjectFact;
   set: Setter;
   required?: boolean;
-  multiline?: boolean;
+  /** A few sentences in a person's own words, rather than a name or an identifier. */
+  long?: boolean;
 }) {
   const id = useId();
   const value = fact[slot];
@@ -41,10 +42,10 @@ export function TextValue({
           {hint}
         </p>
       )}
-      {multiline ? (
+      {long ? (
         <textarea
           id={id}
-          rows={4}
+          rows={3}
           required={required}
           aria-describedby={hint ? `${id}-hint` : undefined}
           value={typeof value === "string" ? value : ""}

@@ -72,7 +72,7 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
    `test_delegations_are_kept_when_the_parent_fails_after_delegating`,
    `test_a_child_that_finishes_after_its_parent_is_still_recorded`)
 8. **An orchestrator has no tools except its delegations, `ask_questions`, `name_project`,
-   `set_entry_point` and `suggest_setup_answers`.** A
+   `set_entry_point`, `propose_data_description` and `suggest_setup_answers`.** A
    model-backed orchestrator is offered one tool per input class of each agent in the harness's
    manifest, and `ask_questions`, which reaches nothing: called alone it ends the turn, and the
    reply carries its questions as `Reply.reply_questions`. In a project no person has named
@@ -83,7 +83,12 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
    (`Message.project_entry_by_researcher` not true) it is also offered `set_entry_point`, which
    reaches nothing: the reply carries the entry point the model worked out from what the
    researcher said as `Reply.new_project_entry`, which the conductor records (invariant 18), and
-   the turn goes on. While the project's intake has a question the researcher has not answered
+   the turn goes on. In a project it is also offered `propose_data_description`, which reaches
+   nothing: the reply carries, as `Reply.proposed_facts`, a `data_description` fact in the
+   researcher's own words, with the words it rests on as `proposed_because`, which the conductor
+   records as a proposal for a person to confirm ([Projects](projects.md), invariant 28), and the
+   turn goes on. Only a confirmed description reaches an agent, so a model's reading of what the
+   researcher said never becomes a fact without a person. While the project's intake has a question the researcher has not answered
    (invariant 20), it is also offered `suggest_setup_answers`, which reaches nothing: the reply
    carries, as `Reply.intake_suggestions`, the answers the model read in what the researcher
    said, each a question id and one fixed option of a question asked from the project's entry
@@ -270,7 +275,8 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
     done. "Yes" to a mandated repository marks the recommendation of one skipped, as Figure 3's
     "Yes" branch does. The Data Management Plan question follows Figure 1's branches: "Yes" marks
     creating a plan skipped and "No" marks reviewing one skipped. The skip records the branch not
-    taken, and a skip before the entry point does not bring its phase into the tracker (`dd_sdk.process_flow.progress`). "Yes" to sensitive data
+    taken; once a plan written in the project after "No" is approved, the review is open again
+    ([Projects](projects.md), rule 20), and a skip before the entry point does not bring its phase into the tracker (`dd_sdk.process_flow.progress`). "Yes" to sensitive data
     says at once, in the card, not to paste or upload the data itself into the conversation, and
     that the governance step covers how it is handled: Blueprint §5.2 asks that sensitive data not
     reach the model without institutional authorisation, and Figure 2 asks that it be anonymised
@@ -298,7 +304,9 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
     them; when the researcher said they have a Data Management Plan and attached no document, the
     model invites them to attach it and mark it as their plan (#1374), and when documents are
     attached but none is marked as the plan, to mark which one it is ([Projects](projects.md),
-    invariant 32; #1447). A researcher who dismisses the intake or types instead may still say where they are
+    invariant 32; #1447). When the researcher said they have none, the model offers to help write
+    one, and, once a plan written in the project is approved (`setup.dmp-create` done), offers to
+    review it instead. A researcher who dismisses the intake or types instead may still say where they are
     in their own words; the model then records the entry point it worked out (invariant 18).
 
     The intake asks only what the researcher has not answered, but it does not ask from scratch

@@ -21,10 +21,10 @@ export const KIND_LABELS: Record<FactKind, string> = {
   sharing_commitment: "Sharing commitment in the plan",
   standard: "Standard, vocabulary or format",
   data_management_plan: "Data Management Plan",
+  data_description: "The project's data",
   project_summary: "What the project is for",
   field_of_study: "Field of study",
   project_period: "When the project runs",
-  planned_data: "Data the project will produce",
 };
 
 export const FILE_DECISION_LABELS: Record<FileDecision, string> = {
@@ -112,6 +112,16 @@ function standardSentence(fact: ProjectFact): string {
   return `Use ${name} for ${target}.`;
 }
 
+function descriptionSentence(fact: ProjectFact): string {
+  const said = [
+    fact.data_collection_method && `Collected: ${fact.data_collection_method}`,
+    fact.data_reused && `Reused: ${fact.data_reused}`,
+    fact.data_formats && `Formats: ${fact.data_formats}`,
+    fact.data_volume && `Volume: ${fact.data_volume}`,
+  ].filter(Boolean);
+  return [fact.data_collected ?? fact.fact_subject, ...said].join(" ");
+}
+
 /** What a fact that describes the project says, decided at "Describe your project". */
 function projectSentence(fact: ProjectFact): string {
   switch (fact.fact_kind) {
@@ -123,8 +133,6 @@ function projectSentence(fact: ProjectFact): string {
       return fact.period_end
         ? `The project runs from ${fact.period_start} to ${fact.period_end}.`
         : `The project starts in ${fact.period_start}.`;
-    case "planned_data":
-      return `The project will produce ${fact.fact_subject}: ${fact.planned_description ?? ""}`.trim();
     default:
       return fact.fact_subject;
   }
@@ -153,6 +161,8 @@ export function describeFact(fact: ProjectFact): string {
       return standardSentence(fact);
     case "data_management_plan":
       return "One attached document is the project's Data Management Plan; the Documents page shows which.";
+    case "data_description":
+      return descriptionSentence(fact);
     default:
       return projectSentence(fact);
   }

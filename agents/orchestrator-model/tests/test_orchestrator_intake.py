@@ -16,7 +16,13 @@ from dd_agent_orchestrator_model.prompt import SYSTEM_PROMPT
 from dd_harness.projects import FactVerdict
 from dd_harness.testing import TEST_PRINCIPAL
 from dd_harness.testing.plan_storage import plan_fact
-from dd_sdk.contract.models import IntakeAnswer, Message, OutcomeStatus
+from dd_sdk.contract.models import (
+    IntakeAnswer,
+    Message,
+    OutcomeStatus,
+    StepProgress,
+    StepState,
+)
 from dd_sdk.intake import ENTRY, NO, NOT_SURE, YES, question
 
 pytestmark = pytest.mark.requirement("DD-CONVERSATION")
@@ -114,6 +120,21 @@ def test_a_caller_cannot_supply_the_intake() -> None:
     )
     note = intake_note(given)
     assert note is not None and note.startswith(LEAD)
+
+
+def test_after_no_an_approved_plan_is_offered_for_review_not_written_again() -> None:
+    answered = IntakeAnswer(
+        intake_question_id=DMP,
+        intake_question_prompt=question(DMP).prompt,
+        intake_answer_labels=[label(DMP, NO)],
+    )
+    before = intake_note(Message(message_text="Hi", project_intake=[answered]))
+    written = StepProgress(step_id="setup.dmp-create", step_state=StepState.DONE)
+    after = intake_note(
+        Message(message_text="Hi", project_intake=[answered], project_progress=[written])
+    )
+    assert before is not None and after is not None
+    assert after != before and "review" in after
 
 
 def test_the_prompt_says_the_setup_answers_are_given() -> None:

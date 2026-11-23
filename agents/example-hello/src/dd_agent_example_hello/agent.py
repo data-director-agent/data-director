@@ -73,7 +73,7 @@ class HelloWorld:
         },
         # Which steps of the Blueprint's process flow the agent helps with (`dd_sdk.process_flow`).
         # A template serves none, so no orchestrator offers it to a researcher; a real agent names
-        # its steps here, for example `serves=("setup.vocabularies",)`.
+        # its steps here, for example `serves=("setup.formats",)`.
         serves=(),
     )
 

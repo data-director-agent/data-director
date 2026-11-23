@@ -2,11 +2,10 @@
 docs/specs/drafting.md): the inventory's files, the licences the repository offers, the approved
 metadata record's values, the standards, vocabularies and formats people in the project chose
 (`standard` project facts, docs/specs/projects.md, #1391), and, for a Data Management Plan, the
-funders, repository, licence and handling of sensitive data people decided. Before the data
-exist, it is also drafted from what people decided about the project at "Describe your project"
-(`setup.project`): what it is for, its field and period (`project`), and the data it expects to
-produce (`planned_data`). Each is placed as a person decided it: supplied, never inferred
-(invariant 2)."""
+funders, repository, licence and handling of sensitive data people decided, and the description of
+the data a person confirmed (`data_description`, #160), and what the project is for, its field and
+period, as decided at "Describe your project" (`project`, `setup.project`). Each is placed as a
+person decided it: supplied, never inferred (invariant 2)."""
 
 from __future__ import annotations
 
@@ -18,37 +17,68 @@ from dd_sdk.contract.facts import DATASET_TARGET, FactKind, ProjectFact
 from dd_sdk.contract.models import DraftRequest
 
 FIELD = "field:"
+# The confirmed data description, when it says both what is collected and how, which completes
+# a plan's data section; and when it says only what, which leaves the section's question asked.
+DESCRIBED = "data_description"
+DESCRIBED_SO_FAR = "data_description_so_far"
+# Each value of a data description, by slot, and how it is labelled in the plan.
+_DESCRIPTION = (
+    ("data_collected", "Data"),
+    ("data_collection_method", "How they are collected or produced"),
+    ("data_reused", "Existing data reused"),
+    ("data_formats", "Formats"),
+    ("data_volume", "Volume"),
+)
 
 
 def drafted(source: str, asked: DraftRequest, record: Mapping[str, Any] | None) -> str | None:
     """A section's text drafted from `source`, or None if there is nothing to draft."""
     if source.startswith("record_"):
         return _from_record(source, record) if record is not None else None
-    if source in _FROM_REQUEST:
-        return _FROM_REQUEST[source](asked)
-    if source in _FROM_DECISIONS:
-        return _FROM_DECISIONS[source](asked.project_decisions)
-    return decided(source, asked.project_decisions)
-
-
-def files(asked: DraftRequest) -> str | None:
-    """The inventory's files as a table of path, format and size; None without an inventory."""
-    if asked.inventory is None:
-        return None
-    rows = [
-        (f"`{f.file_path}`", file_format(f.file_media_type, f.file_pronom_ids), str(f.file_size))
-        for f in asked.inventory.inventory_files
-    ]
-    return table(("File", "Format", "Size (bytes)"), rows)
-
-
-def licences(asked: DraftRequest) -> str | None:
-    """The licences the chosen repository offers; None when it names none."""
+    if source == "files" and asked.inventory is not None:
+        rows = [
+            (
+                f"`{f.file_path}`",
+                file_format(f.file_media_type, f.file_pronom_ids),
+                str(f.file_size),
+            )
+            for f in asked.inventory.inventory_files
+        ]
+        return table(("File", "Format", "Size (bytes)"), rows)
     requirements = asked.requirements
-    if requirements is None or not requirements.licences:
-        return None
-    offered = ", ".join(f"`{licence}`" for licence in requirements.licences)
-    return f"{requirements.repository_name} offers these licences: {offered}."
+    if source == "licences":
+        if requirements is None or not requirements.licences:
+            return None
+        offered = ", ".join(f"`{licence}`" for licence in requirements.licences)
+        return f"{requirements.repository_name} offers these licences: {offered}."
+    if source == "repository":
+        return repository(asked)
+    return from_decisions(source, asked.project_decisions)
+
+
+def from_decisions(source: str, decisions: Sequence[ProjectFact]) -> str | None:
+    """A section's text drafted from the facts people decided, or None if there is nothing."""
+    if source == "standards":
+        return standards(decisions)
+    if source == "project":
+        return project(decisions)
+    if source in (DESCRIBED, DESCRIBED_SO_FAR):
+        return data_description(decisions, complete=source == DESCRIBED)
+    return decided(source, decisions)
+
+
+def project(decisions: Sequence[ProjectFact]) -> str | None:
+    """What the project is for, its field and when it runs, as decided; None if none is."""
+    lines = []
+    for fact in decisions:
+        if fact.fact_kind == FactKind.PROJECT_SUMMARY and fact.summary_text:
+            lines.append(fact.summary_text)
+        elif fact.fact_kind == FactKind.FIELD_OF_STUDY:
+            lines.append(f"Field of study: {fact.field_name}.")
+        elif fact.fact_kind == FactKind.PROJECT_PERIOD:
+            end = f" to {fact.period_end}" if fact.period_end else ""
+            lines.append(f"The project runs from {fact.period_start}{end}.")
+    return "\n\n".join(lines) or None
 
 
 def _funder(fact: ProjectFact) -> str:
@@ -94,42 +124,6 @@ def decided(source: str, decisions: Sequence[ProjectFact]) -> str | None:
     return f"{intro}\n\n" + "\n".join(lines) if lines else None
 
 
-def project(decisions: Sequence[ProjectFact]) -> str | None:
-    """What the project is for, its field and when it runs, as decided; None if none is."""
-    lines = []
-    for fact in decisions:
-        if fact.fact_kind == FactKind.PROJECT_SUMMARY and fact.summary_text:
-            lines.append(fact.summary_text)
-        elif fact.fact_kind == FactKind.FIELD_OF_STUDY:
-            lines.append(f"Field of study: {fact.field_name}.")
-        elif fact.fact_kind == FactKind.PROJECT_PERIOD:
-            end = f" to {fact.period_end}" if fact.period_end else ""
-            lines.append(f"The project runs from {fact.period_start}{end}.")
-    return "\n\n".join(lines) or None
-
-
-def planned(decisions: Sequence[ProjectFact]) -> str | None:
-    """The data the project expects to produce, one line each, as decided; None if none is."""
-    lines = []
-    for fact in decisions:
-        if fact.fact_kind != FactKind.PLANNED_DATA:
-            continue
-        details = [
-            f"{label}: {value}"
-            for label, value in (
-                ("collected by", fact.planned_collection_method),
-                ("formats", fact.planned_format),
-                ("volume", fact.planned_volume),
-            )
-            if value
-        ]
-        extra = f" ({'; '.join(details)})" if details else ""
-        lines.append(f"- **{fact.fact_subject}**: {fact.planned_description}{extra}")
-    if not lines:
-        return None
-    return "The project expects to produce these data:\n\n" + "\n".join(lines)
-
-
 def repository(asked: DraftRequest) -> str | None:
     """The repository chosen, and any a funder, journal or institution requires; None if none."""
     lines = []
@@ -167,17 +161,19 @@ def _target(target: str | None) -> str:
     return f"the field `{target.removeprefix(FIELD)}`"
 
 
-# The sources drafted from the request as a whole, and those drafted from the decided facts alone.
-_FROM_REQUEST: dict[str, Callable[[DraftRequest], str | None]] = {
-    "files": files,
-    "licences": licences,
-    "repository": repository,
-}
-_FROM_DECISIONS: dict[str, Callable[[Sequence[ProjectFact]], str | None]] = {
-    "standards": standards,
-    "project": project,
-    "planned_data": planned,
-}
+def data_description(decisions: Sequence[ProjectFact], *, complete: bool) -> str | None:
+    """The confirmed data description, one labelled line for each value, in the researcher's
+    words; None when none is confirmed, or when it is not as complete as `complete` asks: it is
+    complete when it says how the data are collected or which existing data are reused."""
+    fact = next((f for f in decisions if f.fact_kind == FactKind.DATA_DESCRIPTION), None)
+    if fact is None:
+        return None
+    if bool(fact.data_collection_method or fact.data_reused) != complete:
+        return None
+    lines = [
+        f"- **{label}:** {value}" for slot, label in _DESCRIPTION if (value := getattr(fact, slot))
+    ]
+    return "\n".join(lines)
 
 
 def file_format(media_type: str | None, pronom_ids: list[str]) -> str:

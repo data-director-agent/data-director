@@ -14,7 +14,8 @@ from dd_sdk.contract.questions import SharedField
 
 README = Path(__file__).with_name("readme.yaml")
 # The project facts a section may be drafted from (readme.yaml explains each; `drafted.py` the
-# decided facts a Data Management Plan also draws on: funders, repository, licence, sensitivity).
+# decided facts a Data Management Plan also draws on: funders, repository, licence, sensitivity
+# and the data description, in full or so far).
 SOURCES = frozenset(
     {
         "files",
@@ -28,8 +29,9 @@ SOURCES = frozenset(
         "repository",
         "licence",
         "sensitivity",
+        "data_description",
+        "data_description_so_far",
         "project",
-        "planned_data",
     }
 )
 # A section's `suggest` value for "only from the documents the researcher attached".

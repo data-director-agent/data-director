@@ -1,47 +1,6 @@
 {
    "$comment": "Generated from dmp.yaml by `uv run dd-gen-schema <path to dmp.yaml>`. Do not edit.",
    "$defs": {
-      "ExpectedOutput": {
-         "additionalProperties": false,
-         "description": "One output of data the researcher expects to produce, as they describe it.",
-         "properties": {
-            "output": {
-               "description": "The output, by name, such as a dataset or software.",
-               "type": "string"
-            },
-            "output_description": {
-               "description": "What the output will hold, in a sentence or two.",
-               "type": "string"
-            },
-            "collection_method": {
-               "description": "How the data will be collected or generated.",
-               "type": [
-                  "string",
-                  "null"
-               ]
-            },
-            "formats": {
-               "description": "The kinds of file or format expected.",
-               "type": [
-                  "string",
-                  "null"
-               ]
-            },
-            "volume": {
-               "description": "How much data is expected.",
-               "type": [
-                  "string",
-                  "null"
-               ]
-            }
-         },
-         "required": [
-            "output",
-            "output_description"
-         ],
-         "title": "ExpectedOutput",
-         "type": "object"
-      },
       "FactKind": {
          "description": "What a project fact is about (docs/specs/projects.md).",
          "enum": [
@@ -53,10 +12,10 @@
             "sharing_commitment",
             "standard",
             "data_management_plan",
+            "data_description",
             "project_summary",
             "field_of_study",
-            "project_period",
-            "planned_data"
+            "project_period"
          ],
          "title": "FactKind",
          "type": "string"
@@ -315,6 +274,30 @@
                "if": {
                   "properties": {
                      "fact_kind": {
+                        "const": "data_description"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "data_collected": {},
+                     "fact_subject": {
+                        "const": "project"
+                     }
+                  },
+                  "required": [
+                     "data_collected",
+                     "fact_subject"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
                         "const": "project_summary"
                      }
                   },
@@ -382,29 +365,9 @@
                      "fact_subject"
                   ]
                }
-            },
-            {
-               "if": {
-                  "properties": {
-                     "fact_kind": {
-                        "const": "planned_data"
-                     }
-                  },
-                  "required": [
-                     "fact_kind"
-                  ]
-               },
-               "then": {
-                  "properties": {
-                     "planned_description": {}
-                  },
-                  "required": [
-                     "planned_description"
-                  ]
-               }
             }
          ],
-         "description": "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, an output a data management plan committed to share, a standard, vocabulary or format the researcher chose for the dataset, which attached document is the project's data management plan, or what the project is and the data it expects to produce: its summary, field of study, period and planned data (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because.",
+         "description": "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, an output a data management plan committed to share, a standard, vocabulary or format the researcher chose for the dataset, which attached document is the project's data management plan, or what data the project collects and how, or what the project is for, its field of study and when it runs (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because.",
          "properties": {
             "fact_kind": {
                "$ref": "#/$defs/FactKind",
@@ -603,6 +566,41 @@
                   "null"
                ]
             },
+            "data_collected": {
+               "description": "For a data description fact, what data the project collects, produces or reuses, and of which types, in the researcher's words.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "data_collection_method": {
+               "description": "For a data description fact, how the data are collected or produced, in the researcher's words.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "data_formats": {
+               "description": "For a data description fact, the file formats the data are kept in, in the researcher's words.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "data_volume": {
+               "description": "For a data description fact, how much data the project expects, in the researcher's words.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "data_reused": {
+               "description": "For a data description fact, which existing data the project reuses, and how, in the researcher's words.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
             "summary_text": {
                "description": "For a project summary fact, what the project is for, in a few sentences: its aims and the questions it asks.",
                "pattern": "\\S",
@@ -630,35 +628,6 @@
             "period_end": {
                "description": "When the project ends, as a year, a month or a day.",
                "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
-               "type": [
-                  "string",
-                  "null"
-               ]
-            },
-            "planned_description": {
-               "description": "For a planned data fact, what the output will hold, in a sentence or two. Its fact_subject is a short name for the output.",
-               "pattern": "\\S",
-               "type": [
-                  "string",
-                  "null"
-               ]
-            },
-            "planned_collection_method": {
-               "description": "For a planned data fact, how the data will be collected or generated.",
-               "type": [
-                  "string",
-                  "null"
-               ]
-            },
-            "planned_format": {
-               "description": "For a planned data fact, the kinds of file or format expected, as given.",
-               "type": [
-                  "string",
-                  "null"
-               ]
-            },
-            "planned_volume": {
-               "description": "For a planned data fact, how much data is expected, as given.",
                "type": [
                   "string",
                   "null"
@@ -707,7 +676,7 @@
    "$id": "https://w3id.org/data-director/agents/dmp/ProjectDescriptionRequest",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "A request to describe the project before its data are collected (setup.project): what it is for, its field of study, when it runs and the data it expects to produce, as the researcher said them. Each is optional. In a project the conductor also gives the documents the researcher attached, such as a proposal or an award letter, from which a model reads what the researcher has not said, and the facts people decided, which are not proposed again.",
+   "description": "A request to describe the project before its data are collected (setup.project): what it is for, its field of study and when it runs, as the researcher said them. Each is optional; what the researcher says of their data the orchestrator proposes itself, as a data_description fact. In a project the conductor also gives the documents the researcher attached, such as a proposal or an award letter, from which a model reads what the researcher has not said, the data among it, and the facts people decided, which are not proposed again.",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -743,16 +712,6 @@
          "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
          "type": [
             "string",
-            "null"
-         ]
-      },
-      "expected_outputs": {
-         "description": "The data the researcher expects to produce, one entry for each output.",
-         "items": {
-            "$ref": "#/$defs/ExpectedOutput"
-         },
-         "type": [
-            "array",
             "null"
          ]
       },

@@ -43,6 +43,7 @@ from dd_harness import gateway
 from dd_harness.conductor import Conductor
 from dd_harness.deposit import PackageRefusedError, Validation, build_package, check
 from dd_harness.deposit_cli import add_commands as add_deposit_commands
+from dd_harness.escalation_cli import add_commands as add_escalation_commands
 from dd_harness.gateway.config import ToolConfigError
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
 from dd_harness.member_cli import add_commands as add_member_commands
@@ -347,7 +348,7 @@ def cmd_tools_pins(args: argparse.Namespace) -> int:
 
 
 def _parser() -> argparse.ArgumentParser:
-    """The command line: `serve`, and the `storage` and `project` command groups."""
+    """The command line: `serve`, and the `storage`, `project` and `escalations` groups."""
     parser = argparse.ArgumentParser(
         prog="dd-harness",
         description="Data Director harness: serve the conductor over A2A, and keep projects",
@@ -366,6 +367,7 @@ def _parser() -> argparse.ArgumentParser:
 
     _add_storage_commands(sub)
     _add_project_commands(sub)
+    add_escalation_commands(sub)
     return parser
 
 

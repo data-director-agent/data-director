@@ -127,6 +127,38 @@
          "title": "ApprovedMetadataRecord",
          "type": "object"
       },
+      "ApprovedPlan": {
+         "additionalProperties": false,
+         "description": "The data management plan written in the project as a person approved it: the version named by the last approval of a dmp document in the project (docs/specs/projects.md). It is the project's own document, not one a researcher attached, so no data_management_plan fact names it.",
+         "properties": {
+            "version_ref": {
+               "$ref": "#/$defs/DocumentVersionRef",
+               "description": "The version, by its document and number."
+            },
+            "document_title": {
+               "description": "A short name a person can tell documents apart by, such as README for raw/.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "media_type": {
+               "description": "The media type of document_text, such as text/markdown or application/json.",
+               "type": "string"
+            },
+            "document_text": {
+               "description": "The content of the document, as text; a structured record is serialised.",
+               "type": "string"
+            }
+         },
+         "required": [
+            "version_ref",
+            "media_type",
+            "document_text"
+         ],
+         "title": "ApprovedPlan",
+         "type": "object"
+      },
       "Assurance": {
          "description": "How the harness came to know the principal (docs/specs/policy-and-identity.md).",
          "enum": [
@@ -1205,10 +1237,10 @@
             "sharing_commitment",
             "standard",
             "data_management_plan",
+            "data_description",
             "project_summary",
             "field_of_study",
-            "project_period",
-            "planned_data"
+            "project_period"
          ],
          "title": "FactKind",
          "type": "string"
@@ -1489,6 +1521,25 @@
             }
          },
          "title": "GivenProjectMetadataRecord",
+         "type": "object"
+      },
+      "GivenProjectPlan": {
+         "additionalProperties": false,
+         "description": "Mixed into an agent's own input class when the agent reads the data management plan written in the project, as a person approved it last. In a project the conductor fills project_plan_approved by this name and never needs to know the input class (docs/specs/projects.md, invariant 6); outside one, the caller sends it.",
+         "properties": {
+            "project_plan_approved": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/ApprovedPlan"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "The version of the project's data management plan (a dmp document) a person approved last. In a project the conductor fills it and a caller leaves it out. Absent when no version has been approved."
+            }
+         },
+         "title": "GivenProjectPlan",
          "type": "object"
       },
       "GivenProjectRepository": {
@@ -2892,6 +2943,30 @@
                "if": {
                   "properties": {
                      "fact_kind": {
+                        "const": "data_description"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "data_collected": {},
+                     "fact_subject": {
+                        "const": "project"
+                     }
+                  },
+                  "required": [
+                     "data_collected",
+                     "fact_subject"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
                         "const": "project_summary"
                      }
                   },
@@ -2959,29 +3034,9 @@
                      "fact_subject"
                   ]
                }
-            },
-            {
-               "if": {
-                  "properties": {
-                     "fact_kind": {
-                        "const": "planned_data"
-                     }
-                  },
-                  "required": [
-                     "fact_kind"
-                  ]
-               },
-               "then": {
-                  "properties": {
-                     "planned_description": {}
-                  },
-                  "required": [
-                     "planned_description"
-                  ]
-               }
             }
          ],
-         "description": "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, an output a data management plan committed to share, a standard, vocabulary or format the researcher chose for the dataset, which attached document is the project's data management plan, or what the project is and the data it expects to produce: its summary, field of study, period and planned data (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because.",
+         "description": "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, an output a data management plan committed to share, a standard, vocabulary or format the researcher chose for the dataset, which attached document is the project's data management plan, or what data the project collects and how, or what the project is for, its field of study and when it runs (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because.",
          "properties": {
             "fact_kind": {
                "$ref": "#/$defs/FactKind",
@@ -3180,6 +3235,41 @@
                   "null"
                ]
             },
+            "data_collected": {
+               "description": "For a data description fact, what data the project collects, produces or reuses, and of which types, in the researcher's words.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "data_collection_method": {
+               "description": "For a data description fact, how the data are collected or produced, in the researcher's words.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "data_formats": {
+               "description": "For a data description fact, the file formats the data are kept in, in the researcher's words.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "data_volume": {
+               "description": "For a data description fact, how much data the project expects, in the researcher's words.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "data_reused": {
+               "description": "For a data description fact, which existing data the project reuses, and how, in the researcher's words.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
             "summary_text": {
                "description": "For a project summary fact, what the project is for, in a few sentences: its aims and the questions it asks.",
                "pattern": "\\S",
@@ -3207,35 +3297,6 @@
             "period_end": {
                "description": "For a project period fact, when the project ends, as a year, a month or a day; absent where it is not known.",
                "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
-               "type": [
-                  "string",
-                  "null"
-               ]
-            },
-            "planned_description": {
-               "description": "For a planned data fact, what the output will hold, in a sentence or two. Its fact_subject is a short name for the output.",
-               "pattern": "\\S",
-               "type": [
-                  "string",
-                  "null"
-               ]
-            },
-            "planned_collection_method": {
-               "description": "For a planned data fact, how the data will be collected or generated.",
-               "type": [
-                  "string",
-                  "null"
-               ]
-            },
-            "planned_format": {
-               "description": "For a planned data fact, the kinds of file or format expected, as given.",
-               "type": [
-                  "string",
-                  "null"
-               ]
-            },
-            "planned_volume": {
-               "description": "For a planned data fact, how much data is expected, as given.",
                "type": [
                   "string",
                   "null"
@@ -3417,7 +3478,7 @@
       },
       "Reply": {
          "additionalProperties": false,
-         "description": "The payload of a conversational agent: the text of its reply. An orchestrator's reply is grounded on its input and on the envelopes of the invocations it delegated to.",
+         "description": "The payload of a conversational agent: the text of its reply. An orchestrator's reply is grounded on its input and on the envelopes of the invocations it delegated to. An orchestrator may propose a data description fact from what the researcher said, for a person to confirm (docs/specs/orchestration.md).",
          "properties": {
             "schema_class": {
                "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -3473,6 +3534,16 @@
                   "$ref": "#/$defs/GroundingRef"
                },
                "type": "array"
+            },
+            "proposed_facts": {
+               "description": "Facts the agent proposes for a person to confirm. A proposal is never a fact until a person decides it (docs/specs/projects.md).",
+               "items": {
+                  "$ref": "#/$defs/ProjectFact"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
             }
          },
          "required": [
@@ -4548,5 +4619,5 @@
    ],
    "title": "data_director_core",
    "type": "object",
-   "version": "0.26.0"
+   "version": "0.27.0"
 }

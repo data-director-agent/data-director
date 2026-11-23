@@ -71,6 +71,11 @@ only when you confirm. Discarding it stores nothing.
 
 When a reply includes a draft, such as a README or a data dictionary, it appears in the
 conversation as a document card. You decide on it from there or from the project's documents page.
+If the draft asks you questions, answer them on its card or in the Questions tab on the documents
+page. Your answers go into the next draft, which you ask for when you are ready: select
+**Continue drafting** beneath the document on the documents page, or ask in the conversation. You
+can continue drafting at any time, including once every question is answered, and each new draft
+is a new version for you to review.
 Every decision is recorded ([What the Data Director records](records.md)).
 
 ### If a reply fails

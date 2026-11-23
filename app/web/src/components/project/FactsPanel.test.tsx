@@ -192,7 +192,7 @@ describe("FactsPanel", () => {
     });
   });
 
-  it("records what the project will produce, named as the person names it", async () => {
+  it("records a description of the project's data, under the one subject a project has", async () => {
     const decideFact = vi.fn<FactsApi["decideFact"]>(() =>
       Promise.resolve(DECIDED),
     );
@@ -203,19 +203,15 @@ describe("FactsPanel", () => {
     const form = screen.getByRole("form", { name: "A fact nobody proposed" });
     await user.selectOptions(
       within(form).getByLabelText("What the fact is about"),
-      "planned_data",
+      "data_description",
     );
     await user.type(
-      within(form).getByLabelText(/A short name for the data/),
+      within(form).getByLabelText(/What data the project collects/),
       "Interview recordings",
     );
     await user.type(
-      within(form).getByLabelText(/What the data will hold/),
-      "Audio of semi-structured interviews.",
-    );
-    await user.type(
-      within(form).getByLabelText(/How they will be collected/),
-      "Recorded in person",
+      within(form).getByLabelText(/How they are collected/),
+      "Recorded interviews",
     );
     await user.click(
       within(form).getByRole("button", { name: "Record this fact" }),
@@ -224,10 +220,10 @@ describe("FactsPanel", () => {
     expect(decideFact).toHaveBeenCalledWith(PROJECT, {
       verdict: "changed",
       fact: {
-        fact_kind: "planned_data",
-        fact_subject: "Interview recordings",
-        planned_description: "Audio of semi-structured interviews.",
-        planned_collection_method: "Recorded in person",
+        fact_kind: "data_description",
+        fact_subject: "project",
+        data_collected: "Interview recordings",
+        data_collection_method: "Recorded interviews",
       },
     });
   });
@@ -388,13 +384,19 @@ describe("FactsPanel", () => {
     renderPanel({ facts: () => Promise.resolve(DECIDED) });
     const [proposal] = DECIDED.proposals;
     if (!proposal) throw new Error("the fixture has no proposal left");
-    const card = await screen.findByRole("article", { name: new RegExp(KIND_LABELS[proposal.fact.fact_kind]) });
-    expect(within(card).getByRole("link", { name: /Discuss this with Data Director/ })).toHaveAttribute(
-      "href",
-      homePath({ fact: proposal.proposal }),
-    );
-    const decided = screen.getByRole("heading", { name: "Decided" }).nextElementSibling as HTMLElement;
-    expect(within(decided).queryByRole("link", { name: /Discuss this/ })).toBeNull();
+    const card = await screen.findByRole("article", {
+      name: new RegExp(KIND_LABELS[proposal.fact.fact_kind]),
+    });
+    expect(
+      within(card).getByRole("link", {
+        name: /Discuss this with Data Director/,
+      }),
+    ).toHaveAttribute("href", homePath({ fact: proposal.proposal }));
+    const decided = screen.getByRole("heading", { name: "Decided" })
+      .nextElementSibling as HTMLElement;
+    expect(
+      within(decided).queryByRole("link", { name: /Discuss this/ }),
+    ).toBeNull();
   });
 
   describe("reached by a link to some of its facts", () => {

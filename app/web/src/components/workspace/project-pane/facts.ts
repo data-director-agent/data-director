@@ -17,13 +17,13 @@ import { describeFact } from "../../project/factWording";
 /** The kinds that shape what Data Director says, in the order the pane lists them. */
 export const WORKING_KINDS: readonly FactKind[] = [
   "field_of_study",
-  "planned_data",
   "funder",
   "required_repository",
   "sensitivity",
   "licence",
   "sharing_commitment",
   "standard",
+  "data_description",
 ];
 
 /** A fact's value in a few words where its kind has one; otherwise its sentence. */
@@ -39,8 +39,6 @@ export function factValue(fact: ProjectFact): string {
       return fact.standard_name ?? fact.fact_subject;
     case "field_of_study":
       return fact.field_name ?? fact.fact_subject;
-    case "planned_data":
-      return fact.fact_subject;
     default:
       return describeFact(fact);
   }
