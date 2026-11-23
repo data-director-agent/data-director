@@ -30,7 +30,7 @@ export function navigate(to: string, replace = false): void {
 }
 
 /** The conversation page's address: the open conversation (`?conversation=`), the run shown
- * (`?run=`), a step of the journey to ask about (`?ask=`) and a draft's question to talk through
+ * (`?run=`), a step of the journey to ask about in a new conversation (`?ask=`) and a draft's question to talk through
  * (`?question=`, as `{document_id}/{question_id}`) and FAIR feedback to ask for (`?fair=check`,
  * from the FAIR feedback tab's button), each left out when none. */
 export function homePath({
