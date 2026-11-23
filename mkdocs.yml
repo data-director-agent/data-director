@@ -199,6 +199,8 @@ nav:
           - /subjects/README.md
       - Formats library:
           - /formats/README.md
+      - Journals library:
+          - /journals/README.md
       - DMP template library:
           - /dmp-template/README.md
       - FAIRsharing server:
