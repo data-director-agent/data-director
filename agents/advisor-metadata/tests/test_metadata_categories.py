@@ -15,13 +15,11 @@ from test_metadata_agent import sample
 
 from dd_agent_advisor_metadata.agent import MetadataLibrarian
 from dd_agent_advisor_metadata.categories import SERVER
+from dd_agent_advisor_metadata.evals.drafting import subjects_gateway
 from dd_agent_advisor_metadata.suggest import ModelSuggester, TemplateSuggester
-from dd_agent_advisor_metadata.testing import suggestion_reply
-from dd_harness.gateway.config import ToolServer, tools_digest
+from dd_agent_advisor_metadata.testing import asked_in, suggestion_reply
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
-from dd_harness.testing.tools import fake_gateway, tools_profile
-from dd_mcp_subjects.server import server
-from dd_mcp_subjects.tools import Tools
+from dd_harness.testing.tools import tools_profile
 from dd_sdk.contract.models import (
     Document,
     DocumentQuestion,
@@ -29,7 +27,6 @@ from dd_sdk.contract.models import (
     GroundingMode,
     OutcomeStatus,
 )
-from dd_sdk.evidence import DOCUMENT_CANONICALISATION
 from dd_sdk.model import ModelRequest
 from dd_sdk.testing import FakeModel
 
@@ -38,25 +35,6 @@ SOIL = "4106"
 SCHEME = "ANZSRC Fields of Research"
 
 type Choose = Callable[[list[dict[str, Any]]], Mapping[str, str | None]]
-
-
-def subjects_server() -> ToolServer:
-    listed = Tools().listed
-    return ToolServer(
-        name=SERVER,
-        url="http://127.0.0.1:8314/subjects/mcp",
-        id_field="id",
-        canonicalisation=DOCUMENT_CANONICALISATION,
-        tools_sha256=tools_digest(
-            t.model_dump(mode="json", by_alias=True, exclude_none=True) for t in listed
-        ),
-    )
-
-
-def asked_in(sent: ModelRequest) -> list[dict[str, Any]]:
-    """The questions a model request offers, from its user message."""
-    content = str(sent.messages[0]["content"])  # type: ignore[index]
-    return list(json.loads(content.split("\n\nFacts:\n")[0].split(":\n", 1)[1]))
 
 
 def replying(choose: Choose) -> Callable[[ModelRequest], str]:
@@ -82,7 +60,7 @@ def run(
         tmp_path / "runs",
         MetadataLibrarian(suggester=suggester),
         profile=tools_profile(tmp_path, GRANTED if grant else {}),
-        gateway=fake_gateway(subjects_server(), serve=lambda _s: server(Tools())),
+        gateway=subjects_gateway(),
     )
     env = conductor.invoke(request("advisor.metadata", sample()), acting_for=TEST_PRINCIPAL)
     return env, conductor.grounding_reports[env.invocation_id].passed, fake

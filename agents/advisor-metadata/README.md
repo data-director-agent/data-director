@@ -156,7 +156,7 @@ grants it in the institutional profile (`tool_servers: {advisor.metadata: [subje
   from their ORCID records.
 - It takes terms only from the subject classifications `mcp-subjects` holds, and only for an entry
   the repository asks for from one; no keywords from other vocabularies, even one the project
-  chose (TODO(#956)). It does not split names into given and family names: TODO(#703).
+  chose (TODO(#956)). It does not split names into given and family names: TODO(#1588).
 - It does not map a record between schemas (R6): for requirements in another standard it
   abstains with `capability_not_implemented`. Conversion between standards, which reports each
   value it could not place, is TODO(#1363). Nor does it write Figshare's own item format (#383).

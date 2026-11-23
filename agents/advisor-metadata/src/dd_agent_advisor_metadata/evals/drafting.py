@@ -11,7 +11,9 @@ where `DRAFTING` is `agents/advisor-metadata/src/dd_agent_advisor_metadata/evals
 
 By default the librarian is built in this process from its own environment variables
 (`factory.build`), with the template suggester unless `DD_METADATA_SUGGESTER` asks for a model,
-and reached over in-memory A2A.
+and reached over in-memory A2A. Its conductor serves the subject classifications server
+(`mcp-subjects`) in process behind the tool gateway, and grants it to the librarian, so a model
+chooses each category from the fields it retrieves there, as in a deployment.
 
 Whoever runs the evaluation is the principal each case is invoked for (`DD_PRINCIPAL_ID`,
 `DD_PRINCIPAL_NAME`; docs/specs/policy-and-identity.md). The run records the git revision, the
@@ -24,19 +26,24 @@ from __future__ import annotations
 import hashlib
 import os
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 from inspect_ai import Task, task
 from inspect_ai.dataset import MemoryDataset
 
 from dd_agent_advisor_metadata.agent import DATACITE_FORM, MetadataLibrarian
+from dd_agent_advisor_metadata.categories import SERVER
 from dd_agent_advisor_metadata.evals.scorers import (
     nothing_placed,
     questions_asked,
     subjects_recalled,
     terms_cited,
 )
+
+if TYPE_CHECKING:
+    from dd_harness.gateway.config import ToolServer
+    from dd_harness.gateway.core import Gateway
 
 AGENT_ID = "advisor.metadata"
 HERE = Path(__file__).parent
@@ -139,6 +146,33 @@ def librarian() -> MetadataLibrarian:
     return build({"DD_METADATA_SUGGESTER": "template", **os.environ})
 
 
+def subjects_server() -> ToolServer:
+    """The subject classifications server as a deployment lists it (`mcp-subjects`), pinned to
+    the tools it lists."""
+    from dd_harness.gateway.config import ToolServer, tools_digest
+    from dd_mcp_subjects.tools import Tools
+    from dd_sdk.evidence import DOCUMENT_CANONICALISATION
+
+    return ToolServer(
+        name=SERVER,
+        url="http://127.0.0.1:8314/subjects/mcp",
+        id_field="id",
+        canonicalisation=DOCUMENT_CANONICALISATION,
+        tools_sha256=tools_digest(
+            t.model_dump(mode="json", by_alias=True, exclude_none=True) for t in Tools().listed
+        ),
+    )
+
+
+def subjects_gateway() -> Gateway:
+    """A tool gateway over the subject classifications server, served in this process."""
+    from dd_harness.testing.tools import fake_gateway
+    from dd_mcp_subjects.server import server
+    from dd_mcp_subjects.tools import Tools
+
+    return fake_gateway(subjects_server(), serve=lambda _server: server(Tools()))
+
+
 @task
 def metadata_drafting(agents: str | None = None) -> Task:
     from workbench.config import settings_from_env
@@ -154,7 +188,13 @@ def metadata_drafting(agents: str | None = None) -> Task:
     return Task(
         dataset=dataset(load_cases()),
         solver=invoke_agent(
-            one_conductor(lambda: agent, agents, "dd-eval-metadata-"),
+            one_conductor(
+                lambda: agent,
+                agents,
+                "dd-eval-metadata-",
+                gateway=subjects_gateway,
+                tool_grants={AGENT_ID: [SERVER]},
+            ),
             AGENT_ID,
             settings_from_env().principal(),
         ),

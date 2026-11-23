@@ -82,13 +82,17 @@ Commit the rewritten baseline on its own, saying which cases changed and why.
 
 ## Limits
 
-- **No categories in the evaluation yet.** With a model, the librarian suggests a category only
-  from the classification's fields retrieved through the tool gateway (`categories.py`). The
-  evaluation's conductor has no gateway, so even a run with a model suggests none: the baseline
-  recalls none and `terms_cited` applies to no case. Giving the evaluation the `subjects` server
-  is TODO(#703). `tests/test_metadata_categories.py` shows the path with a fake model, and
-  `tests/test_metadata_evals.py` shows the two category scorers on a hand-made draft. Keywords from
+- **Categories need a model.** The evaluation's conductor serves `mcp-subjects` in process
+  behind the tool gateway and grants it to the librarian, as a deployment does, so a run with
+  `DD_METADATA_SUGGESTER=model` has the model choose each category from the fields it retrieves
+  there and scores it. The committed baseline is the template suggester's, which calls no model
+  and so recalls no category, and `terms_cited` applies to no case in it.
+  `tests/test_metadata_evals.py` runs the whole evaluation with a fake model, through the same
+  gateway: one that answers with a curator's category is recalled and cited for every case, and
+  one that answers with a code the classification does not hold is offered nowhere. Keywords from
   terminology services are the spike #956.
+- **One category per record.** ORDA's requirements ask for one category entry, so a case whose
+  curator names two can recall at most half of them.
 - **The labels are provisional and hand-written.** The cases are written to look like ORDA
   deposits, but none is a real record, and no curator has reviewed the categories chosen. A
   labelled corpus of ORDA records is to replace them (TODO(#22)).

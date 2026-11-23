@@ -409,7 +409,7 @@ packaged table under one `retrieval` span and says so. The local MCP server is `
 pinned SPDX release; no deployment runs it yet (TODO(#1478)). Still to build: the
 `licence-choice` Skill loaded into the model's prompt (TODO(#280)).
 
-**Worked example: `advisor.metadata`** (partly built, #703). An entry the repository asks for from a
+**Worked example: `advisor.metadata`** (#703). An entry the repository asks for from a
 named subject classification, such as ORDA's categories from the ANZSRC Fields of Research, is
 chosen from that classification's fields. The librarian retrieves them through the gateway
 (`subjects.list_terms`, `advisor-metadata/categories.py`) before its model is called, so the model

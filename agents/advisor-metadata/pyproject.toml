@@ -13,8 +13,13 @@ dependencies = ["data-director-sdk>=0.2.0a0", "pydantic>=2.14.1,<3", "pyyaml>=6.
 
 [project.optional-dependencies]
 # The evaluation in `evals/` (docs/specs/evaluation.md): it sends each case through the harness's
-# conductor, through the workbench, and scores it with the workbench's Inspect AI scorers.
-eval = ["data-director-workbench[eval]"]
+# conductor, through the workbench, and scores it with the workbench's Inspect AI scorers. The
+# subject classifications server is served in process behind the harness's tool gateway.
+eval = [
+  "data-director-workbench[eval]",
+  "data-director-harness[gateway]",
+  "data-director-mcp-subjects",
+]
 
 [project.scripts]
 dd-advisor-metadata = "dd_agent_advisor_metadata.factory:main"
