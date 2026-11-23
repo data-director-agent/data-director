@@ -7,7 +7,7 @@ pays for it. This page covers those decisions.
 
 ## Which agents call a model
 
-Every advisor except three calls a model unless its setting says `template`. The orchestrator calls
+Every advisor calls a model unless its setting says `template`. The orchestrator calls
 one only while `deployment.yaml` names it.
 
 | Agent | Setting | What the model does | Default model |
@@ -25,6 +25,7 @@ one only while `deployment.yaml` names it.
 | `advisor.files` | `DD_FILES_SUMMARISER` | Writes a short summary beside the rules' findings about a file inventory. It cannot add, remove or change a finding. | `claude-sonnet-5-5` |
 | `advisor.linking` | `DD_LINKING_SUMMARISER` | Writes a short summary beside the rules' findings about the identifiers given. It cannot add, remove or change a finding. | `claude-sonnet-5-5` |
 | `advisor.quality` | `DD_QUALITY_SUMMARISER` | Writes a short summary beside the rules' completeness findings about a metadata record. It cannot add, remove or change a finding. | `claude-sonnet-5-5` |
+| `advisor.storage` | `DD_STORAGE_SUMMARISER` | Writes a short summary beside the rules' findings about which of the institution's storage services may hold a project's data. It cannot add, remove or change a finding, a service or a question. | `claude-sonnet-5-5` |
 | `example.hello`, `orchestrator.stub` | none | Never calls a model; neither is a sub-agent. | none |
 
 For each advisor in the table, the setting is `model` unless you set it to `template`. `template`
@@ -163,10 +164,12 @@ steward, and to the institution's data protection officer, before turning any of
   of a sensitive dataset can themselves say something about the people in it, and the profile's
   `hosted_models` rule does not yet cover this input (TODO(#40)). Set `DD_ETHICS_READER=template`,
   or use a local model, if a hosted provider must not see them.
-- **The files, linking and quality advisors** each send what their rules found beside the input
-  they were given: each file's path, format and check, each identifier with what was found for it,
-  or a metadata record with its completeness findings. The model writes one summary and cannot
-  change a finding.
+- **The files, linking, quality and storage advisors** each send what their rules found beside the
+  input they were given: each file's path, format and check, each identifier with what was found
+  for it, a metadata record with its completeness findings, or, for storage, what the researcher
+  said of the data's volume, personal data and collaborators with the storage services the
+  profile names and what it says of each. The model writes one summary and cannot change a
+  finding.
 
 The provider's retention terms govern what happens next. Some models require the provider to keep
 data, and an organisation under a zero-data-retention agreement gets an error on every turn from
@@ -225,8 +228,12 @@ do, and the key never appears in a run, a trace, a manifest or an export.
 Another provider's key works the same way under its own name: `openai-api-key`
 (`OPENAI_API_KEY_FILE`), `gemini-api-key` (`GEMINI_API_KEY_FILE`) or `dd-model-api-key`
 (`DD_MODEL_API_KEY_FILE`). `ANTHROPIC_API_KEY` itself also works in an agent's own file. Set one variable or the other, never both. A command-line login on the host, such as
-`ant auth login`, is never used, nor anything a provider's library would read from the
-environment for itself, such as `OPENAI_BASE_URL` or `OPENAI_CUSTOM_HEADERS`. Never put a key in `app.env` or `agents.env`, in
+`ant auth login`, is never used, nor is most of what a provider's library would read from the
+environment for itself, such as `OPENAI_BASE_URL` or `OPENAI_CUSTOM_HEADERS`. The one exception is
+`ANTHROPIC_BASE_URL`, which the Anthropic client reads when the agent calls Anthropic directly: it
+moves the agent's calls to the [LiteLLM gateway](../../../deploy/llm-gateway/README.md#using-it-with-data-director-agents).
+An agent calling through the [model broker](model-broker.md) sets none of these, since the broker
+decides where its calls go. Never put a key in `app.env` or `agents.env`, in
 `config/local/` or `/etc/data-director/`: every agent reads `agents.env`.
 
 **Give each agent its own key.** One key can then be revoked without disturbing the other, and
@@ -271,8 +278,9 @@ command fixes it. `sudo data-director doctor` reports the same.
    The command keeps the key in a file only root can read, has systemd hand it to this agent
    alone (every agent runs as `datadirector`), and restarts the advisor. Repeat it for each of
    `advisor-standards`, `advisor-policy`, `advisor-repository`, `advisor-documentation`,
-   `advisor-dmp`, `advisor-rights`, `advisor-fairness`, `advisor-ethics` and `advisor-metadata`
-   that you have not set to `template`.
+   `advisor-dmp`, `advisor-rights`, `advisor-fairness`, `advisor-ethics`, `advisor-metadata`,
+   `advisor-files`, `advisor-linking`, `advisor-quality` and `advisor-storage` that you have not set
+   to `template`.
 
 3. Apply and check:
 
@@ -287,7 +295,7 @@ advisor holds a broker credential in place of a key. In each advisor's own file 
 for every advisor that calls a model, in one command:
 
 ```bash
-sudo deploy/broker-credentials.sh advisor-standards advisor-policy advisor-repository advisor-documentation advisor-dmp advisor-rights advisor-fairness advisor-ethics advisor-metadata orchestrator-model
+sudo deploy/broker-credentials.sh advisor-standards advisor-policy advisor-repository advisor-documentation advisor-dmp advisor-rights advisor-fairness advisor-ethics advisor-metadata advisor-files advisor-linking advisor-quality advisor-storage orchestrator-model
 ```
 
 Name every agent that calls through the broker each time (leave out `orchestrator-model` if you
