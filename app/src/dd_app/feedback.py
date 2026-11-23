@@ -49,7 +49,8 @@ RATE_WINDOW_SECONDS = 600
 # The issue type (GitHub's organisation issue types) for each kind of report.
 KINDS = {"bug": "Bug", "feature": "Feature", "other": "Task"}
 # Every report the feedback form files carries this label, whatever its kind, so that the issues
-# it filed can be told from those the team or a GitHub user opened (`label:"source: feedback form"`).
+# it filed can be told from those the team or a GitHub user opened
+# (`label:"source: feedback form"`).
 SOURCE_LABEL = "source: feedback form"
 LABELS = ["area: app", SOURCE_LABEL]
 # A bug someone took the trouble to write up stands out on the project board (a label to filter
