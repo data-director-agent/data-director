@@ -138,9 +138,9 @@ PHASES: tuple[Phase, ...] = (
         ),
         name="Plan your data management",
         summary=(
-            "Describe your project, then plan how your data will be collected, documented, "
-            "stored, protected, shared and kept, who looks after them and at what cost, and keep "
-            "the plan up to date."
+            "Start from what your project is and the data it will produce, then plan how your "
+            "data will be collected, documented, stored, protected, shared and kept, who looks "
+            "after them and at what cost, and keep the plan up to date."
         ),
     ),
     Phase(
