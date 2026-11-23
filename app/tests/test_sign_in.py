@@ -62,6 +62,8 @@ class Deployment:
     app: Any
     clock: Clock
     runs: Path
+    # The ORCID iDs the deployment has stopped admitting (dd_harness.access); a test adds to it.
+    blocked: set[str] = field(default_factory=set)
 
     def browser(self) -> TestClient:
         return TestClient(self.app, base_url=PUBLIC_URL)
@@ -91,15 +93,17 @@ def deployment(env: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> It
     )
     assert configured is not None
     clock = Clock()
+    blocked: set[str] = set()
     sign_in = SignIn(
         configured,
         store=SessionStore(configured.idle_s, configured.lifetime_s, clock=clock),
+        admit=lambda p: p.principal_id.rsplit("/", 1)[-1] not in blocked,
         keys=idp.keys(),
         client=httpx.AsyncClient(transport=idp.transport()),
     )
     governance = with_standards(Governance.create(settings, PUBLIC_URL, sign_in.authenticator))
     app = build_app(governance, dist_dir(tmp_path), sign_in=sign_in)
-    yield Deployment(idp, sign_in, governance, app, clock, env)
+    yield Deployment(idp, sign_in, governance, app, clock, env, blocked)
     governance.conductor.close()
 
 
@@ -548,6 +552,92 @@ def test_the_client_secret_can_be_read_from_a_file(
     assert idp.client_secret not in repr(started["sign_in"].settings)
 
 
+# Admission (docs/specs/policy-and-identity.md, Admission; #292).
+
+NOT_ADMITTED = "https://w3id.org/data-director/problems/not-admitted"
+
+
+def test_a_person_the_deployment_does_not_admit_gets_no_session_and_is_told_why(
+    deployment: Deployment, events: pytest.LogCaptureFixture
+):
+    deployment.blocked.add(ADA)
+    browser = deployment.browser()
+    response = sign_in(deployment, browser, ADA)
+    assert problem_after(response) == "not-admitted"
+    assert browser.cookies.get(SESSION_COOKIE) is None
+    [event] = recorded(events)
+    assert event["event"] == SecurityEvent.SIGN_IN_FAILED
+    assert event["reason"] == RefusalReason.NOT_ADMITTED
+    assert ADA in event["principal"]
+
+
+@pytest.mark.parametrize(("method", "path"), [("GET", "/api/runs"), ("GET", "/api/session")])
+def test_a_person_blocked_after_signing_in_loses_their_session_at_their_next_request(
+    deployment: Deployment, events: pytest.LogCaptureFixture, method: str, path: str
+):
+    browser = deployment.browser()
+    sign_in(deployment, browser, ADA)
+    assert browser.get("/api/runs").status_code == 200
+    deployment.blocked.add(ADA)
+
+    refused = browser.request(method, path, headers=JSON_HEADERS)
+    assert refused.status_code == 403
+    assert refused.headers["content-type"] == "application/problem+json"
+    assert refused.json()["type"] == NOT_ADMITTED
+    assert len(deployment.sign_in.store.table) == 0
+    assert browser.get("/api/runs").status_code == 401
+    ended = [e for e in recorded(events) if e["event"] == SecurityEvent.SESSION_ENDED]
+    assert [e["reason"] for e in ended] == [RefusalReason.NOT_ADMITTED]
+    assert ADA in ended[0]["principal"]
+
+
+def test_blocking_one_person_leaves_everyone_else_signed_in(deployment: Deployment):
+    ada, josiah = deployment.browser(), deployment.browser()
+    sign_in(deployment, ada, ADA)
+    sign_in(deployment, josiah, JOSIAH)
+    deployment.blocked.add(ADA)
+    assert ada.get("/api/runs").status_code == 403
+    assert josiah.get("/api/runs").status_code == 200
+
+
+def test_a_run_made_before_a_block_is_kept_for_the_person_who_started_it(
+    deployment: Deployment,
+):
+    browser = deployment.browser()
+    sign_in(deployment, browser, ADA)
+    assert run(browser).status_code == 200
+    [stored] = list(deployment.runs.glob("*/envelope.json"))
+    before = stored.read_bytes()
+    deployment.blocked.add(ADA)
+    assert run(browser).status_code == 403
+    assert list(deployment.runs.glob("*/envelope.json")) == [stored]
+    assert stored.read_bytes() == before
+
+
+def test_the_app_admits_whom_its_profile_admits(
+    env: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    idp = FakeIdentityProvider()
+    provider_env(monkeypatch, idp)
+    body = yaml.safe_load(EXAMPLE_PROFILE.read_text())
+    body["access"] = {"admit": "listed", "allow": [f"https://orcid.org/{JOSIAH}"]}
+    profile = tmp_path / "profile.yaml"
+    profile.write_text(yaml.safe_dump(body))
+    monkeypatch.setenv("DD_PROFILE", str(profile))
+    settings = settings_from_env()
+    configured = SignInSettings.from_env(
+        os.environ, settings, "http://127.0.0.1:7860", public_url_variable="DD_APP_PUBLIC_URL"
+    )
+    assert configured is not None
+    admit = dd_app.admitting_sign_in(configured, settings).admit
+    assert admit is not None
+    vouched = TEST_PRINCIPAL.model_copy(
+        update={"assurance": "authenticated", "vouched_by": idp.issuer}
+    )
+    assert admit(vouched.model_copy(update={"principal_id": f"https://orcid.org/{JOSIAH}"}))
+    assert not admit(vouched.model_copy(update={"principal_id": f"https://orcid.org/{ADA}"}))
+
+
 # Whose work is whose (#153).
 
 
@@ -614,6 +704,8 @@ def test_signing_in_and_out_is_recorded_for_the_person(
     for event in (signed_in, signed_out):
         assert event["outcome"] == "success"
         assert JOSIAH in event["principal"]
+    # The roles the profile gave the person when they signed in (docs/specs/stewardship.md).
+    assert "researcher" in signed_in["roles"]
 
 
 def test_a_refused_sign_in_is_recorded_with_its_reason_and_no_one_named(

@@ -37,10 +37,10 @@ from dd_harness.identity import Unauthenticated
 from dd_harness.orcid_names import PublicNames
 from dd_harness.project_access import Action, allowed
 from dd_harness.projects import ProjectError, UnknownProjectError
-from dd_harness.sessions import SESSION_COOKIE, cookie
+from dd_harness.sessions import SESSION_COOKIE, NotAdmitted, cookie
 from dd_harness.signin import SignIn
 from dd_sdk.contract.models import Principal
-from dd_sdk.contract.problem import PROBLEM_BASE, unauthenticated
+from dd_sdk.contract.problem import PROBLEM_BASE, not_admitted, unauthenticated
 from dd_sdk.security_log import SecurityEvent, emit
 
 # The service a security event names (docs/specs/security.md, Security events).
@@ -141,13 +141,16 @@ def bind(deps: Deps, handler: OpenHandler) -> Endpoint:
 
 def signed_in(deps: Deps, handler: Handler) -> Endpoint:
     """`handler`, given the principal the request acts for; a request with none is refused
-    with `401` (docs/specs/policy-and-identity.md), and never given a default."""
+    with `401` (docs/specs/policy-and-identity.md), and never given a default. A person the
+    deployment no longer admits has their session ended and is refused with `403`."""
 
     async def endpoint(request: Request) -> Response:
         if (refused := requires_json(request)) is not None:
             return refused
         try:
             principal = deps.governance.authenticator.principal_for(request.headers)
+        except NotAdmitted as exc:
+            return session_ended(exc)
         except Unauthenticated as exc:
             # A request with no session cookie is someone not yet signed in, not an event;
             # one whose cookie names no session is (docs/specs/security.md, Security events).
@@ -319,6 +322,22 @@ def project_deleted(project_id: str) -> Response:
         "project-deleted",
         "This project is deleted",
         f"Project {project_id!r} is deleted; an owner may restore it.",
+    )
+
+
+def session_ended(exc: NotAdmitted) -> Response:
+    """The answer to a request whose session was ended because the deployment no longer admits
+    its person (docs/specs/policy-and-identity.md, Admission), recorded as a security event."""
+    emit(
+        SecurityEvent.SESSION_ENDED,
+        outcome="success",
+        service=SERVICE,
+        principal=exc.principal.principal_id,
+        reason=exc.reason,
+    )
+    found = not_admitted("This deployment does not admit your account, so your session has ended.")
+    return problem(
+        403, found.type.removeprefix(PROBLEM_BASE), found.title or "", found.detail or ""
     )
 
 

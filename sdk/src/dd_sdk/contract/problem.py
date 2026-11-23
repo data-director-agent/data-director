@@ -53,6 +53,14 @@ def unauthenticated(detail: str) -> ProblemDetails:
     return problem("unauthenticated", "The caller is not signed in", detail, http_status=401)
 
 
+def not_admitted(detail: str) -> ProblemDetails:
+    """A person the provider vouched for whom the deployment does not admit, or no longer admits
+    (docs/specs/policy-and-identity.md, Admission). Signing in again does not help."""
+    return problem(
+        "not-admitted", "This account cannot use this deployment", detail, http_status=403
+    )
+
+
 def grounding_violation(violations: list[str]) -> ProblemDetails:
     return problem(
         "grounding-violation",

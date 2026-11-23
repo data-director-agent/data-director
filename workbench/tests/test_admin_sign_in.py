@@ -292,7 +292,7 @@ def settings(tmp_path: Path, **changes: Any) -> Settings:
     )
 
 
-def profile(tmp_path: Path, administrators: list[str]) -> Path:
+def profile(tmp_path: Path, administrators: list[str], **keys: Any) -> Path:
     path = tmp_path / "profile.yaml"
     path.write_text(
         yaml.safe_dump(
@@ -300,6 +300,7 @@ def profile(tmp_path: Path, administrators: list[str]) -> Path:
                 "profile_id": "wb",
                 "agents": {"example.hello": "advise"},
                 "administrators": administrators,
+                **keys,
             }
         )
     )
@@ -328,3 +329,16 @@ def test_a_profile_with_no_administrators_stops_start_up(tmp_path: Path):
     profile(tmp_path, [])
     with pytest.raises(ConfigError, match="administrators"):
         admin_sign_in(env, configured, "http://127.0.0.1:8000")
+
+
+def test_an_administrator_the_profile_blocks_is_refused(tmp_path: Path):
+    # docs/specs/policy-and-identity.md, Admission: a block applies to administrators too.
+    idp = FakeIdentityProvider()
+    configured = settings(tmp_path, oidc_issuer=idp.issuer, oidc_client_id=idp.client_id)
+    env = {"DD_OIDC_CLIENT_SECRET": idp.client_secret, "DD_WORKBENCH_PUBLIC_URL": BASE}
+    josiah, ada = f"{idp.issuer}/{JOSIAH}", f"{idp.issuer}/{ADA}"
+    profile(tmp_path, [josiah, ada], access={"block": [ada]})
+    found = admin_sign_in(env, configured, "http://127.0.0.1:8000")
+    assert found is not None and found.admit is not None
+    assert found.admit(principal(josiah, idp.issuer))
+    assert not found.admit(principal(ada, idp.issuer))

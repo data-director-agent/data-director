@@ -71,6 +71,18 @@ institution_storage:
 # administrators:
 #   - https://orcid.org/0000-0002-1825-0097
 
+# Who may sign in, copied into the profile as written. Left out, only the people listed under allow,
+# the stewards and the administrators may: `apply` writes `admit: listed`. `admit: anyone` lets
+# in anyone with an ORCID iD. Block lists people who may not sign in whatever else lists them;
+# their sessions end at their next request (docs/guide/operations/configuration.md,
+# "Who may sign in").
+# access:
+#   admit: listed                 # listed (the default here) or anyone
+#   allow:
+#     - https://orcid.org/0000-0001-5000-0007
+#   block:
+#     - https://orcid.org/0000-0003-1415-9269
+
 # The instance's data steward teams, copied into the profile as written: who receives the matters
 # researchers raise. Leave it out and the instance has no stewards; a researcher who asks for one
 # is told so. Every key is explained in docs/guide/operations/configuration.md, "Data steward teams".

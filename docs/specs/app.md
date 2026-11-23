@@ -140,7 +140,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     records the choice (`inventory/browser/tests/omit.test.ts`,
     `app/web/src/components/conversation/ConversationHome.test.tsx` and, with the same
     `app/web/fixtures/inventory-left-out.json`, `app/tests/test_app.py`). The checked inventory
-    shows as a chip, never as its text. **Make an inventory**, offered beside **Add an inventory** in
+    shows as a chip, never as its text. **Add an inventory**, offered beside **Make an inventory** in
     the project's panel and page and not under the message box, opens a
     dialog for a researcher who has none: one sentence on what an inventory is and that the data
     stay on their computer, then two routes as tabs, **In this browser** and **With the command**.
@@ -181,8 +181,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `project_inventory` the conductor gave that turn (`app/tests/test_app.py`,
     `app/web/src/components/conversation/ConversationHome.test.tsx`).
     An inventory may also be added to a project without a conversation: the project's page and the
-    workspace's Project panel offer **Add an inventory** (**Replace the inventory** where the project
-    holds one) beside **Make an inventory**. The file goes through the same check as one attached to
+    workspace's Project panel offer **Make an inventory** beside **Add an inventory** (**Replace the
+    inventory** where the project holds one). The file goes through the same check as one attached to
     a message, and only **Add this inventory** sends it, to `POST /api/projects/{id}/inventory`; a
     refusal is said and the check stays open, and cancelling stores nothing
     (`app/web/src/components/inventory/AddInventory.test.tsx`).
