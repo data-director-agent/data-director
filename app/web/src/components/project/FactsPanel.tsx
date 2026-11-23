@@ -21,6 +21,7 @@ import {
 } from "../../project/facts";
 import { factsPath, homePath, Link, useLocation } from "../../route";
 import { Button } from "../ui/Button";
+import { TableScroll } from "../ui/TableScroll";
 import { loadInto, message, type PanelLoad } from "./panelLoad";
 import { FactDecisionForm } from "./FactDecisionForm";
 import { blankFact } from "./FactFields";
@@ -123,33 +124,42 @@ function Decided({
   onStale: (detail: string) => Promise<void>;
 }) {
   const [changing, setChanging] = useState(false);
+  const row = linked ? "fact-decided fact-target" : "fact-decided";
   return (
-    <li {...linkedProps(linked)} className={linked ? "fact-decided fact-target" : "fact-decided"}>
-      <p>
-        <strong>{KIND_LABELS[fact.fact_kind]}:</strong> {describeFact(fact)}
-      </p>
-      {changing ? (
-        <FactDecisionForm
-          projectId={projectId}
-          initial={fact}
-          onDecided={onDecided}
-          onStale={onStale}
-          onCancel={() => setChanging(false)}
-        />
-      ) : (
-        <p className="actions">
-          {/* Which document is the plan is changed on the Documents page (#1447). */}
-          {fact.fact_kind !== "data_management_plan" && (
-            <Button size="small" onPress={() => setChanging(true)}>
-              Change
-            </Button>
+    <>
+      <tr {...linkedProps(linked)} className={row}>
+        <th scope="row">{KIND_LABELS[fact.fact_kind]}</th>
+        <td>{describeFact(fact)}</td>
+        <td>
+          {!changing && (
+            <div className="actions">
+              {/* Which document is the plan is changed on the Documents page (#1447). */}
+              {fact.fact_kind !== "data_management_plan" && (
+                <Button size="small" onPress={() => setChanging(true)}>
+                  Change
+                </Button>
+              )}
+              <Button size="small" variant="quiet" icon={Trash2} isPending={busy} onPress={onRemove}>
+                Remove
+              </Button>
+            </div>
           )}
-          <Button size="small" variant="quiet" icon={Trash2} isPending={busy} onPress={onRemove}>
-            Remove
-          </Button>
-        </p>
+        </td>
+      </tr>
+      {changing && (
+        <tr className="fact-change">
+          <td colSpan={3}>
+            <FactDecisionForm
+              projectId={projectId}
+              initial={fact}
+              onDecided={onDecided}
+              onStale={onStale}
+              onCancel={() => setChanging(false)}
+            />
+          </td>
+        </tr>
       )}
-    </li>
+    </>
   );
 }
 
@@ -271,20 +281,34 @@ export function FactsPanel({ projectId, revision = 0 }: { projectId: string; rev
         {decisions.length === 0 ? (
           <p>Nobody has decided any facts about this project yet.</p>
         ) : (
-          <ul className="plain-list">
-            {decisions.map((fact) => (
-              <Decided
-                key={factKey(fact)}
-                projectId={projectId}
-                fact={fact}
-                linked={linked.has(factKey(fact))}
-                busy={busy}
-                onRemove={() => remove(fact)}
-                onDecided={decided}
-                onStale={stale}
-              />
-            ))}
-          </ul>
+          <TableScroll label="Facts a person decided">
+            <table className="fact-table">
+              <caption className="visually-hidden">Facts a person decided about this project</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Kind</th>
+                  <th scope="col">Fact</th>
+                  <th scope="col">
+                    <span className="visually-hidden">What you can do</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {decisions.map((fact) => (
+                  <Decided
+                    key={factKey(fact)}
+                    projectId={projectId}
+                    fact={fact}
+                    linked={linked.has(factKey(fact))}
+                    busy={busy}
+                    onRemove={() => remove(fact)}
+                    onDecided={decided}
+                    onStale={stale}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </TableScroll>
         )}
         {stating ? (
           <FactDecisionForm

@@ -14,8 +14,9 @@ rules ([Policy and identity](../../docs/specs/policy-and-identity.md)). Each sto
 `policy_bundle_ref: profile:<profile_id>@v<version>`, with `policy_digest`, the SHA-256 of this
 file's bytes, so a later reader can tell exactly which rules applied.
 
-TODO(#154): per-user or per-group profiles. These need an authenticated user (C1), which the workbench
-does not yet have.
+TODO(#936): per-user or per-group profiles. A profile names people only by deployment role
+(`stewardship` and `administrators`, [Data stewards](../../docs/specs/stewardship.md)); applying
+different rules to groups waits on groups claimed by an institutional identity provider.
 
 ## What a profile contains
 

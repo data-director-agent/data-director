@@ -77,6 +77,10 @@ class EscalationRefusal(StrEnum):
     ORIGIN_MISMATCH = "origin-mismatch"
     ALREADY_ESCALATED = "already-escalated"
     MEMBER_OF_PROJECT = "member-of-project"
+    TARGET_REQUIRED = "target-required"
+    SAME_TARGET = "same-target"
+    NOT_IN_TEAM = "not-in-team"
+    TARGET_MEMBER_OF_PROJECT = "target-member-of-project"
 
 
 class EscalationRefusedError(ProjectError):

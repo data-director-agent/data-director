@@ -81,9 +81,9 @@ export function StewardView({ projectId }: { projectId: string }) {
               escalation={e}
               stewarding={steps.latest}
               onDone={again}
-              onMove={async (move, note) => {
+              onMove={async (move, note, to) => {
                 try {
-                  await api.move(projectId, e.escalation_id, move, note);
+                  await api.move(projectId, e.escalation_id, move, note, to);
                 } finally {
                   again();
                 }

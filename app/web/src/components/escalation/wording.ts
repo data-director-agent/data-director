@@ -45,7 +45,20 @@ export const MOVE_SAID: Record<string, string> = {
   withdraw: "withdrew this request",
   reopen: "re-opened this request",
   reroute: "sent this to the team again, as nobody had taken it",
+  reassign: "passed this request to a colleague",
+  transfer: "passed this request to another team",
 };
+
+/** What a move in an escalation's history says, naming the colleague or team it was passed to. */
+export function moveSaid(move: string, target?: string | null): string {
+  if (target && (move === "reassign" || move === "transfer")) return `passed this request to ${target}`;
+  return MOVE_SAID[move] ?? move;
+}
+
+/** Whom a history entry passed the request to: the colleague for a reassignment, the team for a transfer. */
+export function moveTarget(entry: { to_steward?: { name: string }; team_name?: string }): string | null {
+  return entry.to_steward?.name ?? entry.team_name ?? null;
+}
 
 const REFUSED: Record<string, string> = {
   "no-steward-team": "No data steward team is set up for this project.",
@@ -56,6 +69,11 @@ const REFUSED: Record<string, string> = {
   "note-too-long": "The note is too long. Shorten it and try again.",
   "move-not-allowed": "This request has moved on since you last saw it. It has been read again.",
   "unknown-escalation": "This request is no longer listed. It has been read again.",
+  "target-required": "Choose whom to pass it to.",
+  "same-target": "It is already there. Choose someone else.",
+  "not-in-team": "That steward is not in this team. Choose a colleague from the list.",
+  "target-member-of-project":
+    "That steward is a member of this project, so cannot act in it as its data steward. Choose another colleague.",
 };
 
 /** What a refusal means for the researcher, by its slug; the server's words for any other. */
@@ -90,6 +108,14 @@ export const MOVE_CONTROL: Record<
   hand_back: { label: "Hand back", field: "Your note to the researcher", done: "Request handed back to the researcher." },
   withdraw: { label: "Withdraw", field: "", done: "Request withdrawn." },
   reopen: { label: "Re-open", field: "Why you are re-opening it", done: "Request re-opened." },
+  reassign: { label: "Reassign", field: "A note for your colleague (optional)", done: "Request passed to your colleague." },
+  transfer: { label: "Transfer", field: "Why it belongs with the other team", done: "Request passed to the other team." },
+};
+
+/** What the choice of target is called, for a move that names one. */
+export const MOVE_TARGET: Partial<Record<MoveName, string>> = {
+  reassign: "Colleague to pass it to",
+  transfer: "Team to pass it to",
 };
 
 const MOVE_REFUSED: Record<string, string> = {

@@ -7,7 +7,7 @@
 
 import type { Principal } from "../../api/contract";
 import type { Escalation, StewardMessage } from "../../project/escalations";
-import { MOVE_SAID } from "./wording";
+import { moveSaid, moveTarget } from "./wording";
 
 export interface StewardEvent {
   /** Unique within the project, and the same on every read. */
@@ -21,6 +21,8 @@ export interface StewardEvent {
   note: string | null;
   /** The escalation's team, for a move. */
   team: string | null;
+  /** The colleague or team a reassignment or transfer passed it to. */
+  target: string | null;
 }
 
 export function stewardEvents(
@@ -36,6 +38,7 @@ export function stewardEvents(
       kind: m.move,
       note: m.note ?? null,
       team: e.team_name,
+      target: moveTarget(m),
     })),
   );
   const said = messages.map((m, index) => ({
@@ -46,6 +49,7 @@ export function stewardEvents(
     kind: "message",
     note: m.note,
     team: null,
+    target: null,
   }));
   return [...moves, ...said].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
 }
@@ -63,5 +67,5 @@ export function eventsBetween(events: readonly StewardEvent[], from: string, to:
 /** The event in a sentence, as it is announced. */
 export function eventSaid(event: StewardEvent): string {
   if (event.kind === "message") return `Data steward ${event.by.name} wrote: ${event.note ?? ""}`;
-  return `Data steward ${event.by.name} ${MOVE_SAID[event.kind] ?? event.kind}.`;
+  return `Data steward ${event.by.name} ${moveSaid(event.kind, event.target)}.`;
 }

@@ -244,7 +244,8 @@ intended design, and each part says where it is not built yet.
     `membership.member_roles` is the one fold of them (`Membership.add_member`, `change_role`,
     `remove_member`, `members`; `harness/tests/test_project_membership.py`). The project's support
     team (`support_team_chosen`) and its escalations to a data steward (`escalation_opened`, the
-    moves after it, and `escalation_rerouted` when nobody took one in time) are events of the log
+    moves after it, among them `escalation_reassigned` and `escalation_transferred`, and
+    `escalation_rerouted` when nobody took one in time) are events of the log
     too, which give no one a role
     ([Data stewards](stewardship.md), invariant 4), as are what a steward does in the project:
     `steward_viewed`, `steward_message`, `project_paused`, `project_resumed`, `gate_cleared`,
@@ -498,6 +499,16 @@ intended design, and each part says where it is not built yet.
     TODO(#701). (`dd_harness.testing.plan_storage`, `harness/tests/test_project_agent_inputs.py`,
     `sdk/tests/test_fact_kinds.py`, `agents/advisor-dmp/tests/test_reads_plan.py`,
     `app/web/src/components/project/PlanMark.test.tsx`.)
+33. **A step or intake question id, once released, is never deleted or reused.** The log stores
+    them (`step_marked`'s `step_id`, `intake_answered`'s `question_id`) and outlives the release
+    that wrote it. A step or question taken out of the flow is retired, in
+    `dd_sdk.flow_phases.RETIRED_STEPS` or `dd_sdk.intake.RETIRED_QUESTIONS`, with the one that
+    replaces it or none; the harness reads every stored id through
+    `dd_sdk.process_flow.current_step` and `dd_sdk.intake.current_question`, so a mark or answer
+    of a retired id counts for its successor, or not at all, and an id it does not know (written
+    by a later release) is left out. `sdk/tests/released_ids.toml` lists every id a release has
+    had and only grows. (`sdk/tests/test_released_ids.py`,
+    `harness/tests/test_progress_stored_ids.py`.)
 
 ## Boundaries and contracts
 

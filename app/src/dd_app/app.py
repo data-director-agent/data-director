@@ -294,6 +294,7 @@ def main() -> int:
         if host not in LOOPBACK and sign_in is None:
             sys.stderr.write(UNTRUSTED_WARNING.format(host=host))
         security_log.configure()
+        governance.conductor.profile.record_loaded("app")
         if sign_in is not None:
             # Which access policy is in force from now, so a block takes effect on the record.
             security_log.emit(
