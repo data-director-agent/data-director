@@ -13,6 +13,12 @@ export function askAboutStep(found: { phase: FlowPhase; step: FlowStep }): strin
   return `Can you help me with this step: ${found.step.label} (phase ${found.phase.number}, ${found.phase.name})?`;
 }
 
+/** Whether the address asks for a new conversation: a step of the journey (`?ask=`) or a draft's
+ * question (`?question=`) to talk through, asked about from another page. */
+export function asksNewConversation(params: URLSearchParams): boolean {
+  return params.has("ask") || params.has("question");
+}
+
 /** Where an asked-for question goes: the message box's text, the box to focus, and what of the
  * address to keep once the ask is dropped from it. */
 export interface AskInto {
@@ -106,22 +112,30 @@ export function askAboutQuestion(name: string, question: DocumentQuestion): stri
 
 /**
  * A draft's question to talk through (`?question={document_id}/{question_id}`, from its
- * "Talk this through" link) fills the message box of a new conversation, unsent, once the
- * project's documents are read. A question the documents do not ask is ignored. The answer is
- * still recorded on the draft, never here.
+ * "Talk this through" link) starts a new conversation by `begin`, with the question in the
+ * message box, unsent, once the project's documents are read. A question the documents do not
+ * ask is ignored. The answer is still recorded on the draft, never here.
  */
 export function useAskAboutQuestion(
   documents: DocumentsRead,
   into: AskInto,
+  begin: (about: { label: string; prompt: string }) => void,
 ): void {
   const { pending, handle } = useAskedInAddress("question", into);
-  if (pending && documents.state === "loaded") {
+  const read = documents.state === "loaded" ? documents.documents : null;
+  // Starting a conversation resets what the page holds, so it waits until the render is done.
+  useEffect(() => {
+    if (!pending || !read) return;
     handle();
     const [documentId, questionId] = pending.split("/");
-    const document = documents.documents.find((d) => d.document_id === documentId);
+    const document = read.find((d) => d.document_id === documentId);
     const question = document?.versions
       .flatMap((v) => v.questions)
       .find((q) => q.question_id === questionId);
-    if (document && question) into.setText(askAboutQuestion(documentName(document), question));
-  }
+    if (!document || !question) return;
+    const name = documentName(document);
+    begin({ label: `a question about the ${name}`, prompt: askAboutQuestion(name, question) });
+    // Only the question asked about is acted on, once, when the documents are there to find it in.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pending, read]);
 }

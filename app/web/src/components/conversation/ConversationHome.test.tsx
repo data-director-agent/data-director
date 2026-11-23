@@ -26,6 +26,7 @@ import intakePendingFixture from "../../../fixtures/intake-pending.json";
 import projectCreatedFixture from "../../../fixtures/project-created.json";
 import projectsFixture from "../../../fixtures/projects.json";
 import projectFixture from "../../../fixtures/project-documents.json";
+import answersFixture from "../../../fixtures/project-answers.json";
 import {
   type DocumentVersion,
   httpProjectApi,
@@ -47,6 +48,7 @@ import { cassetteTransport, RunTransportContext, type RunTransport } from "../..
 import { SUCCEEDED, turnTransport, type TurnSent } from "../../test/turns";
 import { AnnouncerProvider } from "../ui/Announcer";
 import { ConversationHome } from "./ConversationHome";
+import { askAboutQuestion } from "./useAskAbout";
 
 // Phase 1's name as the app shows it, read from the fixture rather than repeated.
 const PHASE_ONE = flowFixture.phases[0]?.name ?? "";
@@ -888,20 +890,20 @@ describe("ConversationHome", () => {
       expect(location.search).toBe("");
     });
 
-    describe("a step asked about from the journey map", () => {
+    describe("a step or a draft's question asked about from another page", () => {
       const asked = flowFixture.phases.flatMap((p) => p.steps)[0];
       if (!asked) throw new Error("the flow fixture has no step");
 
       /** The page drawn, left and drawn again in one session, as on going to the journey map
        * and back; `back` is the address it comes back to. */
-      async function leaveAndComeBack(back: string, sendTurn: TurnSent) {
+      async function leaveAndComeBack(back: string, sendTurn: TurnSent, project: ProjectApi = httpProjectApi) {
         localStorage.setItem("dd-project", CONVERSATION.project_id ?? "p1");
         history.replaceState(null, "", "/?conversation=c9");
         const api = fakeApi({ sendTurn });
         const page = (shown: boolean) => (
           <AnnouncerProvider>
             <FlowApiContext.Provider value={FLOW}>
-              <ProjectApiContext.Provider value={httpProjectApi}>
+              <ProjectApiContext.Provider value={project}>
                 <ActiveProjectProvider>
                   <ConversationApiContext.Provider value={api}>
                     <RunTransportContext.Provider value={api.turns}>
@@ -932,6 +934,25 @@ describe("ConversationHome", () => {
         await waitFor(() => expect(box).toHaveFocus());
         expect(new URLSearchParams(location.search).has("ask")).toBe(false);
         expect(new URLSearchParams(location.search).has("conversation")).toBe(false);
+        expect(sendTurn).not.toHaveBeenCalled();
+      });
+
+      it("starts a new conversation with a draft's question in the box, unsent", async () => {
+        const answers = answersFixture as ProjectDocuments;
+        const readme = answers.documents[0];
+        const question = readme?.versions[0]?.questions[0];
+        if (!readme || !question) throw new Error("the answers fixture asks nothing");
+        const documents = () => Promise.resolve(answers);
+        const sendTurn = vi.fn(() => Promise.resolve());
+        await leaveAndComeBack(
+          homePath({ question: `${readme.document_id}/${question.question_id}` }),
+          sendTurn,
+          { ...httpProjectApi, documents },
+        );
+        const box = () => screen.getByRole("textbox", { name: "What would you like to do?" });
+        await waitFor(() => expect(box()).toHaveValue(askAboutQuestion("README", question)));
+        expect(screen.queryByRole("list", { name: "Conversation" })).not.toBeInTheDocument();
+        expect(new URLSearchParams(location.search).has("question")).toBe(false);
         expect(sendTurn).not.toHaveBeenCalled();
       });
 

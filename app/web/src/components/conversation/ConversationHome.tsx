@@ -68,7 +68,12 @@ import { StewardProvider } from "../escalation/StewardContext";
 import { FAIRNESS_CLASS } from "../../project/fairness";
 import { PhaseTracker } from "../workspace/PhaseTracker";
 import { useFlowLoad } from "../workspace/useFlowLoad";
-import { useAskAbout, useAskAboutQuestion, useAskForFairFeedback } from "./useAskAbout";
+import {
+  asksNewConversation,
+  useAskAbout,
+  useAskAboutQuestion,
+  useAskForFairFeedback,
+} from "./useAskAbout";
 import { useAskAboutFact } from "./useAskAboutFact";
 import { Workspace } from "../workspace/Workspace";
 import { ProjectSwitcher } from "../project/ProjectSwitcher";
@@ -128,8 +133,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     orchestratorId: orchestrator?.id,
     runId,
     urlConversation,
-    // A step asked about from the journey map is a new conversation (`useAskAbout`).
-    fresh: params.has("ask"),
+    fresh: asksNewConversation(params),
     box: reply,
     announce: announce,
     setText: putText,
@@ -167,7 +171,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
 
   const askInto = { setText: putText, box: reply, keep: { conversation: urlConversation, run: runId } };
   useAskAbout(flow, askInto, beginWith);
-  useAskAboutQuestion(documents, askInto);
+  useAskAboutQuestion(documents, askInto, beginWith);
   useAskForFairFeedback(askInto);
   useAskAboutFact(projectId, askInto);
 
@@ -233,8 +237,8 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     else beginWith(step);
   }
 
-  /** A new conversation, with the step's prompt in the box to edit and send. */
-  function beginWith(step: FlowStep) {
+  /** A new conversation, with the step's (or question's) prompt in the box to edit and send. */
+  function beginWith(step: { label: string; prompt: string }) {
     setReplacing(null);
     turns.reset();
     putText(step.prompt);

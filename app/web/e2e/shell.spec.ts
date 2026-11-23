@@ -873,6 +873,53 @@ test("asking about a step on the journey map starts a new conversation with the 
   expect(turns).toBe(1);
 });
 
+test("Talk this through on a draft's question starts a new conversation with the question", async ({
+  page,
+}) => {
+  const [first] = projects;
+  const [readme] = answeredProject.documents;
+  const question = readme?.versions[0]?.questions[0];
+  if (!first || !readme || !question) throw new Error("the fixtures list no project or no question");
+  // The project the conversation fixture is in, so the conversation stays open in it.
+  const active = { ...first, project_id: conversation.project_id };
+  await serveConversation(page);
+  await page.route("/api/projects", (route) => route.fulfill({ json: [active] }));
+  await page.route(`/api/projects/${active.project_id}/documents`, (route) =>
+    route.fulfill({
+      json: { ...answeredProject, project_id: active.project_id, documents: [{ ...readme, answers: [] }] },
+    }),
+  );
+  await page.addInitScript((id) => localStorage.setItem("dd-project", id), active.project_id);
+  let turns = 0;
+  await page.route("/api/conversations/*/turns/stream", (route) => {
+    turns += 1;
+    return streamTurn(route);
+  });
+  await page.goto("/");
+  // A conversation is open before the draft is visited.
+  await page.getByRole("textbox", { name: "What would you like to do?" }).fill("Hello");
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByRole("list", { name: "Conversation" })).toBeVisible();
+
+  // To the draft within the page, as a link does, so the open conversation is still held.
+  await page.evaluate((to) => {
+    history.pushState(null, "", to);
+    dispatchEvent(new Event("dd-navigate"));
+  }, `/projects/${active.project_id}?doc=${readme.document_id}`);
+  await page.getByRole("tab", { name: /^Questions/ }).click();
+  await page
+    .getByRole("link", { name: `Talk this through in a new conversation: ${question.question_prompt}` })
+    .click();
+
+  const box = page.getByRole("textbox", { name: "What would you like to do?" });
+  await expect(box).toHaveValue(new RegExp(question.question_prompt.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  await expect(box).toBeFocused();
+  await expect(page.getByRole("list", { name: "Conversation" })).toHaveCount(0);
+  await expect(page).not.toHaveURL(/[?&](question|conversation)=/);
+  // Only the first conversation's message was sent; the new one waits for the researcher.
+  expect(turns).toBe(1);
+});
+
 test("a pending intake takes the message box's place, which is a press away", async ({ page }) => {
   const [active] = projects;
   const [entry] = intakePending.questions;
