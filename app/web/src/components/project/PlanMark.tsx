@@ -4,15 +4,19 @@
  * fact a person decides: **Mark as the Data Management Plan** states it, replacing any plan marked
  * before, and **Not the plan** removes it (`POST /api/projects/{id}/facts/decisions`). The
  * documents are then read again, since the server says which one is the plan. A proposal of the
- * plan by the DMP check waits on the Project facts panel.
+ * plan by the DMP check waits on the Project facts panel. On the plan, **Ask the DMP Checker to
+ * review it** opens the conversation with that request in the message box, unsent
+ * (`?dmp=review`): the orchestrator delegates the review; this page does not run an agent.
  */
 
+import { ClipboardCheck } from "lucide-react";
 import { useState } from "react";
 
 import type { DocumentationSummary } from "../../conversation/documentation";
 import { useProjectApi } from "../../project/api";
 import { PLAN_SUBJECT, planFact, useFactsApi } from "../../project/facts";
 import { errorMessage } from "../../run/api";
+import { homePath, navigate } from "../../route";
 import { useAnnounce } from "../ui/Announcer";
 import { Button } from "../ui/Button";
 
@@ -77,6 +81,15 @@ export function PlanMark({
       >
         {plan ? "Not the plan" : "Mark as the Data Management Plan"}
       </Button>
+      {plan && (
+        <Button
+          size="small"
+          icon={ClipboardCheck}
+          onPress={() => navigate(homePath({ dmp: true }))}
+        >
+          Ask the DMP Checker to review it
+        </Button>
+      )}{" "}
       {refused && <span role="alert"> {refused}</span>}
     </p>
   );

@@ -5,6 +5,7 @@ import type { FlowPhase, FlowStep, ProcessFlow } from "../../flow/types";
 import { type DocumentQuestion, questionTarget } from "../../project/api";
 import type { DocumentsRead } from "../../project/drafted";
 import { ASK_FOR_FEEDBACK } from "../../project/fairness";
+import { ASK_TO_REVIEW_PLAN } from "../../project/facts";
 import { documentName } from "../../project/name";
 import { homePath, navigate, useLocation } from "../../route";
 
@@ -89,16 +90,20 @@ function useFocusOnceDrawn(box: RefObject<{ focus(): void } | null>): () => void
 }
 
 /**
- * FAIR feedback asked for from the project's FAIR feedback tab (`?fair=check`) fills the message
- * box, unsent. The orchestrator delegates the check; the shell does not route.
+ * What a project's tab asks for in the address fills the message box, unsent: FAIR feedback from
+ * the FAIR feedback tab (`?fair=check`), and a review of the project's plan from the Documents
+ * tab (`?dmp=review`). The orchestrator delegates the check or review; the shell does not route.
  */
-export function useAskForFairFeedback(
-  into: AskInto,
-): void {
-  const { pending, handle } = useAskedInAddress("fair", into);
-  if (pending === "check") {
+export function useAskForFairFeedback(into: AskInto): void {
+  useAskedMessage("fair", "check", ASK_FOR_FEEDBACK, into);
+  useAskedMessage("dmp", "review", ASK_TO_REVIEW_PLAN, into);
+}
+
+function useAskedMessage(param: string, value: string, text: string, into: AskInto): void {
+  const { pending, handle } = useAskedInAddress(param, into);
+  if (pending === value) {
     handle();
-    into.setText(ASK_FOR_FEEDBACK);
+    into.setText(text);
   }
 }
 

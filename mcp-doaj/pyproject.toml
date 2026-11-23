@@ -1,0 +1,44 @@
+[build-system]
+requires = ["hatchling>=1.32.4"]
+build-backend = "hatchling.build"
+
+[project]
+name = "data-director-mcp-doaj"
+version = "0.1.0-alpha.0"
+description = "A read-only client and MCP server for the Directory of Open Access Journals: a journal's open access terms by ISSN or title"
+readme = "README.md"
+requires-python = ">=3.14"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
+keywords = ["mcp", "doaj", "open access", "journals", "research data"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+  "Typing :: Typed",
+]
+
+# Framework-neutral (docs/specs/system.md): no workspace member is imported, so publishing this
+# server on its own is a copy. The MCP SDK is pinned like the SPDX server's.
+dependencies = [
+  "anyio>=4",
+  "httpx>=0.28",
+  "mcp>=2.3,<2.4",
+  "mcp-types>=2.3,<2.4",
+  "starlette>=0.40",
+  "uvicorn>=0.30",
+]
+
+[project.scripts]
+dd-mcp-doaj = "dd_mcp_doaj.cli:main"
+
+[project.urls]
+Homepage = "https://data-director-agent.github.io/data-director/"
+Repository = "https://github.com/data-director-agent/data-director/tree/main/mcp-doaj"
+Issues = "https://github.com/data-director-agent/data-director/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dd_mcp_doaj"]

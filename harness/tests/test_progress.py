@@ -391,3 +391,9 @@ def test_an_intake_answer_counts_only_from_an_entry_point_that_asks_it() -> None
     events = [chose(2), answered("intake.sensitive", NO)]
     assert "governance.sensitive-data-handle" in progress.step_states(events)
     assert "governance.sensitive-data-handle" not in progress.step_states([*events, chose(3)])
+
+
+def test_a_mark_of_a_retired_step_is_ignored() -> None:
+    """A project log may name a step an earlier release had; that is not an error."""
+    log = [marked("setup.vocabularies", "done"), marked("setup.documentation", "done")]
+    assert progress.step_states(log) == {"setup.documentation": "done"}

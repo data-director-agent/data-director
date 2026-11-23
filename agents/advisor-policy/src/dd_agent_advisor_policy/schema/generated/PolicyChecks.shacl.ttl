@@ -312,7 +312,7 @@ policy:MatchedPolicy a sh:NodeShape ;
             sh:order 8 ;
             sh:path <https://w3id.org/data-director/grounded_on> ],
         [ sh:description "The registry the policy record came from." ;
-            sh:in ( "fairsharing" "open_policy_finder" ) ;
+            sh:in ( "fairsharing" "open_policy_finder" "doaj" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 2 ;
@@ -365,7 +365,7 @@ policy:NotSearched a sh:NodeShape ;
             sh:order 1 ;
             sh:path policy:reason ],
         [ sh:description "The registry that was not asked." ;
-            sh:in ( "fairsharing" "open_policy_finder" ) ;
+            sh:in ( "fairsharing" "open_policy_finder" "doaj" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 0 ;

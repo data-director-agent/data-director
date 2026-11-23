@@ -52,6 +52,7 @@ from typing import Any, ClassVar, Literal
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
+from dd_agent_advisor_policy.records import prompt_json
 from dd_agent_advisor_policy.ror import USER_AGENT
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
 from dd_sdk.registry import RegistryUnavailable, SnapshotRef
@@ -202,8 +203,7 @@ class OpfRecord(BaseModel):
         return content_hash(self.document(), DOCUMENT_CANONICALISATION)
 
     def prompt_text(self, limit: int = PROMPT_CHARS) -> str:
-        text = json.dumps(self.document(), ensure_ascii=False, sort_keys=True)
-        return text if len(text) <= limit else text[:limit] + " …(truncated)"
+        return prompt_json(self.document(), limit)
 
 
 def from_item(item: dict[str, Any], item_type: ItemType) -> OpfRecord | None:

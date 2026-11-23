@@ -70,7 +70,7 @@ default ([AI models](ai-models.md#which-agents-call-a-model)), so name all nine,
 `template`, and the orchestrator if it runs:
 
 ```bash
-sudo deploy/broker-credentials.sh advisor-standards advisor-policy advisor-repository advisor-documentation advisor-dmp advisor-rights advisor-fairness advisor-ethics advisor-metadata orchestrator-model
+sudo deploy/broker-credentials.sh advisor-standards advisor-policy advisor-repository advisor-documentation advisor-dmp advisor-rights advisor-fairness advisor-ethics advisor-metadata advisor-files advisor-linking advisor-quality advisor-storage orchestrator-model
 ```
 
 For each agent it makes a credential, stores it as the agent's `dd-model-broker-credential` secret
