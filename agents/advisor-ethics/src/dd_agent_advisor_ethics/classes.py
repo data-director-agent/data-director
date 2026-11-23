@@ -34,9 +34,18 @@ class SensitivityFlag(Frozen):
     derivation: Derivation
 
 
+class DataUseTerm(Frozen):
+    term_id: str = Field(pattern=r"^DUO:[0-9]{7}$")
+    shorthand: str | None = None
+    term_label: str
+    term_kind: Literal["permission", "modifier"]
+    term_iri: str
+
+
 class SensitivityQuestion(Frozen):
     text: str
     derivation: Derivation
+    data_use_terms: list[DataUseTerm] = Field(default_factory=list)
 
 
 class SensitivityFlags(Grounded):

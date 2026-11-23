@@ -122,6 +122,45 @@ ethics:SensitivityFlags a sh:NodeShape ;
             sh:path <https://w3id.org/data-director/finding_confidence> ] ;
     sh:targetClass <https://w3id.org/data-director/PersonalDataFinding> .
 
+ethics:DataUseTerm a sh:NodeShape ;
+    rdfs:comment "A data use condition from the GA4GH Data Use Ontology (DUO), as a pinned DUO release defines it: a permission, such as general research use, or a modifier, such as ethics approval required. Named for the researcher to check consent against, never chosen for them." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "DUO's short code for the term, e.g. IRB, where it gives one." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path ethics:shorthand ],
+        [ sh:datatype xsd:string ;
+            sh:description "The DUO identifier, e.g. DUO:0000021." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path ethics:term_id ;
+            sh:pattern "^DUO:[0-9]{7}$" ],
+        [ sh:description "Whether the term is a data use permission or a modifier." ;
+            sh:in ( "permission" "modifier" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 3 ;
+            sh:path ethics:term_kind ],
+        [ sh:datatype xsd:string ;
+            sh:description "The term's label in the pinned DUO release." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path ethics:term_label ],
+        [ sh:description "The term's persistent IRI." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path ethics:term_iri ] ;
+    sh:targetClass ethics:DataUseTerm .
+
 ethics:SensitivityFlag a sh:NodeShape ;
     rdfs:comment "One field that may hold sensitive data, flagged by keyword (lexical) or by a model. A model may add a flag but never remove one the keywords raised." ;
     sh:closed true ;
@@ -166,7 +205,7 @@ ethics:SensitivityFlag a sh:NodeShape ;
     sh:targetClass ethics:SensitivityFlag .
 
 ethics:SensitivityQuestion a sh:NodeShape ;
-    rdfs:comment "One thing the researcher must answer or confirm before sharing, from the adviser's template or added by a model." ;
+    rdfs:comment "One thing the researcher must answer or confirm before sharing, from the adviser's template or added by a model. A question about consent names the data use conditions it asks about." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:description "How the value came about, lexical (the keyword table), template or model." ;
@@ -175,6 +214,11 @@ ethics:SensitivityQuestion a sh:NodeShape ;
             sh:minCount 1 ;
             sh:order 1 ;
             sh:path ethics:derivation ],
+        [ sh:class ethics:DataUseTerm ;
+            sh:description "The DUO conditions the question asks the researcher to check consent against, from the adviser's own list. Empty for a question that is not about consent." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 2 ;
+            sh:path ethics:data_use_terms ],
         [ sh:datatype xsd:string ;
             sh:description "The question, as put to the researcher." ;
             sh:maxCount 1 ;

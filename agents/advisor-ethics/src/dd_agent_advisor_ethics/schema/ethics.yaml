@@ -70,10 +70,24 @@ classes:
   SensitivityQuestion:
     description: >-
       One thing the researcher must answer or confirm before sharing, from the adviser's template
-      or added by a model.
+      or added by a model. A question about consent names the data use conditions it asks about.
     slots:
       - text
       - derivation
+      - data_use_terms
+
+  DataUseTerm:
+    description: >-
+      A data use condition from the GA4GH Data Use Ontology (DUO), as a pinned DUO release
+      defines it: a permission, such as general research use, or a modifier, such as ethics
+      approval required. Named for the researcher to check consent against, never chosen for
+      them.
+    slots:
+      - term_id
+      - shorthand
+      - term_label
+      - term_kind
+      - term_iri
 
 slots:
 
@@ -142,3 +156,37 @@ slots:
   text:
     description: The question, as put to the researcher.
     required: true
+  data_use_terms:
+    description: >-
+      The DUO conditions the question asks the researcher to check consent against, from the
+      adviser's own list. Empty for a question that is not about consent.
+    range: DataUseTerm
+    multivalued: true
+    inlined_as_list: true
+  term_id:
+    description: The DUO identifier, e.g. DUO:0000021.
+    required: true
+    pattern: "^DUO:[0-9]{7}$"
+  shorthand:
+    description: DUO's short code for the term, e.g. IRB, where it gives one.
+  term_label:
+    description: The term's label in the pinned DUO release.
+    required: true
+  term_kind:
+    description: Whether the term is a data use permission or a modifier.
+    required: true
+    range: DataUseKind
+  term_iri:
+    description: The term's persistent IRI.
+    range: uri
+    required: true
+
+enums:
+
+  DataUseKind:
+    description: The two kinds of DUO term.
+    permissible_values:
+      permission:
+        description: What use the data may be put to.
+      modifier:
+        description: A condition on that use.

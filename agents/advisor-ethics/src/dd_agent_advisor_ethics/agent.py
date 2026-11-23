@@ -13,8 +13,10 @@ with `DD_ETHICS_READER=template` it adds none (`factory.py`). The merge is union
 keyword flag is kept, and a model may add a flag but never remove or re-categorise one, because a
 missed field is the costlier mistake. Each flag and question records how it came about
 (`derivation`). The adviser reads no data values and cites only its input, so its grounding mode
-is `input_only`. The full persona, with policy records as a source and an evaluation set, is
-TODO(#700).
+is `input_only`. A question about consent names the data use conditions of the GA4GH Data Use
+Ontology (DUO) to check consent against, from `dd_duo`'s pinned release: packaged vocabulary,
+like the keyword table, not a record retrieved for this run. It lists them and chooses none. The
+full persona, with policy records as a source and an evaluation set, is TODO(#700).
 """
 
 from __future__ import annotations
@@ -24,7 +26,9 @@ from pathlib import Path
 
 import yaml
 
+import dd_duo
 from dd_agent_advisor_ethics.classes import (
+    DataUseTerm,
     SensitivityContext,
     SensitivityFlag,
     SensitivityFlags,
@@ -61,6 +65,8 @@ LIMITATIONS = (
     "It does not check free text, images, audio or combinations of fields that identify people.",
     "It is an alpha with no evaluation set yet: how many sensitive fields it misses is not "
     "measured.",
+    "It names data use conditions from the GA4GH Data Use Ontology for consent to be checked "
+    "against; it does not know what participants agreed to, and chooses none of them.",
 )
 KEYWORD_LIMITATION = (
     "No model is configured, so it matches field names against a short keyword list and misses "
@@ -98,7 +104,8 @@ FREE_TEXT_QUESTION = (
 MAX_PATHS = 5
 PEOPLE_QUESTION = (
     "The data involve people. Confirm that ethics approval and participants' consent cover "
-    "sharing them, with your institution's ethics and data protection staff."
+    "sharing them, and which of the data use conditions listed consent allows, with your "
+    "institution's ethics and data protection staff."
 )
 EMBARGO_QUESTION = (
     "You intend an embargo. Confirm its length and reason against your funder's and journal's "
@@ -107,8 +114,18 @@ EMBARGO_QUESTION = (
 UNKNOWN_EMBARGO_QUESTION = "Say whether the data need an embargo before they are shared."
 NOT_PEOPLE_QUESTION = (
     "You said the data do not involve people, but some field names suggest personal data. "
-    "Confirm with your institution's ethics and data protection staff whether they do, before "
-    "sharing them."
+    "Confirm with your institution's ethics and data protection staff whether they do and, if "
+    "so, which of the data use conditions listed consent allows, before sharing them."
+)
+# The DUO conditions a consent question lists (dd_duo): every permission, and the modifiers that
+# consent forms most often state. Each must be a current term of the pinned release.
+CONSENT_MODIFIERS = (
+    "DUO:0000021",  # IRB, ethics approval required
+    "DUO:0000046",  # NCU, non-commercial use only
+    "DUO:0000019",  # PUB, publication required
+    "DUO:0000026",  # US, user specific restriction
+    "DUO:0000022",  # GS, geographical restriction
+    "DUO:0000025",  # TS, time limit on use
 )
 LOCATION_QUESTION = (
     "Some fields hold locations. Confirm whether publishing them could expose people, private "
@@ -127,7 +144,7 @@ def load_keywords(path: Path = KEYWORDS) -> dict[str, list[str]]:
 class EthicsAdviser:
     spec = AgentSpec(
         agent_id="advisor.ethics",
-        version="0.1.0a2",
+        version="0.1.0a3",
         title="Research Ethics Adviser",
         icon="🧭",
         description=(
@@ -147,6 +164,7 @@ class EthicsAdviser:
             "flags.matched": Derived(Derivation.LEXICAL),
             "flags.reason": Derived(Derivation.MODEL, recorded_in="derivation"),
             "questions.text": Derived(Derivation.MODEL, recorded_in="derivation"),
+            "questions.data_use_terms": Derived(Derivation.TEMPLATE),
             "limitations": Derived(Derivation.TEMPLATE),
             "dropped": Derived(Derivation.TEMPLATE),
         },
@@ -190,7 +208,7 @@ class EthicsAdviser:
             for added in reading.flags
         ]
         questions = [
-            SensitivityQuestion(text=text, derivation=Derivation.TEMPLATE)
+            _template_question(text)
             for text in _questions(context, {flag.category for flag in flags})
             + _inventory_questions(context, found)
         ] + [
@@ -265,6 +283,32 @@ def _questions(context: SensitivityContext, categories: set[str]) -> list[str]:
     elif context.embargo_intended is None:
         questions.append(UNKNOWN_EMBARGO_QUESTION)
     return questions
+
+
+def consent_terms() -> list[DataUseTerm]:
+    """The DUO conditions a consent question lists, from the pinned release."""
+    chosen = [*dd_duo.terms("permission"), *map(dd_duo.lookup, CONSENT_MODIFIERS)]
+    return [
+        DataUseTerm(
+            term_id=term.id,
+            shorthand=term.shorthand,
+            term_label=term.label,
+            term_kind=term.kind,
+            term_iri=term.url,
+        )
+        for term in chosen
+        if term is not None
+    ]
+
+
+def _template_question(text: str) -> SensitivityQuestion:
+    """A question from the template; one about consent lists the DUO conditions."""
+    about_consent = text in (PEOPLE_QUESTION, NOT_PEOPLE_QUESTION)
+    return SensitivityQuestion(
+        text=text,
+        derivation=Derivation.TEMPLATE,
+        data_use_terms=consent_terms() if about_consent else [],
+    )
 
 
 def _inventory_questions(

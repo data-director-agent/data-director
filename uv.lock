@@ -1,5 +1,5 @@
 version = 1
-revision = 5
+revision = 3
 requires-python = ">=3.14"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
@@ -1403,9 +1403,10 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-ethics"
-version = "0.1.0a2"
+version = "0.1.0a3"
 source = { editable = "agents/advisor-ethics" }
 dependencies = [
+    { name = "data-director-duo" },
     { name = "data-director-sdk" },
     { name = "pydantic" },
     { name = "pyyaml" },
@@ -1423,6 +1424,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "data-director-duo", editable = "duo" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "data-director-sdk", extras = ["anthropic", "openai"], marker = "extra == 'model'", editable = "sdk" },
     { name = "pydantic", specifier = ">=2.14.1,<3" },

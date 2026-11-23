@@ -11,6 +11,54 @@
          "title": "ConfidenceBand",
          "type": "string"
       },
+      "DataUseKind": {
+         "description": "The two kinds of DUO term.",
+         "enum": [
+            "permission",
+            "modifier"
+         ],
+         "title": "DataUseKind",
+         "type": "string"
+      },
+      "DataUseTerm": {
+         "additionalProperties": false,
+         "description": "A data use condition from the GA4GH Data Use Ontology (DUO), as a pinned DUO release defines it: a permission, such as general research use, or a modifier, such as ethics approval required. Named for the researcher to check consent against, never chosen for them.",
+         "properties": {
+            "term_id": {
+               "description": "The DUO identifier, e.g. DUO:0000021.",
+               "pattern": "^DUO:[0-9]{7}$",
+               "type": "string"
+            },
+            "shorthand": {
+               "description": "DUO's short code for the term, e.g. IRB, where it gives one.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "term_label": {
+               "description": "The term's label in the pinned DUO release.",
+               "type": "string"
+            },
+            "term_kind": {
+               "$ref": "#/$defs/DataUseKind",
+               "description": "Whether the term is a data use permission or a modifier."
+            },
+            "term_iri": {
+               "description": "The term's persistent IRI.",
+               "format": "uri",
+               "type": "string"
+            }
+         },
+         "required": [
+            "term_id",
+            "term_label",
+            "term_kind",
+            "term_iri"
+         ],
+         "title": "DataUseTerm",
+         "type": "object"
+      },
       "Derivation": {
          "description": "",
          "enum": [
@@ -198,7 +246,7 @@
       },
       "SensitivityQuestion": {
          "additionalProperties": false,
-         "description": "One thing the researcher must answer or confirm before sharing, from the adviser's template or added by a model.",
+         "description": "One thing the researcher must answer or confirm before sharing, from the adviser's template or added by a model. A question about consent names the data use conditions it asks about.",
          "properties": {
             "text": {
                "description": "The question, as put to the researcher.",
@@ -207,6 +255,16 @@
             "derivation": {
                "$ref": "#/$defs/Derivation",
                "description": "How the value came about, lexical (the keyword table), template or model."
+            },
+            "data_use_terms": {
+               "description": "The DUO conditions the question asks the researcher to check consent against, from the adviser's own list. Empty for a question that is not about consent.",
+               "items": {
+                  "$ref": "#/$defs/DataUseTerm"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
             }
          },
          "required": [

@@ -1,6 +1,9 @@
 {
    "@context": {
       "@vocab": "https://w3id.org/data-director/agents/ethics/",
+      "DataUseTerm": {
+         "@id": "https://w3id.org/data-director/agents/ethics/DataUseTerm"
+      },
       "GroundingRef": {
          "@id": "https://w3id.org/data-director/GroundingRef"
       },
@@ -21,6 +24,10 @@
       },
       "content_hash": {
          "@id": "https://w3id.org/data-director/content_hash"
+      },
+      "data_use_terms": {
+         "@id": "https://w3id.org/data-director/agents/ethics/data_use_terms",
+         "@type": "@id"
       },
       "dcat": "http://www.w3.org/ns/dcat#",
       "dcterms": "http://purl.org/dc/terms/",
@@ -94,10 +101,26 @@
          "@id": "https://w3id.org/data-director/schema_class"
       },
       "shex": "http://www.w3.org/ns/shex#",
+      "shorthand": {
+         "@id": "https://w3id.org/data-director/agents/ethics/shorthand"
+      },
       "source_id": {
          "@id": "https://w3id.org/data-director/source_id"
       },
       "spdx": "http://spdx.org/rdf/terms#",
+      "term_id": {
+         "@id": "https://w3id.org/data-director/agents/ethics/term_id"
+      },
+      "term_iri": {
+         "@id": "https://w3id.org/data-director/agents/ethics/term_iri",
+         "@type": "@id"
+      },
+      "term_kind": {
+         "@id": "https://w3id.org/data-director/agents/ethics/term_kind"
+      },
+      "term_label": {
+         "@id": "https://w3id.org/data-director/agents/ethics/term_label"
+      },
       "text": {
          "@id": "https://w3id.org/data-director/agents/ethics/text"
       },

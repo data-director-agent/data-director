@@ -1,6 +1,6 @@
 # advisor.ethics
 
-**Alpha** (`0.1.0a2`): a model-backed alpha ([Agents](../../docs/specs/agents.md), invariant 14).
+**Alpha** (`0.1.0a3`): a model-backed alpha ([Agents](../../docs/specs/agents.md), invariant 14).
 It matches field names against a keyword table, and by default a model reads the names as well;
 an operator can turn the model off with `DD_ETHICS_READER=template`. It has no evaluation set yet,
 so nothing here claims it is validated.
@@ -37,7 +37,10 @@ before any model is called.
   absent when there is no inventory or its detector did not run, and empty when it ran and found
   nothing, which does not mean there is nothing;
 - `questions`: what the researcher must answer or confirm, and with whom, each with its
-  `derivation`: `template` for the adviser's own questions, `model` for one a model added;
+  `derivation`: `template` for the adviser's own questions, `model` for one a model added. A
+  question about consent also lists `data_use_terms`: data use conditions from the GA4GH Data
+  Use Ontology (DUO), each with its identifier, shorthand, label, kind (permission or modifier)
+  and IRI;
 - `limitations`: what the adviser does not do;
 - `dropped`: what a model returned that was not used, and why.
 
@@ -57,12 +60,18 @@ before any model is called.
    field is the costlier mistake.
 5. If the model declines, replies with something that does not match the schema, or cannot be
    reached, the keyword flags stand and the statement says why.
-6. With an inventory, the detector's findings are carried over and raise a question for a
+6. When it asks about consent, it lists the DUO conditions to check that consent against: every
+   permission, and the modifiers consent forms most often state (`CONSENT_MODIFIERS` in
+   `agent.py`), from the release that `dd-duo` pins (`duo/`). The researcher, with their ethics
+   staff, says which apply. The adviser chooses none, and the same codes are meant for access
+   options (TODO(#359)).
+7. With an inventory, the detector's findings are carried over and raise a question for a
    person, and a file whose name suggests free text (`dd_sdk.inventory_hints`) is named for a
    person to read. The limitations say whether the detector ran. Without an inventory they say
    that one would check more.
 
 The adviser reads no data values and cites only its input, so its grounding mode is `input_only`.
+The DUO terms are packaged vocabulary, like the keyword table, not a record retrieved for the run.
 Each call is recorded with its prompt (`model_calls`), and with the `model` reader the card
 declares the model (`AgentSpec.models`).
 
@@ -99,7 +108,8 @@ declares `local`. Detecting personal data before anything is sent is TODO(#39).
   inventory's detector, on the researcher's computer, looks at values and small text files.
 - It does not check free text, images or audio itself, or combinations of fields that together
   identify people.
-- It does not know the participants' consent, the ethics approval or the applicable law.
+- It does not know the participants' consent, the ethics approval or the applicable law. It lists
+  DUO conditions for consent to be checked against, not the ones that apply.
 - It has no evaluation set yet. `tests/cases/false_negatives.json` lists field names the keyword
   table misses, the seed of the false-negative cases the persona needs before it leaves alpha
   (TODO(#700)).
@@ -114,3 +124,8 @@ uv run dd-advisor-ethics serve --port 8111                              # model 
 uv run workbench invoke --agent advisor.ethics --input workbench/samples/ethics-context.json
 uv run pytest agents/advisor-ethics
 ```
+
+## Dependencies
+
+`data-director-sdk` for the contract, `dd-duo` for the GA4GH Data Use Ontology's terms (CC BY 4.0,
+pinned in `duo/`), Pydantic and PyYAML; with the `model` extra, the SDK's model adapters.
