@@ -132,6 +132,21 @@
       "step_id": "setup.storage"
     },
     {
+      "action_classes": [
+        "advise"
+      ],
+      "agent_ids": [
+        "advisor.standards"
+      ],
+      "autonomy": "delegated",
+      "label": "Choose open file formats for your data",
+      "phase_name": "Plan ahead",
+      "phase_number": 1,
+      "reason": null,
+      "refers_to": null,
+      "step_id": "setup.formats"
+    },
+    {
       "action_classes": [],
       "agent_ids": [],
       "autonomy": "not_offered",

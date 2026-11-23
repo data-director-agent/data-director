@@ -56,6 +56,18 @@
           "text": "Plan storage, backup and security during the project"
         },
         {
+          "id": "setup.formats",
+          "label": "Choose open file formats for your data",
+          "optional": false,
+          "out_of_scope": false,
+          "person_decides": false,
+          "prompt": "Help me choose open file formats to collect my data in.",
+          "requirements": [
+            "R3"
+          ],
+          "text": "Choose open formats to collect data in"
+        },
+        {
           "id": "setup.dmp-create",
           "label": "Write a Data Management Plan",
           "optional": true,
@@ -76,7 +88,7 @@
           "text": "Review and update the Data Management Plan"
         }
       ],
-      "summary": "Before you collect any data: decide how it will be described, and where it will be stored and backed up.",
+      "summary": "Before you collect any data: decide how it will be described, which formats to save it in, and where it will be stored and backed up.",
       "title": "Pre-collection setup"
     },
     {

@@ -119,6 +119,19 @@ def test_storage_is_planned_before_collection_and_before_the_plan_is_written() -
     assert step.requirements == ()
 
 
+def test_open_formats_are_chosen_before_collection_and_checked_once_files_exist() -> None:
+    # Our addition to Figure 1: formats chosen before collection, checked again in Phase 4.
+    order = [s.id for p in PHASES for s in p.steps]
+    assert (
+        order.index("setup.vocabularies")
+        < order.index("setup.formats")
+        < order.index("setup.dmp-create")
+        < order.index("preparation.formats")
+    )
+    step = next(s for s in PHASES[0].steps if s.id == "setup.formats")
+    assert not (step.optional or step.out_of_scope or step.person_decides)
+
+
 def test_a_fair_check_of_the_draft_comes_before_submission_and_never_gates_it() -> None:
     # Our addition to Figure 5: FAIR feedback while the researcher can still act on it. Figure 6's
     # check of the published object stays in Phase 6.
@@ -250,6 +263,7 @@ def test_the_suggestion_passes_optional_and_out_of_scope_steps_and_ends_when_all
         "setup.documentation": "done",
         "setup.vocabularies": "done",
         "setup.storage": "done",
+        "setup.formats": "done",
     }
     found = suggested_next(progress(start, states, []), start)
     # setup.dmp-create is optional; setup.dmp-review is the next required step.

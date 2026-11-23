@@ -67,6 +67,8 @@ Blueprint's flow and shown here so the map is complete, but Data Director does n
 - Select controlled vocabularies and ontologies (R3)
 - Plan storage, backup and security during the project (not in the Blueprint's figure, added
   because where your data live while you work on them is the first thing to settle)
+- Choose open formats to collect data in (R3; not in the Blueprint's figure, added so that your
+  data need no conversion before deposit)
 - Create a Data Management Plan where none exists (*optional*)
 - Review and update the Data Management Plan
 
