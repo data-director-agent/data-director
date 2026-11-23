@@ -50,8 +50,10 @@ hand-written inventories, and asks whether the categories it suggests from the r
 controlled vocabulary are those a curator would choose. It also asks whether each category cites
 the vocabulary record it came from, and whether every value only the researcher can give is asked
 about and left null. A repository asking for another standard must be told the capability is not
-implemented. The librarian suggests no category yet, so its baseline recalls none (TODO(#703));
-the cases are to be replaced by the ORDA corpus (TODO(#22)).
+implemented. The committed baseline is the template suggester's, which suggests no category, so it recalls
+none. A model suggests categories only from a classification retrieved through the tool gateway,
+and the evaluation's conductor has no gateway yet, so a run with a model recalls none either
+(TODO(#703)). The cases are to be replaced by the ORDA corpus (TODO(#22)).
 
 ## Invariants
 

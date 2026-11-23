@@ -41,6 +41,7 @@ members = [
     "data-director-mcp-fairsharing",
     "data-director-mcp-pid",
     "data-director-mcp-spdx",
+    "data-director-mcp-subjects",
     "data-director-model-broker",
     "data-director-registry-cache",
     "data-director-sdk",
@@ -1183,6 +1184,7 @@ dependencies = [
     { name = "data-director-mcp-fairsharing" },
     { name = "data-director-mcp-pid" },
     { name = "data-director-mcp-spdx" },
+    { name = "data-director-mcp-subjects" },
     { name = "data-director-model-broker" },
     { name = "data-director-registry-cache" },
     { name = "data-director-sdk" },
@@ -1259,6 +1261,7 @@ requires-dist = [
     { name = "data-director-mcp-fairsharing", editable = "mcp-fairsharing" },
     { name = "data-director-mcp-pid", editable = "mcp-pid" },
     { name = "data-director-mcp-spdx", editable = "mcp-spdx" },
+    { name = "data-director-mcp-subjects", editable = "mcp-subjects" },
     { name = "data-director-model-broker", editable = "broker" },
     { name = "data-director-registry-cache", editable = "registry-cache" },
     { name = "data-director-sdk", editable = "sdk" },
@@ -1513,7 +1516,7 @@ dev = [
 
 [[package]]
 name = "data-director-agent-advisor-metadata"
-version = "0.2.0a1"
+version = "0.3.0a0"
 source = { editable = "agents/advisor-metadata" }
 dependencies = [
     { name = "data-director-sdk" },
@@ -1528,7 +1531,8 @@ eval = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "data-director-harness" },
+    { name = "data-director-harness", extra = ["gateway"] },
+    { name = "data-director-mcp-subjects" },
 ]
 
 [package.metadata]
@@ -1541,7 +1545,10 @@ requires-dist = [
 provides-extras = ["eval"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "data-director-harness", editable = "harness" }]
+dev = [
+    { name = "data-director-harness", extras = ["gateway"], editable = "harness" },
+    { name = "data-director-mcp-subjects", editable = "mcp-subjects" },
+]
 
 [[package]]
 name = "data-director-agent-advisor-policy"
@@ -2171,6 +2178,39 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "mcp", specifier = ">=2.3,<2.4" },
+    { name = "mcp-types", specifier = ">=2.3,<2.4" },
+    { name = "starlette", specifier = ">=0.40" },
+    { name = "uvicorn", specifier = ">=0.30" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "data-director-harness", extras = ["gateway"], editable = "harness" },
+    { name = "data-director-sdk", editable = "sdk" },
+]
+
+[[package]]
+name = "data-director-mcp-subjects"
+version = "0.1.0a0"
+source = { editable = "mcp-subjects" }
+dependencies = [
+    { name = "data-director-subjects" },
+    { name = "mcp" },
+    { name = "mcp-types" },
+    { name = "starlette" },
+    { name = "uvicorn" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "data-director-harness", extra = ["gateway"] },
+    { name = "data-director-sdk" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "data-director-subjects", editable = "subjects" },
     { name = "mcp", specifier = ">=2.3,<2.4" },
     { name = "mcp-types", specifier = ">=2.3,<2.4" },
     { name = "starlette", specifier = ">=0.40" },

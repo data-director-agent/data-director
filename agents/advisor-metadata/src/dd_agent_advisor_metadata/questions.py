@@ -21,7 +21,7 @@ from dd_sdk.contract.models import DocumentQuestion, DraftAnswer
 
 QUESTION_ID_DIGITS = 16
 # A qualifier that names a vocabulary, such as subjectScheme: an entry asked for in one is chosen
-# from it, which the librarian does not yet do, so no model suggests one (TODO(#703)).
+# from it, so a model suggests one only from the vocabulary's own fields (`categories.py`).
 _SCHEME_KEY = re.compile(r"Scheme$")
 
 
@@ -41,6 +41,12 @@ class Gap:
     @property
     def names_a_vocabulary(self) -> bool:
         return any(_SCHEME_KEY.search(key) for key in self.qualifier)
+
+    @property
+    def vocabulary(self) -> str | None:
+        """The vocabulary the entry's qualifier names, such as `ANZSRC Fields of Research`."""
+        named = [v for k, v in self.qualifier.items() if _SCHEME_KEY.search(k) and v]
+        return str(named[0]) if named else None
 
 
 def question_id(path: str) -> str:
