@@ -29,7 +29,7 @@ export const NOTICES_PATH = `${BUNDLE_PATH}NOTICES.md`;
 type Fetch = (url: string) => Promise<Response>;
 
 export interface Scanner {
-  /** Whether this deployment serves the scanner. Asked once; the answer is kept. */
+  /** Whether this deployment serves the scanner. A yes is kept; a no is asked again next time. */
   available(): Promise<boolean>;
   /** Describe `folder`. The bundle is fetched on the first scan and kept for the rest. */
   scan(folder: ChosenFolder, onEvent: (event: ScanEvent) => void): ScanHandle;
@@ -68,7 +68,17 @@ export function makeScanner({
     return bundle;
   };
   return {
-    available: () => (available ??= servesBundle(base, fetcher)),
+    // Only a yes is kept: a failed fetch may be a hiccup, and keeping it would hide the browser
+    // route until the page was reloaded. A no is asked again the next time the dialog opens.
+    available() {
+      if (available) return available;
+      const asked = servesBundle(base, fetcher).then((yes) => {
+        if (!yes && available === asked) available = undefined;
+        return yes;
+      });
+      available = asked;
+      return asked;
+    },
     scan(folder, onEvent) {
       let handle: ScanHandle | undefined;
       let stopped = false;
