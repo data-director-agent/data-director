@@ -6,13 +6,14 @@ from __future__ import annotations
 import gzip
 import io
 import json
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from dd_journals import Journal, PinError, Registry, fold, normal_issn, valid_issn
-from dd_journals.build import build
+from dd_journals.build import build, parse
 from dd_journals.records import from_openalex
 from dd_journals.snapshot import Pin, fetch, problem, update_pin
 
@@ -71,9 +72,8 @@ def write_parts(where: Path, parts: list[list[dict[str, Any]]]) -> list[Path]:
 
 @pytest.fixture
 def registry(tmp_path: Path) -> Registry:
-    data, _ = build(write_parts(tmp_path, PARTS))
-    (tmp_path / "journals.jsonl").write_bytes(data)
-    return Registry.load(tmp_path / "journals.jsonl")
+    _, journals = build(write_parts(tmp_path, PARTS))
+    return Registry.build(journals, tmp_path / "journals.sqlite", "pinned", "test snapshot")
 
 
 # --- ISSNs ------------------------------------------------------------------------------------
@@ -112,12 +112,13 @@ def test_only_journals_with_an_issn_l_are_kept() -> None:
 def test_the_same_parts_build_the_same_bytes_in_any_order(tmp_path: Path) -> None:
     (tmp_path / "a").mkdir()
     (tmp_path / "b").mkdir()
-    first, count = build(write_parts(tmp_path / "a", PARTS))
+    first, journals = build(write_parts(tmp_path / "a", PARTS))
     second, _ = build(write_parts(tmp_path / "b", list(reversed(PARTS))))
     assert first == second
+    assert parse(first) == journals
     lines = [json.loads(line) for line in first.decode().splitlines()]
     issn_ls = [line["issn_l"] for line in lines]
-    assert len(lines) == count
+    assert len(lines) == len(journals)
     assert issn_ls == sorted(set(issn_ls))
 
 
@@ -171,13 +172,26 @@ def test_search_is_the_same_every_time_and_respects_its_limit(registry: Registry
     assert registry.search("nothing like this") == []
 
 
-def test_a_registry_that_does_not_match_its_pin_is_refused(tmp_path: Path) -> None:
-    path = tmp_path / "journals.jsonl"
+def test_a_registry_that_does_not_match_its_pin_is_refused(
+    registry: Registry, tmp_path: Path
+) -> None:
     with pytest.raises(PinError):
-        Registry.load(path)
-    path.write_text("")
+        Registry(tmp_path / "missing.sqlite")
     with pytest.raises(PinError):
-        Registry.load(path, sha256="0" * 64)
+        Registry(registry.path, expect_sha256="0" * 64)
+    garbage = tmp_path / "garbage.sqlite"
+    garbage.write_text("not a database")
+    with pytest.raises(PinError):
+        Registry(garbage)
+    assert Registry(registry.path, "pinned").label == registry.label
+
+
+def test_searches_from_many_threads_agree(registry: Registry) -> None:
+    queries = ["nature", "sci data", "total", "0048-9697"] * 8
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        answers = list(pool.map(registry.search, queries))
+    assert answers == [registry.search(q) for q in queries]
+    assert all(answers)
 
 
 # --- fetching ---------------------------------------------------------------------------------
@@ -220,27 +234,49 @@ class FakeBucket:
 
 def test_a_pin_is_taken_then_fetched_from_the_cache(tmp_path: Path) -> None:
     bucket = FakeBucket(PARTS)
-    where = {"cache_dir": tmp_path / "cache", "registry": tmp_path / "j.jsonl"}
+    index = tmp_path / "j.sqlite"
+    where = {"cache_dir": tmp_path / "cache", "registry": tmp_path / "j.jsonl", "index": index}
     manifest = tmp_path / "manifest.json"
     pin = update_pin(**where, manifest=manifest, opener=bucket)
     assert pin.snapshot_date in pin.label
     assert all(p.sha256 and p.url.startswith(BUCKET) for p in pin.parts)
     assert Pin.load(manifest) == pin
-    assert problem(where["registry"], manifest) is None
+    assert problem(where["registry"], manifest, index) is None
+    assert Registry(index, pin.registry_sha256).label == pin.label
 
     built = where["registry"].read_bytes()
     where["registry"].unlink()
-    assert problem(where["registry"], manifest) is not None
+    index.unlink()
+    assert problem(where["registry"], manifest, index) is not None
     bucket.asked.clear()
     fetch(**where, manifest=manifest, opener=bucket)
     assert bucket.asked == []  # every part came from the cache
     assert where["registry"].read_bytes() == built
+    assert problem(where["registry"], manifest, index) is None
+
+
+def test_fetching_what_is_built_as_pinned_does_nothing(tmp_path: Path) -> None:
+    index = tmp_path / "j.sqlite"
+    where = {"cache_dir": tmp_path / "cache", "registry": tmp_path / "j.jsonl", "index": index}
+    manifest = tmp_path / "manifest.json"
+    update_pin(**where, manifest=manifest, opener=FakeBucket(PARTS))
+    built_at = index.stat().st_mtime_ns
+
+    def refuse(url: str) -> io.BytesIO:
+        raise AssertionError(f"asked {url}")
+
+    fetch(**where, manifest=manifest, opener=refuse)
+    assert index.stat().st_mtime_ns == built_at
+    index.unlink()  # only the index is missing: it is rebuilt from journals.jsonl
+    fetch(**where, manifest=manifest, opener=refuse)
+    assert problem(where["registry"], manifest, index) is None
 
 
 def test_a_part_that_does_not_match_its_pin_is_refused(tmp_path: Path) -> None:
     manifest = tmp_path / "manifest.json"
-    where = {"registry": tmp_path / "j.jsonl", "manifest": manifest}
+    where = {"registry": tmp_path / "j.jsonl", "manifest": manifest, "index": tmp_path / "j.sqlite"}
     update_pin(cache_dir=tmp_path / "first", **where, opener=FakeBucket(PARTS))
+    where["registry"].unlink()
     changed = FakeBucket([[NATURE], [], []])
     with pytest.raises(PinError):
         fetch(cache_dir=tmp_path / "second", **where, opener=changed)
@@ -252,4 +288,4 @@ def test_an_unreachable_bucket_is_a_pin_error(tmp_path: Path) -> None:
         raise OSError("connection refused")
 
     with pytest.raises(PinError):
-        update_pin(tmp_path, tmp_path / "j.jsonl", tmp_path / "m.json", opener=down)
+        update_pin(tmp_path, tmp_path / "j.jsonl", tmp_path / "m.json", down, tmp_path / "j.sqlite")

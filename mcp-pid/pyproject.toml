@@ -4,14 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-mcp-pid"
-version = "0.1.0-alpha.1"
-description = "A read-only MCP server that resolves DOIs (DataCite, Crossref), ORCID iDs and ROR identifiers to small structured records"
+version = "0.1.0-alpha.2"
+description = "A read-only MCP server that resolves DOIs (DataCite, Crossref), ORCID iDs, ROR identifiers and ISSNs to small structured records"
 readme = "README.md"
 requires-python = ">=3.14"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
-keywords = ["mcp", "persistent identifiers", "doi", "datacite", "crossref", "orcid", "ror", "research data"]
+keywords = ["mcp", "persistent identifiers", "doi", "datacite", "crossref", "orcid", "ror", "issn", "research data"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Science/Research",
@@ -21,8 +21,8 @@ classifiers = [
   "Typing :: Typed",
 ]
 
-# Framework-neutral (docs/specs/system.md): no workspace member is imported, so publishing this
-# server on its own is a copy. The MCP SDK is pinned to a minor version like the harness's gateway,
+# Framework-neutral (docs/specs/system.md): the one workspace member imported is dd-journals, a
+# standard-library-only library published on its own, so publishing this server is a copy. The MCP SDK is pinned to a minor version like the harness's gateway,
 # whose client this server is written against.
 dependencies = [
   "mcp>=2.3,<2.4",
@@ -32,6 +32,8 @@ dependencies = [
   "starlette>=0.40",
   "uvicorn>=0.30",
   "anyio>=4",
+  # The journal registry and its index, from a pinned OpenAlex snapshot (the `journals` server).
+  "data-director-journals",
 ]
 
 [project.scripts]

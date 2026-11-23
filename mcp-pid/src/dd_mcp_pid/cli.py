@@ -8,6 +8,9 @@ Settings, from the environment:
   policy advisor's, built by `uv run dd-sources prepare`.
 - `DD_PID_ROR_SNAPSHOT`: which dump the registry was built from, as said in answers (such as
   `ROR dump v2.15`).
+- `DD_PID_JOURNALS_REGISTRY`: the journal registry's index (`journals.sqlite`), built by
+  `dd-journals fetch` (in the Data Director, `uv run dd-sources prepare`). Unset: where
+  `dd-journals` builds it.
 - `DD_PID_HOSTS`: comma-separated names clients reach the server by, beyond loopback (such as a
   container's service name).
 - `DD_REGISTRY_CONTACT`: the operators' contact address, which DataCite and Crossref are sent as
@@ -24,9 +27,11 @@ from pathlib import Path
 
 import uvicorn
 
+from dd_journals.snapshot import INDEX
 from dd_mcp_pid.app import LOOPBACK, create_app
 from dd_mcp_pid.dois import Crossref, DataCite
 from dd_mcp_pid.http import contact_address
+from dd_mcp_pid.journals import JournalSource, journal_registry
 from dd_mcp_pid.orcid import Orcid
 from dd_mcp_pid.ror import RorApi, RorIndex
 from dd_mcp_pid.tools import (
@@ -63,6 +68,11 @@ def contact(env: Mapping[str, str]) -> str | None:
         raise SettingsError(f"DD_REGISTRY_CONTACT: {exc}") from None
 
 
+def journal_source(env: Mapping[str, str]) -> JournalSource:
+    index = env.get("DD_PID_JOURNALS_REGISTRY", "").strip()
+    return JournalSource(Path(index) if index else INDEX)
+
+
 def registries(env: Mapping[str, str]) -> list[Registry]:
     address = contact(env)
     return [
@@ -70,6 +80,7 @@ def registries(env: Mapping[str, str]) -> list[Registry]:
         doi_registry("Crossref", Crossref(contact=address)),
         orcid_registry(Orcid()),
         ror_registry(ror_sources(env)),
+        journal_registry(journal_source(env)),
     ]
 
 

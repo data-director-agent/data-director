@@ -86,16 +86,17 @@ def test_a_vm_refuses_it_until_the_server_has_a_unit(vm: Vm) -> None:
     assert any("pid_resolver is for development only" in r for r in result.refusals)
 
 
-def test_start_gives_the_server_the_pinned_ror_registry() -> None:
+def test_start_gives_the_server_the_pinned_registries() -> None:
     env = server_env()
     assert env["DD_PID_ROR_REGISTRY"].endswith("agents/advisor-policy/data/ror/registry.jsonl")
     assert env["DD_PID_ROR_SNAPSHOT"].startswith("ROR dump v")
+    assert env["DD_PID_JOURNALS_REGISTRY"].endswith("journals/src/dd_journals/data/journals.sqlite")
 
 
 @pytest.mark.parametrize("config", [TOOLS, ROOT / "docker" / "tools.yaml"], ids=["app", "docker"])
 def test_each_tools_config_pins_the_tools_the_server_lists(config: Path) -> None:
     servers = {s.name: s for s in load_servers(config)}
-    assert list(servers) == ["datacite", "crossref", "orcid", "ror"]
+    assert list(servers) == ["datacite", "crossref", "orcid", "ror", "journals"]
     for registry in registries({}):
         listed = [
             t.model_dump(mode="json", by_alias=True, exclude_none=True) for t in registry.tools

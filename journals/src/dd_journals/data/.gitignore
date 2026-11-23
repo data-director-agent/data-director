@@ -2,3 +2,4 @@
 journals.jsonl
 *.part
 archives/
+journals.sqlite

@@ -34,13 +34,21 @@ Journal(issn_l='0048-9697', issns=('0048-9697', '1879-1026'), title='Science of 
   gives the same list.
 - `normal_issn(value)` writes an ISSN as `NNNN-NNNC`. `valid_issn(value)` also checks its check
   digit.
-- `Registry(journals)` and `Registry.load(path, sha256)` build a registry from other journals or
-  another file.
+- `Registry(path, expect_sha256)` opens another index, and `Registry.build(journals, path)`
+  indexes other journals.
+
+Look-ups read a SQLite index (`journals.sqlite`), read-only and with a connection for each, so a
+`Registry` can be shared between threads and holds nothing in memory but its path. Opening it
+takes a millisecond. A look-up by ISSN, or a search for a title or a few words, takes a few
+milliseconds; a single common word such as "journal", which matches tens of thousands of
+journals, takes about 150 ms.
 
 It is contract-free: it imports no other Data Director package and needs only the standard
 library, so it can be copied out and published on its own
-([System and boundaries](../docs/specs/system.md)). The policy advisor (`advisor.policy`) uses
-its ISSN functions. Journal look-up for agents and the app's journal picker are to follow (#1514).
+([System and boundaries](../docs/specs/system.md)). The PID resolver's `journals` server
+(`mcp-pid`) serves it to agents through the tool gateway, and the policy advisor (`advisor.policy`)
+uses its ISSN functions and registers it with `dd-sources prepare`. The app's journal picker is to
+follow (#1514).
 
 ## Building the registry
 
@@ -55,8 +63,11 @@ uv run dd-journals fetch
 
 This downloads the pinned parts (about 364 MB, gzipped) from OpenAlex's public bucket into
 `src/dd_journals/data/archives/`, or the directory given as `--cache-dir`. It checks each part,
-builds `journals.jsonl` and checks that too. A second run downloads nothing.
-`uv run dd-journals check` says whether the registry is built as pinned.
+builds `journals.jsonl` and checks that too, then indexes it in `journals.sqlite` (about 140 MB).
+A run when both are built as pinned does nothing, and one with only the index missing rebuilds it
+from `journals.jsonl` without downloading. `uv run dd-journals check` says whether both are built
+as pinned. The index is a local derivative and is not pinned itself: it records which
+`journals.jsonl` it was built from, and it is refused if that is not the pinned one.
 
 The build keeps journals with an ISSN-L only. Where OpenAlex has two records for one ISSN-L, they
 become one journal: the record with more works describes it, and it carries the ISSNs of both.
@@ -97,11 +108,10 @@ is TODO(#1515).
   pin.
 - "Publisher" is OpenAlex's host organisation, which is sometimes a society or a platform rather
   than the publisher.
-- Search reads every journal, about 150 ms a query; loading the registry takes a few seconds.
-  A caller that answers a person as they type should load it once and pause typing first.
 - Search matches words, not meaning. A misspelt title finds nothing; use the ISSN.
 
 ## Dependencies
 
-None beyond Python 3.14's standard library. Building the registry needs HTTPS access to
+None beyond Python 3.14's standard library, whose `sqlite3` must have FTS5 (as CPython's
+builds do). Building the registry needs HTTPS access to
 `openalex.s3.amazonaws.com`.
