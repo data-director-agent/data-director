@@ -179,8 +179,8 @@ An alpha adviser for the deposit steps where you choose a licence and an access 
 Helps you link your dataset to related publications, people, organisations and grants, when you prepare a deposit and when you add links after publication.
 
 - **You give it:** identifiers as you have them: DOIs, ORCID iDs, ROR ids and grant numbers.
-- **You get back:** for each one, whether it is well formed, its standard web form and a suggestion for recording it in your metadata. Where your deployment allows lookups, DOIs, ORCID iDs and ROR ids are looked up and the title or name shown, so you can check it is what you meant.
-- **It will not:** register any link (you and the repository do that), confirm that a grant number exists, or recognise other identifiers such as arXiv ids. Its relation suggestions are defaults, so confirm each one.
+- **You get back:** for each one, whether it is well formed, its standard web form and a suggestion for recording it in your metadata. Where your deployment allows lookups, DOIs, ORCID iDs, ROR ids and grant numbers are looked up and the title or name shown, so you can check it is what you meant. A grant number that several funders use lists each of their grants: you choose yours, by its funder, and the adviser suggests how to record it as a funding reference.
+- **It will not:** register any link (you and the repository do that), choose among grants that share a number, or recognise other identifiers such as arXiv ids. Its relation suggestions are defaults, so confirm each one.
 - **AI model:** by default a model writes only a short summary, from the findings (each identifier as you gave it and what was found). It cannot change them. A deployment can turn it off, and fixed rules then write the summary.
 - **When it holds back:** with no identifiers it asks for some. An unrecognised one is marked unknown for you to record by hand. A failed lookup is reported, and the form check stands.
 

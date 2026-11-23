@@ -24,6 +24,7 @@ from pid_support import (
     ORCID_ID,
     STOTEN,
     STOTEN_ONLINE,
+    UKRI_AWARD,
     built_journals,
     built_registry,
     registries,
@@ -41,6 +42,7 @@ ID_FIELD = {
     "orcid": "orcid",
     "ror": "id",
     "journals": "issn_l",
+    "grants": "id",
 }
 
 
@@ -115,6 +117,12 @@ def test_the_server_refuses_a_host_it_was_not_told_of(base_url: str) -> None:
         ("orcid", "get_orcid", {"orcid": ORCID_ID}, f"https://orcid.org/{ORCID_ID}"),
         ("ror", "get_organisation", {"id": NERC}, NERC),
         ("journals", "get_journal", {"issn": STOTEN_ONLINE}, STOTEN),
+        (
+            "grants",
+            "resolve_grant",
+            {"award": UKRI_AWARD},
+            "https://explore.openaire.eu/search/project?projectId=ukri________::c510f2607fbff2ad1e3cbfea7aadbdfb",
+        ),
     ],
 )
 def test_a_found_record_is_recorded_and_hashed_by_the_gateway(

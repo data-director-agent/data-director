@@ -61,7 +61,7 @@ library modules are not dependencies here.
 | `psycopg[binary]` | Harness (`postgres` extra) | `dd_harness.postgres`: the PostgreSQL backend of the run and project storage, in plain SQL ([Storage](storage.md)) | Another PostgreSQL driver behind the same module; the file backends for a single host. |
 | `psycopg-pool` | Harness (`postgres` extra) | `dd_harness.postgres`: a pool of connections per store, sized by `DD_POSTGRES_POOL_SIZE` ([Storage](storage.md)) | A connection per call, as before the pool; another pool behind the same module. |
 | `watchfiles` | SDK | uvicorn's `--reload`, for development only | uvicorn's polling reloader, which it uses when `watchfiles` is absent. |
-| `httpx` | SDK, harness, app, agents | `dd_sdk.delegate`, `dd_sdk.registry` (FAIRsharing's API and pinned archive downloads), `dd_harness.remote`, `dd_harness.identity`, the app's sign-in and feedback modules, each agent's `live` module, the repository advisor's `registry` (the re3data export), the policy advisor's `ror` (the ROR dump and API), `opf` (Jisc Open Policy Finder), `crossref` (Crossref's journals) and `policy_text` (policy pages); `dd_mcp_pid.http`, the PID resolver's client of DataCite, Crossref, ORCID and ROR; `dd_mcp_doaj.journals`, the DOAJ client | `urllib.request`. |
+| `httpx` | SDK, harness, app, agents | `dd_sdk.delegate`, `dd_sdk.registry` (FAIRsharing's API and pinned archive downloads), `dd_harness.remote`, `dd_harness.identity`, the app's sign-in and feedback modules, each agent's `live` module, the repository advisor's `registry` (the re3data export), the policy advisor's `ror` (the ROR dump and API), `opf` (Jisc Open Policy Finder), `crossref` (Crossref's journals) and `policy_text` (policy pages); `dd_mcp_pid.http`, the PID resolver's client of DataCite, Crossref, ORCID, ROR and the OpenAIRE Graph; `dd_mcp_doaj.journals`, the DOAJ client | `urllib.request`. |
 | `rocrate` | Harness | `dd_harness.provenance`; the deposit package in `dd_harness.deposit` | Write `ro-crate-metadata.json` directly. |
 | `pyshacl` (with `rdflib`) | Harness | `dd_harness.shacl`, which runs the shapes `dd_harness.deposit` generates from a repository's requirements and the shapes an agent's payload class carries on its card | Checks written in Python that emit the same `sh:` vocabulary. |
 | `pyyaml` | Harness, agents | Profile, registry, source and requirement loaders; agents' packaged data | `ruamel.yaml`, or the same documents as JSON. |
@@ -104,6 +104,7 @@ no runtime dependency.
 | ROR | Policy adviser (`ror`); `mcp-pid` | The pinned dump; the live API if chosen | An identifier or an organisation name | CC0 | The dump answers |
 | DataCite and Crossref REST (works) | `mcp-pid` | Live, through the tool gateway | A DOI | CC0; facts | The run says the resolver is unavailable |
 | ORCID public API | `dd_harness.orcid`; `mcp-pid` | Live, anonymous | An iD | Nothing kept; ORCID's API licence is for non-commercial use | As above |
+| Crossref grants and the OpenAIRE Graph API v4 (projects) | `mcp-pid`'s `grants` server | Live, through the tool gateway; OpenAIRE anonymously (60 requests an hour) or with a refresh token (7,200) | An award number or a grant DOI; never the funder's name, which narrows the answers locally | Crossref: facts; OpenAIRE: CC BY 4.0, with OpenAIRE credited | The other source answers, and the run says which failed |
 | Jisc Open Policy Finder, Crossref journals | Policy adviser (`opf`, `crossref`) | Live only | An ISSN, a journal title, a publisher or funder name | Nothing kept | FAIRsharing answers |
 | Directory of Open Access Journals (DOAJ) | Policy adviser (`doaj`), through `mcp-doaj`'s client | Live only | An ISSN or a journal title | CC0 (metadata); nothing kept | The run says DOAJ could not be asked; the other registries answer |
 | PRONOM | `dd_inventory.identify`, through `opf-fido`; the files adviser, through `dd-formats` | For identification, a committed signature file built from a recent release by `inventory/scripts/pin_pronom.py`; for describing a format, the same release's records, committed as JSON Lines by `formats/scripts/pin_pronom_records.py`; each checked against its hash. A live record lookup is TODO(#1475) | Nothing: identification and lookup are local | Open Government Licence v3.0, kept with each copy (`LICENCE.md`) | Media types from extensions; a file with no PUID is described by extension only |
@@ -116,8 +117,7 @@ researcher has confirmed that term first; where that matters, a local copy or a 
 service is preferred (Blueprint P10, C2, C4). A key a source needs goes in the credential file of
 the agent or server that uses it ([Policy and identity](policy-and-identity.md)).
 
-Adopted for later, each with its implementing issue: the OpenAIRE Graph API v3 as a tool beside
-grant resolution (#953); related-data discovery through DataCite's REST search, with OpenAlex
+Adopted for later, each with its implementing issue: related-data discovery through DataCite's REST search, with OpenAlex
 and ScholeXplorer v3 if the spike shows they add links (#954); terminology services, chosen by
 #956; the Library of Congress format descriptions, as links only (#955); the Open Definition
 list, as a pinned copy (#877); a self-hosted F-UJI, given published identifiers only (#704); and

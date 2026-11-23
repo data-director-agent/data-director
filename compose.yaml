@@ -359,6 +359,8 @@ services:
       DD_PID_HOSTS: mcp-pid
       # Your operators' contact address for DataCite and Crossref (mcp-pid/README.md); blank: none.
       DD_REGISTRY_CONTACT: ${DD_REGISTRY_CONTACT:-}
+      # A secret: an OpenAIRE refresh token, for 7,200 grant lookups an hour rather than 60; blank: none.
+      DD_OPENAIRE_REFRESH_TOKEN: ${DD_OPENAIRE_REFRESH_TOKEN:-}
     healthcheck:
       test:
         - CMD
