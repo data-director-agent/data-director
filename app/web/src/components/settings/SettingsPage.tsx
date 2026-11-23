@@ -1,18 +1,20 @@
 /**
  * The signed-in person's settings, reached from the cog in the banner (docs/specs/app.md): their
  * own AI account, where the deployment offers it (`ModelAccount`), their own repository accounts,
- * where the deployment deposits drafts for them (`RepositoryAccount`), and their preferences for
- * this browser (`Preferences`), each in a tab of its own. What the deployment itself allows is on the Policy page, not here.
+ * where the deployment deposits drafts for them (`RepositoryAccount`), their preferences for
+ * this browser (`Preferences`), and what they are told about (`NoticeSettings`), each in a tab of
+ * its own. What the deployment itself allows is on the Policy page, not here.
  */
 
 import "./SettingsPage.css";
 
-import { GitBranch, Sparkles, type LucideIcon } from "lucide-react";
+import { Bell, GitBranch, Sparkles, type LucideIcon } from "lucide-react";
 
 import { Link } from "../../route";
 import type { Session } from "../../session/api";
 import { PageHeader } from "../frame/PageHeader";
 import { ModelAccount } from "./ModelAccount";
+import { NoticeSettings } from "./NoticeSettings";
 import { RepositoryAccount, returned } from "./RepositoryAccount";
 import { Tab, TabList, TabPanel, Tabs } from "../ui/Tabs";
 import { PREFERENCE_SECTIONS, Preferences } from "./Preferences";
@@ -61,6 +63,10 @@ export function SettingsPage({ session }: { session: Session }) {
               {title}
             </Tab>
           ))}
+          <Tab id="notifications">
+            <TabIcon icon={Bell} />
+            Notifications
+          </Tab>
         </TabList>
         {account && (
           <TabPanel id="account">
@@ -77,6 +83,9 @@ export function SettingsPage({ session }: { session: Session }) {
             <Preferences section={id} />
           </TabPanel>
         ))}
+        <TabPanel id="notifications">
+          <NoticeSettings teams={session.principal?.teams ?? []} />
+        </TabPanel>
       </Tabs>
       <p>
         <Link to="/">Back to the conversation</Link>

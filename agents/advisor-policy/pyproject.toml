@@ -17,6 +17,8 @@ dependencies = [
     "data-director-mcp-pid",
     # DOAJ's client (dd_mcp_doaj.journals): an open access journal's terms, with no key (#1517).
     "data-director-mcp-doaj",
+    # ISSNs written as ISO 3297 writes them (dd_journals.issn), shared with the journal registry.
+    "data-director-journals",
     "httpx>=0.28",
     "pydantic>=2.14.1,<3",
     "pypdf>=6.21.4,<8",

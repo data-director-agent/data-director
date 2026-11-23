@@ -53,6 +53,16 @@ class ApprovedMetadataRecord(Frozen):
     document_text: str
 
 
+class ApprovedPlan(Frozen):
+    """The version of the project's data management plan a person approved last
+    (docs/specs/projects.md)."""
+
+    version_ref: DocumentVersionRef
+    document_title: str | None = None
+    media_type: str
+    document_text: str
+
+
 class DraftRequest(Frozen):
     """A project document of one kind to draft from the project's facts (docs/specs/projects.md)."""
 

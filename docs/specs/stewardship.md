@@ -20,12 +20,12 @@ The specs use "steward" in two senses, and this spec covers both as one role:
 
 In scope: deployment roles (researcher, steward, administrator) and where they come from;
 escalation; a steward's access to a project and the closed list of what a steward may do there;
-pause; the mandatory reviews and who makes each; a steward's overviews; and how all of this
-behaves in a deployment with no stewards (C17).
+pause; the mandatory reviews and who makes each; a steward's overviews; who is told when an
+escalation moves, and sending one nobody takes to its team again; and how all of this behaves in
+a deployment with no stewards (C17).
 
 Out of scope: who may edit the profile from the app (#225); the security of sign-in itself
-([Policy and identity](policy-and-identity.md)); notification transport beyond what a message may
-hold (#378); and the Blueprint's other data-support-professional uses in §4.1 that act on systems
+([Policy and identity](policy-and-identity.md)); and the Blueprint's other data-support-professional uses in §4.1 that act on systems
 outside a project, such as managing access in a repository, which no agent performs.
 
 The experience is designed in [Steward escalation flows](../ui/steward-escalation-flows.md), and
@@ -44,8 +44,11 @@ The steward's screens (#376): the queue of requests, with the moves the harness 
 banner, with its requests beside it and without the controls the harness refuses; writing to the
 researchers, pausing and lifting a pause; clearing or refusing a referred step beside the request
 it came from; proposing an edit to a document's latest version; and asking an agent, on the
-conversation page in the project, under a "Working as a data steward" banner. Everything else in
-this spec is the intended design; each invariant names the issue that builds it.
+conversation page in the project, under a "Working as a data steward" banner. Notifications and
+sending an escalation again (invariant 13, #378): a team's email for each escalation opened, sent
+again, or moved by the researcher; the researcher's "Updates" in the app's banner; and the hourly
+sweep. Everything else in this spec is the intended design; each invariant names the issue that
+builds it.
 
 ## Invariants
 
@@ -53,7 +56,8 @@ this spec is the intended design; each invariant names the issue that builds it.
    the deployment's steward teams, and its `administrators` key the administrators. Each team has
    an identifier, a name shown to researchers, its members as principal identifiers (an ORCID iD
    for ORCID sign-in), the labels of the projects it supports, an optional contact for when no
-   steward can help (an address or a page, shown as given), and an expected response time. A
+   steward can help (an address or a page, shown as given), an expected response time, and
+   optionally the address the team is emailed at and what about (invariant 13). A
    principal identifier is written as recorded: for ORCID sign-in, the iD as a URL, and a bare iD
    is refused at load because it would name nobody. Everyone who signs in is a researcher, who may
    hold projects of their own; a person a team lists is also a steward, and a person
@@ -222,6 +226,40 @@ this spec is the intended design; each invariant names the issue that builds it.
     `AssessAction` and a steward's accepted edit an `UpdateAction`, each naming the steward. A
     steward's read is not exported. Not built yet, TODO(#1481).
 
+13. **Nobody has to watch a queue, and the record stays authoritative** (§3: availability cannot
+    be assumed). Each escalation event that someone else must act on is a notice: a subject and
+    a link to the app, never the note, the project's title, research content or any person's
+    name (#156, C2).
+
+    | Event | Who is told | How |
+    |---|---|---|
+    | `escalation_opened`, `escalation_rerouted` | the team it is routed to | email to the team's address |
+    | `escalation_replied`, `escalation_withdrawn`, `escalation_reopened` (the researcher's moves) | the team | email to the team's address |
+    | `escalation_waiting`, `escalation_resolved`, `escalation_handed_back`, `steward_message`, `escalation_rerouted` | the project's members | "Updates" in the app's banner |
+
+    The deployment holds no person's email address ([Policy and identity](policy-and-identity.md),
+    invariant 15), so a team is emailed at one address the profile names for it,
+    `stewardship.teams[].notify`: a shared mailbox, or the intake address of the institution's
+    helpdesk, which turns each message into a ticket there. The team chooses which of `opened`,
+    `rerouted`, `replied`, `withdrawn` and `reopened` it is told about with `notify_on`, all of them
+    by default. A steward's own move tells the team nothing. A researcher reads their notices in the
+    app, from the project log (`GET /api/notices`, the last 30 days), and chooses which kinds the
+    banner shows; that choice and which they have seen are kept in their browser only. Where the
+    mail server is, how to sign in to it and whom messages come from are environment variables,
+    since they say where things are and hold a secret
+    ([Configuration](../guide/operations/configuration.md#notifications)). A profile that names a
+    team's address with no mail server is refused at start-up. A message is sent after its move is
+    recorded, off the request, and one that cannot be sent is logged and changes nothing.
+
+    **Sending again.** With `stewardship.reroute_after`, an ISO 8601 duration in days or hours
+    (`P3D`, `PT48H`), an escalation that stays `open` that long after its team was last asked to
+    take it (opened, released, re-opened or sent again) is sent to the **same** team again: the
+    sweep (`dd-harness escalations sweep`, hourly in a deployment) records `escalation_rerouted`
+    for the deployment, an accountable role no person signs in as, and the team is emailed and the
+    researcher told. It is sent again once each period until someone takes it. Moving it to another
+    team is TODO(#1308). The free-text `response_time` stays what the researcher is told to expect.
+    Built: `dd_harness.notifications`, `dd_harness.mail`, `dd_harness.escalation_api.sweep`.
+
 ## Boundaries and contracts
 
 - **The harness decides; the shell renders.** Every check above is in `dd_harness`; the app's
@@ -245,8 +283,8 @@ this spec is the intended design; each invariant names the issue that builds it.
   asked. Whether the run envelope records the role it was asked in is a contract change,
   TODO(#1482).
 - **Notifications** carry a link and a short subject, never research content or personal data
-  beyond what is needed. The harness record stays authoritative wherever a notification goes,
-  TODO(#378).
+  beyond what is needed. The harness record stays authoritative wherever a notification goes
+  (invariant 13): a helpdesk that receives a team's email holds a copy, not the record.
 - **The admin service** stays the operators' loopback, read-only view, with no sign-in. A steward
   does not use it.
 
@@ -269,6 +307,11 @@ this spec is the intended design; each invariant names the issue that builds it.
 - **Pause is a steward's, and never lapses.** The Blueprint's v2.0 "hold framework" (§13.1,
   Appendix G) asks for a hold that does not auto-resume; P4 asks for on-the-loop intervention. A
   pause that lapsed would let a step run that a person had stopped.
+- **A team's address, not a person's.** Sign-in asks for no email address, so that the
+  deployment holds none and never links accounts by one ([Policy and identity](policy-and-identity.md),
+  invariants 15 and 16). A team's address is the institution's, already published as a contact,
+  and a helpdesk's intake address lets a team keep using its own ticketing without a connector.
+  A researcher, who has no address here, is told in the app.
 - **Discovery.** These decisions are to be checked with working research data management teams
   (#371) and the RDA working group, which names escalation and suspension the key community
   governance question (§13.1).
@@ -287,6 +330,11 @@ this spec is the intended design; each invariant names the issue that builds it.
 - **A steward approving content or a deposit.** It contradicts R2 and §8, and makes the steward
   responsible for a submission they did not make.
 - **An escalation store separate from the project log.** See Rationale.
+- **Asking each person for their own email address.** It would add personal data for the
+  deployment to hold, check and delete (#156), and amend Policy and identity invariant 15, for a
+  message that may say only "look at the app". A deployment that needs it can raise it later.
+- **Sending notices from the shell.** The browser is closed when it matters most, and the shell
+  holds no policy.
 - **An abstention raising an escalation automatically.** Stewards are scarce; the researcher
   decides whether a matter is worth a person's time.
 
@@ -308,12 +356,9 @@ this spec is the intended design; each invariant names the issue that builds it.
   sees it (§13.2), TODO(#1310).
 - Which team receives an escalation for a project shared across institutions, under an
   inter-institutional agreement (§5.1), TODO(#371).
-- Whether an escalation can go to an institution's helpdesk, with the harness record kept
-  authoritative, TODO(#378).
 - Mapping identity-provider group claims to teams, TODO(#936).
 - What happens to a project whose owners have all left, and whether a team may look after it,
   TODO(#1309).
 - Cover, reassigning and transferring escalations between stewards and teams, TODO(#1308).
 - The aggregate community and compliance overview (§4.1), TODO(#1307); the per-project team list,
   TODO(#232).
-- Whether an unanswered escalation is routed again after the expected response time, TODO(#378).

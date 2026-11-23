@@ -28,7 +28,7 @@ from typing import Any, ClassVar
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
-from dd_mcp_doaj.journals import normal_issn
+from dd_journals import normal_issn
 from dd_sdk.credentials import ConfigError
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
 from dd_sdk.registry import RegistryUnavailable, SnapshotRef, pinned

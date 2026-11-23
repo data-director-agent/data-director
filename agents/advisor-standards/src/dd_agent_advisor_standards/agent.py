@@ -86,7 +86,7 @@ class StandardsAgent:
             "items.notes": Derived(Derivation.TEMPLATE),
             "limitations": Derived(Derivation.TEMPLATE),
         },
-        serves=("setup.vocabularies", "setup.formats", "preparation.formats"),
+        serves=("setup.formats", "preparation.formats", "preparation.vocabularies"),
     )
 
     def __init__(

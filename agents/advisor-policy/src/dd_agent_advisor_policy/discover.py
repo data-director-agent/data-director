@@ -27,7 +27,7 @@ from dd_agent_advisor_policy.classes import Actor
 from dd_agent_advisor_policy.crossref import CrossrefJournal, CrossrefJournals
 from dd_agent_advisor_policy.doaj import DoajJournal, DoajJournals
 from dd_agent_advisor_policy.opf import OpenPolicyFinder, OpfRecord
-from dd_mcp_doaj.journals import normal_issn
+from dd_journals import normal_issn
 from dd_sdk.registry import RegistryUnavailable
 
 # Records kept for one actor from Open Policy Finder, as from FAIRsharing (match.PER_ACTOR).

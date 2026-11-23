@@ -1,0 +1,13 @@
+# Look for escalations nobody has taken every hour; `stewardship.reroute_after` in the profile
+# says how long one may wait (docs/specs/stewardship.md, invariant 13).
+[Unit]
+Description=Look for unanswered Data Director escalations every hour
+Documentation=https://github.com/data-director-agent/data-director/blob/main/docs/guide/operations/configuration.md
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -109,6 +109,12 @@ dmp:DmpCommitments a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "For a data description fact, what data the project collects, produces or reuses, and of which types, in the researcher's words." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 25 ;
+            sh:path <https://w3id.org/data-director/data_collected> ],
+        [ sh:datatype xsd:string ;
             sh:description "The licence decided, as an SPDX identifier or a URL." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -286,13 +292,7 @@ dmp:DmpCommitments a sh:NodeShape ;
             sh:in ( "metadata_standard" "controlled_vocabulary" "ontology" "terminology" "data_format" "field_format" ) ;
             sh:maxCount 1 ;
             sh:order 22 ;
-            sh:path <https://w3id.org/data-director/standard_kind> ],
-        [ sh:datatype xsd:string ;
-            sh:description "For a data description fact, what data the project collects, produces or reuses, and of which types, in the researcher's words." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 25 ;
-            sh:path <https://w3id.org/data-director/data_collected> ] ;
+            sh:path <https://w3id.org/data-director/standard_kind> ] ;
     sh:targetClass <https://w3id.org/data-director/ProjectFact> .
 
 dmp:SharingCommitment a sh:NodeShape ;

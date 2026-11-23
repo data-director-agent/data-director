@@ -9,6 +9,7 @@
         "principal_id": "https://orcid.org/0000-0001-5000-0007",
         "principal_kind": "person"
       },
+      "event_id": "019a0000-0000-7000-8000-000000000000",
       "move": "open",
       "note": "May I share the interview transcripts?"
     },
@@ -21,6 +22,7 @@
         "principal_id": "https://orcid.org/0000-0002-1825-0097",
         "principal_kind": "person"
       },
+      "event_id": "019a0000-0000-7000-8000-000000000001",
       "move": "take"
     },
     {
@@ -32,6 +34,7 @@
         "principal_id": "https://orcid.org/0000-0002-1825-0097",
         "principal_kind": "person"
       },
+      "event_id": "019a0000-0000-7000-8000-000000000002",
       "move": "resolve",
       "note": "Yes, once anonymised."
     }
@@ -48,6 +51,7 @@
     "kind": "researcher"
   },
   "permitted_moves": [],
+  "routed_at": "2026-01-01T00:00:00+00:00",
   "scope_shared": [
     "The project's title"
   ],

@@ -37,10 +37,6 @@ dd:RequirementSet a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 18 ;
             sh:path dd:unconfirmed ],
-        [ sh:description "The pages the set's values were taken from, so that a steward can check them; in a merged set, the standard's first, then the override's." ;
-            sh:nodeKind sh:IRI ;
-            sh:order 17 ;
-            sh:path dd:guidance ],
         [ sh:datatype xsd:string ;
             sh:description "An override only: the repository's re3data identifier, such as r3d100012124." ;
             sh:maxCount 1 ;
@@ -54,6 +50,10 @@ dd:RequirementSet a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 15 ;
             sh:path dd:max_item_size ],
+        [ sh:description "The pages the set's values were taken from, so that a steward can check them; in a merged set, the standard's first, then the override's." ;
+            sh:nodeKind sh:IRI ;
+            sh:order 17 ;
+            sh:path dd:guidance ],
         [ sh:description "The document kinds that must have an approved version before a package is built." ;
             sh:in ( "metadata_record" "readme" "data_dictionary" "dmp" "other" ) ;
             sh:order 10 ;
@@ -171,15 +171,15 @@ dd:RequirementField a sh:NodeShape ;
     rdfs:comment "One metadata property a requirement set requires or recommends." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:in ( "required" "recommended" ) ;
+    sh:property [ sh:description "Values that narrow the property, such as a subjectScheme. Part of what identifies a field when an override is merged with its standard's set." ;
+            sh:maxCount 1 ;
+            sh:order 1 ;
+            sh:path dd:qualifier ],
+        [ sh:in ( "required" "recommended" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 3 ;
             sh:path dd:obligation ],
-        [ sh:description "Values that narrow the property, such as a subjectScheme. Part of what identifies a field when an override is merged with its standard's set." ;
-            sh:maxCount 1 ;
-            sh:order 1 ;
-            sh:path dd:qualifier ],
         [ sh:datatype xsd:string ;
             sh:description "The schema.org term the property maps to, by which the record is read as RDF." ;
             sh:maxCount 1 ;

@@ -302,7 +302,7 @@ describe("the session API", () => {
           vouched_by: "https://orcid.org",
           roles: ["researcher", "steward"],
           teams: [
-            { team_id: "library-rdm", name: "Library Research Data Team" },
+            { team_id: "library-rdm", name: "Library Research Data Team", notify_on: [] },
           ],
         },
         expires_at: "2026-10-29T18:00:00Z",
@@ -319,7 +319,7 @@ describe("the session API", () => {
         assurance: "authenticated",
         vouchedBy: "https://orcid.org",
         roles: ["researcher", "steward"],
-        teams: [{ teamId: "library-rdm", name: "Library Research Data Team" }],
+        teams: [{ teamId: "library-rdm", name: "Library Research Data Team", notifyOn: [] }],
       },
       expiresAt: "2026-10-29T18:00:00Z",
       modelAccounts: false,

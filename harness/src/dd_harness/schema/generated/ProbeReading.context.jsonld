@@ -4,6 +4,9 @@
       "ApprovedMetadataRecord": {
          "@id": "https://w3id.org/data-director/ApprovedMetadataRecord"
       },
+      "ApprovedPlan": {
+         "@id": "https://w3id.org/data-director/ApprovedPlan"
+      },
       "ChosenRepository": {
          "@id": "https://w3id.org/data-director/ChosenRepository"
       },
@@ -168,6 +171,10 @@
       },
       "project_metadata_draft": {
          "@id": "https://w3id.org/data-director/project_metadata_draft",
+         "@type": "@id"
+      },
+      "project_plan_approved": {
+         "@id": "https://w3id.org/data-director/project_plan_approved",
          "@type": "@id"
       },
       "project_repository": {

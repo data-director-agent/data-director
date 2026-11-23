@@ -372,6 +372,10 @@ class ProjectDocuments(ProjectRecord, Protocol):
         None."""
         ...
 
+    def approved_plan(self, project_id: str) -> dict[str, Any] | None:
+        """The `dmp` version a person approved last, as an `ApprovedPlan`, or None."""
+        ...
+
 
 class ProjectDeposits(ProjectRecord, DepositApprovals, Protocol):
     """The validation reports, the decisions and confirmation made before packaging, and the

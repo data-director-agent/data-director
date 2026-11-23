@@ -54,6 +54,7 @@ on loopback alone and is reached through an SSH tunnel.
 | `backup.sh`, `restore.sh`, `stores.sh`, `gateway-store.sh` | Back up the settings, secrets and stores, and put them back on a clean VM; `stores.sh` finds where each store is kept, and `gateway-store.sh` dumps and restores the LiteLLM gateway's database. See [Backups](#backups). |
 | `backup.env.example` | `backup.sh`'s settings: where backups go and how many days they are kept. |
 | `systemd/data-director-backup.{service,timer}` | Runs `backup.sh`, as root, every night. |
+| `systemd/data-director-escalations.{service,timer}` | Runs `dd-harness escalations sweep`, as the app's user, every hour: an escalation nobody has taken within the profile's `stewardship.reroute_after` is sent to its team again ([Data stewards](../docs/specs/stewardship.md), invariant 13). |
 | `wait-for-ports.sh` | Holds the app back until the agents answer, since it reads their cards once at start-up. |
 | `nginx/data-director.conf` | The reverse proxy: HTTPS only, long timeouts for runs, `/a2a`, `/mcp` and `/server-status` closed from outside; the app on 443, the workbench on 8443. |
 

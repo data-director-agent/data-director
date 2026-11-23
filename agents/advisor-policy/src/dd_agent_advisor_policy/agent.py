@@ -27,6 +27,8 @@ gives to one organisation is searched by every name ROR records for it, and the 
 is cited, so its identifier can be passed on. A name ROR gives to more than one organisation is not
 guessed: the candidates are returned, each grounded on its ROR record, and the researcher is asked
 which they mean. ROR's records are evidence like FAIRsharing's, under the same canonicalisation.
+Each funder ROR identifies is proposed as a funder project fact, with its ROR identifier and its
+Crossref Funder ID from the same record, for a person to confirm (`propose.py`).
 """
 
 from __future__ import annotations
@@ -162,6 +164,7 @@ class PolicyAgent:
             explanation,
             advised,
             report.model_use(explanation, texts, self.explainer.model_id, self.extractor.model_id),
+            decisions=context.project_decisions,
         ).result()
 
     def _advise(

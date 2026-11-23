@@ -71,19 +71,22 @@ const PROJECT_LINKS: readonly { href: string; label: string }[] = [
 
 /**
  * `from` is the page the reader is on, which the report form carries so a report says where it
- * was made. `account` is who is signed in (`session/Account`). `steward` adds the data steward's
- * queue to the main navigation.
+ * was made. `account` is who is signed in (`session/Account`), and `notices` what data stewards
+ * did in their projects (`session/Notices`). `steward` adds the data steward's queue to the main
+ * navigation.
  */
 export function Frame({
   current,
   from = current,
   account,
+  notices,
   steward = false,
   children,
 }: {
   current: string;
   from?: string;
   account?: ReactNode;
+  notices?: ReactNode;
   steward?: boolean;
   children: ReactNode;
 }) {
@@ -122,6 +125,7 @@ export function Frame({
             </ul>
           </nav>
           <div className="app-tools">
+            {notices}
             <span className="app-account">{account}</span>
             <a
               className="app-tool-link"

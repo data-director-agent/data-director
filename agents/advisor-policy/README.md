@@ -59,6 +59,13 @@ ambiguous. It may also give the disciplines, the kinds of data and the publicati
 - `ambiguous`: each funder whose name could mean more than one organisation in ROR, and each
   journal title that could mean more than one journal, grounded on every candidate, likeliest
   first. Its policy was not looked up, and the statement asks the researcher which they mean.
+- `proposed_facts`: each funder identified in ROR as a `funder` project fact, with ROR's name for
+  it, its ROR identifier and its Crossref Funder ID as a DOI URL, for the researcher to confirm or
+  reject (`propose.py`, [Projects](../../docs/specs/projects.md)). ROR holds the Crossref Funder
+  Registry's identifiers, so one record gives both. Its subject is the name the funder was given
+  by, or that of a funder a person decided without a ROR identifier, so confirming it adds the
+  identifiers to that fact. A name ROR gives to more than one organisation, or to none, is not
+  proposed, nor is a funder already decided with a ROR identifier.
 
 ## How it decides
 

@@ -19,7 +19,7 @@ from typing import Any, Final
 from dd_agent_orchestrator_model.own_tools import ENTRY_TOOL, NAME_TOOL
 from dd_agent_orchestrator_model.provisional import chose_provisional
 from dd_sdk.contract.facts import FactKind, InventoryFormat, ProjectFact
-from dd_sdk.contract.models import DraftSummary, GroundingMode, Message
+from dd_sdk.contract.models import DraftSummary, GroundingMode, Message, StepState
 from dd_sdk.intake import NO, NOT_SURE, YES
 from dd_sdk.intake import question as intake_question
 from dd_sdk.process_flow import entry as flow_entry
@@ -98,6 +98,8 @@ def progress_note(message: Message, manifest: Sequence[Mapping[str, Any]] = ()) 
 # The intake's question about a Data Management Plan (`dd_sdk.intake`), and the labels of its
 # answers that the note acts on.
 _DMP = "intake.dmp"
+# The step whose state shows a plan written and approved in the project.
+_WRITTEN = ("setup.dmp-create", StepState.DONE)
 
 
 def _label(question_id: str, value: str) -> str:
@@ -113,7 +115,8 @@ def intake_note(message: Message) -> str | None:
     they have a Data Management Plan and no attached document is marked as the plan, the note asks
     the model to invite them to attach it, or to mark which attached document it is, since the
     drafters and the plan check read it (#1447); once one is marked, to offer to review it. When
-    they said they have none, it asks the model to offer to help write one."""
+    they said they have none, it asks the model to offer to help write one, and, once a plan
+    written in the project is approved, to offer to review that plan instead."""
     answers = message.project_intake or []
     if not answers:
         return None
@@ -128,26 +131,38 @@ def intake_note(message: Message) -> str | None:
         "step needs it."
     )
     dmp = next((a for a in answers if a.intake_question_id == _DMP), None)
-    if dmp is not None and _label(_DMP, NO) in dmp.intake_answer_labels:
-        return note + " They have no Data Management Plan: offer to help write one."
-    if dmp is None or _label(_DMP, YES) not in dmp.intake_answer_labels:
-        return note
+    return note + (_plan_note(message, dmp.intake_answer_labels) if dmp is not None else "")
+
+
+def _plan_note(message: Message, labels: Sequence[str]) -> str:
+    """What the intake note adds for the researcher's answer about a Data Management Plan: an
+    offer to help write one, to review one written here, to attach or mark theirs, or to review
+    it; nothing for "Not sure"."""
+    if _label(_DMP, NO) in labels:
+        if _WRITTEN in {(p.step_id, p.step_state) for p in message.project_progress or []}:
+            return (
+                " They had no Data Management Plan, and have since written and approved one in "
+                "the project: offer to review it with the Data Management Plan check."
+            )
+        return " They have no Data Management Plan: offer to help write one."
+    if _label(_DMP, YES) not in labels:
+        return ""
     documents = message.project_documentation or []
     if not documents:
-        return note + (
+        return (
             " They have a Data Management Plan and have attached no document to the project: "
             "before asking what the plan may already say, invite them to attach it and mark it "
             "as their plan, as the drafters and the Data Management Plan check read an attached "
             "plan's text."
         )
     if not any(d.documentation_is_plan for d in documents):
-        return note + (
+        return (
             " They have a Data Management Plan, and no attached document is marked as it: "
             "before asking what the plan may already say, invite them to mark which attached "
             "document is their plan on the project's Documents page, or to attach it, as the Data "
             "Management Plan check then reads that document alone."
         )
-    return note + (
+    return (
         " They have a Data Management Plan, marked among the attached documents: offer to review "
         "it against the decisions made in the project."
     )

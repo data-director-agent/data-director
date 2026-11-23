@@ -16,7 +16,9 @@ about it that the app offers to edit and send.
 
 The steps are taken from the figure captions in §8.2, with two boxes the captions leave out:
 Figure 2's check of ethical, legal and institutional constraints, and Figure 4's finalising of
-controlled vocabularies and ontologies, which settles the first choice made in Phase 1. Some steps
+controlled vocabularies and ontologies. Figure 1's selection of controlled vocabularies and
+ontologies (R3) is moved to that Phase 4 step, `preparation.vocabularies`: a Data Management Plan
+does not need it, and the repository chosen in Phase 3 decides which vocabularies apply. Some steps
 are ours and in no figure: `setup.storage`, planning where data are stored and backed up while the
 project runs; `setup.formats`, choosing open formats before collection; and `deposit.fairness`, a
 FAIR check of the draft before submission.
@@ -76,19 +78,6 @@ PHASES: tuple[Phase, ...] = (
                 ("R5",),
                 label="Plan how your data will be documented",
                 prompt="Help me plan how I will document my data before I start collecting it.",
-            ),
-            # A first choice, so that data are collected with consistent terms. The repository
-            # chosen in Phase 3 settles the final list, which Figure 4 finalises
-            # (`preparation.vocabularies`); the wording says so.
-            Step(
-                "setup.vocabularies",
-                "Select controlled vocabularies and ontologies",
-                ("R3",),
-                label="Start a list of standard terms to describe your data",
-                prompt=(
-                    "Help me start a list of standard terms and vocabularies to describe my data "
-                    "as I collect it."
-                ),
             ),
             # Not in Figure 1: our addition. Where the data live while the project runs, how they
             # are backed up and who can reach them is the first thing a data service asks, and
@@ -267,15 +256,16 @@ PHASES: tuple[Phase, ...] = (
                 prompt="Which metadata standard should I follow for my data?",
             ),
             # Figure 4's box after the metadata standard; the caption folds it into the next step.
-            # It finalises the provisional choice of `setup.vocabularies` once the repository and
-            # its standard are known.
+            # Figure 1 also selects vocabularies in Phase 1; that selection is made here instead,
+            # once the repository and its metadata standard are known, so it carries R3.
             Step(
                 "preparation.vocabularies",
                 "Finalise controlled vocabularies and ontologies",
-                label="Confirm the standard terms you will use",
+                ("R3",),
+                label="Choose the standard terms to describe your data",
                 prompt=(
-                    "Help me confirm the standard terms to use, now that I know what my "
-                    "repository needs."
+                    "Help me choose the standard terms and vocabularies to describe my data, to "
+                    "suit my repository and metadata standard."
                 ),
             ),
             Step(

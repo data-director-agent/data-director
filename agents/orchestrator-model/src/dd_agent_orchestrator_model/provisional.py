@@ -58,10 +58,14 @@ def chose_provisional(message: Message) -> bool:
 
 
 _FIXED: Final = {CONSENT_KEY: CONSENT_QUESTION, STEWARD_KEY: STEWARD_QUESTION}
+RESERVED_KEYS: Final = tuple(_FIXED)
 
 
-def fixed(question: Question) -> Question:
-    """The question as it is shown: a reserved question (the consent choice, the offer of a data
-    steward) always in its own words and values, so that the answer can be read without reading
-    the model's wording."""
-    return _FIXED.get(question.question_key, question)
+def reserved(given: object) -> Question | None:
+    """The question as it is shown when `given`, a question as the model wrote it, asks with a
+    reserved key (the consent choice, the offer of a data steward): always in its own words and
+    values, so that the answer can be read without reading the model's wording. Read before the
+    model's question is checked, since the model is told the harness supplies the options and
+    may give none. None for any other question."""
+    key = given.get("question_key") if isinstance(given, dict) else None
+    return _FIXED.get(key) if isinstance(key, str) else None

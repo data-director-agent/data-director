@@ -29,6 +29,8 @@ Put code in the package whose job it is, not the one you have open; the full tab
   subject classifications to suggest a field of study from; depends on no other member.
   `formats/`: `dd-formats`, file formats described from a pinned PRONOM release's records;
   depends on no other member.
+  `journals/`: `dd-journals`, journals by ISSN and title, from a pinned OpenAlex snapshot built at
+  install; depends on no other member.
   `dmp-template/`: `dd-dmp-template`, the core requirements of a Data Management Plan;
   depends on no other member. `registry-cache/`:
   `dd-registry-cache`, the local cache in front of a slowly changing registry that the SDK's

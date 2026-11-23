@@ -1,0 +1,37 @@
+[build-system]
+requires = ["hatchling>=1.32.4"]
+build-backend = "hatchling.build"
+
+[project]
+name = "data-director-journals"
+version = "0.1.0-alpha.0"
+description = "Journals by ISSN and title, from a pinned OpenAlex snapshot built at install"
+readme = "README.md"
+requires-python = ">=3.14"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
+keywords = ["issn", "issn-l", "journal", "openalex", "research data"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering",
+  "Typing :: Typed",
+]
+
+# Framework-neutral (docs/specs/system.md): no workspace member is imported and nothing outside
+# the standard library, so publishing this library on its own is a copy.
+dependencies = []
+
+[project.scripts]
+dd-journals = "dd_journals.snapshot:main"
+
+[project.urls]
+Homepage = "https://data-director-agent.github.io/data-director/"
+Repository = "https://github.com/data-director-agent/data-director/tree/main/journals"
+Issues = "https://github.com/data-director-agent/data-director/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dd_journals"]

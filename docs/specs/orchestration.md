@@ -274,7 +274,8 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
     done. "Yes" to a mandated repository marks the recommendation of one skipped, as Figure 3's
     "Yes" branch does. The Data Management Plan question follows Figure 1's branches: "Yes" marks
     creating a plan skipped and "No" marks reviewing one skipped. The skip records the branch not
-    taken, and a skip before the entry point does not bring its phase into the tracker (`dd_sdk.process_flow.progress`). "Yes" to sensitive data
+    taken; once a plan written in the project after "No" is approved, the review is open again
+    ([Projects](projects.md), rule 20), and a skip before the entry point does not bring its phase into the tracker (`dd_sdk.process_flow.progress`). "Yes" to sensitive data
     says at once, in the card, not to paste or upload the data itself into the conversation, and
     that the governance step covers how it is handled: Blueprint §5.2 asks that sensitive data not
     reach the model without institutional authorisation, and Figure 2 asks that it be anonymised
@@ -294,7 +295,9 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
     them; when the researcher said they have a Data Management Plan and attached no document, the
     model invites them to attach it and mark it as their plan (#1374), and when documents are
     attached but none is marked as the plan, to mark which one it is ([Projects](projects.md),
-    invariant 32; #1447). A researcher who dismisses the intake or types instead may still say where they are
+    invariant 32; #1447). When the researcher said they have none, the model offers to help write
+    one, and, once a plan written in the project is approved (`setup.dmp-create` done), offers to
+    review it instead. A researcher who dismisses the intake or types instead may still say where they are
     in their own words; the model then records the entry point it worked out (invariant 18).
 
     The intake asks only what the researcher has not answered, but it does not ask from scratch

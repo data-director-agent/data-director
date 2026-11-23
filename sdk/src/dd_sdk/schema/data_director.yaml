@@ -747,6 +747,18 @@ classes:
       - conforms_to
       - document_text
 
+  ApprovedPlan:
+    description: >-
+      The data management plan written in the project as a person approved it: the version named
+      by the last approval of a dmp document in the project (docs/specs/projects.md). It is the
+      project's own document, not one a researcher attached, so no data_management_plan fact
+      names it.
+    slots:
+      - version_ref
+      - document_title
+      - media_type
+      - document_text
+
   DraftAnswer:
     description: >-
       A person's answer to one question a version of the document asked (DocumentQuestion). The
@@ -957,6 +969,16 @@ classes:
     slots:
       - project_metadata_draft
       - project_metadata_approved
+
+  GivenProjectPlan:
+    mixin: true
+    description: >-
+      Mixed into an agent's own input class when the agent reads the data management plan written
+      in the project, as a person approved it last. In a project the conductor fills
+      project_plan_approved by this name and never needs to know the input class
+      (docs/specs/projects.md, invariant 6); outside one, the caller sends it.
+    slots:
+      - project_plan_approved
 
   GivenInstitutionRepositories:
     mixin: true
@@ -1983,6 +2005,13 @@ slots:
       The version of the project's metadata record a person approved last. In a project the
       conductor fills it and a caller leaves it out. Absent when no version has been approved.
     range: ApprovedMetadataRecord
+    inlined: true
+  project_plan_approved:
+    description: >-
+      The version of the project's data management plan (a dmp document) a person approved last.
+      In a project the conductor fills it and a caller leaves it out. Absent when no version has
+      been approved.
+    range: ApprovedPlan
     inlined: true
   chosen_repository_name:
     description: The chosen repository's name, as the pinned re3data export gives it.
