@@ -226,6 +226,7 @@ nav:
           - Files advisor: /agents/advisor-files/README.md
           - Linking advisor: /agents/advisor-linking/README.md
           - Metadata advisor: /agents/advisor-metadata/README.md
+          - Metadata evaluation: /agents/advisor-metadata/src/dd_agent_advisor_metadata/evals/README.md
           - Rights advisor: /agents/advisor-rights/README.md
           - Rights evaluation: /agents/advisor-rights/src/dd_agent_advisor_rights/evals/README.md
   - Conformance:
