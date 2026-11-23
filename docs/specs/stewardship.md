@@ -47,8 +47,9 @@ it came from; proposing an edit to a document's latest version; and asking an ag
 conversation page in the project, under a "Working as a data steward" banner. Notifications and
 sending an escalation again (invariant 13, #378): a team's email for each escalation opened, sent
 again, or moved by the researcher; the researcher's "Updates" in the app's banner; and the hourly
-sweep. Everything else in this spec is the intended design; each invariant names the issue that
-builds it.
+sweep. A steward's list of the projects they may see (#232): `GET /api/steward/projects` and the
+**Projects** page beside the queue, each project listed recorded as read. Everything else in this
+spec is the intended design; each invariant names the issue that builds it.
 
 ## Invariants
 
@@ -93,8 +94,10 @@ builds it.
    reveal that it exists. Each time a steward opens a project, or reads any of its content, the
    harness appends a `steward_viewed` event naming the steward; repeated reads by the same steward
    on the same day append one. The researcher sees each one in the project's log (invariant 10).
-   With `scope` and no live escalation, a steward may only read. Built:
-   `dd_harness.steward_access`, `dd_harness.steward_api.read`.
+   With `scope` and no live escalation, a steward may only read. A steward's list of the projects
+   they may see is these projects and no others, and listing a project is a read of it, recorded
+   as opening it is; a project on a page not listed is not. Built: `dd_harness.steward_access`,
+   `dd_harness.steward_api.read`, `dd_harness.steward_projects`.
 
 4. **An escalation is a record in the project's log, not a store of its own.** Its events are
    `escalation_opened`, `escalation_taken`, `escalation_released`, `escalation_waiting`,
@@ -266,13 +269,14 @@ builds it.
   shell holds no policy ([The app](app.md)). Each project response gains `permitted_actions`, the
   actions the signed-in person may take there and why any is refused, so the shell shows only
   what is permitted and explains the rest, instead of learning its limits from a 403. Built
-  for `GET /api/projects/{project_id}`, which every project page reads; the project list does not
-  carry it yet, TODO(#232). Each escalation carries `permitted_moves`, the moves the reader may
+  for `GET /api/projects/{project_id}`, which every project page reads, for each project
+  `GET /api/projects` lists, and for each project `GET /api/steward/projects` lists. Each escalation carries `permitted_moves`, the moves the reader may
   make on it, with whether each needs a note and why one is refused
   (`dd_harness.escalation_api.permitted_moves`), so neither side's controls are derived from the
   state in the shell (built). The session response names the person's deployment roles and teams
   (built).
-- **Routes.** A steward's routes are under `/api/steward/` (the queue, the overviews), the
+- **Routes.** A steward's routes are under `/api/steward/` (the queue, `escalations`; the list of
+  projects they may see, `projects`; the aggregate overview, TODO(#1307)), the
   existing `/api/projects/{project_id}` routes, which serve a steward's reads through the steward
   path of invariant 2, and `/api/projects/{project_id}/steward/`, where a steward writes to the
   researcher, pauses and lifts a pause, clears or refuses a referred run and proposes a version.
@@ -360,5 +364,4 @@ builds it.
 - What happens to a project whose owners have all left, and whether a team may look after it,
   TODO(#1309).
 - Cover, reassigning and transferring escalations between stewards and teams, TODO(#1308).
-- The aggregate community and compliance overview (§4.1), TODO(#1307); the per-project team list,
-  TODO(#232).
+- The aggregate community and compliance overview (§4.1), TODO(#1307).

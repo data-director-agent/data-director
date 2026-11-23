@@ -24,7 +24,7 @@ from typing import Any, Final
 
 from dd_harness.escalation_api import check_origin
 from dd_harness.policy import Profile
-from dd_harness.project_access import Action, allowed, role_of, roles
+from dd_harness.project_access import Action, allowed, role_in, roles
 from dd_harness.projects import (
     EscalationRefusedError,
     StewardRefusal,
@@ -173,18 +173,29 @@ def permitted_actions(
 ) -> dict[str, Any]:
     """What `principal` may do in the project, as whom (`member` or `steward`), and why each of
     the rest is refused. Raises `UnknownProjectError` for someone who reaches it neither way."""
-    if not store.exists(project_id):
+    found = store.events(project_id) if store.exists(project_id) else None
+    permitted = None if found is None else permitted_actions_in(profile, found, principal)
+    if permitted is None:
         raise UnknownProjectError(f"no project {project_id!r}")
-    role = role_of(store, project_id, principal)
+    return permitted
+
+
+def permitted_actions_in(
+    profile: Profile, events: list[dict[str, Any]], principal: Principal
+) -> dict[str, Any] | None:
+    """`permitted_actions` in the project whose log, already read, is `events`, so that a listing
+    that has read its projects' logs does not read each again; None for someone who reaches the
+    project neither as a member nor as its steward."""
+    role = role_in(events, principal)
     if role is not None:
         member = [
             _row(a.value, None if allowed(role, a) else f"not-{role.value}-action") for a in Action
         ]
         refused = StewardRefusal.MEMBER_OF_PROJECT.value
         return {"acting_as": "member", "actions": member + [_row(a, refused) for a in ACTIONS]}
-    found = access_in(profile, store.events(project_id), principal)
+    found = access_in(profile, events, principal)
     if found is None:
-        raise UnknownProjectError(f"no project {project_id!r}")
+        return None
     researcher = [_row(a.value, NOT_A_MEMBER) for a in Action]
     steward = [_row(a, found.refusal(a)) for a in ACTIONS]
     return {"acting_as": "steward", "actions": researcher + steward}

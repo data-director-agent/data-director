@@ -22,6 +22,7 @@ export type AppResponse =
   | About
   | AgentSetting
   | AgentsProfile
+  | AwaitingReview
   | BuiltPackage
   | CheckReport
   | Checks
@@ -67,6 +68,8 @@ export type AppResponse =
   | IntakeQuestion
   | IntakeState
   | ItemDecisionMade
+  | ListedProject
+  | LiveEscalation
   | MoveName
   | Notice
   | Notices
@@ -127,7 +130,10 @@ export type AppResponse =
   | StewardGateDecision
   | StewardMessage
   | StewardPause
+  | StewardProject
   | StewardQueue
+  | StewardReach
+  | StewardTeamRef
   | StewardView
   | StoredRun
   | SupportTeamOption
@@ -196,6 +202,23 @@ export interface AgentsProfile {
    */
   orchestrator: string | null;
   ref: string;
+}
+/**
+ * What in the project waits for a person to decide.
+ */
+export interface AwaitingReview {
+  /**
+   * Facts an agent proposed that no one has yet decided.
+   */
+  fact_proposals: number;
+  /**
+   * Documents whose latest version waits for an owner's approval.
+   */
+  proposed_versions: number;
+  /**
+   * The runs the policy gate referred to a steward that no steward has cleared or refused.
+   */
+  referred_runs: string[];
 }
 /**
  * The validation that let the package be built, and the package.
@@ -1081,6 +1104,86 @@ export interface IntakeQuestion {
   question_id: string;
 }
 /**
+ * One project the person may read, as `GET /api/projects` lists it, with what they may do
+ * there.
+ */
+export interface ListedProject {
+  conversation_count: number;
+  conversations: ProjectConversation[];
+  created_at: string;
+  created_by: Principal;
+  /**
+   * When the project was deleted, by whom, and until when an owner may restore it; null
+   * while it is not deleted.
+   */
+  deleted: ProjectDeletion | null;
+  documents: DocumentCounts;
+  /**
+   * Whether the project's intake still has a question to ask, has none left, or was
+   * dismissed.
+   */
+  intake: "pending" | "complete" | "dismissed";
+  inventory: SavedInventory | null;
+  permitted_actions: PermittedActions;
+  progress: ProjectProgress;
+  project_id: string;
+  repository: ChosenRepository | null;
+  /**
+   * For how many days after a deletion an owner may restore the project; 0 makes deletion
+   * final.
+   */
+  restore_days: number;
+  /**
+   * The project's latest name; null until a person or the Data Director names it.
+   */
+  title: string | null;
+  /**
+   * Who gave the name. A person's name is never replaced by the model's.
+   */
+  title_source: ("researcher" | "model") | null;
+}
+/**
+ * A conversation started in a project, as the projects list names it.
+ */
+export interface ProjectConversation {
+  conversation_id: string;
+  /**
+   * When its latest turn completed; null while none has.
+   */
+  last_completed_at: string | null;
+  started_at: string;
+  title: string;
+  turns: number;
+}
+/**
+ * What a person may do in a project, as a member or as its steward, and why the rest is
+ * refused (`dd_harness.steward_api.permitted_actions`).
+ */
+export interface PermittedActions {
+  /**
+   * Whether the person is in the project as a member or as its steward.
+   */
+  acting_as: "member" | "steward";
+  actions: PermittedAction[];
+}
+/**
+ * One thing a person may ask to do in a project, and why not if they may not.
+ */
+export interface PermittedAction {
+  action: string;
+  permitted: boolean;
+  /**
+   * Why it is refused, as a code; absent where it is permitted.
+   */
+  refusal?: string;
+}
+export interface LiveEscalation {
+  escalation_id: string;
+  opened_at: string;
+  state: EscalationState;
+  team_id: string;
+}
+/**
  * Something a data steward did in one of the person's projects (docs/specs/stewardship.md,
  * invariant 13): a subject and where to look, never research content.
  */
@@ -1152,24 +1255,6 @@ export interface Validation {
    * Warnings that do not wait on a person; those that do are the `review`'s.
    */
   warnings: ValidationResult[];
-}
-/**
- * One thing a person may ask to do in a project, and why not if they may not.
- */
-export interface PermittedAction {
-  action: string;
-  permitted: boolean;
-  /**
-   * Why it is refused, as a code; absent where it is permitted.
-   */
-  refusal?: string;
-}
-export interface PermittedActions {
-  /**
-   * Whether the person is in the project as a member or as its steward.
-   */
-  acting_as: "member" | "steward";
-  actions: PermittedAction[];
 }
 /**
  * The rules the policy gate holds every run to (`GET /api/policy`).
@@ -1278,19 +1363,6 @@ export interface ProblemDetails {
 export interface ProcessFlow {
   entries: FlowEntry[];
   phases: FlowPhase[];
-}
-/**
- * A conversation started in a project, as the projects list names it.
- */
-export interface ProjectConversation {
-  conversation_id: string;
-  /**
-   * When its latest turn completed; null while none has.
-   */
-  last_completed_at: string | null;
-  started_at: string;
-  title: string;
-  turns: number;
 }
 /**
  * One project as the project log gives it: what it holds, how many of its documents are in
@@ -1893,6 +1965,14 @@ export interface RunRow {
   agent_id: string;
   completed_at: string;
   invocation_id: string;
+  /**
+   * The project the run was in; null for a run in none.
+   */
+  project_id: string | null;
+  /**
+   * Why a run that did not succeed ended as it did; null when the outcome gives none.
+   */
+  reason_code: string | null;
   status: OutcomeStatus;
 }
 /**
@@ -1911,6 +1991,79 @@ export interface Started {
    * Null where the server keeps no projects.
    */
   project_id: string | null;
+}
+/**
+ * One project the signed-in steward may see, as `GET /api/steward/projects` lists it.
+ */
+export interface StewardProject {
+  access: StewardReach;
+  awaiting_review: AwaitingReview;
+  conversation_count: number;
+  created_at: string;
+  created_by: Principal;
+  /**
+   * When the project was deleted, by whom, and until when an owner may restore it; null
+   * while it is not deleted.
+   */
+  deleted: ProjectDeletion | null;
+  documents: DocumentCounts;
+  /**
+   * The matters escalated to the steward's teams that are still open, taken or waiting.
+   */
+  escalations: LiveEscalation[];
+  /**
+   * Whether the project's intake still has a question to ask, has none left, or was
+   * dismissed.
+   */
+  intake: "pending" | "complete" | "dismissed";
+  inventory: SavedInventory | null;
+  /**
+   * The identifier each owner signs in with, such as their ORCID iD as a URL.
+   */
+  owners: string[];
+  paused: StewardPause | null;
+  permitted_actions: PermittedActions;
+  progress: ProjectProgress;
+  project_id: string;
+  /**
+   * The project's latest runs, newest first, with their outcomes.
+   */
+  recent_runs: RunRow[];
+  repository: ChosenRepository | null;
+  /**
+   * For how many days after a deletion an owner may restore the project; 0 makes deletion
+   * final.
+   */
+  restore_days: number;
+  /**
+   * The project's latest name; null until a person or the Data Director names it.
+   */
+  title: string | null;
+  /**
+   * Who gave the name. A person's name is never replaced by the model's.
+   */
+  title_source: ("researcher" | "model") | null;
+}
+/**
+ * How the steward reaches the project.
+ */
+export interface StewardReach {
+  /**
+   * Whether a matter is escalated to one of those teams, which opens a steward's actions.
+   */
+  escalated: boolean;
+  /**
+   * Whether one of those teams holds the project's pause.
+   */
+  holds_pause: boolean;
+  /**
+   * The steward's teams the project is escalated to, paused by or supported by.
+   */
+  teams: StewardTeamRef[];
+}
+export interface StewardTeamRef {
+  name: string;
+  team_id: string;
 }
 /**
  * The escalations routed to the signed-in steward's teams, the oldest first.

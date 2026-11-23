@@ -3,19 +3,34 @@
 As well as the queue, a steward can see the wider picture, without reading more of anyone's work
 than policy allows.
 
-!!! note "Not built yet"
-    The team's project list is [#232](https://github.com/data-director-agent/data-director/issues/232), and the community and compliance overview is
-    [#1307](https://github.com/data-director-agent/data-director/issues/1307).
+## Your teams' projects
 
-## Your team's projects
+**Projects**, beside **Requests** at the top of the steward's page, lists the projects you may
+open as a data steward, the newest first. Under the default `visibility: escalated`, these are
+the projects with a request to one of your teams that is not yet finished, or a pause one of your
+teams holds: the same projects as your queue. Where the profile sets `visibility: scope`, it also
+lists the projects whose owners chose one of your teams as their support team. A project you are
+a member of is not listed: there you act as a member.
 
-Only where the profile sets `visibility: scope`, this lists the projects whose owners chose your
-team as their support team. It shows each project's phase, its recent outcomes, and anything waiting
-for a review. Listing a project counts as looking at it, and is recorded and shown to the
-researcher. Under the default `visibility: escalated`, this list holds only the projects in your
-queue.
+For each project it shows who started it, the phase it is in, its latest runs and how each ended
+(including those that abstained or were referred to a person), what is waiting for someone's
+review (steps referred to a steward that nobody has cleared or refused, document versions waiting
+for the owners, and facts an agent proposed), and why you can see it: the request and its state,
+a pause, or your team's support. The project's name opens it as its steward (see
+[Working in a project](working-in-a-project.md)).
+
+Listing a project counts as looking at it. Each project on the page is recorded as read by you,
+at most once a day, and the researcher sees it, as when you open the project. Projects on a page
+you have not asked for are not recorded; **Show more projects** reads the next page.
+
+With the keyboard: Tab moves to **Requests** and **Projects**, then through the table's project
+links; Enter opens one. On a narrow screen the table scrolls within its own region.
 
 ## The community overview
+
+!!! note "Not built yet"
+    The community and compliance overview is
+    [#1307](https://github.com/data-director-agent/data-director/issues/1307).
 
 Counts across your team's scope (Blueprint §4.1, "an overview of data practices within a research
 community"):

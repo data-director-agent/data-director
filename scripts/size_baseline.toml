@@ -14,7 +14,7 @@ lines = 605
 
 [[file]]
 path = "harness/src/dd_harness/postgres/__init__.py"
-lines = 601
+lines = 597
 
 [[file]]
 path = "harness/src/dd_harness/testing/storage.py"

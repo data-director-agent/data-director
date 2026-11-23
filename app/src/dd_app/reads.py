@@ -16,6 +16,7 @@ from dd_app.governance import CONVERSATION_ID, CREATED_BY_ROUTE, Governance
 from dd_app.run_checks import stored_checks
 from dd_harness import conversations, project_access
 from dd_harness.listing import Page, Readable, check_limit
+from dd_harness.steward_api import permitted_actions_in
 from dd_harness.transport.paging import PAGE_SIZE
 from dd_sdk.contract.models import Principal
 
@@ -46,13 +47,13 @@ class Reads:
         self, principal: Principal, *, limit: int = PAGE_SIZE, before: str | None = None
     ) -> Page:
         """A page of the projects `principal` may read, the one created last first
-        (`GET /api/projects`): each project's summary, with the conversations started in it that
-        have a turn, most recently active first, so that the shell can name a project the app
-        created untitled. A project the app created for a conversation, with nothing in it yet (no
-        conversation with a turn, no inventory and no document), is not listed, as a conversation
-        with no turn is not; one a person created with `POST /api/projects` is. The
-        cursor is the last listed project; one that names no project the person may read names
-        an empty page."""
+        (`GET /api/projects`): each project's summary, with what they may do there and the
+        conversations started in it that have a turn, most recently active first, so that the
+        shell can name a project the app created untitled. A project the app created for a
+        conversation, with nothing in it yet (no conversation with a turn, no inventory and no
+        document), is not listed, as a conversation with no turn is not; one a person created
+        with `POST /api/projects` is. The cursor is the last listed project; one that names no
+        project the person may read names an empty page."""
         check_limit(limit)
         if self.governance.projects is None:
             return Page([])
@@ -80,7 +81,10 @@ class Reads:
                 continue
             if len(found) == limit:
                 return Page(found, found[-1]["project_id"])
-            found.append({**summary, "conversations": listed})
+            permitted = permitted_actions_in(
+                self.governance.conductor.profile, logs[project_id], principal
+            )
+            found.append({**summary, "conversations": listed, "permitted_actions": permitted})
         return Page(found)
 
     def deleted_projects_for(

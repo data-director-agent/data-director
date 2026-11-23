@@ -22,6 +22,7 @@ import { NoticesMenu } from "./components/session/Notices";
 import { SessionTimeout } from "./components/session/SessionTimeout";
 import { SignedOutPage } from "./components/session/SignedOutPage";
 import { SignInPage } from "./components/session/SignInPage";
+import { StewardProjectsPage } from "./components/escalation/StewardProjectsPage";
 import { StewardQueuePage } from "./components/escalation/StewardQueuePage";
 import { ConversationSessionProvider } from "./conversation/session";
 import { ActiveProjectProvider } from "./project/active";
@@ -88,6 +89,7 @@ function navCurrent(path: string): string {
     "/signed-out",
     "/steward",
   ];
+  if (path === "/steward/projects") return "/steward";
   return pages.includes(path) ? path : "/";
 }
 
@@ -136,6 +138,7 @@ const SESSION_PAGES: Record<string, (session: Session, query: string) => ReactNo
   "/projects": () => <ProjectsPage />,
   "/journey": () => <JourneyLanding />,
   "/steward": () => <StewardQueuePage />,
+  "/steward/projects": () => <StewardProjectsPage />,
 };
 
 /**
