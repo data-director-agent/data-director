@@ -178,3 +178,4 @@ class PolicyChecks(Grounded):
     ambiguous: list[AmbiguousActor] = Field(default_factory=list)
     searched: SearchedSummary | None = None
     limitations: list[str] = Field(default_factory=list)
+    proposed_facts: list[ProjectFact] = Field(default_factory=list)

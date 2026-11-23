@@ -407,7 +407,10 @@ intended design, and each part says where it is not built yet.
     (`GET /api/projects/{project_id}/facts`, `READ`; `POST …/facts/decisions`, `CONTRIBUTE`, or
     `DECIDE` for `sensitivity` and `licence`). A sharing commitment is shown with the plan's words
     and is only proposed, never stated, since it quotes the plan; the DMP Checker compares only
-    those a person decided ([Agents](agents.md)). The Standards Librarian proposes each standard it
+    those a person decided ([Agents](agents.md)). The Policy Adviser proposes each funder it
+    identifies in ROR, with its ROR identifier and its Crossref Funder ID from the same record,
+    and never one whose name ROR gives to more than one organisation, which the researcher is
+    asked about instead. The Standards Librarian proposes each standard it
     recommends; a person confirms the ones they will use and rejects the others, and only those
     confirmed, or stated by a person, reach the Metadata Librarian, which names the vocabularies
     chosen for the dataset in its question about subjects, and the Documentation Editor, which
