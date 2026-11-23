@@ -29,6 +29,7 @@ from dd_harness.stewardship import parse as stewardship
 from dd_sdk.agent import Setting
 from dd_sdk.contract.facts import InstitutionStorage
 from dd_sdk.contract.models import InstitutionRepository
+from dd_sdk.security_log import SecurityEvent, emit
 
 # The whole vocabulary. A key outside it is refused: a key nothing enforces would tell a steward
 # a rule is in force when it is not (docs/specs/policy-and-identity.md).
@@ -130,6 +131,18 @@ class Profile:
     def roles_of(self, principal_id: str) -> DeploymentRoles:
         """The deployment roles this profile gives `principal_id` (dd_harness.stewardship)."""
         return deployment_roles(self.stewardship, self.administrators, principal_id)
+
+    def record_loaded(self, service: str) -> None:
+        """Record in the security log that `service` holds people to this profile. Roles change
+        only with the profile, so this event, with the profile's version, is where a role
+        change shows (docs/specs/stewardship.md, invariant 1)."""
+        emit(
+            SecurityEvent.PROFILE_LOADED,
+            outcome="success",
+            service=service,
+            profile_id=self.profile_id,
+            profile_version=self.version,
+        )
 
     @property
     def ref(self) -> str:

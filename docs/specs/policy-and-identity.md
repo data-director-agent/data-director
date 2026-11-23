@@ -413,8 +413,8 @@ decides which endpoint serves it, and a person's endpoint is not known at start-
 - TODO(#16, #72, #73): the approval half of the gate: suspend a referred run, record an approval
   bound to the input hash and the profile digest, and resume it as a new invocation; and an
   action-level review gate in the app.
-- TODO(#154): per-user or per-group profiles. Deployment roles themselves are settled in
-  [Data stewards](stewardship.md).
+- TODO(#936): per-user or per-group profiles, with groups claimed by an institutional provider.
+  Deployment roles themselves are settled in [Data stewards](stewardship.md).
 - TODO(#936): accepting several issuers, and the principal form above for those that are not
   ORCID.
 - TODO(#937): an explicit act of linking a person's principals from two providers, with both

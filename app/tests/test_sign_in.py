@@ -614,6 +614,8 @@ def test_signing_in_and_out_is_recorded_for_the_person(
     for event in (signed_in, signed_out):
         assert event["outcome"] == "success"
         assert JOSIAH in event["principal"]
+    # The roles the profile gave the person when they signed in (docs/specs/stewardship.md).
+    assert "researcher" in signed_in["roles"]
 
 
 def test_a_refused_sign_in_is_recorded_with_its_reason_and_no_one_named(
