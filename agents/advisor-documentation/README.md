@@ -92,7 +92,17 @@ documents ([Projects](../../docs/specs/projects.md)). A request names the `docum
   The editor infers no units, so those are `unknown` until the researcher fills them in. The
   `missing_values` cell lists the codes the inventory's summary found in the field, as
   `inferred`, which says only that they occur, not what they mean; with none found, it is
-  `unknown` and asked. Once a field has a unit, its `unit_code` is worked out by rule as the unit's
+  `unknown` and asked. A cell is a JSON array of strings, such as `["-99","NA"]`, the form of a
+  [Frictionless Table Schema](https://datapackage.org/standard/table-schema/) field's
+  `missingValues`: each value is compared as written, before any type is applied, and `[""]`,
+  the standard's default, says that only an empty cell is missing. The question says it is
+  answered with a list (`answer_kind` `list`), so that the app shows one value on each line and
+  records the array. An answer from another client is put in the same form when each of its
+  values, split on new lines, commas or semicolons, is bare (`-99, NA`); text with a note in it,
+  such as `-99 (sensor off)`, is kept as the person wrote it, never guessed at
+  (`values.missing_values_cell`). A cell written before this form still reads the same, so it
+  keeps its `inferred` source. It depends on no library for this; the standard's object form,
+  `{"value": "-99", "label": "REFUSED"}`, is not yet read or written (TODO(#220)). Once a field has a unit, its `unit_code` is worked out by rule as the unit's
   [UCUM](https://ucum.org) code, with [`dd-units`](../../units/README.md): "micrometres" becomes
   `um` and "mg per litre" `mg/L`, and a field with no unit gets `n/a`. The statement names the
   first few codes for the researcher to check. A unit code is not asked while its unit is

@@ -204,8 +204,13 @@ def test_regenerating_keeps_what_the_researcher_supplied(runs_dir: Path) -> None
     rows[1] |= {"type": "string"}  # the researcher corrects an inferred type
     again = regenerate(runs_dir, write_csv(rows, DICTIONARY_COLUMNS))
     assert [(r["file"], r["field"]) for r in again] == [(r["file"], r["field"]) for r in rows]
-    for column in ("unit", "description", "missing_values"):
+    for column in ("unit", "description"):
         assert (again[0][column], again[0][f"{column}_source"]) == (rows[0][column], "supplied")
+    # A list column is kept in its standard form: the researcher's `-99` is `["-99"]`.
+    assert (again[0]["missing_values"], again[0]["missing_values_source"]) == (
+        '["-99"]',
+        "supplied",
+    )
     assert (again[1]["type"], again[1]["type_source"]) == ("string", "supplied")
     assert again[2:] == rows[2:]
     assert again[0]["type_source"] == rows[0]["type_source"]

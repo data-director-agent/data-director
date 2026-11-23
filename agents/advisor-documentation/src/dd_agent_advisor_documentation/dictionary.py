@@ -23,7 +23,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 
-from dd_agent_advisor_documentation.values import missing_codes
+from dd_agent_advisor_documentation.values import missing_codes, missing_values_cell
 from dd_sdk.contract.models import (
     CurrentVersion,
     DocumentQuestion,
@@ -31,6 +31,7 @@ from dd_sdk.contract.models import (
     FileInventory,
     TableField,
 )
+from dd_sdk.contract.questions import AnswerKind
 from dd_units import means_no_unit, ucum_code
 
 # How many hexadecimal digits of the gap's SHA-256 a question identifier keeps.
@@ -82,8 +83,21 @@ CELL_ASKS = {
     "unit_code": (
         "What is the UCUM code (https://ucum.org) for `{unit}`, the unit of `{field}` {place}?"
     ),
-    "missing_values": "Which values of `{field}` {place} mean that a value is missing?",
+    "missing_values": (
+        "Which values of `{field}` {place} mean that a value is missing? Give each value exactly "
+        "as it is written in the file, such as `-99` or `NA`."
+    ),
 }
+# What is said under a question, beside what it asks.
+CELL_HELP = {
+    "missing_values": (
+        "An empty cell already counts as missing, so leave it out. The values are kept as a list, "
+        "the form of a Frictionless Table Schema `missingValues`."
+    ),
+}
+# The columns whose answer is a list of values, not words.
+LIST_COLUMNS = frozenset({"missing_values"})
+MISSING_VALUES = "missing_values"
 ONE_FILE = "in `{file}`"
 SHARED = "in these files"
 SHARED_NOTE = " It is a column of {n} files, such as `{file}`, and your answer applies to each."
@@ -202,14 +216,15 @@ def _cells(
             target["unit"] = unit
             given[column] = worked_out_unit_code(unit)
         ask = question_id(target) if shared else own
-        answer = answers.get(own)
+        answer = _answered(column, answers.get(own))
         if answer is not None:
             value, source = answer, Source.SUPPLIED
         else:
             row_before = _edited_code(before) if column == "unit_code" else before
             value, source = _cell(column, given.get(column) or "", row_before)
-            if source == Source.UNKNOWN and ask in answers:
-                value, source = answers[ask], Source.SUPPLIED
+            shared_answer = _answered(column, answers.get(ask))
+            if source == Source.UNKNOWN and shared_answer is not None:
+                value, source = shared_answer, Source.SUPPLIED
         cells[column] = (value, source)
         states = {k + SOURCE_SUFFIX: v[1] for k, v in cells.items()}
         if source == Source.UNKNOWN and asks_about(column, states):
@@ -217,6 +232,14 @@ def _cells(
             if file not in gap.files:
                 gap.files.append(file)
     return cells
+
+
+def _answered(column: str, text: str | None) -> str | None:
+    """An answer as its cell holds it: a list column's in its standard form, and None, a gap still
+    open, when a list answer holds no value."""
+    if text is None or column != MISSING_VALUES:
+        return text
+    return missing_values_cell(text) or None
 
 
 def worked_out_unit_code(unit: str) -> str:
@@ -248,6 +271,8 @@ def _question(question_id: str, gap: Gap) -> DocumentQuestion:
     return DocumentQuestion(
         question_id=question_id,
         question_prompt=prompt,
+        question_help=CELL_HELP.get(gap.column),
+        answer_kind=AnswerKind.LIST if gap.column in LIST_COLUMNS else None,
         gap_file=first,
         gap_field=gap.name,
         gap_column=gap.column,
@@ -263,6 +288,8 @@ def _cell(column: str, given: str, before: Mapping[str, str]) -> tuple[str, Sour
     source too. The earlier source columns are therefore not read.
     """
     earlier = (before.get(column) or "").strip()
+    if column == MISSING_VALUES:
+        earlier = missing_values_cell(earlier)
     if earlier and earlier != given:
         return earlier, Source.SUPPLIED
     if given:
