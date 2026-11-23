@@ -5,10 +5,10 @@ A step's `id` is this repository's label, not the Blueprint's. `dd_sdk.process_f
 steps to the entry points, the agents that serve them and their states.
 
 Writing and reviewing a Data Management Plan are served by alpha agents. Updating it after
-publication is out of scope for now: its step is kept so that the flow is complete, and marked
-`out_of_scope`: the phase tracker and the orchestrators name it and say so, no agent may serve it,
-and no orchestrator offers to do it. TODO(#284): a read-only check of a deposit against an
-existing Data Management Plan.
+publication has no agent yet, so its step is a gap like any other. A step a deployment keeps in
+the flow but does not do is marked `out_of_scope`: the phase tracker and the orchestrators name
+it and say so, no agent may serve it, and no orchestrator offers to do it. No step is marked now.
+TODO(#284): a read-only check of a deposit against an existing Data Management Plan.
 
 Each phase and step also carries wording for researchers, which the app shows: a phase's `name`
 and `summary`, a step's `label`, and a step's `prompt`, a first-person opening for a conversation
@@ -335,7 +335,6 @@ PHASES: tuple[Phase, ...] = (
             Step(
                 "post.dmp-update",
                 "Update the Data Management Plan to reflect the data published",
-                out_of_scope=True,
                 label="Update your Data Management Plan with what you published",
                 prompt="Help me update my Data Management Plan with what I published.",
             ),

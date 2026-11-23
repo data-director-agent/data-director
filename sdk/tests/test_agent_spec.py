@@ -307,7 +307,10 @@ def test_serving_anything_but_a_step_is_refused(serves: tuple[str, ...]) -> None
         spec_from_description(entry)
 
 
-def test_serving_a_step_that_is_out_of_scope_for_now_is_refused() -> None:
+def test_serving_a_step_that_is_out_of_scope_for_now_is_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("dd_sdk.agent.OUT_OF_SCOPE", frozenset({"post.dmp-update"}))
     with pytest.raises(SpecError, match="out of scope for now"):
         dataclasses.replace(SPEC, serves=("post.dmp-update",))
     entry = describe(SPEC)

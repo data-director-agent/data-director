@@ -16,7 +16,6 @@ from dd_app.governance import Governance
 from dd_harness.progress import ENTRY_CHOSEN, STEP_MARKED
 from dd_harness.storage import ProjectStorage
 from dd_harness.testing import TEST_PRINCIPAL, file_inventory
-from dd_sdk.process_flow import OUT_OF_SCOPE
 
 
 @pytest.fixture
@@ -77,7 +76,7 @@ def test_what_is_no_entry_step_or_mark_is_refused_and_records_nothing(
         ("entry", {"entry": "2"}),
         ("entry", {"entry": True}),
         ("steps/R5", {"mark": "done"}),
-        (f"steps/{next(iter(OUT_OF_SCOPE))}", {"mark": "done"}),
+        ("steps/no.such-step", {"mark": "done"}),
         ("steps/governance.embargo", {"mark": "maybe"}),
         ("steps/governance.embargo", {}),
     ):

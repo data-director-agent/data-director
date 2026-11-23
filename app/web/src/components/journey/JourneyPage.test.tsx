@@ -22,9 +22,9 @@ function fakeApi(progress: ProjectProgress, markStep: ProjectApi["markStep"]): P
   } as unknown as ProjectApi;
 }
 
-function renderPage(api: ProjectApi, query = "") {
+function renderPage(api: ProjectApi, query = "", flow: ProcessFlow = FLOW) {
   return render(
-    <FlowApiContext.Provider value={{ get: () => Promise.resolve(FLOW) }}>
+    <FlowApiContext.Provider value={{ get: () => Promise.resolve(flow) }}>
       <ProjectApiContext.Provider value={api}>
         <JourneyPage projectId="p" query={query} />
       </ProjectApiContext.Provider>
@@ -77,10 +77,13 @@ describe("JourneyPage", () => {
   });
 
   it("strikes through an out-of-scope step that was skipped, and leaves the others", async () => {
-    const steps = FLOW.phases.flatMap((p) => p.steps);
-    const skipped = steps.find((s) => s.out_of_scope);
-    const other = steps.find((s) => !s.out_of_scope && s.id !== STEP.id);
-    if (!skipped || !other) throw new Error("the fixture has no out-of-scope step");
+    // No step in the fixture is out of scope, so mark one here.
+    const flow = structuredClone(FLOW);
+    const steps = flow.phases.flatMap((p) => p.steps);
+    const skipped = steps.find((s) => s.id === "setup.dmp-review");
+    const other = steps.find((s) => s.id !== STEP.id && s.id !== skipped?.id);
+    if (!skipped || !other) throw new Error("the fixture lacks the steps this test needs");
+    skipped.out_of_scope = true;
     const progress: ProjectProgress = projectProgress({
       entry: 1,
       steps: { [skipped.id]: "skipped" },
@@ -94,7 +97,7 @@ describe("JourneyPage", () => {
         },
       },
     });
-    renderPage(fakeApi(progress, () => Promise.resolve(progress)));
+    renderPage(fakeApi(progress, () => Promise.resolve(progress)), "", flow);
     const stop = await screen.findByRole("button", { name: new RegExp(`^${skipped.label}: `) });
     expect(stop.closest("li")).toHaveClass("is-out-of-scope", "is-skipped");
     const open = screen.getByRole("button", { name: new RegExp(`^${other.label}: `) });

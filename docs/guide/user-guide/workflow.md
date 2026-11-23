@@ -56,8 +56,7 @@ flowchart TD
 
 Each step names the Blueprint requirement it applies (R1 to R12, from
 [§7.1](../../blueprint/07-functional-specification.md#71-functional-requirements)), where there is
-one. Steps marked *optional* may be left out. Steps marked *out of scope for now* are in the
-Blueprint's flow and shown here so the map is complete, but Data Director does not do them yet.
+one. Steps marked *optional* may be left out.
 
 ### Phase 1: Pre-collection setup
 
@@ -65,8 +64,8 @@ Blueprint's flow and shown here so the map is complete, but Data Director does n
 
 - Draft the data documentation (R5)
 - Select controlled vocabularies and ontologies (R3)
-- Create a Data Management Plan where none exists (*optional*, out of scope for now)
-- Review and update the Data Management Plan (out of scope for now)
+- Create a Data Management Plan where none exists (*optional*)
+- Review and update the Data Management Plan
 
 ### Phase 2: Governance and constraints
 
@@ -119,7 +118,7 @@ builds the deposit package; you then deposit it in the repository yourself, as
 
 Publication is not the end. This phase is a continuing loop.
 
-- Update the Data Management Plan to reflect the data published (out of scope for now)
+- Update the Data Management Plan to reflect the data published
 - Record the deposit in institutional systems where required
 - Monitor access, downloads and citations
 - Check embargo release
@@ -159,9 +158,6 @@ order. Open it to see, for each step, the agents here that serve it. It does not
 
 ## What is not covered
 
-- **Data Management Plans.** Creating, reviewing and updating a plan is out of scope for the
-  initial phase. The steps for it in the Blueprint's figures are shown and marked *out of scope
-  for now*, and the Data Director does not offer to do them (TODO(#284)).
 - **Governance as an entry point.** Routing researchers down open, restricted or unshared paths is
   deferred by the Blueprint to v2.0.
 - **The figures themselves.** The steps above are taken from the figure captions in
