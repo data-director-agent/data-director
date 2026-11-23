@@ -82,6 +82,12 @@ dd:DocumentQuestion a sh:NodeShape ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
+            sh:description "The field whose data dictionary row the question would fill." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:gap_field ],
+        [ sh:datatype xsd:string ;
             sh:description "The path of the file whose data dictionary row the question would fill." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -153,13 +159,7 @@ dd:DocumentQuestion a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path dd:question_id ;
-            sh:pattern "^q-[0-9a-f]{16}$" ],
-        [ sh:datatype xsd:string ;
-            sh:description "The field whose data dictionary row the question would fill." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 5 ;
-            sh:path dd:gap_field ] ;
+            sh:pattern "^q-[0-9a-f]{16}$" ] ;
     sh:targetClass dd:DocumentQuestion .
 
 dd:DocumentVersionRef a sh:NodeShape ;

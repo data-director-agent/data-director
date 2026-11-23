@@ -30,7 +30,7 @@
       "status": "abstained"
     },
     "policy_bundle_ref": "profile:data-director-app@v10",
-    "policy_digest": "fdd639935b125fe88e0705ea629a3e7d521bb11aee877d2b6b0b1d19da1705de",
+    "policy_digest": "d06f9ece0e497cb4c53e31de4bfb5aedfe08c4c33a58b5debb769df7eb557442",
     "requires_human_review": true,
     "telemetry": {
       "energy_estimate_j": null,

@@ -33,6 +33,7 @@ KEYS = {
     "privacy_notice",
     "model_accounts",
     "institution_repositories",
+    "institution_storage",
     "administrators",
     "stewardship",
     "pid_resolver",
@@ -51,6 +52,7 @@ class Deployment:
     privacy_notice: str | None = None
     model_accounts: dict[str, Any] | None = None
     institution_repositories: list[dict[str, Any]] | None = None
+    institution_storage: list[dict[str, Any]] | None = None
     # Deployment roles (docs/specs/stewardship.md, invariant 1), copied into the profile.
     administrators: list[str] | None = None
     stewardship: dict[str, Any] | None = None
@@ -87,7 +89,8 @@ def parse(text: str, label: str, agents: list[Agent]) -> Deployment:
     if not isinstance(data, dict):
         raise DevError(
             f"{label}: expected name, orchestrator, disabled, privacy_notice, model_accounts, "
-            "institution_repositories, administrators, stewardship and pid_resolver"
+            "institution_repositories, institution_storage, administrators, stewardship and "
+            "pid_resolver"
         )
     if unknown := sorted(set(data) - KEYS):
         raise DevError(
@@ -117,7 +120,7 @@ def parse(text: str, label: str, agents: list[Agent]) -> Deployment:
 
 def _options(data: dict[str, Any], label: str) -> dict[str, Any]:
     """The optional keys, checked: privacy_notice, model_accounts, institution_repositories,
-    administrators, stewardship and pid_resolver. What the profile's keys hold is checked when the
+    institution_storage, administrators, stewardship and pid_resolver. What the profile's keys hold is checked when the
     harness loads the profile."""
     privacy_notice = data.get("privacy_notice")
     if privacy_notice is not None and not (
@@ -130,14 +133,8 @@ def _options(data: dict[str, Any], label: str) -> dict[str, Any]:
     model_accounts = data.get("model_accounts")
     if model_accounts is not None and not isinstance(model_accounts, dict):
         raise DevError(f"{label}: model_accounts is a mapping, as in the profile")
-    repositories = data.get("institution_repositories")
-    if repositories is not None and not (
-        isinstance(repositories, list) and all(isinstance(r, dict) for r in repositories)
-    ):
-        raise DevError(
-            f"{label}: institution_repositories lists repositories, each a mapping with a "
-            "repository_id, as in the profile"
-        )
+    repositories = _entries(data, "institution_repositories", "repository_id", label)
+    storage = _entries(data, "institution_storage", "storage_id", label)
     administrators = data.get("administrators")
     if administrators is not None and not (
         isinstance(administrators, list) and all(isinstance(a, str) for a in administrators)
@@ -156,7 +153,22 @@ def _options(data: dict[str, Any], label: str) -> dict[str, Any]:
         "privacy_notice": privacy_notice.strip() if privacy_notice else None,
         "model_accounts": model_accounts,
         "institution_repositories": repositories,
+        "institution_storage": storage,
         "administrators": administrators,
         "stewardship": stewardship,
         "pid_resolver": pid_resolver,
     }
+
+
+def _entries(
+    data: dict[str, Any], key: str, id_key: str, label: str
+) -> list[dict[str, Any]] | None:
+    """A key that lists entries, each a mapping, as the profile's key of that name does."""
+    value = data.get(key)
+    if value is not None and not (
+        isinstance(value, list) and all(isinstance(e, dict) for e in value)
+    ):
+        raise DevError(
+            f"{label}: {key} lists entries, each a mapping with a {id_key}, as in the profile"
+        )
+    return value

@@ -3,8 +3,9 @@
 ORCID records (`ResearcherRecord`), the facts people decided about the project (`ProjectFact`),
 the repository a researcher chose (`ChosenRepository`), what its inventory is
 (`InventorySummary`), the documents a researcher attached (`DocumentationSummary`, and
-`ProjectDocument` with its text), and the repositories the profile names as its institution's
-(`InstitutionRepository`). `dd_sdk.contract.models` re-exports the classes its own classes use."""
+`ProjectDocument` with its text), and the repositories and storage services the profile names as
+its institution's (`InstitutionRepository`, `InstitutionStorage`). `dd_sdk.contract.models`
+re-exports the classes its own classes use."""
 
 from __future__ import annotations
 
@@ -309,4 +310,35 @@ class InstitutionRepository(Frozen):
     data_access_types: list[str] = Field(default_factory=list)
     data_licences: list[str] = Field(default_factory=list)
     charges_deposit_fee: bool | None = None
+    guidance: list[str] = Field(default_factory=list)
+
+
+class StorageKind(StrEnum):
+    INSTITUTIONAL_FILESTORE = "institutional_filestore"
+    INSTITUTIONAL_CLOUD = "institutional_cloud"
+    MANAGED_CLOUD = "managed_cloud"
+    SECURE_ENVIRONMENT = "secure_environment"
+
+
+# A deployment's own label for a storage service.
+STORAGE_ID_PATTERN = r"^[a-z0-9][a-z0-9-]*$"
+
+
+class InstitutionStorage(Frozen):
+    """One storage service the deployment's profile names as its institution's, for keeping data
+    while a project runs (`institution_storage`, docs/specs/policy-and-identity.md), as the
+    conductor gives it to an agent whose input mixes in `GivenInstitutionStorage`. It holds only
+    what the deployment vouches for; `profile_ref` is the reference of the profile, under which
+    an agent cites it. An unknown `approved_for_sensitive` is never taken as approval."""
+
+    storage_id: str = Field(pattern=STORAGE_ID_PATTERN)
+    profile_ref: str = Field(pattern=r"^profile:\S+@v[0-9]+$")
+    storage_name: str
+    storage_description: str | None = None
+    storage_kind: StorageKind | None = None
+    approved_for_sensitive: bool | None = None
+    allows_external_collaborators: bool | None = None
+    allowance_gb: int | None = Field(default=None, ge=0)
+    charges_for_storage: bool | None = None
+    storage_backup: str | None = None
     guidance: list[str] = Field(default_factory=list)

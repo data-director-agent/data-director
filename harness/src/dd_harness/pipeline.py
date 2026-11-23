@@ -21,7 +21,16 @@ from typing import Any
 
 from opentelemetry import trace
 
-from dd_harness import footprint, grounding, institution_repositories, model_accounts, policy, shacl
+from dd_harness import (
+    footprint,
+    grounding,
+    institution_repositories,
+    institution_storage,
+    model_accounts,
+    policy,
+    profile_vouched,
+    shacl,
+)
 from dd_harness import observe as steps
 from dd_harness import sources as source_check
 from dd_harness.observe import cancelled_result
@@ -257,7 +266,12 @@ def lint_grounding(conductor: RunHost, run: RunState) -> None:
 def check_sources(conductor: RunHost, run: RunState) -> None:
     run.watch.started(steps.SOURCES)
     # What the profile vouches for is checked against the profile itself, pinned by its digest.
-    held = conductor.sources.with_resolvers(institution_repositories.resolvers(conductor.profile))
+    profile = conductor.profile
+    vouched = {
+        **institution_repositories.vouched(profile),
+        **institution_storage.vouched(profile),
+    }
+    held = conductor.sources.with_resolvers(profile_vouched.resolvers(profile.ref, vouched))
     run.source_report = source_check.check(run.finished.to_document(), held)
     run.watch.sources(run.source_report)
     run.watch.finished(steps.SOURCES)

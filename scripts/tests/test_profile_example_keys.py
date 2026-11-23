@@ -112,6 +112,20 @@ def test_the_institutions_repositories_are_the_deployments_own(tmp_path: Path) -
     assert loaded.repository_id == "r3d100012124"
 
 
+def test_the_institutions_storage_is_the_deployments_own(tmp_path: Path) -> None:
+    """`institution_storage` names the instance's own institution's storage, so it is taken from
+    deployment.yaml, as written, and never from the release's example."""
+    entry = {"storage_id": "research-filestore", "storage_name": "Research filestore"}
+    example = example_with(tmp_path, {"institution_storage": [{**entry, "storage_id": "other"}]})
+    _, without = generated(tmp_path, example=example)
+    assert "institution_storage" not in without
+    text = yaml.safe_dump({"name": "dev", "institution_storage": [entry]})
+    path, body = generated(tmp_path, text, example=example)
+    assert body["institution_storage"] == [entry]
+    (loaded,) = load_profile(path).institution_storage
+    assert loaded.storage_id == "research-filestore"
+
+
 def test_the_administrators_and_steward_teams_are_the_deployments_own(tmp_path: Path) -> None:
     """Deployment roles are the instance's own (docs/specs/stewardship.md, invariant 1), so they
     are taken from deployment.yaml, as written, and never from the release's example."""

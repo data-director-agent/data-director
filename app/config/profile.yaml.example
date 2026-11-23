@@ -51,9 +51,9 @@ model_accounts:
 deposit_transports:
   - zenodo
 
-# The institution's own repositories (institution_repositories), its administrators and its steward
-# teams (stewardship) are each instance's, so `apply` copies them from deployment.yaml
-# (config/examples/deployment.yaml), not from this file.
+# The institution's own repositories (institution_repositories) and storage (institution_storage),
+# its administrators and its steward teams (stewardship) are each instance's, so `apply` copies
+# them from deployment.yaml (config/examples/deployment.yaml), not from this file.
 
 actions_requiring_approval:
   - deposit

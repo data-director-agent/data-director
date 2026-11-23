@@ -1393,6 +1393,24 @@
          "title": "GivenInstitutionRepositories",
          "type": "object"
       },
+      "GivenInstitutionStorage": {
+         "additionalProperties": false,
+         "description": "Mixed into an agent's own input class when the agent reads the storage services the deployment's profile names as its institution's. The conductor fills institution_storage by this name from the profile, in a project or not, and never needs to know the input class; whatever a caller sent there is replaced.",
+         "properties": {
+            "institution_storage": {
+               "description": "The storage services the deployment's profile names as its institution's, filled by the conductor from the profile and never by the caller. Absent when the profile names none.",
+               "items": {
+                  "$ref": "#/$defs/InstitutionStorage"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            }
+         },
+         "title": "GivenInstitutionStorage",
+         "type": "object"
+      },
       "GivenProjectDecisions": {
          "additionalProperties": false,
          "description": "Mixed into an agent's own input class when the agent reads the facts people decided about the project. In a project the conductor fills project_decisions by this name, as for a DraftRequest, and never needs to know the input class (docs/specs/projects.md, invariant 6); outside one, the caller sends them.",
@@ -1626,6 +1644,98 @@
             "profile_ref"
          ],
          "title": "InstitutionRepository",
+         "type": "object"
+      },
+      "InstitutionStorage": {
+         "additionalProperties": false,
+         "description": "One storage service the deployment's profile names as its institution's, for keeping data while a project runs (the profile's institution_storage, docs/specs/policy-and-identity.md). It holds only what the deployment vouches for: the conductor fills it into the input of an agent that mixes in GivenInstitutionStorage.",
+         "properties": {
+            "storage_id": {
+               "description": "The deployment's own label for a storage service, such as research-filestore: lower case letters, digits and hyphens.",
+               "pattern": "^[a-z0-9][a-z0-9-]*$",
+               "type": "string"
+            },
+            "profile_ref": {
+               "description": "The reference of the profile that vouches for the facts, as profile:<id>@v<version>; an agent cites them under it.",
+               "pattern": "^profile:\\S+@v[0-9]+$",
+               "type": "string"
+            },
+            "storage_name": {
+               "description": "The storage service's name, as the institution gives it to researchers.",
+               "type": "string"
+            },
+            "storage_description": {
+               "description": "What the service is for, in a sentence or two a researcher can read.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "storage_kind": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/StorageKind"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "What kind of storage service it is."
+            },
+            "approved_for_sensitive": {
+               "description": "Whether the institution approves the service for personal or otherwise sensitive data. Unknown when not given, which is never taken as approval.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
+            },
+            "allows_external_collaborators": {
+               "description": "Whether people outside the institution can be given access to data held there.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
+            },
+            "allowance_gb": {
+               "description": "How many gigabytes a project may hold there without charge, where there is a limit.",
+               "minimum": 0,
+               "type": [
+                  "integer",
+                  "null"
+               ]
+            },
+            "charges_for_storage": {
+               "description": "Whether the institution charges a project for storage there.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
+            },
+            "storage_backup": {
+               "description": "What the service does to keep copies, as the institution states it, such as nightly snapshots replicated to a second site.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "guidance": {
+               "description": "The pages the deployment checked the facts it vouches for against.",
+               "items": {
+                  "format": "uri",
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "storage_id",
+            "profile_ref",
+            "storage_name"
+         ],
+         "title": "InstitutionStorage",
          "type": "object"
       },
       "IntakeAnswer": {
@@ -4012,6 +4122,17 @@
             "skipped"
          ],
          "title": "StepState",
+         "type": "string"
+      },
+      "StorageKind": {
+         "description": "The kinds of storage a deployment may name as its institution's.",
+         "enum": [
+            "institutional_filestore",
+            "institutional_cloud",
+            "managed_cloud",
+            "secure_environment"
+         ],
+         "title": "StorageKind",
          "type": "string"
       },
       "SuppliedOn": {
