@@ -10,7 +10,7 @@
 #   broker/      data-director-model-broker  holds people's own model keys and makes their calls
 #   deposit-broker/  data-director-deposit-broker  holds people's own repository tokens and makes drafts
 #   inventory/   data-director-inventory  the local command that inventories a dataset's files
-#   mcp-pid/     data-director-mcp-pid    an MCP server resolving DOIs, ORCID iDs and ROR identifiers
+#   mcp-pid/     data-director-mcp-pid    an MCP server resolving DOIs, ORCID iDs, ROR identifiers and ISSNs
 #   units/       data-director-units      turns a unit a person writes into a UCUM code, by rule
 #   dmp-template/  data-director-dmp-template  the core requirements for a Data Management Plan
 #   subjects/    data-director-subjects   subject classifications to suggest a field of study from
@@ -225,7 +225,7 @@ ignore_imports = [
   "dd_agent_advisor_standards.testing -> workbench.*",
   # The Documentation Editor's evaluation declares the workbench in its `eval` extra.
   "dd_agent_advisor_documentation.evals.* -> workbench.*",
-  # So does the Data Management Plan Checker's.
+  # So does the Data Management Planner's.
   "dd_agent_advisor_dmp.evals.* -> workbench.*",
   # And the repository advisor's.
   "dd_agent_advisor_repository.evals.* -> workbench.*",

@@ -99,10 +99,11 @@ def role_of(store: ProjectLifecycle, project_id: str, principal: Principal) -> R
     an owner."""
     if not store.exists(project_id):
         return None
-    return _role(store.events(project_id), principal)
+    return role_in(store.events(project_id), principal)
 
 
-def _role(events: list[dict[str, Any]], principal: Principal) -> Role | None:
+def role_in(events: list[dict[str, Any]], principal: Principal) -> Role | None:
+    """`role_of` in the project whose log, already read, is `events`."""
     role = roles(events).get(principal.principal_id)
     if role is not Role.OWNER and deletion(events) is not None:
         return None
@@ -121,7 +122,7 @@ def readable_logs(store: ProjectLifecycle, principal: Principal) -> dict[str, li
     return {
         project_id: events
         for project_id, events in store.logs_naming(principal.principal_id).items()
-        if deletion(events) is None and allowed(_role(events, principal), Action.READ)
+        if deletion(events) is None and allowed(role_in(events, principal), Action.READ)
     }
 
 
@@ -138,7 +139,7 @@ def deleted_projects(store: ProjectLifecycle, principal: Principal) -> list[str]
     return [
         project_id
         for project_id, events in store.logs_naming(principal.principal_id).items()
-        if deletion(events) is not None and allowed(_role(events, principal), Action.MANAGE)
+        if deletion(events) is not None and allowed(role_in(events, principal), Action.MANAGE)
     ]
 
 

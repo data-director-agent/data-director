@@ -144,3 +144,38 @@ def test_a_project_has_one_data_description_subject() -> None:
     """Every description has the same subject, so the last decision on it is the current one."""
     with pytest.raises(ValidationError):
         ProjectFact.model_validate({**DESCRIPTION, "fact_subject": "interviews"})
+
+
+PROJECT_FACTS: list[dict[str, Any]] = [
+    {"fact_kind": "project_summary", "fact_subject": "project", "summary_text": "Drought."},
+    {"fact_kind": "field_of_study", "fact_subject": "project", "field_name": "Ecohydrology"},
+    {"fact_kind": "project_period", "fact_subject": "project", "period_start": "2027-01"},
+]
+
+
+@pytest.mark.parametrize("fact", PROJECT_FACTS, ids=lambda f: f["fact_kind"])
+def test_a_fact_about_the_whole_project_has_the_one_subject(fact: dict[str, Any]) -> None:
+    assert ProjectFact.model_validate(fact).fact_subject == PLAN_SUBJECT
+    with pytest.raises(ValidationError):
+        ProjectFact.model_validate({**fact, "fact_subject": "another"})
+
+
+@pytest.mark.parametrize("fact", PROJECT_FACTS, ids=lambda f: f["fact_kind"])
+def test_a_fact_about_the_project_needs_its_value(fact: dict[str, Any]) -> None:
+    (slot,) = FACT_NEEDS[FactKind(fact["fact_kind"])]
+    with pytest.raises(ValidationError):
+        ProjectFact.model_validate({**fact, slot: None})
+
+
+@pytest.mark.parametrize("date", ["2027", "2027-03", "2027-03-01"])
+def test_a_period_is_as_precise_as_is_known(date: str) -> None:
+    fact = {"fact_kind": "project_period", "fact_subject": "project", "period_start": date}
+    assert ProjectFact.model_validate({**fact, "period_end": date}).period_end == date
+
+
+@pytest.mark.parametrize("date", ["March 2027", "27-03", "2027/03"])
+def test_a_period_is_not_any_text(date: str) -> None:
+    with pytest.raises(ValidationError):
+        ProjectFact.model_validate(
+            {"fact_kind": "project_period", "fact_subject": "project", "period_start": date}
+        )

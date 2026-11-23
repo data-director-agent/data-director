@@ -394,7 +394,10 @@ intended design, and each part says where it is not built yet.
     description, #160). An orchestrator proposes a data description from what the researcher said
     in a conversation ([Orchestration](orchestration.md), invariant 8), so that once a person
     confirms it every agent in the project is given it, whichever conversation it runs in, and
-    what the researcher said of their data is not lost with the conversation. A succeeded run's proposals are
+    what the researcher said of their data is not lost with the conversation. Also about the
+    project as a whole, under the same one subject, are what it is for (`project_summary`), its
+    field of study (`field_of_study`) and when it starts and ends (`project_period`, each a year,
+    a month or a day). A succeeded run's proposals are
     `fact_proposed` events, one each, caused by the run and naming its agent, from a payload of
     any class (`dd_harness.project_effects`); they are checked before anything is written and
     recorded only once the run's draft is kept, so a run that fails leaves none. A person decides each as a `fact_decided` event:
@@ -418,7 +421,13 @@ intended design, and each part says where it is not built yet.
     those a person decided ([Agents](agents.md)). The Policy Adviser proposes each funder it
     identifies in ROR, with its ROR identifier and its Crossref Funder ID from the same record,
     and never one whose name ROR gives to more than one organisation, which the researcher is
-    asked about instead. The Standards Librarian proposes each standard it
+    asked about instead. At "Describe your project" (`setup.project`) the Data Management Planner
+    proposes what the project is for, its field and period from what the researcher said, and
+    those and a data description from a proposal or award letter they attached, each read from a
+    document quoting its passage in `proposed_because`; the step is started once a summary is
+    proposed and done once a person decides one (`dd_harness.progress`), and the README that plans
+    the documentation and the Data Management Plan place what was decided
+    ([Drafting documents](drafting.md)). The Standards Librarian proposes each standard it
     recommends; a person confirms the ones they will use and rejects the others, and only those
     confirmed, or stated by a person, reach the Metadata Librarian, which names the vocabularies
     chosen for the dataset in its question about subjects, and the Documentation Editor, which

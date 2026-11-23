@@ -98,6 +98,17 @@
       "action_classes": [],
       "agent_ids": [],
       "autonomy": "not_offered",
+      "label": "Describe your project",
+      "phase_name": "Plan your data management",
+      "phase_number": 1,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "setup.project"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
       "label": "Plan how your data will be documented",
       "phase_name": "Plan your data management",
       "phase_number": 1,

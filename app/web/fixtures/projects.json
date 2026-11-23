@@ -32,6 +32,67 @@
       "part_count": null,
       "revises": null
     },
+    "permitted_actions": {
+      "acting_as": "member",
+      "actions": [
+        {
+          "action": "read",
+          "permitted": true
+        },
+        {
+          "action": "contribute",
+          "permitted": true
+        },
+        {
+          "action": "decide",
+          "permitted": true
+        },
+        {
+          "action": "manage",
+          "permitted": true
+        },
+        {
+          "action": "read",
+          "permitted": false,
+          "refusal": "member-of-project"
+        },
+        {
+          "action": "message",
+          "permitted": false,
+          "refusal": "member-of-project"
+        },
+        {
+          "action": "propose_edit",
+          "permitted": false,
+          "refusal": "member-of-project"
+        },
+        {
+          "action": "run",
+          "permitted": false,
+          "refusal": "member-of-project"
+        },
+        {
+          "action": "pause",
+          "permitted": false,
+          "refusal": "member-of-project"
+        },
+        {
+          "action": "resume",
+          "permitted": false,
+          "refusal": "member-of-project"
+        },
+        {
+          "action": "clear_gate",
+          "permitted": false,
+          "refusal": "member-of-project"
+        },
+        {
+          "action": "refuse_gate",
+          "permitted": false,
+          "refusal": "member-of-project"
+        }
+      ]
+    },
     "progress": {
       "decisions": [
         {

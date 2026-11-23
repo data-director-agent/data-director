@@ -136,6 +136,8 @@ def test_the_history_lists_runs_newest_first_and_each_reopens(governance: Govern
         "status": "abstained",
         "completed_at": second["completed_at"],
         "acting_for": TEST_PRINCIPAL.name,
+        "project_id": second.get("project_id"),
+        "reason_code": second["outcome"]["reason_code"],
     }
     stored = client.get(f"/api/runs/{first['invocation_id']}").json()
     assert stored["envelope"] == first

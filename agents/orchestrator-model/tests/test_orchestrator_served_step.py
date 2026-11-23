@@ -20,7 +20,7 @@ def test_the_note_suggests_the_phase_one_step_an_agent_serves() -> None:
     served = progress_note(message, [STANDARDS])
     unserved = progress_note(message)
     assert served is not None and "Suggested next: [setup.formats]" in served
-    assert unserved is not None and "Suggested next: [setup.documentation]" in unserved
+    assert unserved is not None and "Suggested next: [setup.project]" in unserved
 
 
 def test_the_prompt_ties_an_agent_to_the_steps_a_tool_names() -> None:

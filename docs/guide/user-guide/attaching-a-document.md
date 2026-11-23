@@ -67,7 +67,7 @@ shown beside its question and is never written into the draft: it becomes part o
 only when you save it, or a correction of it, as your answer. The outcome of the draft names the
 documents the model was given, and says if one was too long to give in full.
 
-The Data Management Plan Checker reads an attached data management plan to find its commitments
+The Data Management Planner reads an attached data management plan to find its commitments
 to share your data, which you then confirm or correct.
 
 ## Marking your Data Management Plan
@@ -75,12 +75,12 @@ to share your data, which you then confirm or correct.
 If one of the documents you attached is your project's data management plan, mark it as such.
 On the project's **Documents** page, under **Attached documents**, select **Mark as the Data
 Management Plan** beside it. It is then labelled **Data Management Plan**, and every agent that is
-given your documents is told which one is the plan: the Data Management Plan Checker reads that
+given your documents is told which one is the plan: the Data Management Planner reads that
 document alone, rather than every document you attached. A project has one plan at a time. If you
 attach a revised plan, mark it, and it replaces the earlier one. Select **Not the plan** to
 remove the mark.
 
-If you have not marked one, the Data Management Plan Checker may suggest which document is your
+If you have not marked one, the Data Management Planner may suggest which document is your
 plan when it reads them. Its suggestion waits under **Project facts** until you confirm or reject
 it; nothing is marked until you do.
 

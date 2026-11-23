@@ -13,9 +13,11 @@ from test_orchestrator import ScriptedModel, say
 from test_orchestrator_naming import in_project, turn
 
 from dd_agent_orchestrator_model.agent import conversation
+from dd_agent_orchestrator_model.notes import decisions_note
 from dd_agent_orchestrator_model.prompt import SYSTEM_PROMPT
 from dd_harness.projects import FactVerdict
 from dd_harness.testing import TEST_PRINCIPAL
+from dd_sdk.contract.facts import FACT_NEEDS, FactKind
 from dd_sdk.contract.models import (
     ChosenRepository,
     DocumentationSummary,
@@ -228,3 +230,37 @@ def test_without_documents_there_is_no_documents_note() -> None:
 def test_the_prompt_says_an_unread_plan_is_unread() -> None:
     assert "the plan has not been read for a repository" in SYSTEM_PROMPT
     assert "described as the plan's" in SYSTEM_PROMPT
+
+
+# A value for each slot a kind needs, so a fact of every kind can be made.
+NEEDED_VALUES: dict[str, object] = {
+    "fact_funder_name": "EPSRC",
+    "fact_repository_name": "Zenodo",
+    "fact_file_path": "data/readings.csv",
+    "file_decision": "include",
+    "sensitive_subject": "lat",
+    "sensitivity_decision": "withhold",
+    "licence_id": "CC-BY-4.0",
+    "commitment_quote": "Survey responses will be shared openly.",
+    "commitment_document": "a" * 64,
+    "standard_name": "ISO 8601",
+    "plan_document": "b" * 64,
+    "summary_text": "How peat bogs respond to drought.",
+    "field_name": "Ecohydrology",
+    "period_start": "2027-01",
+    "data_collected": "Water-table depth every 15 minutes.",
+}
+
+
+@pytest.mark.parametrize("kind", list(FactKind))
+def test_the_note_says_every_kind_of_fact(kind: FactKind) -> None:
+    """A kind the note has no words for would fail every turn in a project that decided one."""
+    fact = ProjectFact.model_validate(
+        {
+            "fact_kind": kind,
+            "fact_subject": "project",
+            **{slot: NEEDED_VALUES[slot] for slot in FACT_NEEDS[kind]},
+        }
+    )
+    note = decisions_note(Message(message_text="Hello", project_decisions=[fact]))
+    assert note is not None

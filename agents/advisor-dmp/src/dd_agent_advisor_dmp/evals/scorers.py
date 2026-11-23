@@ -1,4 +1,4 @@
-"""The Data Management Plan Checker's own scorers: whether it read a plan's commitments as labelled,
+"""The Data Management Planner's own scorers: whether it read a plan's commitments as labelled,
 proposed none the plan does not make, quoted the plan truly, and flagged what the case expects.
 
 Each is a separate score, never blended with another: a missed commitment, a wrong value and an

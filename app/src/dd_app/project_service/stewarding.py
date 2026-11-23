@@ -12,7 +12,8 @@ from __future__ import annotations
 from typing import Any
 
 from dd_app.project_service._area import Area
-from dd_harness import steward_api
+from dd_harness import steward_api, steward_projects
+from dd_harness.listing import Page
 from dd_harness.projects import STEWARD_MESSAGE, STEWARD_VIEWED, UnknownProjectError
 from dd_harness.projects.stewarding import gate_decisions, pause_of
 from dd_harness.steward_storage import GateDecision, ProposedEdit
@@ -41,6 +42,23 @@ class Stewarding(Area):
                 if e["event"] == STEWARD_VIEWED
             ],
         }
+
+    def projects(
+        self, steward: Principal, *, limit: int, before: str | None, caused_by: str
+    ) -> Page:
+        """A page of the projects `steward` may see as a steward, each recorded as read by them;
+        none for someone in no team (#232)."""
+        if self.governance.projects is None:
+            return Page([])
+        return steward_projects.listing(
+            self._store,
+            self.governance.conductor.store,
+            self._profile,
+            steward,
+            limit=limit,
+            before=before,
+            caused_by=caused_by,
+        )
 
     def reaches(self, project_id: str, person: Principal) -> bool:
         """Whether `person` reaches the project at all, as a member or as its steward."""

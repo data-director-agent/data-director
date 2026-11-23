@@ -35,6 +35,8 @@ function row(invocationId: string, status: RunRow["status"] = "succeeded"): RunR
     status,
     completed_at: "2026-11-17T10:00:05Z",
     acting_for: null,
+    project_id: null,
+    reason_code: null,
   };
 }
 

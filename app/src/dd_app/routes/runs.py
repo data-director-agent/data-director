@@ -163,6 +163,10 @@ class RunRow(ResponseBody):
     completed_at: str
     acting_for: str | None
     """The name of the person the run acted for; null for a run stored before runs named one."""
+    project_id: str | None
+    """The project the run was in; null for a run in none."""
+    reason_code: str | None
+    """Why a run that did not succeed ended as it did; null when the outcome gives none."""
 
 
 def routes(deps: Deps) -> list[Route]:

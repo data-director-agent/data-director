@@ -154,7 +154,13 @@ conversations a page at a time, for the reader allowed to see them (`dd_harness.
   holds as many as it asks for.
 - **Projects.** `GET /api/projects` lists the projects a person may read, the one created last
   first, a page at a time. Its cursor is the last listed project; one that names no project the
-  person may read names an empty page. A project with nothing in it yet is not listed.
+  person may read names an empty page. A project with nothing in it yet is not listed. A data
+  steward's list of the projects they may see (`dd_harness.steward_projects`) reads its logs
+  through the same index, one read per team, and the runs of a page of projects in one scan of
+  the run store.
+- **Run summaries.** Each run a listing gives names its agent, its outcome's status and reason
+  code, when it completed, whom it acted for and its project (`dd_harness.listing.run_summary`),
+  so that a listing by project and outcome needs no further read.
 - **Cursors.** A page names the cursor of the next, or none on the last. A cursor is the stored
   place of the page's last item, opaque to the caller: the next page holds what was stored before
   it, so a run stored while a person pages comes before the first page, not inside a later one.

@@ -47,8 +47,9 @@ The Documentation Editor also drafts a Data Management Plan (`dmp`), an alpha th
 [`dd-dmp-template`](../../dmp-template/README.md), after Science Europe's, under a section of
 project details. A plan is drafted before data exist, so it needs no inventory: it infers nothing,
 and places only what is supplied (invariant 2): the funders, the required repository, the licence,
-the sensitive data and their handling, the standards and the description of the data people in the
-project decided, as project facts give them, the inventory's files if the data already exist, and
+the sensitive data and their handling, the standards, the description of the data, and what the
+project is for, its field and period (placed in Project details), that people in the project
+decided, as project facts give them, the inventory's files if the data already exist, and
 the researcher's answers. A confirmed data description (`data_description`) fills the plan's data
 section, in the researcher's words, and completes it when it says how the data are collected or
 which existing data are reused; one that says only what is collected is placed and the section is
@@ -58,7 +59,7 @@ later (Phases 3 and 5) and the plan is updated once they are (`setup.dmp-review`
 `post.dmp-update`). No model writes a plan's text, so
 `document_derivation` is always `template`; where a model is configured, it suggests answers only
 from the documents the researcher attached and the project's decisions, beside the questions
-(invariant 7). The Data Management Plan Checker (`advisor.dmp`) reviews a plan against the same
+(invariant 7). The Data Management Planner (`advisor.dmp`) reviews a plan against the same
 requirements (`setup.dmp-review`): an attached plan, or, once a version is approved, the plan
 written here, which reopens the review after a "No" to having a plan ([Projects](projects.md),
 rule 20 and invariant 32).

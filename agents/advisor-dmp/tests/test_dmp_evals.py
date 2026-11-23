@@ -1,4 +1,4 @@
-"""The Data Management Plan Checker's evaluation: the case file, the run against the baseline on
+"""The Data Management Planner's evaluation: the case file, the run against the baseline on
 the template path, and the read scorers, which apply only when a model reads a plan.
 
 No test here carries a requirement marker: the evaluation measures how well the checker does,

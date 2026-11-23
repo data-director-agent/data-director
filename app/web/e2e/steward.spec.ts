@@ -1,8 +1,8 @@
 /**
  * Asking a data steward from a project's page, by keyboard alone (docs/ui/steward-escalation-flows.md,
- * flow A), and a steward taking the request from their queue and opening the project as its
- * steward (flow C): the shell's API answered from the fixtures app/tests/test_steward_escalations.py
- * keeps current. Nothing is sent until the researcher confirms in the dialog.
+ * flow A), a steward taking the request from their queue and opening the project as its steward
+ * (flow C), and a steward moving to the projects their teams may see (#232): the shell's API
+ * answered from the fixtures app/tests/test_steward_escalations.py keeps current. Nothing is sent until the researcher confirms in the dialog.
  */
 
 import AxeBuilder from "@axe-core/playwright";
@@ -10,8 +10,10 @@ import { expect, test } from "@playwright/test";
 
 import escalations from "../fixtures/escalations.json" with { type: "json" };
 import project from "../fixtures/project-documents.json" with { type: "json" };
+import flow from "../fixtures/process-flow.json" with { type: "json" };
 import development from "../fixtures/session-development.json" with { type: "json" };
 import stewarding from "../fixtures/stewarding.json" with { type: "json" };
+import projects from "../fixtures/steward-projects.json" with { type: "json" };
 import queue from "../fixtures/steward-queue.json" with { type: "json" };
 import view from "../fixtures/project-steward-view.json" with { type: "json" };
 import { axeViolations, overflow, serveSession } from "./support";
@@ -180,5 +182,39 @@ for (const width of [1280, 320]) {
     await expect.poll(() => sent.edit).toMatchObject({ version: latest.version });
     expect((sent.edit as { text: string }).text).toContain("Edited.");
     await page.screenshot({ path: `test-results/steward-actions-${width}.png`, fullPage: false });
+  });
+}
+
+for (const width of [1280, 320]) {
+  test(`a steward moves from the requests to their teams' projects with the keyboard alone, at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 800 });
+    await serveSession(page, steward);
+    const [listed] = projects;
+    if (!listed) throw new Error("no project in the fixture");
+    await page.route("/api/steward/escalations?*", (route) => route.fulfill({ json: queue }));
+    await page.route("/api/steward/projects", (route) => route.fulfill({ json: projects }));
+    await page.route("/api/process-flow", (route) => route.fulfill({ json: flow }));
+
+    await page.goto("/steward");
+    const nav = page.getByRole("navigation", { name: "Data steward" });
+    await nav.getByRole("link", { name: "Projects" }).focus();
+    await page.keyboard.press("Enter");
+
+    await expect(page).toHaveURL(/\/steward\/projects$/);
+    await expect(nav.getByRole("link", { name: "Projects" })).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Requests" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    const table = page.getByRole("table");
+    await expect(table.getByRole("link", { name: listed.title ?? "" })).toHaveAttribute(
+      "href",
+      `/projects/${listed.project_id}`,
+    );
+    expect(await axeViolations(page)).toEqual([]);
+    expect(await overflow(page)).toBeLessThanOrEqual(0);
+    await page.screenshot({ path: `test-results/steward-projects-${width}.png`, fullPage: false });
   });
 }

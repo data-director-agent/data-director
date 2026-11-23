@@ -26,7 +26,7 @@ alone, so its model's additions and concerns are not yet evaluated (TODO(#415)).
 provisional: they follow
 the Metadata Librarian's guidance in Uzwyshyn, *The Research Data Director* v0.8.2, and no domain
 expert has reviewed them. A labelled corpus of real ORDA records is to replace them, as a second
-dataset for the same task (TODO(#22)). The Data Management Plan Checker's
+dataset for the same task (TODO(#22)). The Data Management Planner's
 (`agents/advisor-dmp/src/dd_agent_advisor_dmp/evals/`) reads three synthetic free-text plans,
 complete, partial and vague, whose commitments are labelled by construction, and compares the
 commitments a researcher confirmed. Reading a plan needs a model, so its committed baseline

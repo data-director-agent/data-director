@@ -160,17 +160,20 @@ LIMITATIONS = (
 class DocumentationEditor:
     spec = AgentSpec(
         agent_id="advisor.documentation",
-        version="0.9.0a1",
+        version="0.10.0a1",
         title="Documentation Editor",
         icon="✍️",
         description=(
-            "Drafts a project's README or data dictionary from its file inventory and its approved "
-            "metadata record, and, in alpha, a Data Management Plan to Science Europe's core "
-            "requirements from what people in the project decided: what the facts give is drafted, "
-            "with README prose written by a model where one is configured, and what only the "
-            "researcher knows is marked and asked of them, with a model's suggested answer offered "
-            "beside a question, never written into the document. With a model, it also revises a "
-            "README's prose as you ask, keeping every gap and every value you gave."
+            "Drafts a project's README or data dictionary from its file inventory and its "
+            "approved metadata record. Before the data are collected, at the step that plans the "
+            "documentation, it drafts only a README that plans it: ask it for a readme there, "
+            "since a data dictionary needs the inventory's tables. In alpha, it also drafts a "
+            "Data Management Plan to Science Europe's core requirements from what people in the "
+            "project decided: what the facts give is drafted, with README prose written by a "
+            "model where one is configured, and what only the researcher knows is marked and "
+            "asked of them, with a model's suggested answer offered beside a question, never "
+            "written into the document. With a model, it also revises a README's prose as you "
+            "ask, keeping every gap and every value you gave."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(DraftRequest),),

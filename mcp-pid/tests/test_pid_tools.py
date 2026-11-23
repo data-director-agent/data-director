@@ -13,7 +13,13 @@ from pid_support import CROSSREF_DOI, DATACITE_DOI, NERC, ORCID_ID, built_regist
 
 from dd_mcp_pid.tools import Registry
 
-ID_FIELD = {"datacite": "doi", "crossref": "doi", "orcid": "orcid", "ror": "id"}
+ID_FIELD = {
+    "datacite": "doi",
+    "crossref": "doi",
+    "orcid": "orcid",
+    "ror": "id",
+    "journals": "issn_l",
+}
 
 
 @pytest.fixture

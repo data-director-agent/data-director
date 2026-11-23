@@ -3,7 +3,8 @@
 their teams' queue and moves the escalations routed to them; and what the rules refuse is a
 `409` naming why. A steward also reads the project, and writes, pauses and decides in it
 (invariants 2, 3 and 6 to 8; #374). The signed-in person is `TEST_PRINCIPAL`, a steward of the
-library team."""
+library team. A steward also lists the projects they may see, each listing a recorded read
+(invariant 3; #232)."""
 
 from __future__ import annotations
 
@@ -20,7 +21,10 @@ from dd_app.app import build_app
 from dd_app.config import EXAMPLE_PROFILE
 from dd_app.governance import CREATED_BY_ROUTE, Governance
 from dd_app.routes.escalations import Escalation, ProjectEscalations, StewardQueue
+from dd_app.routes.projects import ListedProject
+from dd_app.routes.steward_projects import StewardProject
 from dd_app.routes.stewarding import ProjectStewarding, ProjectView
+from dd_harness.projects import STEWARD_VIEWED
 from dd_harness.projects.escalations import NewEscalation
 from dd_harness.storage import ProjectStorage
 from dd_harness.testing import TEST_PRINCIPAL
@@ -350,3 +354,67 @@ def test_a_steward_starts_a_conversation_only_in_a_project_with_a_request_for_th
     quiet = store.create(acted_for=OTHER, caused_by=CREATED_BY_ROUTE, title="Fen")
     refused = client.post("/api/conversations", json={"project_id": quiet}, headers=JSON_HEADERS)
     assert refused.status_code == 404
+
+
+# --- the steward's list of projects (#232) ---------------------------------------------
+
+
+def listed_fixed(row: dict[str, Any]) -> dict[str, Any]:
+    """`row` with its identifiers and times fixed, for a fixture."""
+    return {
+        **row,
+        "project_id": "019a0000-0000-7000-8000-0000000000a1",
+        "created_at": FIXED,
+        "escalations": [
+            {**e, "escalation_id": "019a0000-0000-7000-8000-0000000000e1", "opened_at": FIXED}
+            for e in row["escalations"]
+        ],
+    }
+
+
+@pytest.mark.requirement("C13.6")
+def test_a_steward_lists_the_projects_escalated_to_their_team(
+    client: TestClient, store: ProjectStorage, owned: str, theirs: str
+) -> None:
+    response = client.get("/api/steward/projects")
+    assert response.status_code == 200
+    rows = [StewardProject.model_validate(r) for r in response.json()]
+    assert [r.project_id for r in rows] == [theirs]
+    (row,) = rows
+    assert row.owners == [OTHER.principal_id]
+    assert row.access.escalated and not row.access.holds_pause
+    assert [e.state for e in row.escalations] == ["open"]
+    assert row.permitted_actions.acting_as == "steward"
+    check_fixture(
+        "steward-projects.json", [listed_fixed(response.json()[0])], model=list[StewardProject]
+    )
+
+    viewed = [e for e in store.events(theirs) if e["event"] == STEWARD_VIEWED]
+    assert [e["acted_for"]["principal_id"] for e in viewed] == [TEST_PRINCIPAL.principal_id]
+    assert not any(e["event"] == STEWARD_VIEWED for e in store.events(owned))
+
+
+@pytest.mark.requirement("C13.6")
+def test_listing_again_the_same_day_records_no_second_read(
+    client: TestClient, store: ProjectStorage, theirs: str
+) -> None:
+    client.get("/api/steward/projects")
+    client.get("/api/steward/projects")
+    assert sum(e["event"] == STEWARD_VIEWED for e in store.events(theirs)) == 1
+
+
+@pytest.mark.requirement("C13.6")
+def test_a_malformed_page_is_refused(client: TestClient) -> None:
+    refused = client.get("/api/steward/projects?limit=0")
+    assert refused.status_code == 400
+    assert client.get("/api/steward/projects?before=nonsense").json() == []
+
+
+def test_a_persons_own_list_says_what_they_may_do_in_each_project(
+    client: TestClient, owned: str, theirs: str
+) -> None:
+    rows = [ListedProject.model_validate(r) for r in client.get("/api/projects").json()]
+    (row,) = rows
+    assert row.project_id == owned
+    assert row.permitted_actions.acting_as == "member"
+    assert {a.action: a.permitted for a in row.permitted_actions.actions}["manage"]

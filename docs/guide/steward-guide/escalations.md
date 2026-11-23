@@ -26,7 +26,8 @@ and you cannot take it.
 **Requests**, in the main navigation of anyone the profile names a steward, lists the escalations
 routed to your teams, oldest first, with the project, researcher, request, age, state and who has
 taken each. By default it shows those still to finish (not taken, taken, or waiting for the
-researcher); **Show** filters it by one state.
+researcher); **Show** filters it by one state. **Projects**, beside **Requests** at the top of the
+page, lists the projects you may see (see [Overviews](overviews.md)).
 
 Each row offers the moves open to you on that request, such as **Take**. A move you may not make
 is explained in the row, not hidden. The project's name opens the project as its steward (see
