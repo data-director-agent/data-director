@@ -4,6 +4,9 @@
 #
 #   sudo deploy/broker-credentials.sh advisor-standards advisor-policy orchestrator-model
 #
+# With no agent named, it covers every deployed agent (each deploy/agents/*.env), including any
+# that never call a model; the credential of one that does not is simply never used.
+#
 # For each agent it makes a random credential, stores it as the agent's `dd-model-broker-credential`
 # secret through deploy/secret.sh (which restarts the agent if it is running), and records the
 # credential's SHA-256 digest, under the agent's id (`advisor.standards` for `advisor-standards`),
@@ -11,7 +14,7 @@
 # broker holds only digests. Restart it afterwards to read them.
 #
 # Every run makes new credentials for the agents named and replaces the whole list, so name every
-# agent that calls through the broker each time.
+# agent that calls through the broker each time, or name none for all of them.
 #
 # DD_ETC and DD_UNIT_DIR replace /etc/data-director and /etc/systemd/system, for its tests.
 set -euo pipefail
@@ -26,13 +29,23 @@ source "$SRC/deploy/credentials.sh"
 
 die() { echo "$0: $*" >&2; exit 1; }
 
-[[ $# -ge 1 ]] || { echo "usage: $0 AGENT [AGENT...]" >&2; exit 2; }
+[[ "${1:-}" != -h && "${1:-}" != --help ]] || { echo "usage: $0 [AGENT...]  (default: every deployed agent)"; exit 0; }
 if [[ -z "${DD_ETC:-}" && $EUID -ne 0 ]]; then
   die "run as root (sudo)"
 fi
 
+requested=("$@")
+if [[ $# -eq 0 ]]; then
+  for file in "$AGENTS_DIR"/*.env; do
+    [[ -e "$file" ]] || continue
+    name="$(basename "$file" .env)"
+    ! is_agent "$name" || requested+=("$name")
+  done
+  ((${#requested[@]} > 0)) || die "no deployed agents in $AGENTS_DIR"
+fi
+
 agents=()
-for agent in "$@"; do
+for agent in "${requested[@]}"; do
   is_agent "$agent" || die "no deployed agent '$agent' (deploy/agents/$agent.env); the names are those in app/config/agents.yaml"
   for seen in "${agents[@]+"${agents[@]}"}"; do
     [[ "$seen" != "$agent" ]] || die "'$agent' is named twice"
