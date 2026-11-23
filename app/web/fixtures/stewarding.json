@@ -1,0 +1,37 @@
+{
+  "gate_decisions": [],
+  "messages": [
+    {
+      "at": "2026-01-01T00:00:00+00:00",
+      "by": {
+        "assurance": "asserted",
+        "name": "Josiah Carberry",
+        "principal_id": "https://orcid.org/0000-0002-1825-0097",
+        "principal_kind": "person"
+      },
+      "note": "I am looking at this."
+    }
+  ],
+  "paused": {
+    "at": "2026-01-01T00:00:00+00:00",
+    "by": {
+      "assurance": "asserted",
+      "name": "Josiah Carberry",
+      "principal_id": "https://orcid.org/0000-0002-1825-0097",
+      "principal_kind": "person"
+    },
+    "reason": "Checking consent forms",
+    "team_id": "library-rdm"
+  },
+  "views": [
+    {
+      "at": "2026-01-01T00:00:00+00:00",
+      "by": {
+        "assurance": "asserted",
+        "name": "Josiah Carberry",
+        "principal_id": "https://orcid.org/0000-0002-1825-0097",
+        "principal_kind": "person"
+      }
+    }
+  ]
+}

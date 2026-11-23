@@ -24,6 +24,8 @@ import {
 
 import type { DocumentReaders } from "../../conversation/documentation";
 import type { Question, ReplyAnswers } from "../../conversation/question";
+import { useSteward } from "../escalation/StewardContext";
+import { isStewardOffer, StewardOfferQuestion } from "../escalation/StewardOffer";
 import { Button } from "../ui/Button";
 import { AttachmentDialogs } from "./AttachmentDialogs";
 import { Composer } from "./Composer";
@@ -124,6 +126,8 @@ export function ReplyArea({
   ref?: Ref<ReplyFocus>;
 }) {
   const card = useRef<QuestionFocus>(null);
+  // In a project, the orchestrator's offer of a data steward is answered by its own card.
+  const steward = useSteward();
   const setup = useRef<QuestionFocus>(null);
   // Read when the focus moves, a frame after a change of mode has been drawn.
   const shown = useRef(mode);
@@ -158,17 +162,28 @@ export function ReplyArea({
       {asking !== null && (
         <div hidden={mode !== "questions"}>
           {/* Kept while a message is sent, disabled, so a failed send keeps the answers. */}
-          <QuestionSeries
-            key={asking.askedBy}
-            ref={card}
-            questions={asking.questions}
-            askedBy={asking.askedBy}
-            askedByName={asking.askedByName}
-            onAnswer={onAnswer}
-            disabled={answering}
-            attach={<AttachControls attachments={attachments} busy={busy} />}
-            drop={attachments}
-          />
+          {steward && asking.questions[0] && isStewardOffer(asking.questions) ? (
+            <StewardOfferQuestion
+              key={asking.askedBy}
+              ref={card}
+              question={asking.questions[0]}
+              askedBy={asking.askedBy}
+              onAnswer={onAnswer}
+              disabled={answering}
+            />
+          ) : (
+            <QuestionSeries
+              key={asking.askedBy}
+              ref={card}
+              questions={asking.questions}
+              askedBy={asking.askedBy}
+              askedByName={asking.askedByName}
+              onAnswer={onAnswer}
+              disabled={answering}
+              attach={<AttachControls attachments={attachments} busy={busy} />}
+              drop={attachments}
+            />
+          )}
           {swaps("questions")}
         </div>
       )}

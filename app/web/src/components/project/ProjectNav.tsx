@@ -27,6 +27,8 @@ import {
 } from "lucide-react";
 
 import { Link, type ProjectTab, projectTabPath } from "../../route";
+import { StewardProvider } from "../escalation/StewardContext";
+import { AskStewardControl } from "../escalation/StewardSection";
 
 export type { ProjectTab } from "../../route";
 
@@ -62,18 +64,29 @@ export function ProjectNav({
 }) {
   const tabs = [
     ...TABS.map((t) => ({ ...t, to: projectTabPath(projectId, t.id) })),
-    { id: "conversations", to: "/", label: "Conversations", icon: MessagesSquare },
+    {
+      id: "conversations",
+      to: "/",
+      label: "Conversations",
+      icon: MessagesSquare,
+    },
   ];
   return (
     <div className="project-nav">
-      <nav aria-label="Breadcrumb" className="project-breadcrumb">
-        <ol>
-          <li>
-            <Link to="/projects">Projects</Link>
-          </li>
-          <li>{name ?? "This project"}</li>
-        </ol>
-      </nav>
+      <div className="project-nav-top">
+        <nav aria-label="Breadcrumb" className="project-breadcrumb">
+          <ol>
+            <li>
+              <Link to="/projects">Projects</Link>
+            </li>
+            <li>{name ?? "This project"}</li>
+          </ol>
+        </nav>
+        {/* Reachable on every project page (docs/ui/steward-escalation-flows.md, flow A). */}
+        <StewardProvider projectId={projectId} project={{ title: name }}>
+          <AskStewardControl />
+        </StewardProvider>
+      </div>
       <nav aria-label="Project" className="project-tabs">
         <ul>
           {tabs.map(({ id, to, label, icon: Icon }) => (

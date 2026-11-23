@@ -103,6 +103,19 @@ def fixed(escalation: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def stewarding_fixed(shown: ProjectStewarding) -> dict[str, Any]:
+    """What a project shows of its stewards, with its times fixed, for a fixture."""
+    body = shown.model_dump(mode="json")
+    pause = body["paused"]
+    return {
+        **body,
+        "messages": [{**m, "at": FIXED} for m in body["messages"]],
+        "views": [{**v, "at": FIXED} for v in body["views"]],
+        "gate_decisions": [{**g, "at": FIXED} for g in body["gate_decisions"]],
+        "paused": pause and {**pause, "at": FIXED},
+    }
+
+
 def send(client: TestClient, project_id: str, **body: Any) -> Any:
     return client.post(
         f"/api/projects/{project_id}/escalations",
@@ -278,6 +291,7 @@ def test_a_steward_writes_pauses_and_lifts_the_pause(
     )
     assert shown.paused is not None and shown.paused.team_id == "library-rdm"
     assert [m.by["principal_id"] for m in shown.messages] == [TEST_PRINCIPAL.principal_id]
+    check_fixture("stewarding.json", stewarding_fixed(shown), model=ProjectStewarding)
     resumed = steward_post(client, theirs, "resume", note="Consent confirmed")
     assert resumed.status_code == 200 and resumed.json()["paused"] is None
     kinds = [e["event"] for e in store.events(theirs)]

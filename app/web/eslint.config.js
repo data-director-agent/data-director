@@ -29,6 +29,11 @@ const FEATURE_IMPORTS = [
     to: "frame",
     reason: "PageHeader is the top of every page.",
   })),
+  ...["conversation", "project", "workspace"].map((from) => ({
+    from,
+    to: "escalation",
+    reason: "A data steward is asked from the conversation, the project pane and every project page (docs/ui/steward-escalation-flows.md).",
+  })),
   {
     from: "conversation",
     to: "workspace",

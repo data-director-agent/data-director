@@ -26,6 +26,7 @@ import { useProjectFacts } from "./project-pane/facts";
 import { FairFeedback } from "./project-pane/FairFeedback";
 import { FilesAndDocuments } from "./project-pane/FilesAndDocuments";
 import { Guardrails } from "./project-pane/Guardrails";
+import { StewardSection } from "../escalation/StewardSection";
 import { WaitingOnYou } from "./project-pane/WaitingOnYou";
 import { WhereWeAre } from "./project-pane/WhereWeAre";
 import { WorkingFrom } from "./project-pane/WorkingFrom";
@@ -80,6 +81,7 @@ export function ContextPanel({
             facts={facts}
             onAsk={onAsk}
           />
+          <StewardSection />
           <WhereWeAre
             projectId={projectId}
             flow={flow.state === "loaded" ? flow.flow : null}

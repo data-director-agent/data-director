@@ -67,7 +67,7 @@ export const REASON: Record<string, { meaning: string; next: string }> = {
   },
   requires_human_judgement: {
     meaning: "The agent judged that a person should decide this.",
-    next: "Give the run id to a data steward.",
+    next: "Ask a data steward: they see the run with your note.",
   },
   project_paused: {
     meaning: "A data steward has paused this project, so only advisers run in it for now.",
@@ -75,7 +75,7 @@ export const REASON: Record<string, { meaning: string; next: string }> = {
   },
   policy_requires_approval: {
     meaning: "This deployment's policy says runs of this agent need a data steward's approval.",
-    next: "Give the run id to a data steward. Approving runs is not built yet (#16).",
+    next: "Ask a data steward to approve it: the step stays stopped until one does.",
   },
   outside_agent_scope: {
     meaning: "The request asks for something this agent does not do.",

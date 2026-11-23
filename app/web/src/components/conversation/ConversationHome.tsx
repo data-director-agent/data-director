@@ -62,6 +62,7 @@ import { useProjectApi } from "../../project/api";
 import { homePath, navigate, useLocation } from "../../route";
 import type { Envelope } from "../../run/types";
 import { ContextPanel } from "../workspace/ContextPanel";
+import { StewardProvider } from "../escalation/StewardContext";
 import { FAIRNESS_CLASS } from "../../project/fairness";
 import { PhaseTracker } from "../workspace/PhaseTracker";
 import { useFlowLoad } from "../workspace/useFlowLoad";
@@ -260,6 +261,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
 
   return (
     <PageLoading ready={ready} said="Opening the project…">
+      <StewardProvider projectId={projectId} project={project} refresh={turnCount}>
       <Workspace
         {...frame}
         title="Talk to Data Director"
@@ -368,6 +370,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
           />
         }
       />
+      </StewardProvider>
     </PageLoading>
   );
 }

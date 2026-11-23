@@ -42,7 +42,12 @@ describe("ProjectPanelPage", () => {
     const offered = { proposals: [], decisions: [] };
     vi.stubGlobal(
       "fetch",
-      vi.fn(() => Promise.resolve(new Response(JSON.stringify(offered)))),
+      // Only the facts are answered; the page's other reads, as of its data stewards, are not.
+      vi.fn((url: string) =>
+        Promise.resolve(
+          url.endsWith("/facts") ? new Response(JSON.stringify(offered)) : new Response(null, { status: 404 }),
+        ),
+      ),
     );
     try {
       renderPage(fakeApi(), "facts");

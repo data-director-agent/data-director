@@ -23,7 +23,7 @@
 import "./Transcript.css";
 
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 
 import type { AttachedDocument, DocumentationSummary } from "../../conversation/documentation";
 import type {
@@ -47,6 +47,8 @@ import { Link } from "../../route";
 import { useViewerId } from "../../session/viewer";
 import type { Envelope } from "../../run/types";
 import { Button } from "../ui/Button";
+import { StewardItems } from "../escalation/StewardItems";
+import { RunStewardOffer } from "../escalation/StewardOffer";
 import { Markdown } from "../ui/Markdown";
 import { ProposedFacts } from "./ProposedFacts";
 import { OUTCOME } from "../../manifest/wording";
@@ -129,6 +131,7 @@ function ChildCard({
           </>
         )}
       </p>
+      <RunStewardOffer envelope={child} />
       <Button
         size="small"
         icon={selected ? ChevronUp : ChevronDown}
@@ -270,7 +273,8 @@ export function Transcript({
           Boolean(answersBelow),
         );
         return (
-        <li key={turn.invocation_id} className="turn">
+        <Fragment key={turn.invocation_id}>
+        <li className="turn">
           <div className="turn-person">
             <Speaker person={senderOf(turn.envelope, viewer)} />
             <PersonText
@@ -367,6 +371,8 @@ export function Transcript({
             )}
           </div>
         </li>
+        <StewardItems from={turn.completed_at} to={conversation.turns[index + 1]?.completed_at ?? null} />
+        </Fragment>
         );
       })}
       {pending && (
