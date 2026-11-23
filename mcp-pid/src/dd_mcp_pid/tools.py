@@ -17,14 +17,15 @@ module does, never with a library upgrade. Each record's identifying field is at
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from mcp_types import CallToolResult, TextContent, Tool
 
+from dd_mcp_pid.caching import Lookups, OfflineError
 from dd_mcp_pid.dois import Crossref, DataCite, DoiRecord, bare_doi
 from dd_mcp_pid.http import UnavailableError
-from dd_mcp_pid.orcid import Orcid, orcid_url
+from dd_mcp_pid.orcid import Orcid, OrcidRecord, orcid_url
 from dd_mcp_pid.ror import RorApi, RorIndex
 from dd_mcp_pid.ror_records import Organisation, ror_url
 
@@ -200,6 +201,8 @@ class Registry:
             return text(f"{self.name} has no tool {tool!r}", error=True)
         try:
             return handler(arguments)
+        except OfflineError as exc:
+            return text(f"{exc}.", error=True)
         except UnavailableError as exc:
             return text(f"{exc}. Try again later.", error=True)
 
@@ -209,66 +212,124 @@ def _arg(arguments: dict[str, Any], name: str) -> str:
     return value if isinstance(value, str) else ""
 
 
-def _doi_summary(record: DoiRecord) -> str:
+def _from(source: str) -> str:
+    """`source` as a clause after a registry's name: nothing for a live answer."""
+    return f", {source}" if source else ""
+
+
+def _aside(source: str) -> str:
+    """`source` in brackets after a miss: nothing for a live answer."""
+    return f" ({source})" if source else ""
+
+
+def _doi_summary(record: DoiRecord, source: str) -> str:
     what = record.type or "work"
     title = record.title or "(untitled)"
-    return f"{record.agency}: {record.doi} ({what}), {title!r}."
+    return f"{record.agency}{_from(source)}: {record.doi} ({what}), {title!r}."
 
 
-def doi_registry(agency: str, client: DataCite | Crossref) -> Registry:
-    """The `datacite` or `crossref` server."""
+def doi_registry(
+    agency: str, client: DataCite | Crossref, lookups: Lookups | None = None
+) -> Registry:
+    """The `datacite` or `crossref` server. Without `lookups`, answers are cached in memory."""
+    cached = lookups or Lookups()
 
     def get_doi(arguments: dict[str, Any]) -> CallToolResult:
         doi = bare_doi(_arg(arguments, "doi"))
         if doi is None:
             return text("Not a DOI: give 10.xxxx/... or a doi.org URL.", error=True)
-        record = client.get(doi)
+        record, source = cached.get(agency, doi, DoiRecord, lambda: client.get(doi))
         if record is None:
-            return found([], f"{agency} holds no DOI {doi}; another registration agency may.")
-        return found([record.document()], _doi_summary(record))
+            return found(
+                [], f"{agency} holds no DOI {doi}{_aside(source)}; another registration agency may."
+            )
+        return found([record.document()], _doi_summary(record, source))
 
     return Registry(agency.lower(), (get_doi_tool(agency),), {"get_doi": get_doi})
 
 
-def orcid_registry(client: Orcid) -> Registry:
-    """The `orcid` server."""
+def orcid_registry(client: Orcid, lookups: Lookups | None = None) -> Registry:
+    """The `orcid` server. Without `lookups`, answers are cached in memory."""
+    cached = lookups or Lookups()
 
     def get_orcid(arguments: dict[str, Any]) -> CallToolResult:
         url = orcid_url(_arg(arguments, "orcid"))
         if url is None:
             return text("Not an ORCID iD, or its check character is wrong.", error=True)
-        record = client.get(url)
+        record, source = cached.get("ORCID", url, OrcidRecord, lambda: client.get(url))
         if record is None:
-            return found([], f"ORCID has no record {url}.")
+            return found([], f"ORCID has no record {url}{_aside(source)}.")
         name = record.credit_name or " ".join(
             n for n in (record.given_names, record.family_name) if n
         )
         who = name or "a person with no public name"
-        return found([record.document()], f"ORCID: {url} is {who}.")
+        return found([record.document()], f"ORCID{_from(source)}: {url} is {who}.")
 
     return Registry("orcid", (GET_ORCID,), {"get_orcid": get_orcid})
 
 
 @dataclass(frozen=True)
 class RorSources:
-    """Where ROR is read from: the built registry when there is one, and the API after it."""
+    """Where ROR is read from: the built registry when there is one, and the API after it. An
+    organisation the API gave is kept in `lookups`; offline, `api` is None and only the registry
+    and the cache answer."""
 
     index: RorIndex | None
     api: RorApi | None
     index_label: str = "ROR dump"
+    lookups: Lookups = field(default_factory=Lookups)
 
-    def ask[T](self, question: Callable[[RorIndex | RorApi], T]) -> tuple[T, str]:
-        """The answer, and which copy gave it. Raises `UnavailableError` when no copy can answer."""
+    def _dump[T](
+        self, question: Callable[[RorIndex], T], reasons: list[str]
+    ) -> tuple[T, str] | None:
+        """The registry's answer, or None (with the reason) when it cannot be read."""
+        if self.index is None:
+            return None
+        try:
+            return question(self.index), f"from the {self.index_label}"
+        except UnavailableError as exc:
+            reasons.append(str(exc))
+            return None
+
+    def _api_source(self, reasons: list[str]) -> str:
+        return "from ROR's API" + (" (the dump could not be read)" if reasons else "")
+
+    def _no_api(self, reasons: list[str]) -> UnavailableError:
+        if self.lookups.offline:
+            reasons.append("ROR: this server is offline (DD_PID_OFFLINE), so the API was not asked")
+            return OfflineError("; ".join(reasons))
+        return UnavailableError("; ".join(reasons) or "ROR: no registry is configured")
+
+    def get(self, url: str) -> tuple[Organisation | None, str]:
+        """The organisation, and which copy gave it: the registry, the cache or the API. Raises
+        `UnavailableError` when none can answer."""
         reasons: list[str] = []
-        if self.index is not None:
-            try:
-                return question(self.index), f"from the {self.index_label}"
-            except UnavailableError as exc:
-                reasons.append(str(exc))
-        if self.api is not None:
-            source = "from ROR's API" + (" (the dump could not be read)" if reasons else "")
-            return question(self.api), source
-        raise UnavailableError("; ".join(reasons) or "ROR: no registry is configured")
+        if (answer := self._dump(lambda index: index.get(url), reasons)) is not None:
+            return answer
+        api = self.api
+        if api is None and not self.lookups.offline:
+            raise self._no_api(reasons)
+
+        def ask() -> Organisation | None:
+            if api is None:  # pragma: no cover - offline, the cache asks nothing
+                raise self._no_api(reasons)
+            return api.get(url)
+
+        try:
+            org, cached = self.lookups.get("ROR", url, Organisation, ask)
+        except OfflineError as exc:
+            raise OfflineError("; ".join([*reasons, str(exc)])) from None
+        return org, cached or self._api_source(reasons)
+
+    def find(self, name: str) -> tuple[list[Organisation], str]:
+        """The active organisations with this name, and which copy gave them. Searches are not
+        cached. Raises `UnavailableError` when no copy can answer."""
+        reasons: list[str] = []
+        if (answer := self._dump(lambda index: index.find(name), reasons)) is not None:
+            return answer
+        if self.api is None or self.lookups.offline:
+            raise self._no_api(reasons)
+        return self.api.find(name), self._api_source(reasons)
 
 
 def _org_summary(org: Organisation) -> str:
@@ -282,7 +343,7 @@ def ror_registry(sources: RorSources) -> Registry:
         url = ror_url(_arg(arguments, "id"))
         if url is None:
             return text("Not a ROR identifier: give 0xxxxxxNN or a ror.org URL.", error=True)
-        org, source = sources.ask(lambda copy: copy.get(url))
+        org, source = sources.get(url)
         if org is None:
             return found([], f"ROR has no organisation {url} ({source}).")
         return found([org.document()], f"ROR, {source}: {_org_summary(org)}.")
@@ -291,7 +352,7 @@ def ror_registry(sources: RorSources) -> Registry:
         name = " ".join(_arg(arguments, "name").split())
         if not name:
             return text("Give a name, acronym or alias to search for.", error=True)
-        orgs, source = sources.ask(lambda copy: copy.find(name))
+        orgs, source = sources.find(name)
         listed = "; ".join(_org_summary(o) for o in orgs) or "none"
         return found(
             [o.document() for o in orgs],

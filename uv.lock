@@ -2137,6 +2137,7 @@ source = { editable = "mcp-pid" }
 dependencies = [
     { name = "anyio" },
     { name = "data-director-journals" },
+    { name = "data-director-registry-cache" },
     { name = "httpx" },
     { name = "mcp" },
     { name = "mcp-types" },
@@ -2155,6 +2156,7 @@ dev = [
 requires-dist = [
     { name = "anyio", specifier = ">=4" },
     { name = "data-director-journals", editable = "journals" },
+    { name = "data-director-registry-cache", editable = "registry-cache" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "mcp", specifier = ">=2.3,<2.4" },
     { name = "mcp-types", specifier = ">=2.3,<2.4" },

@@ -351,6 +351,11 @@ services:
       deps:
         condition: service_completed_successfully
     command: uv run --no-sync dd-mcp-pid serve --host 0.0.0.0 --port 8310
+    volumes:
+      - .:/workspace
+      - venv:/venv
+      - uv-cache:/uv-cache
+      - mcp-pid-cache:/var/cache/mcp-pid
     environment:
       <<: *python-env
       DD_PID_ROR_REGISTRY: /workspace/agents/advisor-policy/data/ror/registry.jsonl
@@ -359,6 +364,12 @@ services:
       DD_PID_HOSTS: mcp-pid
       # Your operators' contact address for DataCite and Crossref (mcp-pid/README.md); blank: none.
       DD_REGISTRY_CONTACT: ${DD_REGISTRY_CONTACT:-}
+      # The cache of the registries' answers, kept across restarts.
+      DD_PID_CACHE_DIR: /var/cache/mcp-pid
+      # 1: ask no registry; answer from the ROR dump and the cache only.
+      DD_PID_OFFLINE: ${DD_PID_OFFLINE:-}
+      # A file holding ROR's client ID, under config/local/credentials; blank: ROR is asked anonymously.
+      DD_PID_ROR_CLIENT_ID_FILE: ${DD_PID_ROR_CLIENT_ID_FILE:-}
     healthcheck:
       test:
         - CMD
@@ -499,4 +510,5 @@ volumes:
   app-projects:
   workbench-runs:
   model-broker:
+  mcp-pid-cache:
   db-data:
