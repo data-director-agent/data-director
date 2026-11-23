@@ -17,9 +17,10 @@ about it that the app offers to edit and send.
 The steps are taken from the figure captions in §8.2, with two boxes the captions leave out:
 Figure 2's check of ethical, legal and institutional constraints, and Figure 4's finalising of
 controlled vocabularies and ontologies, which settles the first choice made in Phase 1. Some steps
-are ours and in no figure: `setup.storage`, planning where data are stored and backed up while the
-project runs; `setup.formats`, choosing open formats before collection; and `deposit.fairness`, a
-FAIR check of the draft before submission.
+are ours and in no figure: `setup.project`, describing the project and the data it will produce,
+which every later Phase 1 step plans from; `setup.storage`, planning where data are stored and
+backed up while the project runs; `setup.formats`, choosing open formats before collection; and
+`deposit.fairness`, a FAIR check of the draft before submission.
 TODO(#245):
 check the rest against Figures 1 to 6 themselves, which may show other steps or decisions the
 captions leave out.
@@ -70,6 +71,23 @@ PHASES: tuple[Phase, ...] = (
         1,
         "Pre-collection setup",
         (
+            # Not in Figure 1: our addition, and first. Each later Phase 1 step plans from what
+            # the project is and the data it will produce: the README plan, the vocabularies,
+            # storage, formats and the Data Management Plan. The Blueprint asks that researchers
+            # be engaged at project planning (§13) and that governance be addressed at the data
+            # management planning stage (§3). The answers are project facts the researcher
+            # confirms, proposed from what they say or a proposal they attach, so this is a step
+            # and not part of the intake, which asks only what places a project in the flow
+            # (docs/specs/orchestration.md, invariant 20).
+            Step(
+                "setup.project",
+                "Describe the project and the data it will produce",
+                label="Describe your project",
+                prompt=(
+                    "Help me describe my project and the data I expect to collect, so that the "
+                    "rest of the plan can build on it."
+                ),
+            ),
             Step(
                 "setup.documentation",
                 "Draft the data documentation",
@@ -131,8 +149,9 @@ PHASES: tuple[Phase, ...] = (
         ),
         name="Plan your data management",
         summary=(
-            "Plan how your data will be collected, documented, stored, protected, shared and "
-            "kept, who looks after them and at what cost, and keep the plan up to date."
+            "Describe your project, then plan how your data will be collected, documented, "
+            "stored, protected, shared and kept, who looks after them and at what cost, and keep "
+            "the plan up to date."
         ),
     ),
     Phase(

@@ -74,7 +74,11 @@
             "licence",
             "sharing_commitment",
             "standard",
-            "data_management_plan"
+            "data_management_plan",
+            "project_summary",
+            "field_of_study",
+            "project_period",
+            "planned_data"
          ],
          "title": "FactKind",
          "type": "string"
@@ -291,9 +295,101 @@
                      "fact_subject"
                   ]
                }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "project_summary"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "fact_subject": {
+                        "const": "project"
+                     },
+                     "summary_text": {}
+                  },
+                  "required": [
+                     "summary_text",
+                     "fact_subject"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "field_of_study"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "fact_subject": {
+                        "const": "project"
+                     },
+                     "field_name": {}
+                  },
+                  "required": [
+                     "field_name",
+                     "fact_subject"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "project_period"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "fact_subject": {
+                        "const": "project"
+                     },
+                     "period_start": {}
+                  },
+                  "required": [
+                     "period_start",
+                     "fact_subject"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "planned_data"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "planned_description": {}
+                  },
+                  "required": [
+                     "planned_description"
+                  ]
+               }
             }
          ],
-         "description": "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, an output a data management plan committed to share, a standard, vocabulary or format the researcher chose for the dataset, or which attached document is the project's data management plan (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because.",
+         "description": "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, an output a data management plan committed to share, a standard, vocabulary or format the researcher chose for the dataset, which attached document is the project's data management plan, or what the project is and the data it expects to produce: its summary, field of study, period and planned data (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because.",
          "properties": {
             "fact_kind": {
                "$ref": "#/$defs/FactKind",
@@ -492,6 +588,67 @@
                   "null"
                ]
             },
+            "summary_text": {
+               "description": "For a project summary fact, what the project is for, in a few sentences: its aims and the questions it asks.",
+               "pattern": "\\S",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "field_name": {
+               "description": "For a field of study fact, the project's field, as the researcher names it or a subject classification gives it.",
+               "pattern": "\\S",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "period_start": {
+               "description": "When the project starts, as a year, a month or a day.",
+               "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "period_end": {
+               "description": "When the project ends, as a year, a month or a day.",
+               "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "planned_description": {
+               "description": "For a planned data fact, what the output will hold, in a sentence or two. Its fact_subject is a short name for the output.",
+               "pattern": "\\S",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "planned_collection_method": {
+               "description": "For a planned data fact, how the data will be collected or generated.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "planned_format": {
+               "description": "For a planned data fact, the kinds of file or format expected, as given.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "planned_volume": {
+               "description": "For a planned data fact, how much data is expected, as given.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
             "proposed_because": {
                "description": "Why the agent proposes the fact, in a sentence for the person deciding. Kept with the proposal and shown to the person, never given to an agent.",
                "type": [
@@ -615,7 +772,7 @@
    "$id": "https://w3id.org/data-director/agents/dmp/DmpDiscrepancies",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "The payload of advisor.dmp: where the planned sharing differs from the plan's commitments, for a person to review (R8). It flags and never enforces; a reviewed decision not to share is a valid outcome. Where it has read an attached plan and nobody has confirmed its commitments yet, it proposes each commitment as a project fact for the researcher to confirm, quoting the passage it rests on, and compares nothing until they do. A review of an attached plan (setup.dmp-review) fills section_findings instead.",
+   "description": "The payload of advisor.dmp: where the planned sharing differs from the plan's commitments, for a person to review (R8). It flags and never enforces; a reviewed decision not to share is a valid outcome. Where it has read an attached plan and nobody has confirmed its commitments yet, it proposes each commitment as a project fact for the researcher to confirm, quoting the passage it rests on, and compares nothing until they do. A review of an attached plan (setup.dmp-review) fills section_findings instead, and describing the project (setup.project) proposes what it is and the data it will produce, as project facts, and says in still_needed what is still to be asked.",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -647,6 +804,16 @@
          "description": "For each core requirement of a data management plan, how the plan meets it.",
          "items": {
             "$ref": "#/$defs/SectionFinding"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "still_needed": {
+         "description": "What describing the project still needs from the researcher, each in a few words, such as what the project is for or the data it will produce: neither they nor an attached document gave it, and no decided fact holds it.",
+         "items": {
+            "type": "string"
          },
          "type": [
             "array",

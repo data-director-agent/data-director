@@ -112,17 +112,17 @@ dd:Affiliation a sh:NodeShape ;
             sh:order 2 ;
             sh:path dd:organisation_name ],
         [ sh:datatype xsd:string ;
-            sh:description "The researcher's role or degree." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 6 ;
-            sh:path dd:role_title ],
-        [ sh:datatype xsd:string ;
             sh:description "The scheme of organisation_identifier, in ORCID's words, such as ROR, GRID or RINGGOLD. Present exactly when organisation_identifier is." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 4 ;
             sh:path dd:organisation_identifier_scheme ],
+        [ sh:datatype xsd:string ;
+            sh:description "The researcher's role or degree." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path dd:role_title ],
         [ sh:datatype xsd:string ;
             sh:description "ORCID's identifier for the item within the record, by which a researcher chose to keep it." ;
             sh:maxCount 1 ;
@@ -224,18 +224,18 @@ dd:CurrentVersion a sh:NodeShape ;
             sh:order 6 ;
             sh:path dd:revision_request ],
         [ sh:datatype xsd:string ;
-            sh:description "The reason the person gave for their decision, in their words. Present for a rejection, and for an approval only if they gave one." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 5 ;
-            sh:path dd:decision_reason ],
-        [ sh:datatype xsd:string ;
             sh:description "The media type of document_text, such as text/markdown or application/json." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 2 ;
             sh:path dcterms:format ],
+        [ sh:datatype xsd:string ;
+            sh:description "The reason the person gave for their decision, in their words. Present for a rejection, and for an approval only if they gave one." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path dd:decision_reason ],
         [ sh:description "Whether a person has approved or rejected the version, or not yet decided." ;
             sh:in ( "proposed" "approved" "rejected" ) ;
             sh:maxCount 1 ;
@@ -476,11 +476,6 @@ dd:InstitutionStorage a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 6 ;
             sh:path dd:allows_external_collaborators ],
-        [ sh:description "What kind of storage service it is." ;
-            sh:in ( "institutional_filestore" "institutional_cloud" "managed_cloud" "secure_environment" ) ;
-            sh:maxCount 1 ;
-            sh:order 4 ;
-            sh:path dd:storage_kind ],
         [ sh:datatype xsd:string ;
             sh:description "The deployment's own label for a storage service, such as research-filestore: lower case letters, digits and hyphens." ;
             sh:maxCount 1 ;
@@ -489,6 +484,11 @@ dd:InstitutionStorage a sh:NodeShape ;
             sh:order 0 ;
             sh:path dd:storage_id ;
             sh:pattern "^[a-z0-9][a-z0-9-]*$" ],
+        [ sh:description "What kind of storage service it is." ;
+            sh:in ( "institutional_filestore" "institutional_cloud" "managed_cloud" "secure_environment" ) ;
+            sh:maxCount 1 ;
+            sh:order 4 ;
+            sh:path dd:storage_kind ],
         [ sh:datatype xsd:string ;
             sh:description "What the service does to keep copies, as the institution states it, such as nightly snapshots replicated to a second site." ;
             sh:maxCount 1 ;
@@ -696,7 +696,7 @@ dd:ProjectDocument a sh:NodeShape ;
     sh:targetClass dd:ProjectDocument .
 
 dd:ProjectFact a sh:NodeShape ;
-    rdfs:comment "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, an output a data management plan committed to share, a standard, vocabulary or format the researcher chose for the dataset, or which attached document is the project's data management plan (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because." ;
+    rdfs:comment "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, an output a data management plan committed to share, a standard, vocabulary or format the researcher chose for the dataset, which attached document is the project's data management plan, or what the project is and the data it expects to produce: its summary, field of study, period and planned data (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
@@ -730,6 +730,20 @@ dd:ProjectFact a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 7 ;
             sh:path dd:fact_required_by ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a planned data fact, what the output will hold, in a sentence or two. Its fact_subject is a short name for the output." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 29 ;
+            sh:path dd:planned_description ;
+            sh:pattern "\\S" ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a project period fact, when the project starts, as a year, a month or a day." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 27 ;
+            sh:path dd:period_start ;
+            sh:pattern "^\\d{4}(-\\d{2}(-\\d{2})?)?$" ],
         [ sh:description "The funder's ROR identifier, as a URL, where it is known." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:IRI ;
@@ -753,11 +767,37 @@ dd:ProjectFact a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 17 ;
             sh:path dd:commitment_licence ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a planned data fact, how the data will be collected or generated." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 30 ;
+            sh:path dd:planned_collection_method ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a project summary fact, what the project is for, in a few sentences: its aims and the questions it asks." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 25 ;
+            sh:path dd:summary_text ;
+            sh:pattern "\\S" ],
         [ sh:description "Whether the file is to be deposited." ;
             sh:in ( "include" "exclude" "undecided" ) ;
             sh:maxCount 1 ;
             sh:order 9 ;
             sh:path dd:file_decision ],
+        [ sh:datatype xsd:string ;
+            sh:description "Why the agent proposes the fact, in a sentence for the person deciding. Kept with the proposal and shown to the person, never given to an agent." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 33 ;
+            sh:path dd:proposed_because ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a field of study fact, the project's field, as the researcher names it or a subject classification gives it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 26 ;
+            sh:path dd:field_name ;
+            sh:pattern "\\S" ],
         [ sh:datatype xsd:string ;
             sh:description "For a sharing commitment, the digest of the attached document's text (its documentation_digest) the quote is from." ;
             sh:maxCount 1 ;
@@ -765,12 +805,6 @@ dd:ProjectFact a sh:NodeShape ;
             sh:order 19 ;
             sh:path dd:commitment_document ;
             sh:pattern "^[0-9a-f]{64}$" ],
-        [ sh:datatype xsd:string ;
-            sh:description "Why the agent proposes the fact, in a sentence for the person deciding. Kept with the proposal and shown to the person, never given to an agent." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 25 ;
-            sh:path dd:proposed_because ],
         [ sh:datatype xsd:string ;
             sh:description "The funder's name, as its policy record or the researcher gives it." ;
             sh:maxCount 1 ;
@@ -782,6 +816,12 @@ dd:ProjectFact a sh:NodeShape ;
             sh:maxCount 1 ;
             sh:order 12 ;
             sh:path dd:sensitivity_decision ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a planned data fact, how much data is expected, as given." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 32 ;
+            sh:path dd:planned_volume ],
         [ sh:datatype xsd:string ;
             sh:description "The path of the file the fact is about, relative to the dataset's root folder, as the inventory gives it." ;
             sh:maxCount 1 ;
@@ -796,6 +836,13 @@ dd:ProjectFact a sh:NodeShape ;
             sh:order 5 ;
             sh:path dd:fact_repository_name ],
         [ sh:datatype xsd:string ;
+            sh:description "For a project period fact, when the project ends, as a year, a month or a day; absent where it is not known." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 28 ;
+            sh:path dd:period_end ;
+            sh:pattern "^\\d{4}(-\\d{2}(-\\d{2})?)?$" ],
+        [ sh:datatype xsd:string ;
             sh:description "For a standard fact, what the standard is chosen for: dataset, or field:<name> for one field of the dataset's tables. Absent means the dataset." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
@@ -803,7 +850,7 @@ dd:ProjectFact a sh:NodeShape ;
             sh:path dd:standard_target ;
             sh:pattern "^(dataset|field:\\S.*)$" ],
         [ sh:description "What the fact is about, which says which value slots apply." ;
-            sh:in ( "funder" "required_repository" "file_inclusion" "sensitivity" "licence" "sharing_commitment" "standard" "data_management_plan" ) ;
+            sh:in ( "funder" "required_repository" "file_inclusion" "sensitivity" "licence" "sharing_commitment" "standard" "data_management_plan" "project_summary" "field_of_study" "project_period" "planned_data" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 0 ;
@@ -832,6 +879,12 @@ dd:ProjectFact a sh:NodeShape ;
             sh:order 24 ;
             sh:path dd:plan_document ;
             sh:pattern "^[0-9a-f]{64}$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a planned data fact, the kinds of file or format expected, as given." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 31 ;
+            sh:path dd:planned_format ],
         [ sh:datatype xsd:string ;
             sh:description "The field name, or the file path, judged sensitive, such as a lat or lon field, or a file of site coordinates." ;
             sh:maxCount 1 ;
@@ -958,15 +1011,15 @@ dd:RequirementField a sh:NodeShape ;
     rdfs:comment "One metadata property a requirement set requires or recommends." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
-    sh:property [ sh:description "Values that narrow the property, such as a subjectScheme. Part of what identifies a field when an override is merged with its standard's set." ;
-            sh:maxCount 1 ;
-            sh:order 1 ;
-            sh:path dd:qualifier ],
-        [ sh:in ( "required" "recommended" ) ;
+    sh:property [ sh:in ( "required" "recommended" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 3 ;
             sh:path dd:obligation ],
+        [ sh:description "Values that narrow the property, such as a subjectScheme. Part of what identifies a field when an override is merged with its standard's set." ;
+            sh:maxCount 1 ;
+            sh:order 1 ;
+            sh:path dd:qualifier ],
         [ sh:datatype xsd:string ;
             sh:description "The schema.org term the property maps to, by which the record is read as RDF." ;
             sh:maxCount 1 ;
@@ -1118,18 +1171,18 @@ dd:ResearcherRecord a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 5 ;
             sh:path dd:country ],
-        [ sh:datatype xsd:integer ;
-            sh:description "How many works the record held beyond the 50 offered. Absent when none were left out." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 10 ;
-            sh:path dd:works_omitted ],
         [ sh:datatype xsd:string ;
             sh:description "The researcher's name as their ORCID record gives it: the credit name, else the given and family names. Absent when they keep their name private or did not keep it." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path dd:researcher_name ],
+        [ sh:datatype xsd:integer ;
+            sh:description "How many works the record held beyond the 50 offered. Absent when none were left out." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 10 ;
+            sh:path dd:works_omitted ],
         [ sh:datatype xsd:dateTime ;
             sh:description "When the record was read from ORCID's public API." ;
             sh:maxCount 1 ;

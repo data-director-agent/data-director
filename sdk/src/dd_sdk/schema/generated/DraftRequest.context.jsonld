@@ -269,6 +269,9 @@
       "field_format": {
          "@id": "https://w3id.org/data-director/field_format"
       },
+      "field_name": {
+         "@id": "https://w3id.org/data-director/field_name"
+      },
       "field_summary": {
          "@id": "https://w3id.org/data-director/field_summary",
          "@type": "@id"
@@ -500,8 +503,26 @@
       "part_tool_version": {
          "@id": "https://w3id.org/data-director/part_tool_version"
       },
+      "period_end": {
+         "@id": "https://w3id.org/data-director/period_end"
+      },
+      "period_start": {
+         "@id": "https://w3id.org/data-director/period_start"
+      },
       "plan_document": {
          "@id": "https://w3id.org/data-director/plan_document"
+      },
+      "planned_collection_method": {
+         "@id": "https://w3id.org/data-director/planned_collection_method"
+      },
+      "planned_description": {
+         "@id": "https://w3id.org/data-director/planned_description"
+      },
+      "planned_format": {
+         "@id": "https://w3id.org/data-director/planned_format"
+      },
+      "planned_volume": {
+         "@id": "https://w3id.org/data-director/planned_volume"
       },
       "profile_ref": {
          "@id": "https://w3id.org/data-director/profile_ref"
@@ -671,6 +692,9 @@
       },
       "summary_rows_read": {
          "@id": "https://w3id.org/data-director/summary_rows_read"
+      },
+      "summary_text": {
+         "@id": "https://w3id.org/data-director/summary_text"
       },
       "supplied_on": {
          "@id": "https://w3id.org/data-director/supplied_on"

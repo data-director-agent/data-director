@@ -11,7 +11,7 @@ The core requirements for a Data Management Plan (DMP), after Science Europe's.
 It is contract-free: it imports no other Data Director package and nothing outside the standard
 library, so it can be copied out and published on its own
 ([System and boundaries](../docs/specs/system.md)). The Documentation Editor drafts a plan to its
-sections, and the Data Management Plan Checker has a model review an attached plan against
+sections, and the Data Management Planner has a model review an attached plan against
 their questions ([Drafting documents](../docs/specs/drafting.md), [`advisor.dmp`](../agents/advisor-dmp/README.md)).
 
 ## The sections

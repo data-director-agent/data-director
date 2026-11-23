@@ -246,7 +246,7 @@ def test_a_step_an_agent_serves_is_suggested_before_one_no_agent_does() -> None:
     begun = suggested_next(progress(start, {"setup.documentation": "started"}, manifest), start)
     assert begun is not None and begun.step.id == "setup.documentation"
     unserved = suggested_next(progress(start, {}, []), start)
-    assert unserved is not None and unserved.step.id == "setup.documentation"
+    assert unserved is not None and unserved.step.id == "setup.project"
     # Never into a later phase: governance's first step has no agent here, and is still put first.
     later = [{"agent_id": "advisor.files", "serves": ["preparation.files"]}]
     held = suggested_next(progress(entry(2), {}, later), entry(2))
@@ -261,15 +261,18 @@ def test_the_steps_passed_over_for_a_served_one_are_named() -> None:
     manifest = [{"agent_id": "advisor.standards", "serves": ["setup.vocabularies"]}]
     steps = progress(start, {}, manifest)
     found = suggested_next(steps, start)
-    assert [s.step.id for s in passed_over(steps, found)] == ["setup.documentation"]
-    both = [{"agent_id": "a", "serves": ["setup.documentation", "setup.vocabularies"]}]
+    assert [s.step.id for s in passed_over(steps, found)] == [
+        "setup.project",
+        "setup.documentation",
+    ]
+    both = [{"agent_id": "a", "serves": ["setup.project", "setup.vocabularies"]}]
     served = progress(start, {}, both)
     assert passed_over(served, suggested_next(served, start)) == []
     begun = progress(start, {"setup.vocabularies": "started"}, manifest)
     assert passed_over(begun, suggested_next(begun, start)) == []
     unserved = progress(start, {}, [])
     assert passed_over(unserved, suggested_next(unserved, start)) == []
-    done = progress(start, {"setup.documentation": "done"}, manifest)
+    done = progress(start, {"setup.project": "done", "setup.documentation": "done"}, manifest)
     assert passed_over(done, suggested_next(done, start)) == []
     assert passed_over(steps, None) == []
 
@@ -277,6 +280,7 @@ def test_the_steps_passed_over_for_a_served_one_are_named() -> None:
 def test_the_suggestion_passes_optional_and_out_of_scope_steps_and_ends_when_all_are_done() -> None:
     start = entry(1)
     states = {
+        "setup.project": "done",
         "setup.documentation": "done",
         "setup.vocabularies": "done",
         "setup.storage": "done",

@@ -1,4 +1,4 @@
-# The Data Management Plan Checker evaluation
+# The Data Management Planner evaluation
 
 An evaluation of `advisor.dmp` on Inspect AI
 ([Evaluation and conformance](../../../../../docs/specs/evaluation.md)): how well it reads the

@@ -11,8 +11,10 @@ const directory = normalise(several as unknown as RawAgentsResponse);
 describe("servingStep", () => {
   it("joins a step to the agents whose manifest serves its id", () => {
     const index = servingIndex(directory.agents);
-    const vocabularies = FLOW.phases[0]?.steps[1];
-    if (!vocabularies) throw new Error("no second step in Phase 1");
+    const vocabularies = FLOW.phases[0]?.steps.find(
+      (s) => s.id === "setup.vocabularies",
+    );
+    if (!vocabularies) throw new Error("no vocabularies step in Phase 1");
     expect(vocabularies.id).toBe("setup.vocabularies");
     expect(servingStep(vocabularies, index)).toEqual(
       directory.agents

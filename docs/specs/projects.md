@@ -379,7 +379,13 @@ intended design, and each part says where it is not built yet.
     document's text that holds them in `commitment_document`, both required), or a standard,
     vocabulary, ontology or format chosen for the dataset or one field of its tables (`standard`:
     its name, required, its identifier, its kind and what it is for, #1391), or which attached
-    document is the project's Data Management Plan (`data_management_plan`, invariant 32). A succeeded run's proposals are
+    document is the project's Data Management Plan (`data_management_plan`, invariant 32), or what
+    the project is and the data it will produce, before the data exist: what it is for
+    (`project_summary`), its field of study (`field_of_study`), when it starts and ends
+    (`project_period`, each a year, a month or a day), all three about the project as a whole and
+    so under the one subject `project`, and each kind of data it will produce (`planned_data`: a
+    description, required, and how it will be collected, its formats and volume, under a short
+    name for the output). A succeeded run's proposals are
     `fact_proposed` events, one each, caused by the run and naming its agent, from a payload of
     any class (`dd_harness.project_effects`); they are checked before anything is written and
     recorded only once the run's draft is kept, so a run that fails leaves none. A person decides each as a `fact_decided` event:
@@ -400,7 +406,13 @@ intended design, and each part says where it is not built yet.
     (`GET /api/projects/{project_id}/facts`, `READ`; `POST …/facts/decisions`, `CONTRIBUTE`, or
     `DECIDE` for `sensitivity` and `licence`). A sharing commitment is shown with the plan's words
     and is only proposed, never stated, since it quotes the plan; the DMP Checker compares only
-    those a person decided ([Agents](agents.md)). The Standards Librarian proposes each standard it
+    those a person decided ([Agents](agents.md)). At "Describe your project" (`setup.project`) the
+    Data Management Planner proposes what the project is and the data it will produce, from what
+    the researcher said and a proposal or award letter they attached, each read from a document
+    quoting its passage in `proposed_because`; the step is started once a summary is proposed and
+    done once a person decides one (`dd_harness.progress`), and the README that plans the
+    documentation and the Data Management Plan place what was decided
+    ([Drafting documents](drafting.md)). The Standards Librarian proposes each standard it
     recommends; a person confirms the ones they will use and rejects the others, and only those
     confirmed, or stated by a person, reach the Metadata Librarian, which names the vocabularies
     chosen for the dataset in its question about subjects, and the Documentation Editor, which

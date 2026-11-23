@@ -4,12 +4,14 @@ stored (docs/specs/orchestration.md, docs/specs/projects.md).
 Two kinds of event bear on it. Some record what a step produces, and so show the step started or
 done: an inventory shows the files described, a repository chosen shows one recommended and
 picked, a document's versions show the documentation or the metadata drafted (started) and
-approved (done), a validation shows the project validated (done if the last one conforms, started
-if not), and a package built shows the deposit finalised. The others are the researcher's own
-word: `entry_chosen` names the entry point, and `step_marked` marks a step done, skipped, or open
-again, for the many steps nothing else in the log records. An `entry_chosen` may instead be an
-orchestrator's model's reading of what the researcher said (`entry_source` "model"), a weaker word
-that the researcher's own choice replaces and that is never recorded once they have made one.
+approved (done), a project summary proposed or decided shows the project described (started or
+done: `setup.project`), a validation shows the project validated (done if the last one conforms,
+started if not), and a package built shows the deposit finalised. The others are the
+researcher's own word: `entry_chosen` names the entry point, and `step_marked` marks a step done,
+skipped, or open again, for the many steps nothing else in the log records. An `entry_chosen` may
+instead be an orchestrator's model's reading of what the researcher said (`entry_source`
+"model"), a weaker word that the researcher's own choice replaces and that is never recorded once
+they have made one.
 What the log produces outranks a mark: a step whose output is approved is done whatever it was
 marked.
 
@@ -29,6 +31,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, Final, Literal
 
+from dd_sdk.contract.facts import FactKind
 from dd_sdk.intake import ENTRY, INTAKE, question
 from dd_sdk.process_flow import (
     OUT_OF_SCOPE,
@@ -56,6 +59,12 @@ DOCUMENT_VERSION_ADDED: Final = "document_version_added"
 DOCUMENT_VERSION_DECIDED: Final = "document_version_decided"
 PROJECT_VALIDATED: Final = "project_validated"
 PACKAGE_BUILT: Final = "package_built"
+FACT_PROPOSED: Final = "fact_proposed"
+FACT_DECIDED: Final = "fact_decided"
+# "Describe your project" is started once a summary of the project is proposed and done once a
+# person decides one; a rejection leaves it started, since the work has begun.
+DESCRIBE_STEP: Final = "setup.project"
+DESCRIBED_BY: Final = FactKind.PROJECT_SUMMARY.value
 VALIDATE_STEP: Final = "deposit.validate"
 
 # What a researcher may mark a step: "open" withdraws an earlier mark.
@@ -202,6 +211,8 @@ def _tally(events: Iterable[Mapping[str, Any]]) -> _Tally:
             if kind is not None:
                 tally.kinds_approved.add(kind)
                 tally.approved_by[kind] = event
+        elif name in (FACT_PROPOSED, FACT_DECIDED):
+            _described(tally, event)
         elif name == PROJECT_VALIDATED:
             # The last validation decides: one that fails after a pass shows the step begun again.
             tally.produced[VALIDATE_STEP] = "done" if event["conforms"] else "started"
@@ -211,6 +222,18 @@ def _tally(events: Iterable[Mapping[str, Any]]) -> _Tally:
             tally.marked[event["step_id"]] = event["mark"]
             tally.marked_by[event["step_id"]] = event
     return tally
+
+
+def _described(tally: _Tally, event: Mapping[str, Any]) -> None:
+    """Add to `tally` what a proposal of, or decision on, the project's summary shows."""
+    if event["fact"].get("fact_kind") != DESCRIBED_BY:
+        return
+    # A later proposal does not undo a decision; a later decision, whatever it is, replaces one.
+    if event["event"] == FACT_PROPOSED and tally.produced.get(DESCRIBE_STEP) == "done":
+        return
+    decided = event["event"] == FACT_DECIDED and event.get("verdict") != "rejected"
+    tally.produced[DESCRIBE_STEP] = "done" if decided else "started"
+    tally.produced_by[DESCRIBE_STEP] = event
 
 
 def _document_steps(tally: _Tally) -> None:

@@ -28,6 +28,8 @@ SOURCES = frozenset(
         "repository",
         "licence",
         "sensitivity",
+        "project",
+        "planned_data",
     }
 )
 # A section's `suggest` value for "only from the documents the researcher attached".

@@ -180,6 +180,9 @@
       "fact_subject": {
          "@id": "https://w3id.org/data-director/fact_subject"
       },
+      "field_name": {
+         "@id": "https://w3id.org/data-director/field_name"
+      },
       "file_decision": {
          "@id": "https://w3id.org/data-director/file_decision"
       },
@@ -310,8 +313,26 @@
       "other_names": {
          "@id": "https://w3id.org/data-director/other_names"
       },
+      "period_end": {
+         "@id": "https://w3id.org/data-director/period_end"
+      },
+      "period_start": {
+         "@id": "https://w3id.org/data-director/period_start"
+      },
       "plan_document": {
          "@id": "https://w3id.org/data-director/plan_document"
+      },
+      "planned_collection_method": {
+         "@id": "https://w3id.org/data-director/planned_collection_method"
+      },
+      "planned_description": {
+         "@id": "https://w3id.org/data-director/planned_description"
+      },
+      "planned_format": {
+         "@id": "https://w3id.org/data-director/planned_format"
+      },
+      "planned_volume": {
+         "@id": "https://w3id.org/data-director/planned_volume"
       },
       "project_decisions": {
          "@id": "https://w3id.org/data-director/project_decisions",
@@ -425,6 +446,9 @@
       },
       "step_state": {
          "@id": "https://w3id.org/data-director/step_state"
+      },
+      "summary_text": {
+         "@id": "https://w3id.org/data-director/summary_text"
       },
       "turn_agent_id": {
          "@id": "https://w3id.org/data-director/turn_agent_id"

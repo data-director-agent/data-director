@@ -73,9 +73,14 @@ The Policy Adviser shows what the data and open access policies of your funders,
 
 By default it uses an AI model, sent the policy records and text it finds plus your discipline, kinds of data and publication date, never the data. A deployment can turn the model off; the adviser then reads only the registries' fields. It abstains when no organisation is named, no record is found or a registry cannot be reached, which does not mean no policy exists: ask a data steward to check.
 
-### Data Management Plan Checker (`advisor.dmp`)
+### Data Management Planner (`advisor.dmp`)
 
-An early-stage (alpha) checker for two steps: reviewing your data management plan before you collect data, and, at the governance step, comparing what the plan promised to share with what you now plan to publish.
+An early-stage (alpha) planner for three steps: describing your project before you collect data, reviewing your data management plan, and, at the governance step, comparing what the plan promised to share with what you now plan to publish.
+
+**Describing your project.** This is the first planning step. Tell Data Director what the project is for and the data you expect to collect, or attach your proposal, case for support or award letter.
+
+- **You get back** what the project is for, its field of study, when it runs and each kind of data you expect to produce, as project facts. Each one read from a document shows the passage it comes from. You confirm, correct or reject each on the project page, and it says what is still needed. The README that plans your documentation and your Data Management Plan are then drafted from what you confirmed, rather than asking again.
+- **It will not** say what your project should collect or judge the research design. A model's reading of your document can be wrong: check each fact against its passage. Without a model it reads no document and proposes only what you said.
 
 **Reviewing your plan.** Attach your plan to the project and ask for a review.
 

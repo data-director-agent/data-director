@@ -311,11 +311,11 @@ def test_the_process_flow_is_the_blueprints(governance: Governance, dist: Path):
     body = response.json()
     assert [p["number"] for p in body["phases"]] == [p.number for p in PHASES]
     assert [e["starts_at"] for e in body["entries"]] == [e.starts_at for e in ENTRIES]
-    assert body["phases"][0]["steps"][1] == {
+    assert body["phases"][0]["steps"][2] == {
         "id": "setup.vocabularies",
         "text": "Select controlled vocabularies and ontologies",
-        "label": PHASES[0].steps[1].label,
-        "prompt": PHASES[0].steps[1].prompt,
+        "label": PHASES[0].steps[2].label,
+        "prompt": PHASES[0].steps[2].prompt,
         "requirements": ["R3"],
         "optional": False,
         "out_of_scope": False,

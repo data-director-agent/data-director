@@ -1,6 +1,6 @@
 """Factory and console script for advisor.dmp (R8).
 
-`build` assembles the Data Management Plan Checker from its own environment variables (documented
+`build` assembles the Data Management Planner from its own environment variables (documented
 in `config/examples/agents.env`):
 
 - `DD_DMP_MATCHER`: `model` (default) has a model read what the rules leave over (`match.py`);
@@ -22,6 +22,7 @@ from collections.abc import Mapping
 from dataclasses import replace
 
 from dd_agent_advisor_dmp.agent import DmpChecker
+from dd_agent_advisor_dmp.describe import ModelDescriber
 from dd_agent_advisor_dmp.match import DEFAULT_MODEL, Matcher, ModelMatcher, TemplateMatcher
 from dd_agent_advisor_dmp.read_plan import ModelReader
 from dd_agent_advisor_dmp.review_model import ModelReviewer
@@ -40,13 +41,15 @@ def build_matcher(env: Mapping[str, str]) -> Matcher:
 def build(env: Mapping[str, str] | None = None) -> DmpChecker:
     """The factory `main` serves. `env` defaults to the process environment. The matcher's model
     also reads an attached plan's commitments for the researcher to confirm (`read_plan.py`), and
-    reads a plan under review against the core requirements (`review_model.py`); on the template
-    path a plan's commitments are not read, and a review is by rule alone."""
+    reads a plan under review against the core requirements (`review_model.py`), and reads a
+    proposal or award letter to describe the project (`describe.py`); on the template path no
+    attached document is read, and a review is by rule alone."""
     env = os.environ if env is None else env
     matcher = build_matcher(env)
     if not isinstance(matcher, ModelMatcher):
         return DmpChecker(matcher)
-    agent = DmpChecker(matcher, ModelReader(matcher.model), ModelReviewer(matcher.model))
+    model = matcher.model
+    agent = DmpChecker(matcher, ModelReader(model), ModelReviewer(model), ModelDescriber(model))
     agent.spec = replace(agent.spec, models=(declared(matcher.model),))
     return agent
 

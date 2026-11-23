@@ -781,7 +781,9 @@ classes:
       repository a funder or institution requires, whether a file is deposited, whether a
       sensitive field or file may be published and at what precision, the licence, an output a
       data management plan committed to share, a standard, vocabulary or format the researcher
-      chose for the dataset, or which attached document is the project's data management plan (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the
+      chose for the dataset, which attached document is the project's data management plan, or
+      what the project is and the data it expects to produce: its summary, field of study,
+      period and planned data (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the
       key a person's decision counts by, so the last decision on a subject stands. An agent's
       payload carries proposals in proposed_facts; only a person's decision makes one a fact, and
       the conductor gives the facts a person decided to every drafter and orchestrator in the
@@ -812,6 +814,14 @@ classes:
       - standard_kind
       - standard_target
       - plan_document
+      - summary_text
+      - field_name
+      - period_start
+      - period_end
+      - planned_description
+      - planned_collection_method
+      - planned_format
+      - planned_volume
       - proposed_because
     rules:
       - description: A funder fact names the funder.
@@ -896,6 +906,48 @@ classes:
               required: true
             fact_subject:
               equals_string: project
+      - description: A project summary says what the project is for and is about the project.
+        preconditions:
+          slot_conditions:
+            fact_kind:
+              equals_string: project_summary
+        postconditions:
+          slot_conditions:
+            summary_text:
+              required: true
+            fact_subject:
+              equals_string: project
+      - description: A field of study fact names the field and is about the project.
+        preconditions:
+          slot_conditions:
+            fact_kind:
+              equals_string: field_of_study
+        postconditions:
+          slot_conditions:
+            field_name:
+              required: true
+            fact_subject:
+              equals_string: project
+      - description: A project period fact says when the project starts and is about the project.
+        preconditions:
+          slot_conditions:
+            fact_kind:
+              equals_string: project_period
+        postconditions:
+          slot_conditions:
+            period_start:
+              required: true
+            fact_subject:
+              equals_string: project
+      - description: A planned data fact describes the output it is about.
+        preconditions:
+          slot_conditions:
+            fact_kind:
+              equals_string: planned_data
+        postconditions:
+          slot_conditions:
+            planned_description:
+              required: true
 
   GivenProjectDocuments:
     mixin: true
@@ -2141,6 +2193,36 @@ slots:
       For a data management plan fact, the digest of the attached document's text (its
       documentation_digest) that is the project's plan.
     pattern: "^[0-9a-f]{64}$"
+  summary_text:
+    description: >-
+      For a project summary fact, what the project is for, in a few sentences: its aims and the
+      questions it asks.
+    pattern: "\\S"
+  field_name:
+    description: >-
+      For a field of study fact, the project's field, as the researcher names it or a subject
+      classification gives it.
+    pattern: "\\S"
+  period_start:
+    description: >-
+      For a project period fact, when the project starts, as a year, a month or a day.
+    pattern: "^\\d{4}(-\\d{2}(-\\d{2})?)?$"
+  period_end:
+    description: >-
+      For a project period fact, when the project ends, as a year, a month or a day; absent where
+      it is not known.
+    pattern: "^\\d{4}(-\\d{2}(-\\d{2})?)?$"
+  planned_description:
+    description: >-
+      For a planned data fact, what the output will hold, in a sentence or two. Its fact_subject
+      is a short name for the output.
+    pattern: "\\S"
+  planned_collection_method:
+    description: For a planned data fact, how the data will be collected or generated.
+  planned_format:
+    description: For a planned data fact, the kinds of file or format expected, as given.
+  planned_volume:
+    description: For a planned data fact, how much data is expected, as given.
   standard_name:
     description: >-
       For a standard fact, the name of the standard, vocabulary, ontology or format chosen, as its
@@ -2973,6 +3055,19 @@ enums:
         description: >-
           Which attached document is the project's data management plan. Its subject is always
           "project", so a project has at most one current plan (docs/specs/projects.md, #1447).
+      project_summary:
+        description: >-
+          What the project is for: its aims and questions, in a few sentences. Its subject is
+          always "project" (docs/specs/projects.md).
+      field_of_study:
+        description: The project's field of study. Its subject is always "project".
+      project_period:
+        description: When the project starts and ends. Its subject is always "project".
+      planned_data:
+        description: >-
+          One output of data the project expects to produce, described before the data exist: what
+          it will hold, how it will be collected, its formats and volume. Its subject is a short
+          name for the output.
 
   FileDecision:
     description: Whether a file of the inventory is to be deposited.

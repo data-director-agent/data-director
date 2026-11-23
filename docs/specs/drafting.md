@@ -19,7 +19,9 @@ The Documentation Editor (`advisor.documentation`) is the first drafter. It serv
 also serves `setup.documentation`, planning the documentation before data are collected (#1017).
 A drafter infers only from a file inventory (invariant 1), which a project has only once its data
 exist, so before then it infers nothing: a README is drafted from the approved metadata record and
-the decisions, if any, with the sections that plan what to record (`plan_ask`) asking what the
+the decisions, if any, among them what people decided at "Describe your project" (`setup.project`):
+what the project is for, its field and period, placed in Description, and the data it will
+produce, placed in Methods. The sections that plan what to record (`plan_ask`) ask what the
 researcher expects to produce, under the same questions as the README drafted later, which places
 their answers. A data dictionary needs the inventory's tables, and the drafter abstains without
 them. Where a model is configured, as it is by
@@ -46,15 +48,16 @@ The Documentation Editor also drafts a Data Management Plan (`dmp`), an alpha th
 `setup.dmp-create`. Its sections are the core requirements of
 [`dd-dmp-template`](../../dmp-template/README.md), after Science Europe's, under a section of
 project details. A plan is drafted before data exist, so it needs no inventory: it infers nothing,
-and places only what is supplied (invariant 2): the funders, the required repository, the licence,
-the sensitive data and their handling, and the standards people in the project decided, as project
+and places only what is supplied (invariant 2): what the project is and the data it will
+produce, placed in Project details and Data collection, the funders, the required repository, the
+licence, the sensitive data and their handling, and the standards people in the project decided, as project
 facts give them, the inventory's files if the data already exist, and the researcher's answers. It
 asks first, as a README does, and every other gap is asked. Its sharing and preservation question
 asks for what is intended, since the repository and the licence are chosen later (Phases 3 and 5)
 and the plan is updated once they are (`setup.dmp-review`, `post.dmp-update`). No model writes a plan's text, so
 `document_derivation` is always `template`; where a model is configured, it suggests answers only
 from the documents the researcher attached and the project's decisions, beside the questions
-(invariant 7). The Data Management Plan Checker (`advisor.dmp`) reviews an attached plan against
+(invariant 7). The Data Management Planner (`advisor.dmp`) reviews an attached plan against
 the same requirements (`setup.dmp-review`).
 
 ## Invariants

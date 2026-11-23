@@ -9,7 +9,8 @@ name: dd_agent_advisor_dmp
 title: advisor.dmp classes
 description: >-
   What a data management plan committed to share and what the researcher now plans to share, a
-  request to review an attached plan, and the Data Management Plan Checker's findings in reply.
+  request to review an attached plan, what the researcher has said of their project before its
+  data are collected, and the Data Management Planner's findings and proposals in reply.
 version: 0.2.0
 license: MIT
 
@@ -52,6 +53,34 @@ classes:
     slots:
       - schema_class
 
+  ProjectDescriptionRequest:
+    description: >-
+      A request to describe the project before its data are collected (setup.project): what it
+      is for, its field of study, when it runs and the data it expects to produce, as the
+      researcher said them. Each is optional. In a project the conductor also gives the documents
+      the researcher attached, such as a proposal or an award letter, from which a model reads
+      what the researcher has not said, and the facts people decided, which are not proposed
+      again.
+    mixins:
+      - GivenProjectDocuments
+      - GivenProjectDecisions
+    slots:
+      - schema_class
+      - research_summary
+      - field_of_study
+      - period_start
+      - period_end
+      - expected_outputs
+
+  ExpectedOutput:
+    description: One output of data the researcher expects to produce, as they describe it.
+    slots:
+      - output
+      - output_description
+      - collection_method
+      - formats
+      - volume
+
   SharingCommitment:
     description: One output to be shared, with where, how openly and under what licence.
     slots:
@@ -67,7 +96,9 @@ classes:
       is a valid outcome. Where it has read an attached plan and nobody has confirmed its
       commitments yet, it proposes each commitment as a project fact for the researcher to
       confirm, quoting the passage it rests on, and compares nothing until they do. A review of
-      an attached plan (setup.dmp-review) fills section_findings instead.
+      an attached plan (setup.dmp-review) fills section_findings instead, and describing the
+      project (setup.project) proposes what it is and the data it will produce, as project facts,
+      and says in still_needed what is still to be asked.
     mixins:
       - Grounded
       - ProposesFacts
@@ -76,6 +107,7 @@ classes:
       - discrepancies
       - reconciled
       - section_findings
+      - still_needed
       - dropped
       - limitations
 
@@ -119,6 +151,37 @@ classes:
       - reason
 
 slots:
+
+  research_summary:
+    description: What the project is for, its aims and questions, in the researcher's words.
+  field_of_study:
+    description: The project's field of study, as the researcher names it.
+  period_start:
+    description: When the project starts, as a year, a month or a day.
+    pattern: "^\\d{4}(-\\d{2}(-\\d{2})?)?$"
+  period_end:
+    description: When the project ends, as a year, a month or a day.
+    pattern: "^\\d{4}(-\\d{2}(-\\d{2})?)?$"
+  expected_outputs:
+    description: The data the researcher expects to produce, one entry for each output.
+    range: ExpectedOutput
+    multivalued: true
+    inlined_as_list: true
+  output_description:
+    description: What the output will hold, in a sentence or two.
+    required: true
+  collection_method:
+    description: How the data will be collected or generated.
+  formats:
+    description: The kinds of file or format expected.
+  volume:
+    description: How much data is expected.
+  still_needed:
+    description: >-
+      What describing the project still needs from the researcher, each in a few words, such as
+      what the project is for or the data it will produce: neither they nor an attached document
+      gave it, and no decided fact holds it.
+    multivalued: true
 
   section_findings:
     description: For each core requirement of a data management plan, how the plan meets it.

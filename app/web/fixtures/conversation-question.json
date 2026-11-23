@@ -10,7 +10,7 @@
       "turn_agent_id": "orchestrator.stub",
       "turn_agent_version": "0.1.0",
       "turn_invocation_id": "01900000-0000-7000-8000-000000000002",
-      "turn_text": "Where are you with your research data? Choose one below, or ask for one thing directly. Try: 'hello Ada' → example.hello; 'standards for soil chemistry' → advisor.standards; 'write the README from my answers' → advisor.documentation; 'write the data management plan from my answers' → advisor.documentation; 'review my data management plan' → advisor.dmp; 'review metadata for Soil cores 2024' → advisor.quality; or '@<agent_id> <text>'.\n\nWhere are you with your research data?\n- Starting a new project, before data collection begins\n- Data already collected, being prepared for sharing\n- Ready to deposit data into a repository\n(The researcher was offered these to choose one.)"
+      "turn_text": "Where are you with your research data? Choose one below, or ask for one thing directly. Try: 'hello Ada' → example.hello; 'standards for soil chemistry' → advisor.standards; 'write the README from my answers' → advisor.documentation; 'write the data management plan from my answers' → advisor.documentation; 'describe my project from my proposal' → advisor.dmp; 'review my data management plan' → advisor.dmp; 'review metadata for Soil cores 2024' → advisor.quality; or '@<agent_id> <text>'.\n\nWhere are you with your research data?\n- Starting a new project, before data collection begins\n- Data already collected, being prepared for sharing\n- Ready to deposit data into a repository\n(The researcher was offered these to choose one.)"
     }
   ],
   "inputs": {
@@ -122,7 +122,7 @@
               "question_prompt": "Where are you with your research data?"
             }
           ],
-          "reply_text": "Where are you with your research data? Choose one below, or ask for one thing directly. Try: 'hello Ada' → example.hello; 'standards for soil chemistry' → advisor.standards; 'write the README from my answers' → advisor.documentation; 'write the data management plan from my answers' → advisor.documentation; 'review my data management plan' → advisor.dmp; 'review metadata for Soil cores 2024' → advisor.quality; or '@<agent_id> <text>'.",
+          "reply_text": "Where are you with your research data? Choose one below, or ask for one thing directly. Try: 'hello Ada' → example.hello; 'standards for soil chemistry' → advisor.standards; 'write the README from my answers' → advisor.documentation; 'write the data management plan from my answers' → advisor.documentation; 'describe my project from my proposal' → advisor.dmp; 'review my data management plan' → advisor.dmp; 'review metadata for Soil cores 2024' → advisor.quality; or '@<agent_id> <text>'.",
           "schema_class": "Reply"
         },
         "payload_schema": "0000000000000000000000000000000000000000000000000000000000000006",

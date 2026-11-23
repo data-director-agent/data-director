@@ -81,6 +81,9 @@
       "fact_subject": {
          "@id": "https://w3id.org/data-director/fact_subject"
       },
+      "field_name": {
+         "@id": "https://w3id.org/data-director/field_name"
+      },
       "file_decision": {
          "@id": "https://w3id.org/data-director/file_decision"
       },
@@ -108,8 +111,26 @@
       "notes": {
          "@id": "https://w3id.org/data-director/agents/standards/notes"
       },
+      "period_end": {
+         "@id": "https://w3id.org/data-director/period_end"
+      },
+      "period_start": {
+         "@id": "https://w3id.org/data-director/period_start"
+      },
       "plan_document": {
          "@id": "https://w3id.org/data-director/plan_document"
+      },
+      "planned_collection_method": {
+         "@id": "https://w3id.org/data-director/planned_collection_method"
+      },
+      "planned_description": {
+         "@id": "https://w3id.org/data-director/planned_description"
+      },
+      "planned_format": {
+         "@id": "https://w3id.org/data-director/planned_format"
+      },
+      "planned_volume": {
+         "@id": "https://w3id.org/data-director/planned_volume"
       },
       "proposed_because": {
          "@id": "https://w3id.org/data-director/proposed_because"
@@ -171,6 +192,9 @@
          "@id": "https://w3id.org/data-director/standard_target"
       },
       "standards": "https://w3id.org/data-director/agents/standards/",
+      "summary_text": {
+         "@id": "https://w3id.org/data-director/summary_text"
+      },
       "target": {
          "@id": "https://w3id.org/data-director/agents/standards/target"
       },

@@ -66,7 +66,10 @@ collected, documented, stored and protected, shared and preserved, and for how l
 responsible; and what it will cost. The Data Management Plan written here is a living document,
 reviewed and updated as the research proceeds and again after publication (Phase 6).
 
-- Draft the data documentation (R5)
+- Describe the project and the data it will produce (not in the Blueprint's figure, added
+  because every later step plans from it: attach your proposal or award letter and the Data
+  Management Planner proposes what it says, for you to confirm)
+- Draft the data documentation (R5): before collection, a README that plans it
 - Select controlled vocabularies and ontologies (R3)
 - Plan storage, backup and security during the project (not in the Blueprint's figure, added
   because where your data live while you work on them is the first thing to settle)

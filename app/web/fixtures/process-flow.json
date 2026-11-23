@@ -22,6 +22,16 @@
       "number": 1,
       "steps": [
         {
+          "id": "setup.project",
+          "label": "Describe your project",
+          "optional": false,
+          "out_of_scope": false,
+          "person_decides": false,
+          "prompt": "Help me describe my project and the data I expect to collect, so that the rest of the plan can build on it.",
+          "requirements": [],
+          "text": "Describe the project and the data it will produce"
+        },
+        {
           "id": "setup.documentation",
           "label": "Plan how your data will be documented",
           "optional": false,
@@ -88,7 +98,7 @@
           "text": "Review and update the Data Management Plan"
         }
       ],
-      "summary": "Plan how your data will be collected, documented, stored, protected, shared and kept, who looks after them and at what cost, and keep the plan up to date.",
+      "summary": "Describe your project, then plan how your data will be collected, documented, stored, protected, shared and kept, who looks after them and at what cost, and keep the plan up to date.",
       "title": "Pre-collection setup"
     },
     {

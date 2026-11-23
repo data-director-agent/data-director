@@ -382,6 +382,34 @@ def _plan(_: ProjectFact) -> str:
     return "data management plan: one attached document is marked as the project's plan"
 
 
+def _summary(fact: ProjectFact) -> str:
+    return f"what the project is for: {json.dumps(fact.summary_text)}"
+
+
+def _field_of_study(fact: ProjectFact) -> str:
+    return f"field of study: {json.dumps(fact.field_name)}"
+
+
+def _period(fact: ProjectFact) -> str:
+    end = f" to {fact.period_end}" if fact.period_end else ""
+    return f"the project runs from {fact.period_start}{end}"
+
+
+def _planned(fact: ProjectFact) -> str:
+    said = f"data the project will produce, {json.dumps(fact.fact_subject)}: "
+    said += json.dumps(fact.planned_description)
+    details = [
+        f"{label} {json.dumps(value)}"
+        for label, value in (
+            ("collected by", fact.planned_collection_method),
+            ("formats", fact.planned_format),
+            ("volume", fact.planned_volume),
+        )
+        if value
+    ]
+    return said + (f" ({', '.join(details)})" if details else "")
+
+
 _SAYS: dict[FactKind, Callable[[ProjectFact], str]] = {
     FactKind.FUNDER: _funder,
     FactKind.REQUIRED_REPOSITORY: _required,
@@ -391,6 +419,10 @@ _SAYS: dict[FactKind, Callable[[ProjectFact], str]] = {
     FactKind.SHARING_COMMITMENT: _commitment,
     FactKind.STANDARD: _standard,
     FactKind.DATA_MANAGEMENT_PLAN: _plan,
+    FactKind.PROJECT_SUMMARY: _summary,
+    FactKind.FIELD_OF_STUDY: _field_of_study,
+    FactKind.PROJECT_PERIOD: _period,
+    FactKind.PLANNED_DATA: _planned,
 }
 
 

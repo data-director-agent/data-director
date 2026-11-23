@@ -46,7 +46,7 @@ TITLE = "Data Management Plan"
 # metadata record gives it, and a decided funder or the record's title is offered beside it.
 DETAILS: dict[str, Any] = {
     "heading": "Project details",
-    "from": ["funders"],
+    "from": ["project", "funders"],
     "parts": [
         {
             "label": "Project title",
@@ -72,7 +72,7 @@ DETAILS: dict[str, Any] = {
 # from, whether a model may suggest an answer to it (always, or only from attached documents), and
 # the value it shares with other documents. Its heading and what it asks are the template's.
 SECTION_FACTS: dict[str, dict[str, Any]] = {
-    "data-collection": {"from": ["files"], "suggest": "documents"},
+    "data-collection": {"from": ["planned_data", "files"], "suggest": "documents"},
     "documentation-quality": {"from": ["standards"], "suggest": "documents"},
     "storage-backup": {"suggest": "documents"},
     "legal-ethical": {"from": ["sensitivity"], "suggest": "documents"},

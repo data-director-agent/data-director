@@ -1,8 +1,8 @@
 /**
  * The values of one project fact, as a person sets them: whether a file goes in, whether a
  * sensitive field or file may be published and how precisely, a funder, a required repository,
- * the licence, what the plan commits to share, or a standard, vocabulary or format chosen
- * (docs/specs/projects.md, invariant 28).
+ * the licence, what the plan commits to share, a standard, vocabulary or format chosen, or what
+ * the project is and the data it will produce (docs/specs/projects.md, invariant 28).
  *
  * When a person changes a proposal, its kind and subject stay as proposed, since a decision is on
  * that fact; when they state a fact of their own, they choose the kind, and the subject is taken
@@ -15,6 +15,7 @@ import {
   FACT_KINDS,
   FILE_DECISIONS,
   type FactKind,
+  PLAN_SUBJECT,
   PRECISIONS,
   type ProjectFact,
   SENSITIVITY_DECISIONS,
@@ -28,86 +29,18 @@ import {
   SENSITIVITY_LABELS,
   STANDARD_KIND_LABELS,
 } from "./factWording";
+import { Choice, type Setter, TextValue } from "./FactInputs";
+import { ProjectFactValues } from "./ProjectFactValues";
 
-type Setter = (slot: keyof ProjectFact, value: string | string[] | undefined) => void;
-
-function TextValue({
-  label,
-  hint,
-  slot,
+function KindValues({
   fact,
   set,
-  required = false,
+  isNew,
 }: {
-  label: string;
-  hint?: string;
-  slot: keyof ProjectFact;
   fact: ProjectFact;
   set: Setter;
-  required?: boolean;
+  isNew: boolean;
 }) {
-  const id = useId();
-  const value = fact[slot];
-  return (
-    <div className="field">
-      <label htmlFor={id}>
-        {label} {required ? "(required)" : "(optional)"}
-      </label>
-      {hint && (
-        <p className="hint" id={`${id}-hint`}>
-          {hint}
-        </p>
-      )}
-      <input
-        id={id}
-        type="text"
-        required={required}
-        aria-describedby={hint ? `${id}-hint` : undefined}
-        value={Array.isArray(value) ? value.join(", ") : (value ?? "")}
-        onChange={(event) => set(slot, event.target.value)}
-      />
-    </div>
-  );
-}
-
-function Choice<T extends string>({
-  label,
-  slot,
-  options,
-  labels,
-  fact,
-  set,
-  optional = false,
-}: {
-  label: string;
-  slot: keyof ProjectFact;
-  options: readonly T[];
-  labels: Record<T, string>;
-  fact: ProjectFact;
-  set: Setter;
-  optional?: boolean;
-}) {
-  const id = useId();
-  return (
-    <div className="field">
-      <label htmlFor={id}>{label}</label>
-      <select
-        id={id}
-        value={(fact[slot] as string | undefined) ?? ""}
-        onChange={(event) => set(slot, event.target.value || undefined)}
-      >
-        {optional && <option value="">Not said</option>}
-        {options.map((option) => (
-          <option key={option} value={option}>
-            {labels[option]}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
-function KindValues({ fact, set, isNew }: { fact: ProjectFact; set: Setter; isNew: boolean }) {
   switch (fact.fact_kind) {
     case "file_inclusion":
       return (
@@ -231,7 +164,12 @@ function KindValues({ fact, set, isNew }: { fact: ProjectFact; set: Setter; isNe
       // The quote and the document stay as read: a person corrects what the plan was read to say.
       return (
         <>
-          <TextValue label="Where it is shared" slot="commitment_repository" fact={fact} set={set} />
+          <TextValue
+            label="Where it is shared"
+            slot="commitment_repository"
+            fact={fact}
+            set={set}
+          />
           <TextValue
             label="How openly"
             hint="Such as open, safeguarded or controlled."
@@ -239,17 +177,33 @@ function KindValues({ fact, set, isNew }: { fact: ProjectFact; set: Setter; isNe
             fact={fact}
             set={set}
           />
-          <TextValue label="Under what licence" slot="commitment_licence" fact={fact} set={set} />
+          <TextValue
+            label="Under what licence"
+            slot="commitment_licence"
+            fact={fact}
+            set={set}
+          />
         </>
       );
     case "data_management_plan":
       // Which document is the plan is chosen on the Documents page, not typed here.
       return null;
+    case "project_summary":
+    case "field_of_study":
+    case "project_period":
+    case "planned_data":
+      return <ProjectFactValues fact={fact} set={set} isNew={isNew} />;
     case "standard":
       // What it is chosen for stays as proposed; a standard a person states is for the dataset.
       return (
         <>
-          <TextValue label="The standard's name" slot="standard_name" fact={fact} set={set} required />
+          <TextValue
+            label="The standard's name"
+            slot="standard_name"
+            fact={fact}
+            set={set}
+            required
+          />
           <TextValue
             label="Its identifier"
             hint="A link, such as its FAIRsharing DOI."
@@ -284,11 +238,18 @@ export function FactFields({
   const set: Setter = (slot, raw) => {
     const value =
       slot === "fact_required_by" && typeof raw === "string"
-        ? raw.split(",").map((part) => part.trim()).filter(Boolean)
+        ? raw
+            .split(",")
+            .map((part) => part.trim())
+            .filter(Boolean)
         : raw;
     const next = { ...fact, [slot]: value } as ProjectFact;
     // A fact a person states is named by the value that names it; a proposal keeps its subject.
-    if (isNew && SUBJECT_OF[next.fact_kind] === slot && typeof value === "string") {
+    if (
+      isNew &&
+      SUBJECT_OF[next.fact_kind] === slot &&
+      typeof value === "string"
+    ) {
       next.fact_subject = value.trim();
     }
     onChange(next);
@@ -300,7 +261,11 @@ export function FactFields({
       {isNew && (
         <div className="field">
           <label htmlFor={kindId}>What the fact is about</label>
-          <select id={kindId} value={fact.fact_kind} onChange={(event) => chooseKind(event.target.value as FactKind)}>
+          <select
+            id={kindId}
+            value={fact.fact_kind}
+            onChange={(event) => chooseKind(event.target.value as FactKind)}
+          >
             {FACT_KINDS.map((kind) => (
               <option key={kind} value={kind}>
                 {KIND_LABELS[kind]}
@@ -320,9 +285,17 @@ export function blankFact(kind: FactKind): ProjectFact {
     case "file_inclusion":
       return { fact_kind: kind, fact_subject: "", file_decision: "exclude" };
     case "sensitivity":
-      return { fact_kind: kind, fact_subject: "", sensitivity_decision: "undecided" };
+      return {
+        fact_kind: kind,
+        fact_subject: "",
+        sensitivity_decision: "undecided",
+      };
     case "licence":
       return { fact_kind: kind, fact_subject: "licence" };
+    case "project_summary":
+    case "field_of_study":
+    case "project_period":
+      return { fact_kind: kind, fact_subject: PLAN_SUBJECT };
     default:
       return { fact_kind: kind, fact_subject: "" };
   }
