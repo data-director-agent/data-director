@@ -11,6 +11,7 @@ from typing import Literal
 
 from pydantic import Field
 
+from dd_sdk.contract.inventory import FileInventory
 from dd_sdk.contract.models import (
     REPOSITORY_ID_PATTERN,
     ChosenRepository,
@@ -67,9 +68,11 @@ class RepositoryNeeds(Frozen):
     asked_about: list[RepositoryRef] = Field(default_factory=list)
     affiliation: Affiliation | None = None
     country: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
-    # Filled by the conductor in a project (`GivenProjectDecisions`, `GivenProjectRepository`).
+    # Filled by the conductor in a project (`GivenProjectDecisions`, `GivenProjectRepository`,
+    # `GivenProjectInventory`).
     project_decisions: list[ProjectFact] = Field(default_factory=list)
     project_repository: ChosenRepository | None = None
+    project_file_inventory: FileInventory | None = None
     # Filled by the conductor from the profile (`GivenInstitutionRepositories`).
     institution_repositories: list[InstitutionRepository] = Field(default_factory=list)
 

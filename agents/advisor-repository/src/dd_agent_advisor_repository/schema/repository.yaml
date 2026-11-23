@@ -37,10 +37,12 @@ classes:
       researcher chose: a decided required repository is described as mandated, a repository
       that a confirmed sharing commitment of the data management plan names is described
       alongside the shortlist (never as mandated), and the chosen one is described when nothing
-      else is asked.
+      else is asked. It also gives the project's inventory; the kinds of data its files' media
+      types name fill data_kinds when the needs leave it empty.
     mixins:
       - GivenProjectDecisions
       - GivenProjectRepository
+      - GivenProjectInventory
       - GivenInstitutionRepositories
     slots:
       - schema_class

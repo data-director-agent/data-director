@@ -1,0 +1,62 @@
+# The kinds of data a file's media type names, read by kinds.py (#1560).
+#
+# Each kind is a content type from re3data's vocabulary (re3data.org Metadata Schema,
+# contentType), written as a registry record words it, so that a repository whose record lists the
+# content type matches it. re3data's search needs every word of a query, so each kind is one to
+# three words: "statistical data" for "Scientific and statistical data formats", "office
+# documents" for "Standard office documents". A kind of data adds a little to a repository's
+# score and never qualifies one on its own (ranking.yaml, `weights.data_kind`).
+#
+# A media type is looked up as written, then by its top-level type (`image/*`). A media type
+# found in neither names no kind. Nothing here speaks the Data Director contract: the table can
+# be lifted out with the agent, or on its own.
+
+media_types:
+  text/plain: plain text
+  text/csv: statistical data
+  text/tab-separated-values: statistical data
+  application/vnd.ms-excel: statistical data
+  application/vnd.openxmlformats-officedocument.spreadsheetml.sheet: statistical data
+  application/vnd.oasis.opendocument.spreadsheet: statistical data
+  application/x-hdf5: statistical data
+  application/x-hdf: statistical data
+  application/x-netcdf: statistical data
+  application/netcdf: statistical data
+  application/fits: statistical data
+  image/fits: statistical data
+  application/x-spss-sav: statistical data
+  application/x-stata-dta: statistical data
+  application/x-matlab-data: statistical data
+  application/pdf: office documents
+  application/msword: office documents
+  application/vnd.openxmlformats-officedocument.wordprocessingml.document: office documents
+  application/vnd.oasis.opendocument.text: office documents
+  application/vnd.ms-powerpoint: office documents
+  application/vnd.openxmlformats-officedocument.presentationml.presentation: office documents
+  application/rtf: office documents
+  text/markdown: structured text
+  text/html: structured text
+  text/xml: structured text
+  application/xml: structured text
+  application/json: structured text
+  application/ld+json: structured text
+  application/yaml: structured text
+  text/yaml: structured text
+  image/svg+xml: structured graphics
+  application/zip: archived data
+  application/gzip: archived data
+  application/x-tar: archived data
+  application/x-7z-compressed: archived data
+  application/vnd.sqlite3: databases
+  application/x-sqlite3: databases
+  text/x-python: source code
+  text/x-script.python: source code
+  text/x-r: source code
+  text/x-c: source code
+  application/x-sh: source code
+  application/x-ipynb+json: source code
+
+top_level:
+  image: images
+  audio: audiovisual data
+  video: audiovisual data
