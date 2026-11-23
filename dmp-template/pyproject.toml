@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-dmp-template"
-version = "0.1.0-alpha.0"
+version = "0.1.0-alpha.1"
 description = "The Science Europe core requirements for a Data Management Plan"
 readme = "README.md"
 requires-python = ">=3.14"

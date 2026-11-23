@@ -60,7 +60,11 @@ one. Steps marked *optional* may be left out.
 
 ### Phase 1: Pre-collection setup
 
-*Entry 1 starts here.*
+*Entry 1 starts here.* The app calls this phase "Plan your data management". It is about planning
+how the data will be managed as a whole, not only how they will be described: how they will be
+collected, documented, stored and protected, shared and preserved, and for how long; who is
+responsible; and what it will cost. The Data Management Plan written here is a living document,
+reviewed and updated as the research proceeds and again after publication (Phase 6).
 
 - Draft the data documentation (R5)
 - Select controlled vocabularies and ontologies (R3)
