@@ -144,7 +144,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     the project's panel and page and not under the message box, opens a
     dialog for a researcher who has none: one sentence on what an inventory is and that the data
     stay on their computer, then two routes as tabs, **In this browser** and **With the command**.
-    Where the deployment serves the browser scanner's bundle at `inventory-bundle/`, the dialog
+    Where the deployment serves the browser scanner's bundle at `/inventory-bundle/`, the dialog
     opens on the first, **Describe a folder in this browser**
     (`components/inventory/DescribeFolder.tsx`, `src/scan/`), under which a **Use the command
     instead** button selects the second; where it does not, the command is the only route and

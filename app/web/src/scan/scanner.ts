@@ -1,8 +1,10 @@
 /**
  * The browser scanner, as the app offers it (docs/specs/app.md, Make an inventory). The scanner
  * is `@data-director/inventory`'s: `dd-inventory` under Pyodide in a Web Worker with no network.
- * The app fetches the scanner's bundle from its own origin, at `inventory-bundle/`, and hands it
- * to a fresh worker for each scan, so that no byte of a chosen file is ever sent anywhere.
+ * The app fetches the scanner's bundle from its own origin, at `/inventory-bundle/`, and hands it
+ * to a fresh worker for each scan, so that no byte of a chosen file is ever sent anywhere. The path
+ * is from the site's root, not the page's: the dialog opens on project pages such as
+ * `/projects/{id}/facts` too, where a relative path would ask for a bundle that is not there.
  *
  * A deployment offers the scanner by serving the bundle there (`npm run bundle` in
  * inventory/browser builds it). Where it does not, `available()` is false and the dialog offers
@@ -21,8 +23,8 @@ import {
 } from "@data-director/inventory";
 import ScanWorker from "@data-director/inventory/scanner/worker?worker";
 
-/** Where the app serves the bundle, relative to the page. */
-export const BUNDLE_PATH = "inventory-bundle/";
+/** Where the app serves the bundle, from the site's root whatever page is open. */
+export const BUNDLE_PATH = "/inventory-bundle/";
 /** The bundle's licence notices (inventory/browser, `bundle/notices.ts`). */
 export const NOTICES_PATH = `${BUNDLE_PATH}NOTICES.md`;
 
@@ -36,7 +38,7 @@ export interface Scanner {
 }
 
 export interface ScannerOptions {
-  /** The bundle's folder, ending in `/`; by default `inventory-bundle/` beside the page. */
+  /** The bundle's folder, ending in `/`; by default `/inventory-bundle/` on the page's origin. */
   base?: string;
   fetcher?: Fetch;
   makeWorker?: () => WorkerLike;
