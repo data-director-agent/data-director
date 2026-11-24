@@ -304,6 +304,7 @@ docker compose --profile monitoring up -d
 - Budget gauges for every team and key are refreshed every 5 minutes (`prometheus_initialize_budget_metrics` in `config.yaml`).
 - The spend alerts in `monitoring/alerts.yml` load into Prometheus (<http://localhost:9090/alerts>) and go to Alertmanager (<http://localhost:9093>). Alertmanager sends them nowhere until you add a receiver to `monitoring/alertmanager.yml`, which has an email example. The two dollar thresholds for spend per hour are placeholders: set them to suit.
 - LiteLLM's own email alerts are an Enterprise feature.
+- The admin service's Monitoring page links to all three and lists the alerts Prometheus and Alertmanager hold, once `DD_ADMIN_PROMETHEUS_URL` and `DD_ADMIN_ALERTMANAGER_URL` name them ([the admin guide](../../docs/guide/operations/admin.md#monitoring)).
 
 ## Optional: Langfuse tracing
 

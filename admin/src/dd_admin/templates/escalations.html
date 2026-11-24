@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% from "_macros.html" import unset, person %}
+{% block title %}Escalations{% endblock %}
+{% block heading %}Escalations{% endblock %}
+{% block content %}
+<p class="muted">Where each data steward team's queue stands: the escalations still live in its projects, and how long each has waited. A researcher's note and a steward's reply are not shown, and stewards act in the app, not here. The sweep that sends an untaken escalation to its team again is <code>data-director-escalations.timer</code>, shown on <a href="/operations">Operations</a>.</p>
+{% if not queue.configured %}
+  <div class="banner">Escalations are not shown here: they need {{ queue.reason }}. The teams are named in the profile (<a href="/policy">Policy</a>) and the escalations are kept in the project store.</div>
+{% elif not queue.teams %}
+  <p class="empty">The profile names no steward team, so there is no queue. Teams are set in <code>deployment.yaml</code> under <code>stewardship</code> (<code>docs/guide/operations/configuration.md</code>, "Data steward teams").</p>
+{% else %}
+{% if queue.problems %}
+  <div class="banner bad" role="alert">The queue of {{ queue.problems | length }} team{{ "s" if queue.problems | length != 1 }} could not be read: {{ queue.problems | join("; ") }}.</div>
+{% endif %}
+<section class="tiles" aria-label="At a glance">
+  <div class="tile"><span class="tile-label">Teams</span><span class="tile-value">{{ queue.teams | length }}</span></div>
+  <div class="tile {{ 'warn' if queue.open }}"><span class="tile-label">Open, nobody has taken</span><span class="tile-value">{{ queue.open }}</span></div>
+  <div class="tile"><span class="tile-label">Taken</span><span class="tile-value">{{ queue.teams | sum(attribute="taken") }}</span></div>
+  <div class="tile {{ 'bad' if queue.overdue }}"><span class="tile-label">Overdue</span><span class="tile-value">{{ queue.overdue }}</span><span class="tile-sub">{% if queue.reroute_after %}open longer than {{ queue.reroute_after | duration }}{% else %}the profile sets no reroute time{% endif %}</span></div>
+</section>
+
+<section class="panel">
+  <h2>Teams</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th scope="col">Team</th><th scope="col" class="num">Members</th><th scope="col" class="num">Open</th><th scope="col" class="num">Taken</th><th scope="col" class="num">Overdue</th><th scope="col">Longest open</th></tr></thead>
+    <tbody>
+    {% for team in queue.teams %}
+      <tr>
+        <td>{{ team.name }} <span class="muted mono">{{ team.team_id }}</span></td>
+        <td class="num">{{ team.members }}</td>
+        <td class="num">{{ team.open }}</td>
+        <td class="num">{{ team.taken }}</td>
+        <td class="num">{% if team.overdue %}<span class="pill a-down">{{ team.overdue }}</span>{% else %}0{% endif %}</td>
+        <td>{{ team.oldest_open | ago if team.oldest_open else "—" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  <p class="fix"><span>To change:</span> teams and <code>reroute_after</code> are in <code>deployment.yaml</code> under <code>stewardship</code>: <code>sudo data-director edit</code>, then apply.</p>
+</section>
+
+<section class="panel">
+  <h2>Live escalations</h2>
+  {% if queue.items %}
+  <div class="table-wrap"><table>
+    <thead><tr><th scope="col">Project</th><th scope="col">Team</th><th scope="col">State</th><th scope="col">Origin</th><th scope="col">With the team since</th><th scope="col">Taken by</th></tr></thead>
+    <tbody>
+    {% for item in queue.items %}
+      <tr>
+        <td><a href="/projects/{{ item.project_id | urlencode }}">{{ item.title }}</a></td>
+        <td class="mono">{{ item.team_id }}</td>
+        <td><span class="pill {{ 'a-incompatible' if item.state == 'open' else 'a-up' }}">{{ item.state }}</span>{% if item.overdue %} <span class="tag">overdue</span>{% endif %}</td>
+        <td>{{ item.origin or "—" }}</td>
+        <td class="nowrap">{{ item.routed_at | when }} <span class="muted">({{ item.routed_at | ago }})</span></td>
+        <td>{% if item.taken_by %}{{ person(item.taken_by.get("name"), item.taken_by.get("principal_id")) }}{% else %}<span class="muted">nobody</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="empty">No live escalation.</p>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import jinja2
@@ -111,6 +111,18 @@ def _ago(value: object, now: datetime | None = None) -> str:
     return "just now"
 
 
+def _duration(value: object) -> str:
+    """A span in the largest whole unit that shows it: `3 days`, `36 hours`, `90 minutes`."""
+    if not isinstance(value, timedelta):
+        return "—"
+    seconds = int(value.total_seconds())
+    for unit, size in (("day", 86400), ("hour", 3600), ("minute", 60)):
+        if seconds >= size and seconds % size == 0:
+            n = seconds // size
+            return f"{n} {unit}{'s' if n != 1 else ''}"
+    return f"{seconds} seconds"
+
+
 def _short(value: object, n: int = 8) -> str:
     text = str(value or "")
     return text if len(text) <= n else text[:n] + "…"
@@ -156,6 +168,7 @@ def build_templates() -> Jinja2Templates:
     env.filters.update(
         when=_when,
         ago=_ago,
+        duration=_duration,
         short=_short,
         pretty=_pretty,
         number=_number,

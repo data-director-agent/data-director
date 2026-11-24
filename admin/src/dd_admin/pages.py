@@ -62,6 +62,10 @@ class Pages:
             "/spend": self.spend_page,
             "/gateway": functools.partial(panels.gateway_page, self),
             "/broker": functools.partial(panels.broker_page, self),
+            "/monitoring": functools.partial(panels.monitoring_page, self),
+            "/policy": functools.partial(panels.policy_page, self),
+            "/escalations": functools.partial(panels.escalations_page, self),
+            "/security": functools.partial(panels.security_page, self),
             "/projects": self.projects_page,
             "/projects/{project_id}": self.project_page,
             "/case/{scope}/{ident}": functools.partial(case.download, self.admin),
@@ -113,6 +117,8 @@ class Pages:
             tokens_30=found.tokens_since(30),
             gateway_state=admin.gateway_state.get(fresh=_fresh(request)),
             broker=admin.broker.get(fresh=_fresh(request)),
+            monitoring=admin.monitoring.get(fresh=_fresh(request)),
+            queue=admin.escalations.get(fresh=_fresh(request)),
         )
 
     def spend_page(self, request: Request) -> Response:
