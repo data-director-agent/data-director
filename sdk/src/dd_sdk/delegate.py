@@ -21,10 +21,11 @@ import asyncio
 import copy
 import json
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Self
+from urllib.parse import quote
 
 import httpx
 from a2a.client import Client, ClientConfig, create_client
@@ -36,6 +37,7 @@ from google.protobuf.json_format import ParseError
 from opentelemetry.trace import Tracer
 from opentelemetry.trace.propagation.tracecontext import TraceContextTextMapPropagator
 
+from dd_sdk.contract.classes import schemas_digest
 from dd_sdk.contract.models import (
     Envelope,
     EvidenceItem,
@@ -55,6 +57,8 @@ from dd_sdk.wire import (
     META_DELEGATE_URL,
     META_DELEGATION_TOKEN,
     META_TRACEPARENT,
+    SCHEMAS_DIGEST_KEY,
+    SCHEMAS_PATH,
 )
 
 DEFAULT_TIMEOUT_S = 60.0
@@ -123,9 +127,18 @@ class _CachedCard:
     a2a_card: AgentCard
 
 
+@dataclass(frozen=True)
+class _CachedSchemas:
+    digest: str
+    document: dict[str, Any]
+
+
 # The last card read from each harness URL, kept across grants (a grant covers one invocation) and
-# revalidated with `If-None-Match`, so an unchanged card of about a megabyte costs a `304` (#1423).
+# revalidated with `If-None-Match`, so an unchanged card costs a `304` (#1423).
 _CARDS: dict[str, _CachedCard] = {}
+# Each agent's schemas by (harness URL, agent id), kept while the card names the same digest, so
+# they are fetched once per change, not once per grant (#1590).
+_SCHEMAS: dict[tuple[str, str], _CachedSchemas] = {}
 _CARDS_LOCK = threading.Lock()
 
 
@@ -142,8 +155,52 @@ class HarnessDelegate:
     _a2a_card: AgentCard | None = field(default=None, init=False, repr=False)
 
     def manifest(self) -> list[dict[str, Any]]:
-        """The agents the harness's card lists (`MANIFEST_EXTENSION_URI`)."""
+        """The agents the harness's card lists (`MANIFEST_EXTENSION_URI`), without schemas."""
         return _manifest_from_card(self._harness_card())
+
+    def schemas_of(self, agent_ids: Iterable[str]) -> dict[str, dict[str, Any]]:
+        """Each agent's class schemas, keyed by agent id, as the harness serves them at
+        `SCHEMAS_PATH`. Only those whose digest on the card differs from the copy held are
+        fetched, and each is checked against that digest."""
+        entries = {str(e.get("agent_id")): e for e in self.manifest()}
+        wanted: dict[str, str] = {}
+        for agent_id in agent_ids:
+            digest = (entries.get(agent_id) or {}).get(SCHEMAS_DIGEST_KEY)
+            if not isinstance(digest, str):
+                raise DelegationRefused(f"the harness card names no schemas for {agent_id!r}")
+            wanted[agent_id] = digest
+        with _CARDS_LOCK:
+            held = {a: _SCHEMAS.get((self.grant.url, a)) for a in wanted}
+        found = {a: c.document for a, c in held.items() if c is not None and c.digest == wanted[a]}
+        missing = {a: d for a, d in wanted.items() if a not in found}
+        if missing:
+            try:
+                found.update(asyncio.run(self._schemas(missing)))
+            except (httpx.HTTPError, TimeoutError, ValueError) as exc:
+                raise DelegationRefused(
+                    f"cannot read agents' schemas from {self.grant.url}: {exc!r}"
+                ) from exc
+        return {a: found[a] for a in wanted}
+
+    async def _schemas(self, wanted: dict[str, str]) -> dict[str, dict[str, Any]]:
+        async with asyncio.timeout(self.timeout_s):
+            async with self.client_factory(self.grant.url, self.timeout_s) as hc:
+                documents = await asyncio.gather(
+                    *(self._agent_schemas(hc, a, d) for a, d in wanted.items())
+                )
+        return dict(zip(wanted, documents, strict=True))
+
+    async def _agent_schemas(
+        self, hc: httpx.AsyncClient, agent_id: str, digest: str
+    ) -> dict[str, Any]:
+        response = await hc.get(SCHEMAS_PATH.format(agent_id=quote(agent_id, safe="")))
+        response.raise_for_status()
+        document = response.json()
+        if not isinstance(document, dict) or schemas_digest(document) != digest:
+            raise ValueError(f"the schemas of {agent_id!r} do not match the card's digest")
+        with _CARDS_LOCK:
+            _SCHEMAS[(self.grant.url, agent_id)] = _CachedSchemas(digest, document)
+        return document
 
     def _harness_card(self) -> dict[str, Any]:
         """The harness's card, read once per grant and used for every call under it. Across grants

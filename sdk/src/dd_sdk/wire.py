@@ -14,8 +14,9 @@ builds that.
 
 The agent card declares the extension `EXTENSION_URI`, whose `params` are `describe(spec)`. The
 harness's own card declares `MANIFEST_EXTENSION_URI`, whose `params` are `{"agents": [...]}`, one
-`describe(spec)` per registered agent: what a delegation agent may ask it to invoke
-(docs/specs/orchestration.md).
+`dd_sdk.manifest.manifest_entry(spec)` per registered agent: what a delegation agent may ask it to
+invoke (docs/specs/orchestration.md). An entry carries the digest of the agent's schemas, not the
+schemas, which the harness serves at `SCHEMAS_PATH`.
 
 A delegation agent's request back to the harness (docs/specs/orchestration.md) carries
 `dd.delegation_token` and a `traceparent` in its metadata, and is answered with an `envelope-json`
@@ -73,6 +74,10 @@ JSONRPC_PATH = "/a2a"
 # The harness's tool gateway, an MCP endpoint, beside its A2A endpoint (docs/specs/agents.md).
 GATEWAY_PATH = "/mcp"
 CARD_PATH = "/.well-known/agent-card.json"
+# One agent's class schemas, beside the harness's A2A endpoint (dd_sdk.manifest).
+SCHEMAS_PATH = "/a2a/schemas/{agent_id}"
+# The key of a manifest entry that names those schemas by digest.
+SCHEMAS_DIGEST_KEY = "schemas_digest"
 
 
 class WireError(Exception):

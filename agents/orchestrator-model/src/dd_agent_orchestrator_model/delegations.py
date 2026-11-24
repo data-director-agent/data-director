@@ -5,6 +5,7 @@ one level deep (docs/specs/orchestration.md)."""
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -29,12 +30,34 @@ class Tool:
     definition: ToolSpec
 
 
+def delegable(entry: dict[str, Any], own_id: str = AGENT_ID) -> bool:
+    """Whether a tool may delegate to the agent of a manifest entry: not to a delegation agent."""
+    return (
+        str(entry.get("agent_id")) != own_id
+        and entry.get("grounding_mode") != GroundingMode.DELEGATION.value
+    )
+
+
+def with_schemas(
+    manifest: list[dict[str, Any]],
+    schemas_of: Callable[[list[str]], dict[str, dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    """The manifest with each delegable agent's class schemas under `schemas`. The harness's card
+    names them only by digest; `schemas_of` is the delegate's, which fetches those it does not
+    already hold (docs/specs/orchestration.md)."""
+    ids = [str(e.get("agent_id")) for e in manifest if delegable(e)]
+    schemas = schemas_of(ids) if ids else {}
+    return [
+        {**e, "schemas": schemas[str(e.get("agent_id"))]} if delegable(e) else e for e in manifest
+    ]
+
+
 def tools_from_manifest(manifest: list[dict[str, Any]], own_id: str = AGENT_ID) -> list[Tool]:
     """One tool per input class of each agent the harness lists, except delegation agents."""
     tools: list[Tool] = []
     for entry in sorted(manifest, key=lambda e: str(e.get("agent_id"))):
         agent_id = str(entry.get("agent_id"))
-        if agent_id == own_id or entry.get("grounding_mode") == GroundingMode.DELEGATION.value:
+        if not delegable(entry, own_id):
             continue
         accepts = [str(name) for name in entry.get("accepts") or []]
         schemas = entry.get("schemas") or {}

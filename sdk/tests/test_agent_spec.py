@@ -464,3 +464,16 @@ def test_the_agent_sees_its_own_model_and_the_workbench_the_document() -> None:
 def test_serving_a_step_a_person_decides_is_refused() -> None:
     with pytest.raises(SpecError, match="a person decides"):
         dataclasses.replace(SPEC, serves=("governance.sensitive-data-handle",))
+
+
+def test_a_manifest_entry_names_the_schemas_by_digest_and_leaves_them_out() -> None:
+    from dd_sdk.manifest import manifest_entry, schemas_digest, schemas_document
+
+    entry = manifest_entry(SPEC)
+    full = describe(SPEC)
+    assert "schemas" not in entry
+    assert {k: v for k, v in full.items() if k != "schemas"} == {
+        k: v for k, v in entry.items() if k != "schemas_digest"
+    }
+    assert schemas_document(SPEC) == full["schemas"]
+    assert entry["schemas_digest"] == schemas_digest(full["schemas"])

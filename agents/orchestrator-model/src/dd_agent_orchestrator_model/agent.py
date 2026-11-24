@@ -5,8 +5,9 @@ specialist agents (§9.3, "AI Model Orchestration"). `orchestrator.stub` routes 
 agent lets a model decide. It has the stub's specification, `Message` in, `Reply` out, grounding
 mode `delegation`, with `reply_derivation` `model` and a `chat` span for each model call.
 
-Each run reads the harness's manifest through `ctx.delegate.manifest()` and offers the model one
-tool per class each other agent accepts, so the agents it can route to are the ones the harness
+Each run reads the harness's manifest through `ctx.delegate.manifest()`, and the class schemas of
+the agents in it through `ctx.delegate.schemas_of`, and offers the model one tool per class each
+other agent accepts, so the agents it can route to are the ones the harness
 has registered, never a list of its own. Delegation agents, itself included, are left out:
 delegation is one level deep. A tool call is a delegation through `ctx.delegate`, so the
 conductor runs the child as an ordinary governed invocation and records it on this one.
@@ -75,7 +76,7 @@ from typing import Any
 
 from dd_agent_orchestrator_model import asking
 from dd_agent_orchestrator_model.delegations import AGENT_ID as AGENT_ID
-from dd_agent_orchestrator_model.delegations import Tool, tools_from_manifest
+from dd_agent_orchestrator_model.delegations import Tool, tools_from_manifest, with_schemas
 from dd_agent_orchestrator_model.describing import DESCRIBE_TOOL as DESCRIBE_TOOL
 from dd_agent_orchestrator_model.describing import (
     DESCRIBE_TOOL_DEFINITION as DESCRIBE_TOOL_DEFINITION,
@@ -291,7 +292,7 @@ class ModelOrchestrator:
                 "The harness gave this run no way to delegate (for example, it was started "
                 "from `workbench invoke`), so no agent was asked.",
             )
-        state = self._start(message, ctx.delegate.manifest())
+        state = self._start(message, with_schemas(ctx.delegate.manifest(), ctx.delegate.schemas_of))
         while True:
             turn = self._turn(state, ctx)
             state.input_tokens += turn.usage.input_tokens or 0

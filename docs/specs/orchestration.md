@@ -107,9 +107,15 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
 9. **An orchestrator learns what it may invoke from the harness's manifest**, read through its
    grant, and keeps no list of agents of its own. The manifest lists every registered agent; the
    policy gate still refuses a child the profile does not enable, and the orchestrator relays that
-   refusal like any other outcome.
-   (`test_a_delegation_agent_reads_what_it_may_invoke_from_the_harness_card`,
-   `test_a_child_refused_by_policy_is_recorded_and_relayed`)
+   refusal like any other outcome. The manifest is the harness card's manifest extension: one
+   entry per agent, its `describe(spec)` without the class schemas and with `schemas_digest`, the
+   digest of the schemas the harness serves for that agent at `/a2a/schemas/{agent_id}`
+   (`dd_sdk.manifest`). An orchestrator gets an agent's schemas through `delegate.schemas_of`,
+   which fetches them only when the card names a digest it does not already hold and refuses a
+   document that does not match it. (#1590;
+   `test_a_delegation_agent_reads_what_it_may_invoke_from_the_harness_card`,
+   `test_a_child_refused_by_policy_is_recorded_and_relayed`,
+   `harness/tests/test_delegation_schemas.py`)
 10. **An orchestrator succeeds once it has replied, whatever its children's outcomes.** A failed
     child stays failed on its own envelope and in the parent's `delegations`, and the reply says
     what went wrong and what to try next. The parent fails only when it cannot reply at all: for
@@ -503,6 +509,10 @@ against it.
   as fixed example rules for a model-free reference.)
 - **The manifest in the grant's metadata.** Every delegation-mode request would carry every
   agent's schemas, and the wire keys would change.
+- **Every agent's schemas on the harness card.** The card grew with every agent and schema, to
+  more than a megabyte, and every A2A client that read it downloaded the schemas whether it needed
+  them or not (#1590). Named by digest, they are fetched once per change and only by a caller that
+  builds inputs.
 - **A current step kept by the orchestrator, the conversation or the project.** It drifts from
   what the project holds, is lost with the model's history window or a new conversation, and
   forces a linear order on work that is not linear.

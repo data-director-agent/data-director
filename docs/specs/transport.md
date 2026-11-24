@@ -112,7 +112,9 @@ whom an invocation acts for, and how that is established, is in
   tracer and returns whatever the agent produced.
 - **The harness** holds the A2A client that calls agents and the A2A server that serves the
   conductor. The harness's own card advertises one skill per registered agent and, through a
-  second extension, the manifest a delegation agent routes from. Served without an
+  second extension, the manifest a delegation agent routes from; each agent's class schemas are
+  served beside the card at `/a2a/schemas/{agent_id}`, named on it by digest
+  ([Orchestration](orchestration.md), invariant 9). Served without an
   authenticator, as the app serves it, the endpoint accepts only a delegation agent's callback
   under a live grant.
 - **The agent card** is the machine-readable statement of what an instance serves. Its Data
