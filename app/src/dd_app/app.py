@@ -74,6 +74,7 @@ from dd_app.routes import (
     projects,
     runs,
     session,
+    standards,
     steward_projects,
     stewarding,
 )
@@ -122,6 +123,7 @@ AREAS = (
     funders,
     project_runs,
     deposit,
+    standards,
     drafts,
     escalations,
     stewarding,

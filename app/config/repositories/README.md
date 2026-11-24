@@ -29,9 +29,18 @@ from two kinds of set:
   well. A repository without one is checked against its standard alone, with a warning.
 
 An override names its standard in `conforms_to`, and that is the standard used: re3data lists
-only Dublin Core for ORDA, which registers its DOIs with DataCite. Without an override, the
-harness picks the standard whose `re3data_names` include one the repository's re3data record
-declares. When none does, it uses DataCite's and warns.
+only Dublin Core for ORDA, which registers its DOIs with DataCite. Without an override, a person
+on the project may choose the standard (`PUT /api/projects/{id}/repository/standard`); a choice
+of another standard than an override's is refused. Otherwise the harness picks the standard whose
+`re3data_names` include one the repository's re3data record declares. When several do, it takes
+the first in `standard_preference.yaml`, and warns which it took. When none does, it uses
+DataCite's and warns. The project log records which rule decided, as the standard's `reason`
+(docs/specs/deposit.md, invariant 5).
+
+`standard_preference.yaml` names every set under `standards/` once, by `requirement_set_id`, in
+the order the deployment prefers them; a set it leaves out, or one it names that does not exist,
+stops start-up. Without the file, DataCite's set comes first and the others follow by
+identifier.
 
 The harness merges the two. A field is identified by its `property`, `qualifier` and `term`,
 compared as the term's full IRI. An override may add a field, or raise one from `recommended` to `required` and give

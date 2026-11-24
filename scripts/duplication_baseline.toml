@@ -118,7 +118,7 @@ lines = 24
 [[pair]]
 files = ["app/web/src/components/project/DisclosurePanel.tsx", "app/web/src/components/project/RepositoryPanel.tsx"]
 clones = 1
-lines = 15
+lines = 13
 
 [[pair]]
 files = ["broker/src/dd_broker/anthropic.py", "broker/src/dd_broker/chat_completions.py"]

@@ -28,6 +28,7 @@ export type AppResponse =
   | Checks
   | ChecksConfirmed
   | ChosenRepository
+  | ChosenStandard
   | ConfirmationStatement
   | Conversation
   | ConversationDeleted
@@ -70,6 +71,7 @@ export type AppResponse =
   | ItemDecisionMade
   | ListedProject
   | LiveEscalation
+  | MetadataStandard
   | MoveName
   | MoveTarget
   | Notice
@@ -129,6 +131,7 @@ export type AppResponse =
   | RunRow
   | SavedInventory
   | ServerFolderRoots
+  | StandardChoice
   | Started
   | StepReason
   | StepState
@@ -399,9 +402,34 @@ export interface ChosenRepository {
   repository_id: string;
   repository_name: string;
   /**
+   * The metadata standard its record is drafted and checked in, and why; None for a choice
+   * recorded before the reason was.
+   */
+  standard: ChosenStandard | null;
+  /**
    * What the choice does not check, for example that re3data does not list DataCite for it.
    */
   warnings: string[];
+}
+/**
+ * The metadata standard a repository choice resolved to, and why (docs/specs/deposit.md,
+ * invariant 5).
+ */
+export interface ChosenStandard {
+  /**
+   * For a standard a person chose, their name.
+   */
+  chosen_by: string | null;
+  /**
+   * Why it is this standard: the deployment's settings for the repository name it, a person
+   * chose it, it is the one the repository declares, the first by the deployment's preference of
+   * several it declares, or DataCite's because it declares none the deployment has a set for.
+   */
+  reason: "override" | "chosen" | "declared" | "declared_several" | "fallback";
+  /**
+   * The title of the standard's requirement set, such as Dublin Core (OAI-DC).
+   */
+  title: string;
 }
 /**
  * A conversation as the harness derives it from the run store
@@ -1235,6 +1263,13 @@ export interface LiveEscalation {
   opened_at: string;
   state: EscalationState;
   team_id: string;
+}
+/**
+ * A metadata standard the deployment has a requirement set for.
+ */
+export interface MetadataStandard {
+  conforms_to: string;
+  title: string;
 }
 /**
  * Something a data steward did in one of the person's projects (docs/specs/stewardship.md,
@@ -2081,6 +2116,19 @@ export interface RunRow {
  */
 export interface ServerFolderRoots {
   roots: string[];
+}
+/**
+ * The metadata standard a project's record is drafted and checked in, why it is that one,
+ * the standards the deployment has a set for, in its order of preference, and whether another
+ * may be chosen (docs/specs/deposit.md, invariant 5).
+ */
+export interface StandardChoice {
+  /**
+   * False when the deployment's settings for the repository name its standard.
+   */
+  may_choose: boolean;
+  standard: ChosenStandard | null;
+  standards: MetadataStandard[];
 }
 /**
  * A conversation the server started, and the project it was started in
