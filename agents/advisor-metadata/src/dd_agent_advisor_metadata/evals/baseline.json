@@ -1,12 +1,13 @@
 {
   "identity": {
     "agent_id": "advisor.metadata",
-    "cases_sha256": "5c37565d39e66353261a336e2d5871577f814acae04494add1052f3d9076dfd2",
+    "cases_sha256": "0b8c143cce4249ee4d73da0c76e10f0549e95173fbfa1b2c93b617b7189b524c",
     "configuration": {},
     "definitions_sha256": {
-      "datacite-4": "aa9eecdeb2da43d34aeb03beb6b6ead6156e482aa40cba5ca9ab32420237b7ca"
+      "datacite-4": "aa9eecdeb2da43d34aeb03beb6b6ead6156e482aa40cba5ca9ab32420237b7ca",
+      "dublin-core-oai": "8a44d46897e6f887f1e5c55e2d2387f10288e88a6345f40578ced10fd518dad9"
     },
-    "git_revision": "18621d3dca3609ac5188a9d5c2e1fe248e0baf73",
+    "git_revision": "b24cba1782344f6db2d769ddfcdc4d4636b215cc",
     "shares_sha256": "8c9eaaef5a8313c664ce169238e3469c90ca6562a66f15330654f19c085d85f6",
     "spec_version": "0.3.0a0",
     "system_prompt_sha256": "8c93f2f784cf427eb38e681579c9888ea7c858791e60a6b9b269df78da886bbe"
@@ -50,9 +51,9 @@
     },
     "dublin-core-repository": {
       "grounding_passed": 1.0,
-      "nothing_placed": null,
+      "nothing_placed": 1.0,
       "outcome_matches": 1.0,
-      "questions_asked": null,
+      "questions_asked": 1.0,
       "stopped_correctly": 1.0,
       "subjects_recalled": null,
       "terms_cited": null
@@ -154,6 +155,15 @@
       "questions_asked": 1.0,
       "stopped_correctly": 1.0,
       "subjects_recalled": 0.0,
+      "terms_cited": null
+    },
+    "unknown-standard-repository": {
+      "grounding_passed": 1.0,
+      "nothing_placed": null,
+      "outcome_matches": 1.0,
+      "questions_asked": null,
+      "stopped_correctly": 1.0,
+      "subjects_recalled": null,
       "terms_cited": null
     },
     "wind-tunnel": {
