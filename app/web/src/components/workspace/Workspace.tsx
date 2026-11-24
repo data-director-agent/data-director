@@ -1,7 +1,6 @@
 /**
  * The workspace around the researcher's task, in one project at a time: the project it is in,
- * with a way to switch, then a strip across the top
- * showing the Blueprint's phases, which opens for detail. Beneath that, three columns: the
+ * with a way to switch. Beneath that, three columns: the
  * person's conversations on the left, the open conversation in the centre, and an overview of
  * the project on the right (its current state, attached files and documents). A delegated run
  * opens inside the conversation. The activity log is a page of its own. When proposals and the
@@ -18,7 +17,6 @@ export function Workspace({
   title,
   titleHidden,
   project,
-  phases,
   history,
   centre,
   context,
@@ -27,7 +25,6 @@ export function Workspace({
   titleHidden?: boolean | undefined;
   /** Which project the workspace is in, and a way to switch. */
   project?: ReactNode;
-  phases: ReactNode;
   history?: ReactNode;
   centre: ReactNode;
   context: ReactNode;
@@ -37,7 +34,6 @@ export function Workspace({
       <PageHeader title={title} titleHidden={titleHidden} className="workspace-head">
         {project}
       </PageHeader>
-      {phases}
       {history}
       <div className="workspace-centre">{centre}</div>
       {context}

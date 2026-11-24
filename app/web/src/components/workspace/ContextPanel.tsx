@@ -21,7 +21,7 @@ import type { Conversation } from "../../conversation/types";
 import type { FlowStep, ProjectProgress } from "../../flow/types";
 import type { ProjectSummary } from "../../project/api";
 import type { DocumentsRead } from "../../project/drafted";
-import type { FlowLoad } from "./PhaseTracker";
+import type { FlowLoad } from "./flowLoad";
 import { useProjectFacts } from "./project-pane/facts";
 import { FairFeedback } from "./project-pane/FairFeedback";
 import { FilesAndDocuments } from "./project-pane/FilesAndDocuments";

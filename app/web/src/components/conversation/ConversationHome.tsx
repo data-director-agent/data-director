@@ -1,7 +1,7 @@
 /**
  * The home page: a conversation with the orchestrator (docs/specs/app.md), in the centre of the
  * workspace (§18), in the project the shell is working in. The project's conversations are on the
- * left, an overview of it on the right, and the Blueprint's phases in a strip above. New
+ * left and an overview of it on the right. New
  * conversation starts another thread in the same project; with no project active, the first
  * message starts one, which becomes the active project. The open conversation is named in the
  * address (`?conversation=`), so a reload or a link reopens it and a message sent after it
@@ -38,7 +38,7 @@
  * and goes to the project, never into the text (docs/specs/app.md). A message may carry one
  * inventory and one document.
  *
- * A step of the data journey, or one of the prompts an empty conversation offers, starts a new
+ * One of the prompts an empty conversation offers, starts a new
  * conversation with the step's prompt in the message box, unsent. A message already being written
  * is replaced only when the researcher confirms.
  *
@@ -71,7 +71,6 @@ import { ContextPanel } from "../workspace/ContextPanel";
 import { StewardConversationBanner } from "../escalation/StewardConversationBanner";
 import { StewardProvider } from "../escalation/StewardContext";
 import { FAIRNESS_CLASS } from "../../project/fairness";
-import { PhaseTracker } from "../workspace/PhaseTracker";
 import { useFlowLoad } from "../workspace/useFlowLoad";
 import {
   asksNewConversation,
@@ -186,7 +185,6 @@ export function ConversationHome({ directory }: { directory: Directory }) {
 
   const frame = {
     project: <ProjectSwitcher />,
-    phases: <PhaseTracker load={flow} tracked={tracked} />,
   };
   const project = projectNamed(projects, projectId);
   // A data steward working here is not offered to ask a data steward (`StewardConversationBanner`).

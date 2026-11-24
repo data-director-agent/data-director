@@ -44,7 +44,7 @@
   }
 }
 
-/* The workspace (docs/specs/app.md): the head across the top, then the phase strip, then the
+/* The workspace (docs/specs/app.md): the head across the top, then the
    person's conversations, the open conversation and the project overview side by side. The
    source order is the reading order at every width. Narrower, the conversations go above the
    open one; narrower still, everything is one column. A delegated run opens inside its card in
@@ -58,7 +58,6 @@
     );
   grid-template-areas:
     "head head head"
-    "phases phases phases"
     "history centre context";
   align-items: start;
 }
@@ -66,11 +65,6 @@
 .workspace-head {
   grid-area: head;
   margin-bottom: 0;
-}
-
-.workspace-phases {
-  grid-area: phases;
-  min-width: 0;
 }
 
 .workspace-history {
@@ -97,7 +91,6 @@
     grid-template-columns: minmax(0, 1fr) minmax(14rem, 22rem);
     grid-template-areas:
       "head head"
-      "phases phases"
       "history history"
       "centre context";
   }
@@ -113,7 +106,6 @@
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       "head"
-      "phases"
       "history"
       "centre"
       "context";
