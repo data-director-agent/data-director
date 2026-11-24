@@ -186,6 +186,13 @@
       "exclude-paths": [
         "dmp-template/tests"
       ]
+    },
+    "metadata-records": {
+      "component": "metadata-records",
+      "release-type": "python",
+      "exclude-paths": [
+        "metadata-records/tests"
+      ]
     }
   }
 }

@@ -9,8 +9,8 @@ output chooses what it sends. It runs only on a person's request, and, in order:
 2. checks that the repository chosen has a `deposit` block in its override, that the profile
    offers its transport, that the transport is installed, and that the deployment has a deposit
    broker;
-3. renders the approved DataCite record into the platform's item and keeps it by its digest, as
-   a package `derived_from` the RO-Crate package;
+3. renders the approved metadata record, read as its pivot, into the platform's item and keeps it
+   by its digest, as a package `derived_from` the RO-Crate package;
 4. records the person's approval as `deposit_approved`, refused if the package was already
    deposited in the repository, or is being deposited;
 5. mints a deposit grant naming exactly those bytes, and asks the deposit broker for the draft;
@@ -31,7 +31,7 @@ from enum import StrEnum
 from typing import Any
 
 from dd_harness.deposit_broker import DepositBroker, DepositRefusal
-from dd_harness.deposit_record import datacite_attributes
+from dd_harness.metadata_standards import readable
 from dd_harness.projects import (
     DEPOSIT_APPROVED,
     DEPOSIT_CHECKS_CONFIRMED,
@@ -201,20 +201,16 @@ def approve_and_deposit(
     connector = found.connector
     transport = transports[connector.transport]
     _check_package(projects.events(project_id), digest)
-    record = projects.metadata_record(project_id)
-    try:
-        attributes = datacite_attributes(record["document_text"]) if record else None
-    except ValueError:
-        attributes = None
-    if attributes is None:
+    record = readable(projects.metadata_record(project_id))
+    if record is None:
         raise DepositRefusedError(
-            Refusal.NO_RECORD, "The project has no approved DataCite metadata record to send."
+            Refusal.NO_RECORD, "The project has no approved metadata record to send."
         )
     package = projects.package(project_id, digest)
     if package is None:
         raise DepositRefusedError(Refusal.UNKNOWN_PACKAGE, "The project built no such package.")
 
-    item = transport.render(attributes, connector.target)
+    item = transport.render(record.pivot(), connector.target)
     item_digest = projects.record_package(
         project_id,
         item.content,

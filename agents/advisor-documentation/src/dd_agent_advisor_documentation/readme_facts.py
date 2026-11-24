@@ -9,13 +9,7 @@ from typing import Any
 from dd_agent_advisor_documentation.counts import counted
 from dd_agent_advisor_documentation.drafted import file_format
 from dd_agent_advisor_documentation.outline import Outlined
-from dd_agent_advisor_documentation.record import (
-    _collected,
-    _creators,
-    _from_record,
-    _title,
-    _values,
-)
+from dd_agent_advisor_documentation.record import _collected, _creators, _from_record, _title
 from dd_agent_advisor_documentation.suggestions import with_documents
 from dd_agent_advisor_documentation.values import field_facts
 from dd_sdk.contract.models import DraftRequest, FileInventory, RepositoryRequirements
@@ -68,16 +62,15 @@ def _facts(
         else {DATA_COLLECTED: False}
     )
     if record is not None:
-        year = record.get("publicationYear")
         given = {
             "title": _title(record),
             "creators": _creators(record),
-            "funders": _values(record, "fundingReferences", "funderName"),
+            "funders": list(record.get("funding") or []),
             "dates_collected": _collected(record),
-            "geographic_locations": _values(record, "geoLocations", "geoLocationPlace"),
+            "geographic_locations": list(record.get("location") or []),
             "abstract": _from_record("record_abstract", record),
             "licence": _from_record("record_rights", record),
-            "publication_year": str(year) if isinstance(year, int | str) and str(year) else None,
+            "publication_year": record.get("year"),
         }
         facts[RECORD_FACTS] = {k: v for k, v in given.items() if v}
     if requirements is not None and requirements.licences:

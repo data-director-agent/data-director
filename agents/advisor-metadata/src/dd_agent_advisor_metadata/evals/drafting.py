@@ -32,7 +32,8 @@ import yaml
 from inspect_ai import Task, task
 from inspect_ai.dataset import MemoryDataset
 
-from dd_agent_advisor_metadata.agent import DATACITE_FORM, MetadataLibrarian
+from dd_agent_advisor_metadata import scope
+from dd_agent_advisor_metadata.agent import SHARES, MetadataLibrarian
 from dd_agent_advisor_metadata.categories import SERVER
 from dd_agent_advisor_metadata.evals.scorers import (
     nothing_placed,
@@ -122,7 +123,8 @@ def identity(agents: str | None) -> dict[str, Any]:
 
     hashes = {
         "cases_sha256": sha256_of(CASES),
-        "rule_table_sha256": sha256_of(DATACITE_FORM),
+        "definition_sha256": scope.standard().definition.sha256,
+        "shares_sha256": sha256_of(SHARES),
         "system_prompt_sha256": sha256_of(PACKAGE / "suggest_prompt.md"),
     }
     return task_identity(

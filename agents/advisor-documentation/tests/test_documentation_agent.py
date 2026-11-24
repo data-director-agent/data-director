@@ -549,7 +549,11 @@ def test_a_record_of_placeholders_drafts_as_no_record_does(runs_dir: Path) -> No
 @pytest.mark.parametrize(
     ("conforms_to", "text", "why"),
     [
-        ("http://example.org/other-schema", "{}", "reads only DataCite records"),
+        (
+            "http://example.org/other-schema",
+            "{}",
+            "reads only records in a standard it has a definition for",
+        ),
         ("http://datacite.org/schema/kernel-4", "not json", "not JSON"),
         ("http://datacite.org/schema/kernel-4", "[]", "not a JSON object"),
     ],

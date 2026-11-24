@@ -21,7 +21,9 @@ usually from `advisor.repository`'s shortlist. Nobody has to write a file for it
 from two kinds of set:
 
 - `standards/` holds one set per metadata standard: what any record in that standard needs.
-  DataCite is the only standard so far; others are #401.
+  DataCite is the only standard so far; others are #401. A set's standard must be one whose
+  definition `dd-metadata-records` registers ([Metadata standards](../../../docs/specs/metadata-standards.md)),
+  or the deployment does not start.
 - `overrides/` holds what one repository asks beyond its standard, such as the fields its deposit
   form requires and the licences it offers. Write one only for a repository the deployment knows
   well. A repository without one is checked against its standard alone, with a warning.
@@ -77,8 +79,11 @@ Each entry of `fields` has:
 
 - `property`: the schema's property, such as DataCite's `titles`;
 - `qualifier` (optional): a value that narrows it, such as a subject scheme;
-- `term`: the term of an existing vocabulary it maps to, used to read the record for checking and
-  to describe the dataset in the package. It is a CURIE with one of the prefixes `schema:`
+- `term` (optional): the term of an existing vocabulary it maps to, used to read the record for
+  checking and to describe the dataset in the package. Left out, it is the term the standard's
+  definition gives the property and qualifier; given, it must be that term, or the set is refused
+  on load, so a field names its own term only for a property its standard does not have. It is a
+  CURIE with one of the prefixes `schema:`
   (schema.org), `dcterms:` (Dublin Core Terms), `dcat:` (DCAT) or `prov:` (PROV-O), such as
   `schema:name` or `dcterms:provenance`, or the full IRI of a term in one of them. A term the
   vocabulary does not define is refused on load: no term is invented. A record's values are checked

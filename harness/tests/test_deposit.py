@@ -41,6 +41,7 @@ from dd_harness.deposit import (
     validate,
 )
 from dd_harness.deposit_review import REVIEW_CHECKS
+from dd_harness.metadata_standards import UnreadRecordError, read_record
 from dd_harness.projects import (
     APPROVED,
     PACKAGE_BUILT,
@@ -363,6 +364,30 @@ def test_a_record_that_is_not_datacite_json_is_a_violation(
     approve(projects, runs, chosen, DocumentKind.METADATA_RECORD, "Title: Soil cores")
     (violation,) = validate(projects, chosen).violations
     assert violation.message.startswith("The approved metadata record is not a DataCite record")
+
+
+def test_a_record_in_a_standard_no_definition_covers_is_refused_before_validation() -> None:
+    """docs/specs/metadata-standards.md, invariant 1."""
+    record = {
+        "conforms_to": "http://purl.org/dc/elements/1.1/",
+        "media_type": "application/json",
+        "document_text": json.dumps(RECORD),
+    }
+    with pytest.raises(UnreadRecordError, match="no registered standard's definition covers"):
+        read_record(record)
+    with pytest.raises(UnreadRecordError, match="no registered standard's definition covers"):
+        read_record({**record, "conforms_to": None})
+
+
+def test_the_choice_names_the_definition_of_its_standard(
+    projects: ProjectStore, chosen: str
+) -> None:
+    """docs/specs/metadata-standards.md, invariant 12."""
+    (event,) = [e for e in projects.events(chosen) if e["event"] == "repository_chosen"]
+    standard = event["standard"]
+    assert standard["ref"].startswith("datacite-4@v")
+    assert len(standard["sha256"]) == 64
+    assert standard["codecs"]["application/json"]
 
 
 def test_a_licence_the_repository_does_not_offer_is_a_violation(

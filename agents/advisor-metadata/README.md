@@ -39,7 +39,7 @@ property in the request's `requirements` is written:
   they still work for, with the organisation's identifier (such as a ROR) where ORCID gives one; `subjects` adds their keywords
   after the entries the repository's vocabularies ask for; and `fundingReferences` lists their
   grants, with the funder's identifier and the award number.
-- A property `datacite.yaml` does not know is written as `null`.
+- A property DataCite's definition gives no drafting advice for is written as `null`.
 
 From the inventory it adds `formats` (the files' media types) and `sizes` (the number of files
 and their total bytes). `schemaVersion` names the schema.
@@ -77,7 +77,7 @@ model writes a value.
 ## Suggestions
 
 Before any model, the librarian offers the researcher's own words (#1284, docs/specs/drafting.md,
-invariant 11). The properties `datacite.yaml` marks `shares` (the first title, creator, abstract,
+invariant 11). The properties `shares.yaml` names (the first title, creator, abstract,
 date collected, place, funder and licence) carry a `shared_field`, and the answer the researcher
 recorded to the same field of the README, or the funder or licence people decided, is offered as
 the question's suggestion (`suggestion_derivation: answer`, `suggested_from`), never placed in the
@@ -87,8 +87,8 @@ question that already offers one.
 `DD_METADATA_SUGGESTER` chooses the suggester (`factory.py`, `config/examples/agents.env`):
 
 - `template` suggests nothing, calls no model and needs no key.
-- `model` (default) has a model suggest values for the questions on the properties `datacite.yaml` marks
-  `suggest`: the title, the description, a free keyword and the language. A suggestion is
+- `model` (default) has a model suggest values for the questions on the properties DataCite's
+  definition marks `suggest` (`metadata-records/src/dd_metadata_records/standards/datacite-4.yaml`): the title, the description, a free keyword and the language. A suggestion is
   offered in the question (`suggested_answer`, `suggestion_derivation: model`), never in the
   record, whose text stays the template's byte for byte. It becomes part of the record only when
   a person records it, or a correction of it, as their answer.

@@ -19,20 +19,23 @@ It does not cover reading a record a researcher already has, or extracting metad
 (#789). The design leaves room for both: a standard's definition is the place to say how a record in
 it is recognised, and the codecs are shared. Neither is built or specified here.
 
-**What is built.** The metadata record is DataCite in its JSON form, and DataCite's keys are written
-into the Librarian (`datacite.yaml`), the deposit check (`VALUE_KEYS`), the Documentation Editor's
-reader and the Zenodo item. A requirement set names a term for each field itself, as a CURIE or IRI
-of schema.org, Dublin Core Terms, DCAT or PROV-O, and validation reads a record as RDF through it;
-the package's root dataset has each field's values under its term. Everything below is the design that replaces those; each part names
-the issue that builds it. Until then the code does what *What is built* says, and a statement here
-that the code does not yet meet is marked in place.
+**What is built.** The library `metadata-records/` holds a JSON codec and one standard's
+definition, DataCite's in its JSON form. The harness reads an approved record through it to
+validate it, describe the package's root dataset and render the Zenodo item, and refuses a record
+in a pair of standard and serialisation no registered definition covers. The Documentation Editor
+and the FAIR Assessor read records through the pivot, and the Metadata Librarian takes its
+questions and value keys from the definition's drafting block and writes through its codec. The
+Librarian still writes DataCite's keys itself and drafts in no other standard (#1359), and no
+other standard is defined yet (#1360, #1361). A requirement set's field may leave out its term,
+and a field that names one is checked against the definition. A statement below that the code
+does not yet meet is marked in place.
 
 ## Invariants
 
 1. **A record is in one standard and one serialisation, and says which.** A metadata record is a
    `Document` of kind `metadata_record` whose `conforms_to` names its standard and whose
    `media_type` names its serialisation. The harness accepts a record only for a pair that a
-   registered standard defines, and refuses any other before it is validated or packaged. TODO(#1358).
+   registered standard defines, and refuses any other before it is validated or packaged.
 2. **The record is the record of truth.** Every other form of its content, the pivot graph, a
    conversion, a platform's item, is derived from it, kept by its digest, never edited and never a
    document ([Deposit](deposit.md), invariant 16). A conversion is never approved in the record's
@@ -40,7 +43,10 @@ that the code does not yet meet is marked in place.
 3. **A standard is a definition, not code.** Adding a standard adds a definition, and a codec only
    if its serialisation has none. No module outside a standard's own definition names one of its
    properties. A check fails a module that does, as `scripts/check_boundaries.py` fails an
-   undeclared import. TODO(#1358).
+   undeclared import: `scripts/check_standard_keys.py` reports a string literal in a member's
+   `src/` that is a distinctive identifier of a definition (a camelCase or dotted property path,
+   value key, part key or qualifier key). The Metadata Librarian is exempt until it drafts from any
+   definition, TODO(#1359).
 4. **A codec knows no standard, and writes the same bytes for the same tree.** A codec parses a
    serialisation into a generic tree and writes a tree back to it. Approval, the package and a
    deposit name a record by its digest, so a codec's output is deterministic, and its identifier
@@ -79,7 +85,8 @@ that the code does not yet meet is marked in place.
 12. **A choice records the definition it used.** The project log names the standard's definition by
     `<standard_id>@v<version>` and the SHA-256 of its file, and its codec by identifier, as it names
     each requirement set ([Deposit](deposit.md), invariant 6). A definition's version is raised on
-    every change; nothing checks this. TODO(#1358).
+    every change; nothing checks this. The `repository_chosen` event records it as `standard`, with
+    `ref`, `sha256` and the codec of each serialisation by media type.
 13. **A parser reads only the record.** An XML codec resolves no external entity or DTD, fetches
     nothing, and refuses input over a size limit. A record is a few kilobytes, and a parser that
     follows what the document says is a way to read or reach what a researcher did not mean to share.
@@ -101,15 +108,17 @@ versioned by its own `version`. It says:
 
 - which `conforms_to` URIs it covers and which serialisations, each with its codec;
 - its properties, by their path in its logical model, and for each one that repeats, the key or
-  element that holds its value, which is today `VALUE_KEYS`;
+  element that holds its value;
 - where each property is in each serialisation;
 - the pivot term each property maps to, if it has one, and the source of the mapping, as a set cites
   its guidance (DataCite's published mapping to schema.org, for instance);
 - how a gap is written in each serialisation (invariant 6);
 - optionally, for a drafter, what to ask about each property, what fills itself by rule, what a
   person must decide may be published before the value is asked, and which properties a model may
-  suggest a value for. This is the content of `datacite.yaml`. It is advice to a drafter and a
+  suggest a value for. It is advice to a drafter and a
   ceiling, not a licence: the drafter's own rules in [Drafting documents](drafting.md) still apply.
+  Which of a README's shared fields a property gives is Data Director's contract, not the
+  standard's, so it stays with the drafter.
 
 The definition says nothing about what a repository requires. A definition has no obligation, no
 licence list, no form label and no size limit.
@@ -119,9 +128,9 @@ record in a standard, written in YAML by the people who know the repository. Its
 properties of the standard by their path and their qualifier, and their obligation. The term a field
 is read under comes from the standard's definition. A field of an override for something the standard
 has no property for, such as a Dataverse contact email, names its own term, and a field may not name
-a term that differs from the one the standard's definition gives its property. Today a field names
-its term itself, as a CURIE or IRI, and a standard has no definition of its own; the definition is
-built in #1358.
+a term that differs from the one the standard's definition gives its property. A field may still
+name its term, as a CURIE or IRI, and the set is refused on load if it differs; one that leaves it
+out is read under the definition's.
 
 A definition and a requirement set have different owners and change at different rates. A definition
 describes the format, and changes when the standard does. A set describes a repository's wishes and
@@ -130,11 +139,16 @@ changes when it changes its form.
 **The pivot.** A record is read as an RDF graph whose subject is the dataset. A property that holds
 a value becomes a literal of its term, and a property that holds a structure, such as a creator with
 a name, an identifier and an affiliation, becomes a node whose parts have terms of their own, which a
-definition lists. The validation counts only that a term has a value, as it does today, and a
-conversion uses the parts. Shapes are generated from the merged requirement set's fields, and
-pySHACL runs them, as before ([Deposit](deposit.md), *Validation*). The pivot is built for a check or
-a conversion and is not kept as a record; the package's root dataset properties are written from it,
-as they are from DataCite now.
+definition lists. A qualifier that says what kind of entry it is, such as DataCite's
+`descriptionType` or `relationType`, is a part too, under `dcterms:type`, and a definition may give
+the entries a qualifier selects a term of their own, as DataCite's Methods descriptions are read
+as `dcterms:provenance`. Each node keeps the path of the property it came from, so that a reader
+names what it could not place in the standard's own words, and the record's values that no term
+holds are listed beside the pivot, never dropped. The validation counts only that a term has a
+value, as it does today, and a conversion uses the parts. Shapes are generated from the merged
+requirement set's fields, and pySHACL runs them, as before ([Deposit](deposit.md), *Validation*).
+The pivot is built for a check, a platform's item or a conversion and is not kept as a record; the
+package's root dataset properties are written from it.
 
 **Drafting in a standard.** The Metadata Librarian drafts a record in the standard the merged set
 follows, from the standard's definition and the project's facts, and writes it through the

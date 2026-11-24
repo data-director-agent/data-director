@@ -68,9 +68,10 @@ documents ([Projects](../../docs/specs/projects.md)). A request names the `docum
   ([Drafting documents](../../docs/specs/drafting.md), invariant 2). The abstract says all the
   Description asks, so that section then has no gap; the others keep theirs for what the record
   does not say, such as a part the record leaves empty or the DOI. The editor reads a record in
-  DataCite's JSON form (`conforms_to` `http://datacite.org/schema/kernel-4`), as
-  `advisor.metadata` drafts it, and skips any value left `null` or blank. It does not use a record
-  in any other form, and says so in its statement. With no record, it drafts from the inventory
+  any standard and serialisation a registered definition covers (`dd-metadata-records`; today
+  DataCite's JSON form, as `advisor.metadata` drafts it), through the pivot terms the definition
+  gives its properties, and skips any value left as a gap. It does not use a record in any other
+  standard, and says so in its statement. With no record, it drafts from the inventory
   alone and says so.
 
   When a model is configured, as it is by default (below), it also writes the README's prose: an
