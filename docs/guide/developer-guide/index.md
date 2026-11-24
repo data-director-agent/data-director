@@ -7,6 +7,9 @@ For people who write agents or work on the repository.
 - [Writing an agent](writing-an-agent.md)
 - [Reviewing a model-backed agent](reviewing-a-model-backed-agent.md): a checklist for pull
   requests that add or change an advisor that calls a model.
+- [What it is built on](../../architecture.md#what-it-is-built-on): the standards and libraries
+  used, and why there is no agent framework. The full register is in
+  [Dependencies](../../specs/dependencies.md).
 - [Contributing](../../../CONTRIBUTING.md): how to propose and submit changes.
 - [Documentation](documentation.md): how these pages are built and published.
 - [DeepWiki](https://deepwiki.com/data-director-agent/data-director): an AI-generated overview of

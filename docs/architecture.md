@@ -122,6 +122,33 @@ This is why adding an agent needs no change to the harness, the app or the workb
 them learns about the agent from its *agent card*, the document every A2A service publishes,
 which carries the agent's `AgentSpec` ([registry](../harness/docs/registry.md)).
 
+### What it is built on
+
+Data Director uses no agent framework (LangChain, LangGraph, CrewAI or similar). The harness has
+to see and govern every step an agent takes, through one contract it owns, and a framework would
+own the loop and hide steps behind its own abstractions
+([rejected alternatives](specs/dependencies.md#rejected-alternatives)). So the governance is
+written here, and the plumbing underneath is adopted.
+
+- **Written in this repository:** the conductor, the policy gate, the input check, the grounding
+  linter, evidence hashing, the outcome vocabulary and reason codes, each agent's decisions and
+  the conformance traceability rule.
+- **Adopted open standards:** A2A (`a2a-sdk`) between the harness and agents, MCP (`mcp`) for
+  tools and data through the harness's tool gateway, AG-UI (`ag-ui-protocol`) from the harness to
+  the browser, OpenTelemetry for traces, RO-Crate (`rocrate`) for provenance and deposit
+  packages, and LinkML, JSON Schema and SHACL (`pyshacl`) for formats and validation.
+- **Adopted libraries:** `pydantic`, `starlette`, `uvicorn`, `httpx`, `psycopg` and, in the app,
+  React. Inspect AI is used for evaluation only.
+- **Models:** an agent that calls a model does so through one seam, `dd_sdk.model`, with an
+  `anthropic` adapter and an `openai` adapter for any OpenAI-compatible endpoint. There is no
+  framework-level agent loop.
+
+Every runtime dependency sits behind one thin internal interface and has a named fallback, and
+our fixed formats never depend on a library's representation, so losing a library is a local
+problem. The register of each dependency, its interface and its fallback is
+[Dependencies](specs/dependencies.md). `scripts/check_dependencies.py` checks in CI that each
+member declares what it imports.
+
 ### The shared formats
 
 Some things are fixed so that everything else can change. The contract's request and envelope,
@@ -412,3 +439,4 @@ data: a project there holds only an inventory of its files and any uploaded docu
 | The workbench's components, module by module | [`workbench/docs/architecture.md`](../workbench/docs/architecture.md) |
 | How requirements are tested and reviewed | [`conformance.md`](conformance.md) |
 | How each part is meant to work, and why | [`specs/`](specs/README.md) |
+| What it is built on, and what it deliberately does not use | [What it is built on](#what-it-is-built-on), [Dependencies](specs/dependencies.md) |
