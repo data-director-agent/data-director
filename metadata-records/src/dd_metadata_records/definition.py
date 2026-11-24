@@ -25,6 +25,9 @@ TERM_NAMESPACES: Final = {
 }
 # A qualifier value that matches any value of its key.
 ANY: Final = "*"
+# The term of a part that names the vocabulary an entry's value is taken from, such as a subject
+# scheme: a drafter offers a value for such an entry only from that vocabulary.
+IN_VOCABULARY: Final = "http://schema.org/inDefinedTermSet"
 _DRAFTING_KEYS: Final = frozenset({"ask", "publish", "suggest", "filled"})
 
 
@@ -133,6 +136,17 @@ class Definition:
 
     def property(self, path: str) -> Property | None:
         return self.properties.get(path)
+
+    def property_for(self, term: str) -> Property | None:
+        """The first property whose own term, the one an entry no qualifier selects is read
+        under, is `term`, an IRI."""
+        return next((p for p in self.properties.values() if p.term == term), None)
+
+    def vocabulary_keys(self, path: str) -> frozenset[str]:
+        """The keys of a property's entries that name the vocabulary its value comes from."""
+        found = self.properties.get(path)
+        parts = found.parts if found else {}
+        return frozenset(key for key, part in parts.items() if part.term == IN_VOCABULARY)
 
     def term(self, path: str, qualifier: Mapping[str, Any] | None = None) -> str | None:
         """The pivot term, as an IRI, a requirement field of `path` and `qualifier` is read

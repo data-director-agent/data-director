@@ -46,10 +46,12 @@ A definition is a YAML file. It gives:
 - its properties, by their path in the standard's logical model.
 
 For each property it gives the key that holds the value in each entry, the pivot `term`, a
-`qualified` term for entries whose qualifier matches, and the terms of an entry's `parts`. It may
-also carry a `drafting` block: what to ask for a gap, what a person must decide may be published
-before the value is asked, what a model may suggest, and what is filled by rule. That block is
-advice to a drafter and a ceiling, not a licence.
+`qualified` term for entries whose qualifier matches, and the terms of an entry's `parts`. A
+record is read and written as a logical tree in which a gap is `None`, and each serialisation
+writes a gap its own way, so a gap is never taken for a value. A definition may also carry a
+`drafting` block: what to ask for a gap, what a person must decide may be published before the
+value is asked, what a model may suggest, and what is filled by rule. That block is advice to a
+drafter and a ceiling, not a licence.
 
 | Identifier | Standard | Serialisations | Mapping |
 |---|---|---|---|
@@ -71,8 +73,9 @@ named by its standard's identifier, as a `Definition` loaded with `dd_metadata_r
 
 - There is one standard and one serialisation. Dublin Core in XML is TODO(#1360), and UK GEMINI is
   TODO(#1361).
-- The pivot is read from a record, but no record is written from it yet: a conversion between
-  standards is TODO(#1363).
+- A drafter writes an entry from a node of the pivot with `entry`, in the order the definition
+  lists its parts, but no whole record is converted from one standard to another yet: that is
+  TODO(#1363).
 - A definition covers the properties a drafter writes or a reader reads, not every property of
   its standard. A property it does not name is listed as unmapped, and is never dropped
   silently.

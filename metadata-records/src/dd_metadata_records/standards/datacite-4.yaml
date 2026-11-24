@@ -12,6 +12,9 @@
 # are the terms of an entry's other keys, so that a structured value becomes a node of the pivot;
 # a part whose own value is a list of objects says which key holds its value.
 #
+# A drafter writes an entry from a node of the pivot in the order the parts are listed here, so
+# the order is the order of the keys in a drafted record.
+#
 # `drafting` is advice to a drafter and a ceiling, not a licence (docs/specs/drafting.md still
 # applies): `ask` is the question put for a gap, `publish` a question asked first for a value a
 # person must decide may be published at all, `suggest: true` the properties a model may suggest a
@@ -21,7 +24,7 @@
 # Raise `version` on every change: the project log names the definition by its version and the
 # SHA-256 of this file.
 standard_id: datacite-4
-version: 1
+version: 2
 title: DataCite Metadata Schema 4
 name: DataCite
 url: https://schema.datacite.org/meta/kernel-4/
@@ -49,6 +52,7 @@ properties:
     value: name
     term: schema:creator
     parts:
+      nameType: dcterms:type
       givenName: schema:givenName
       familyName: schema:familyName
       nameIdentifiers:
@@ -63,6 +67,7 @@ properties:
         parts:
           affiliationIdentifier: schema:identifier
           affiliationIdentifierScheme: schema:propertyID
+          schemeUri: schema:url
   contributors:
     value: name
     term: schema:contributor

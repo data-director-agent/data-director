@@ -37,8 +37,9 @@ as the researcher asks in their own words, such as "shorten the Files paragraph"
 The Metadata Librarian (`advisor.metadata`) drafts the metadata record by the same rules. It
 serves `preparation.metadata` and drafts the record from a `DraftRequest` with the chosen
 repository's requirements, asks about every value it leaves null, and places the answers recorded to
-them. It drafts in the standard those requirements follow ([Metadata standards](metadata-standards.md));
-today that is DataCite in its JSON form alone, TODO(#1359). Its model, on unless the operator turns it off,
+them. It drafts in the standard those requirements follow, from the standard's registered definition
+([Metadata standards](metadata-standards.md)); DataCite in its JSON form is the only one defined
+so far. Its model, on unless the operator turns it off,
 suggests some of those values beside their questions
 ([`agents/advisor-metadata/README.md`](../../agents/advisor-metadata/README.md)).
 
@@ -239,9 +240,11 @@ rule 20 and invariant 32).
     every kind of document gives the same way: the dataset's title, its creators, its abstract,
     when and where the data were collected, its funder and its licence (`SharedField`, #1284). A
     drafter names the one a question asks for in its `shared_field`, from its own template: the
-    Metadata Librarian names the first entry of `titles`, `creators`,
-    `descriptions` (Abstract), `dates` (Collected), `geoLocations`, `fundingReferences` and
-    `rightsList` in `agents/advisor-metadata/src/dd_agent_advisor_metadata/shares.yaml`, and the Documentation
+    Metadata Librarian names, by pivot term, the first entry of a record's name, creator,
+    description, temporal coverage, spatial coverage, funding and licence
+    (`agents/advisor-metadata/src/dd_agent_advisor_metadata/shares.yaml`; in DataCite the first
+    of `titles`, `creators`, `descriptions` (Abstract), `dates` (Collected), `geoLocations`,
+    `fundingReferences` and `rightsList`), and the Documentation
     Editor's README template marks the parts of General information and the Description and
     Access and licence sections (`readme.yaml`). In a project the conductor gives a drafter
     `shared_answers`: for each shared field, the latest answer a person recorded to a question on
@@ -305,9 +308,10 @@ question and its answer. It also has the text put to the person and its target: 
 README section (`gap_section`), with the part of it (`gap_part`) when the section is asked part by
 part, a data dictionary cell named by `gap_file`, `gap_field` and `gap_column`, with every file
 whose cell the answer fills in `gap_files` when the column is shared (invariant 5), or a metadata
-record value named by its path in the record's JSON form (`gap_property`, such as
-`titles[0].title`). A metadata record marks a gap by leaving its value `null`, since JSON has no
-comments. An answer (`DraftAnswer`) names the question it answers and gives the text. The
+record value named by its path in the standard's logical model (`gap_property`, such as
+DataCite's `titles[0].title`), the same whatever serialisation the record is written in. A
+metadata record marks a gap as its serialisation's definition says: in JSON, by leaving the value
+`null`, since JSON has no comments ([Metadata standards](metadata-standards.md), invariant 6). An answer (`DraftAnswer`) names the question it answers and gives the text. The
 classes are in the core contract because the conductor, the app and an orchestrator all read them
 without knowing the drafter. A question may carry a suggested answer (`suggested_answer`) with
 how it was derived (`suggestion_derivation`); the one is present exactly when the other is. A

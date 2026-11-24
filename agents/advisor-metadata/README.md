@@ -11,7 +11,7 @@ submission (R2). It serves two steps of the Blueprint's process flow (§8.2):
 
 | Step | What it does |
 |---|---|
-| `preparation.metadata-standard` | Follows the standard of the repository chosen. In the MVP that is always DataCite (docs/specs/deposit.md). |
+| `preparation.metadata-standard` | Follows the standard of the repository chosen, in any standard with a registered definition; today DataCite's (docs/specs/metadata-standards.md). |
 | `preparation.metadata` | Drafts a record in it with every property the repository requires or recommends, and asks about every value it cannot fill. |
 
 It follows the rules of [Drafting documents](../../docs/specs/drafting.md): it infers only from
@@ -24,9 +24,11 @@ It accepts the core `DraftRequest` with `document_kind: metadata_record`, and re
 `Document`, so its draft becomes a project document
 ([Projects](../../docs/specs/projects.md)).
 
-The record is DataCite's JSON form, the form of the DataCite REST API's attributes, with
-`media_type: application/json` and `conforms_to` set to the requirements' `conforms_to`. Every
-property in the request's `requirements` is written:
+The record is in the standard the requirements' `conforms_to` names, written as its registered
+definition in [`dd-metadata-records`](../../metadata-records/README.md) says, in the definition's
+first serialisation, with `media_type` and `conforms_to` set to match. Today that is DataCite's
+JSON form, the form of the DataCite REST API's attributes; another standard needs a definition, not
+a change here. Every property in the request's `requirements` is written:
 
 - A property whose value is a list of objects gets one entry per field, with the field's
   qualifier, such as ORDA's `subjectScheme: ANZSRC Fields of Research`, and a `null` value for the
@@ -34,26 +36,30 @@ property in the request's `requirements` is written:
 - `types.resourceTypeGeneral` is `Dataset`, since that is what the project deposits.
 - Where the request gives `researchers`, the facts the project's researchers kept from their
   public ORCID records ([Projects](../../docs/specs/projects.md), invariant 27), and the
-  repository asks for the property: `creators` lists each researcher with their name (or `null`
-  if they did not keep it), their ORCID iD as a name identifier, and the employers they kept that
-  they still work for, with the organisation's identifier (such as a ROR) where ORCID gives one; `subjects` adds their keywords
-  after the entries the repository's vocabularies ask for; and `fundingReferences` lists their
-  grants, with the funder's identifier and the award number.
-- A property DataCite's definition gives no drafting advice for is written as `null`.
+  repository asks for the property: the creators (in DataCite, `creators`) list each researcher
+  with their name (or a gap if they did not keep it), their ORCID iD as an identifier, and the
+  employers they kept that they still work for, with the organisation's identifier (such as a ROR)
+  where ORCID gives one; the keywords (`subjects`) add theirs after the entries the repository's
+  vocabularies ask for; and the funding (`fundingReferences`) lists their grants, with the
+  funder's identifier and the award number. Each is given in pivot terms (`researchers.py`) and
+  written in the standard's own keys by its definition; a part the standard has no key for is
+  left out.
+- A property the definition has no value key for is written as a single gap.
 
-From the inventory it adds `formats` (the files' media types) and `sizes` (the number of files
-and their total bytes). `schemaVersion` names the schema.
+From the inventory it adds the files' formats and sizes (in DataCite, `formats` and `sizes`), and
+it names the standard in the schema version, where the definition has properties for them.
 
 It abstains with `insufficient_input` when no repository has been chosen (the request has no
 `requirements`). It abstains with `capability_not_implemented` when the requirements follow a
-schema other than DataCite, and with `outside_agent_scope` for any other kind. When the request
+standard no registered definition covers, and with `outside_agent_scope` for any other kind. When the request
 gives a `current_version`, it drafts afresh and names that version in `revises`.
 
 ## Questions and answers
 
-Every value left `null` is a gap with one question in `document_questions`
-(`questions.py`). The question names the value by its path in the record (`gap_property`, such as
-`titles[0].title` or `subjects[1].subject`), and its identifier is derived from that path, so it
+Every value left as a gap is one question in `document_questions`
+(`questions.py`). The question names the value by its path in the standard's logical model
+(`gap_property`, such as DataCite's `titles[0].title` or `subjects[1].subject`), whatever the
+serialisation, and its identifier is derived from that path, so it
 is the same in every draft. Its text is the rule table's `ask` for the property, with the
 qualifiers the repository asks for. The question about `subjects` also names the controlled
 vocabularies, ontologies and terminologies people in the project chose for the dataset
@@ -77,8 +83,9 @@ model writes a value.
 ## Suggestions
 
 Before any model, the librarian offers the researcher's own words (#1284, docs/specs/drafting.md,
-invariant 11). The properties `shares.yaml` names (the first title, creator, abstract,
-date collected, place, funder and licence) carry a `shared_field`, and the answer the researcher
+invariant 11). The first entry of a property read under a pivot term `shares.yaml` names (the
+title, creator, abstract, date collected, place, funder and licence, in any standard) carries a
+`shared_field`, and the answer the researcher
 recorded to the same field of the README, or the funder or licence people decided, is offered as
 the question's suggestion (`suggestion_derivation: answer`, `suggested_from`), never placed in the
 record (`dd_sdk.shared_answers`, `tests/test_metadata_shared.py`). The model is not asked about a
@@ -87,8 +94,10 @@ question that already offers one.
 `DD_METADATA_SUGGESTER` chooses the suggester (`factory.py`, `config/examples/agents.env`):
 
 - `template` suggests nothing, calls no model and needs no key.
-- `model` (default) has a model suggest values for the questions on the properties DataCite's
-  definition marks `suggest` (`metadata-records/src/dd_metadata_records/standards/datacite-4.yaml`): the title, the description, a free keyword and the language. A suggestion is
+- `model` (default) has a model suggest values for the questions on the properties the
+  standard's definition marks `suggest` (for DataCite,
+  `metadata-records/src/dd_metadata_records/standards/datacite-4.yaml`: the title, the
+  description, a free keyword and the language). A suggestion is
   offered in the question (`suggested_answer`, `suggestion_derivation: model`), never in the
   record, whose text stays the template's byte for byte. It becomes part of the record only when
   a person records it, or a correction of it, as their answer.
@@ -157,8 +166,9 @@ grants it in the institutional profile (`tool_servers: {advisor.metadata: [subje
 - It takes terms only from the subject classifications `mcp-subjects` holds, and only for an entry
   the repository asks for from one; no keywords from other vocabularies, even one the project
   chose (TODO(#956)). It does not split names into given and family names: TODO(#1588).
-- It does not map a record between schemas (R6): for requirements in another standard it
-  abstains with `capability_not_implemented`. Conversion between standards, which reports each
+- It does not map a record between schemas (R6): for requirements in a standard no registered
+  definition covers it abstains with `capability_not_implemented`. It drafts in a definition's
+  first serialisation only, and only DataCite is defined so far (Dublin Core is TODO(#1360)). Conversion between standards, which reports each
   value it could not place, is TODO(#1363). Nor does it write Figshare's own item format (#383).
 - It does not use metadata extracted from the files themselves: TODO(#789).
 - It does not check that a value is correct. Validating the record is the harness's work (#19).

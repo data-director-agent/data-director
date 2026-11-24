@@ -16,7 +16,15 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from dd_metadata_records import Node, entry, set_path
+from dd_metadata_records.standards import DATACITE_4
+
 Document = dict[str, Any]
+# The record's terms a defect blanks, written in the base record's standard by its definition
+# (docs/specs/metadata-standards.md), so that no defect names a property of a standard.
+_NAME = "http://schema.org/name"
+_CREATOR = "http://schema.org/creator"
+_KIND = "http://purl.org/dc/terms/type"
 
 
 @dataclass(frozen=True)
@@ -51,8 +59,14 @@ def _blank_record_title_and_creators(doc: Document) -> Document:
     if record is None:
         return doc
     properties = json.loads(record["document_text"])
-    properties["titles"] = [{"title": "  "}]
-    properties["creators"] = [{"name": None, "nameType": "Personal"}]
+    blanked = (
+        (_NAME, Node("", "  ")),
+        (_CREATOR, Node("", None, {_KIND: (Node("", "Personal"),)})),
+    )
+    for term, node in blanked:
+        prop = DATACITE_4.property_for(term)
+        assert prop is not None, term
+        set_path(properties, prop.path, [entry(prop, node)])
     record["document_text"] = json.dumps(properties, indent=2, ensure_ascii=False)
     return doc
 

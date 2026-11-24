@@ -95,7 +95,7 @@ def test_no_case_scores_below_the_committed_baseline(tmp_path: Path, principal: 
     regressions, changes = differences(baseline["scores"], current["scores"])
     assert regressions == []
     assert changes == [], "scores improved: rewrite baseline.json in its own commit"
-    keys = ("cases_sha256", "definition_sha256", "shares_sha256", "system_prompt_sha256")
+    keys = ("cases_sha256", "definitions_sha256", "shares_sha256", "system_prompt_sha256")
     for key in (*keys, "spec_version"):
         assert current["identity"][key] == baseline["identity"][key], key
 
@@ -180,7 +180,12 @@ def _state(suggested: str | None, evidence: list[dict[str, Any]]) -> TaskState:
         question["suggested_answer"] = suggested
     envelope = {
         "outcome": {"status": "succeeded"},
-        "payload": {"document_text": json.dumps(record), "document_questions": [question]},
+        "payload": {
+            "conforms_to": "http://datacite.org/schema/kernel-4",
+            "media_type": "application/json",
+            "document_text": json.dumps(record),
+            "document_questions": [question],
+        },
         "evidence": [{"source_id": "input:1", "content": {}}, *evidence],
     }
     expect = {"status": "succeeded", "subjects": {"4106": "Soil sciences", "4105": "Pollution"}}

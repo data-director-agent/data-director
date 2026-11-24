@@ -2,42 +2,57 @@
 controlled vocabulary, whether each cites a vocabulary record, the questions it must ask, and the
 values it must leave for the researcher.
 
-A category is a subject entry the repository qualifies with a `subjectScheme`, such as ORDA's
-ANZSRC Fields of Research; a question on it is found by its `gap_property` and the entry's
-qualifier in the drafted record, not by its wording.
+A category is an entry of the record's keywords property that names the vocabulary its value comes
+from, as the standard's definition says (in DataCite, a subject with a `subjectScheme`, such as
+ORDA's ANZSRC Fields of Research); a question on it is found by its `gap_property` and the entry's
+qualifier in the drafted record, not by its wording. The record is read with its standard's
+definition (docs/specs/metadata-standards.md), so no scorer names a property of any standard.
 """
 
 from __future__ import annotations
 
 import json
 import re
-from typing import Any
+from typing import Any, Final
 
 from inspect_ai.scorer import NOANSWER, Score, Scorer, Target, scorer
 from inspect_ai.solver import TaskState
 
+from dd_agent_advisor_metadata.scope import standards
+from dd_metadata_records import Record, get_path
 from workbench.evaluation import envelope_of, expectation_of, mean_applicable, recall
 
-_SUBJECT = re.compile(r"^subjects\[(\d+)\]\.subject$")
+KEYWORDS: Final = "http://schema.org/keywords"
 # The evidence item that cites the librarian's own input, not a record it retrieved.
 _INPUT = "input:"
 
 
-def _drafted(state: TaskState) -> tuple[dict[str, Any], dict[str, Any]] | None:
-    """The payload and the record drafted in it; none for a run with no payload."""
+def _drafted(state: TaskState) -> tuple[dict[str, Any], Record] | None:
+    """The payload and the record drafted in it, read with its standard's definition; none for a
+    run with no payload."""
     payload: dict[str, Any] | None = envelope_of(state).get("payload")
     if not payload or "document_text" not in payload:
         return None
-    return payload, json.loads(payload["document_text"])
+    media_type = payload.get("media_type")
+    standard = standards().covering(payload.get("conforms_to"), media_type)
+    if standard is None or media_type is None:
+        return None
+    return payload, standard.read(payload["document_text"], media_type)
 
 
-def _category_questions(payload: dict[str, Any], record: dict[str, Any]) -> list[dict[str, Any]]:
-    """The questions on subject entries a vocabulary qualifies."""
-    entries = record.get("subjects") or []
+def _category_questions(payload: dict[str, Any], record: Record) -> list[dict[str, Any]]:
+    """The questions on keyword entries a vocabulary qualifies."""
+    keywords = record.definition.property_for(KEYWORDS)
+    if keywords is None:
+        return []
+    entries = get_path(record.tree, keywords.path) or []
+    schemes = record.definition.vocabulary_keys(keywords.path)
+    gap = re.compile(rf"^{re.escape(keywords.path)}\[(\d+)\]\.{re.escape(keywords.value or '')}$")
     found = []
     for question in payload.get("document_questions") or []:
-        match = _SUBJECT.match(question.get("gap_property") or "")
-        if match and int(match[1]) < len(entries) and entries[int(match[1])].get("subjectScheme"):
+        match = gap.match(question.get("gap_property") or "")
+        index = int(match[1]) if match else len(entries)
+        if index < len(entries) and any(entries[index].get(key) for key in schemes):
             found.append(question)
     return found
 
@@ -131,20 +146,6 @@ def questions_asked() -> Scorer:
     return score
 
 
-def _empty(value: Any) -> bool:
-    """Whether a property's value holds nothing but nulls and the qualifiers beside them."""
-    if value is None:
-        return True
-    if isinstance(value, list):
-        return all(_empty(v) for v in value)
-    if isinstance(value, dict):
-        return all(
-            v is None or (isinstance(v, str) and k.endswith(("Type", "Scheme")))
-            for k, v in value.items()
-        )
-    return False
-
-
 @scorer(metrics=[mean_applicable()])
 def nothing_placed() -> Scorer:
     """Whether every property the case names in `never_placed`, which only the researcher can
@@ -158,7 +159,7 @@ def nothing_placed() -> Scorer:
         drafted = _drafted(state)
         if drafted is None:
             return Score(value=NOANSWER, explanation="the run drafted no record")
-        placed = [p for p in wanted if not _empty(drafted[1].get(p))]
+        placed = [p for p in wanted if drafted[1].values(p)]
         return Score(
             value=0.0 if placed else 1.0,
             answer=", ".join(placed) or "none placed",
