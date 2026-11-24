@@ -47,7 +47,7 @@
     {% if broker.summarised %}<span class="tile-sub">{{ broker.accounts_by_provider.values() | sum }} own accounts</span>{% endif %}
   </a>
   {% endif %}
-  {% if monitoring.probed %}
+  {% if monitoring.links | selectattr("state", "ne", "unchecked") | list %}
   <a class="tile {{ 'bad' if monitoring.firing else 'good' if monitoring.firing == 0 else 'warn' }}" href="/monitoring">
     <span class="tile-label">Alerts firing</span>
     {% if monitoring.firing is none %}<span class="tile-value small">Not answering</span>

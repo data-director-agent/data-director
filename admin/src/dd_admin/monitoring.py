@@ -57,19 +57,10 @@ class Link:
     alerts: list[Alert] = field(default_factory=list)
     more_alerts: int = 0
 
-    @property
-    def through_tunnel(self) -> bool:
-        """Shown at its default loopback address, which an operator reaches by SSH tunnel."""
-        return not self.configured
-
 
 @dataclass
 class Monitoring:
     links: list[Link] = field(default_factory=list)
-
-    @property
-    def probed(self) -> bool:
-        return any(link.state != "unchecked" for link in self.links)
 
     @property
     def firing(self) -> int | None:

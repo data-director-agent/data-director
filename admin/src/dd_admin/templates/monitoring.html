@@ -13,7 +13,7 @@
     </h2>
     <p class="muted">{{ link.purpose }}</p>
     <p><a class="button" href="{{ link.url }}" target="_blank" rel="noreferrer noopener">Open {{ link.name }}</a> <span class="mono muted">{{ link.url }}</span></p>
-    {% if link.through_tunnel %}
+    {% if not link.configured %}
       <p class="muted">Its default address, reached through an SSH tunnel. To link another address and have this page ask the service, set <code>DD_ADMIN_{{ link.key | upper }}_URL</code> in <code>/etc/data-director/admin.env</code>.</p>
     {% endif %}
     {% if link.detail %}<div class="banner warn" role="alert">{{ link.detail }}.</div>{% endif %}
