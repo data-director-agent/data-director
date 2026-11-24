@@ -148,8 +148,10 @@ therefore show only what the deployment pays for.
 
 The deployment's admin service ([docs/guide/operations/admin.md](../../docs/guide/operations/admin.md))
 shows this gateway's spend for the month and the last 30 days, by day, model and key, beside the
-tokens each run recorded, priced at the gateway's prices, by agent, person and project. It needs a
-read-only key: the `proxy_admin_viewer` role, with a budget of 0, so it can make no model call.
+tokens each run recorded, priced at the gateway's prices, by agent, person and project. Its LLM
+gateway page shows, with the same key, whether the gateway is ready, its models and their prices,
+and each key, team and user with its spend against its budget (`/health/readiness`,
+`/model/info`, `/key/list`, `/team/list`, `/user/list`). It needs a read-only key: the `proxy_admin_viewer` role, with a budget of 0, so it can make no model call.
 
 1. Create the key (this writes it to `monitoring/litellm_key`):
    ```bash

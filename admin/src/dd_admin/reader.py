@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from dd_admin import agents as agents_module
-from dd_admin import operations, spend, usage
+from dd_admin import broker, gateway, operations, spend, usage
 from dd_admin.cache import Cached
 from dd_admin.settings import AdminSettings
 from dd_admin.system import System
@@ -37,6 +37,11 @@ class Admin:
         )
         # The gateway's spend logs change by the call but are costly to read in full.
         self.gateway = Cached(lambda: spend.read_gateway(self.settings, self.system), ttl_s=300)
+        # How the gateway is set up, and the broker's summary: both change slowly.
+        self.gateway_state = Cached(
+            lambda: gateway.read_state(self.settings, self.system), ttl_s=300
+        )
+        self.broker = Cached(lambda: broker.read_broker(self.settings, self.system), ttl_s=60)
         self.about = Cached(
             lambda: self.system.get_json(self.settings.app_url.rstrip("/") + "/api/about"),
             ttl_s=30,

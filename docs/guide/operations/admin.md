@@ -40,12 +40,15 @@ elsewhere it would need a sign-in, which it does not have (#154).
 | People | Everyone a run acted for or who created a project: their runs, conversations and projects, and when they were first and last seen | The run and project stores |
 | Runs | Every run, newest first, by agent, outcome, person, project or conversation; a run's outcome, who it acted for, telemetry, estimated cost and envelope | The run store |
 | Spend | Spend this month against an optional budget; spend over the last 30 days by day, model and gateway key; the tokens runs recorded over 30 days by model, agent, person and project, with their estimated cost | The LLM gateway's `/spend/logs/v2` and `/model/info`; the run store |
+| LLM gateway | Whether the gateway is ready and its database connected; each model with its upstream, prices and limits; each key, team and user with its spend against its budget, its period and rate limits | The gateway's `/health/readiness`, `/model/info`, `/key/list`, `/team/list` and `/user/list` |
+| Model broker | Whether the broker answers and its unit's state; people's own accounts counted by provider; tokens over 30 days by day, model and who paid; which agents hold a broker credential, and which model-backed agents do not; who the deployment pays for; `model-broker.env` | The broker's `/healthz` and `/admin/summary`; `systemctl show`; the agents' cards; `/etc/data-director` |
 | Projects | Every project: who created it, its documents and repository; a project's event log and runs | The project store |
 | Download case | On a run, a project, and the runs of one conversation: everything recorded about it, as a case for a developer to debug | The run and project stores; the journal if asked |
 | Configuration | The files under `/etc/data-director`, each with the command that changes it; the stores' locations and the live profile | `/etc/data-director`; the app's `/api/about` |
 | Feedback | A link to the feedback issues | `DD_FEEDBACK_REPO` |
 
-The stores and the doctor are read at most once a minute, and the gateway every five minutes;
+The stores, the doctor and the broker are read at most once a minute, and the gateway every five
+minutes;
 **Refresh** reads them again.
 
 ### Spend
@@ -77,6 +80,38 @@ from.
 
 The service keeps no list of accounts: people are known only from the runs and projects that name
 them. Who may use the workbench is the profile's `administrators`, set in `deployment.yaml` ([Configuration](configuration.md)).
+
+### LLM gateway
+
+The gateway page shows how the optional LLM gateway ([deploy/llm-gateway](../../../deploy/llm-gateway/README.md))
+allows and limits model calls; Spend shows what they cost. It reads with the same read-only key
+as Spend, so a gateway set up for one is set up for both. A key is shown by its alias, never by
+the key or its hash. A budget is green below 80 %, amber from 80 % and red once reached; the gateway
+itself stops a key, team or user at its budget. Each section names the
+`deploy/llm-gateway/scripts/admin.py` command, or the `config.yaml` change, that alters it. If the
+key cannot read a list, the page says which and shows the rest.
+
+### Model broker
+
+The broker page shows the optional [model broker](model-broker.md). The broker's store is
+readable by its own user alone, so the page asks the broker for an aggregate,
+`GET /admin/summary`, with a credential only this service holds: people's own accounts counted by
+provider, and tokens summed over everyone by day, model and who paid. It never names a person or
+their pseudonym, and carries no account label or key. To give the service that credential, and
+the broker its digest, run as root from your clone:
+
+```bash
+sudo deploy/broker-admin-credential.sh
+```
+
+It writes `credentials/admin/model-broker-admin` and `credentials/model-broker/admin-credential`,
+the drop-ins that load them and set `DD_ADMIN_BROKER_URL`, and restarts both services. Run it
+again to replace the credential, or with `--remove` to take it away. Without it, the page still
+says whether the broker answers, its unit's state and its settings file.
+
+The page also compares the agents that hold a broker credential with those whose cards declare
+models: a model-backed agent without one cannot call through the broker
+(`deploy/broker-credentials.sh`).
 
 ### Downloading a case
 
@@ -147,6 +182,8 @@ settings.
 | `DD_ADMIN_LITELLM_URL` | The LLM gateway, for spend and prices | Unset; `http://127.0.0.1:4000` where the gateway runs |
 | `DD_ADMIN_LITELLM_KEY_FILE` | A read-only gateway key | Unset: the `litellm-key` credential the unit's drop-in loads |
 | `DD_ADMIN_MONTHLY_BUDGET` | A month's budget, in US dollars; shown, not enforced | Unset |
+| `DD_ADMIN_BROKER_URL` | The model broker, for its health and summary | Set to `http://127.0.0.1:8300` by `broker-admin-credential.sh` |
+| `DD_ADMIN_BROKER_KEY_FILE` | The operators' credential for the broker's summary | Unset: the `model-broker-admin` credential the drop-in loads |
 
 A page whose setting is unset says which one, so the service also runs on a developer's machine:
 
@@ -162,5 +199,6 @@ DD_AGENTS_CONFIG=app/config/agents.yaml uv run dd-admin serve
 - It cannot change anything: deploying, restarting, rolling back and `apply` stay on the command
   line, with the commands on each page.
 - It shows an agent's card as facts and JSON, not as the app draws it.
+- It reads at most 1,000 of the gateway's keys and of its users, and says so past that.
 - The gateway answers at most 10,000 calls for a window; past that the page says its spend is
   short. Costs are at the gateway's list prices, which can differ from what a provider bills.

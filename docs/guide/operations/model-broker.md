@@ -295,6 +295,23 @@ resolves to a private, loopback or link-local address, unless that origin is als
 `DD_BROKER_PRIVATE_BASE_URLS`. It checks the address after resolving the name and connects to the
 address it checked.
 
+### What the admin service reads
+
+The [admin service](admin.md#model-broker) shows the broker on its Model broker page. It cannot
+read the broker's store, so it asks the broker for `GET /admin/summary`, an aggregate: people's own
+accounts counted by provider, tokens summed over everyone by day, payer, provider and model, the
+agents that hold a broker credential, the providers the deployment pays for, and the base URL
+origins it allows. It names no person and no pseudonym, and carries no account label or key.
+
+The route is served only with `DD_BROKER_ADMIN_CREDENTIAL` set, to the SHA-256 digest of a
+credential the admin service holds; a request without that credential is refused,
+`operator-unauthenticated`, and recorded as a `broker.call-refused` security event. One command
+sets both up and restarts both services:
+
+```bash
+sudo deploy/broker-admin-credential.sh
+```
+
 ## Backups
 
 The broker's store holds sealed keys and token counts. `data-director backup` copies it every night

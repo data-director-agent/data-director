@@ -22,6 +22,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode
 
+from dd_admin.litellm import connect
 from dd_admin.settings import AdminSettings
 from dd_admin.system import System
 from dd_admin.usage import DAYS_CHARTED, Usage
@@ -207,22 +208,12 @@ def read_gateway(
     month and 30 days ago. A gateway that does not answer is named in `error`, so the page still
     shows what the run store holds."""
     now = now or datetime.now(UTC)
-    if not settings.litellm_url:
+    gateway = connect(settings, system)
+    if gateway is None:
         return GatewaySpend()
-    base = settings.litellm_url.rstrip("/")
-    if settings.litellm_key_file is None:
-        return GatewaySpend(
-            configured=True,
-            error=(
-                "no gateway key: set DD_ADMIN_LITELLM_KEY_FILE or load the litellm-key credential"
-            ),
-        )
-    key = (system.read_text(settings.litellm_key_file) or "").strip()
-    if not key:
-        return GatewaySpend(
-            configured=True, error=f"the gateway key at {settings.litellm_key_file} cannot be read"
-        )
-    headers = {"Authorization": f"Bearer {key}"}
+    if isinstance(gateway, str):
+        return GatewaySpend(configured=True, error=gateway)
+    base, headers = gateway.base, gateway.headers
 
     prices = Prices.from_model_info(system.get_json(f"{base}/model/info", headers))
 

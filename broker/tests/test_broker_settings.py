@@ -120,3 +120,19 @@ def test_serve_stops_in_one_line_on_a_bad_setting(
         cli.main(["serve"])
     assert str(caught.value).startswith("dd-model-broker: ")
     assert "\n" not in str(caught.value)
+
+
+def test_the_operators_credential_is_optional_and_held_as_a_digest(tmp_path: Path) -> None:
+    env = environment(tmp_path)
+    assert BrokerSettings.from_env(env).operator is None
+    (tmp_path / "credentials" / "admin").write_text(digest("an-operator-credential") + "\n")
+    found = BrokerSettings.from_env(env | {"DD_BROKER_ADMIN_CREDENTIAL_FILE": "admin"}).operator
+    assert found is not None and found.authenticate("an-operator-credential")
+    assert not found.authenticate("another")
+
+
+def test_an_operators_credential_that_is_not_a_digest_is_refused(tmp_path: Path) -> None:
+    env = environment(tmp_path) | {"DD_BROKER_ADMIN_CREDENTIAL": "the-credential-itself"}
+    with pytest.raises(SettingsError, match="DD_BROKER_ADMIN_CREDENTIAL") as refused:
+        BrokerSettings.from_env(env)
+    assert "the-credential-itself" not in str(refused.value)
