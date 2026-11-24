@@ -219,6 +219,9 @@ values hidden), and every person's runs and projects. It has no sign-in, so it l
 ssh -N -L 8200:127.0.0.1:8200 you@data-director.example.ac.uk   # then open http://localhost:8200
 ```
 
+[Reaching the admin interfaces over SSH](../docs/guide/operations/tunnels.md) gives an `~/.ssh/config`
+entry that also reaches the LLM gateway's UI and Grafana.
+
 `install.sh` enables it; it needs no setting. It changes nothing, and names the command for each
 change. [The admin service](../docs/guide/operations/admin.md) in the operations guide says what
 it reads and how.

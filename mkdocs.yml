@@ -131,6 +131,7 @@ nav:
       - Privacy notice: operations/privacy.md
       - The data-director command: operations/commands.md
       - The admin service: operations/admin.md
+      - Admin interfaces over SSH: operations/tunnels.md
       - The model broker: operations/model-broker.md
       - The deposit broker: operations/deposit-broker.md
       - Deploying to a VM: /deploy/README.md

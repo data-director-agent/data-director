@@ -15,7 +15,9 @@ ssh -N -L 8200:127.0.0.1:8200 you@data-director.example.ac.uk
 ```
 
 then open <http://localhost:8200>. Use another local port if 8200 is taken on your machine
-(`-L 9200:127.0.0.1:8200`, then <http://localhost:9200>).
+(`-L 9200:127.0.0.1:8200`, then <http://localhost:9200>). To keep the tunnel in your SSH config,
+and to reach the LLM gateway's UI and Grafana the same way, see
+[Reaching the admin interfaces over SSH](tunnels.md).
 
 It has no sign-in. Whoever can open an SSH session to the VM can reach it, and could read the same
 stores and files there already: SSH access is its credential. Three things keep it there:

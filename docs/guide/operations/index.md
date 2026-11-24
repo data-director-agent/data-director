@@ -31,6 +31,7 @@ An operator decides four things that a user and a developer do not:
 | [Privacy notice](privacy.md) | See what personal data the app holds, decide what your own notice must say and link the app's footer to it. |
 | [The `data-director` command](commands.md) | Check an instance (`doctor`), change what it runs (`apply`) and set a model key (`secret`). |
 | [The admin service](admin.md) | See the instance's health, agents, settings, people, runs and projects in a browser, over an SSH tunnel. |
+| [Reaching the admin interfaces over SSH](tunnels.md) | Set up `~/.ssh/config` port tunnels to the admin service, the LLM gateway's UI and Grafana. |
 | [The model broker](model-broker.md) | Run the service that lets people's own AI accounts pay for model calls (alpha, off by default). |
 | [Deploying to a VM](../../../deploy/README.md) | Install the app and its agents on an Ubuntu VM and keep it up to date. |
 | [Institutional profiles](../../../workbench/profiles/README.md) | Write the rules that apply to every run. |
