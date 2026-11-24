@@ -52,7 +52,13 @@ def _values(pivot: Pivot) -> dict[str, Any]:
     funders, abstract, rights and year of publication, each from its pivot term."""
     titles = pivot.get(SCHEMA + "name", ())
     main = [n for n in titles if not n.part(_TYPE)]
-    abstracts = [n for n in pivot.get(SCHEMA + "description", ()) if n.part(_TYPE) == ["Abstract"]]
+    descriptions = pivot.get(SCHEMA + "description", ())
+    # The description typed as the abstract, or, in a standard whose descriptions have no type
+    # (Dublin Core), the first.
+    typed = any(n.part(_TYPE) for n in descriptions)
+    abstracts = (
+        [n for n in descriptions if n.part(_TYPE) == ["Abstract"]] if typed else descriptions
+    )
     year = pivot.values_of(SCHEMA + "datePublished")
     return {
         "title": _first(main) or _first(titles),

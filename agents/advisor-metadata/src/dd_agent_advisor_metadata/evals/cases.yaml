@@ -8,7 +8,9 @@
 #   `[name, type]` pairs. The loader fills what the inventory tool would (hashes, how a file was
 #   identified), so that a case says only what a curator reads;
 # - `keywords`: optional, the keywords the project's one researcher kept from their ORCID record;
-# - `conforms_to` and `document_kind`: optional, to ask for another standard or another kind;
+# - `standard`: optional, the name of another repository's requirements under
+#   `other_requirements`, in another standard, in place of ORDA's;
+# - `conforms_to` and `document_kind`: optional, to name another standard or ask for another kind;
 # - `no_repository: true`: optional, the request names no repository's requirements.
 #
 # And what a curator would expect of the draft (`expect`):
@@ -106,6 +108,29 @@ requirements:
   - data_dictionary
   warnings: []
 
+
+# The requirements of a repository that declares Dublin Core and has no override: the deployment's
+# Dublin Core set (app/config/repositories/standards/dublin-core.yaml), merged.
+other_requirements:
+  dublin-core:
+    re3data_id: r3d100000001
+    repository_name: Elsewhere
+    conforms_to: http://www.openarchives.org/OAI/2.0/oai_dc/
+    requirement_sets:
+      - {ref: dublin-core@v1, sha256: "0000000000000000000000000000000000000000000000000000000000000000"}
+    media_types: []
+    licences: []
+    fields:
+      - {property: title, term: "http://schema.org/name", obligation: required}
+      - {property: creator, term: "http://schema.org/creator", obligation: required, supplied_on: researchers}
+      - {property: description, term: "http://schema.org/description", obligation: recommended}
+      - {property: subject, term: "http://schema.org/keywords", obligation: recommended}
+      - {property: date, term: "http://purl.org/dc/terms/date", obligation: recommended}
+      - {property: type, term: "http://schema.org/additionalType", obligation: recommended}
+      - {property: rights, term: "http://schema.org/license", obligation: recommended}
+    required_documents: [metadata_record]
+    recommended_documents: []
+    filled_by_repository: [identifier, publisher]
 
 cases:
   # --- Environmental and earth sciences --------------------------------------------------------
@@ -272,12 +297,25 @@ cases:
       asked: [titles, descriptions, subjects, rightsList]
       never_placed: [titles, descriptions, rightsList]
 
-  # --- When the librarian must stop ------------------------------------------------------------
   - id: dublin-core-repository
-    # A repository asking for Dublin Core: the librarian drafts DataCite only and maps nothing
-    # between schemas (R6), so it says the capability is not implemented (TODO(#1363)).
+    # A repository that declares Dublin Core: the record is drafted in OAI-DC, from Dublin Core's
+    # definition, and the title, creator and licence are asked for.
     input:
-      conforms_to: http://purl.org/dc/elements/1.1/
+      standard: dublin-core
+      files:
+        - [README.md, text/markdown, 1840]
+        - [data/sites.csv, text/csv, 2210, {fields: [[site, string], [easting, integer]]}]
+    expect:
+      status: succeeded
+      asked: [title, creator, rights]
+      never_placed: [title, creator, rights]
+
+  # --- When the librarian must stop ------------------------------------------------------------
+  - id: unknown-standard-repository
+    # A repository asking for a standard no registered definition covers: the librarian maps
+    # nothing between schemas (R6), so it says the capability is not implemented (TODO(#1363)).
+    input:
+      conforms_to: https://ddialliance.org/Specification/DDI-Codebook/2.5/
       files:
         - [README.md, text/markdown, 1840]
     expect:

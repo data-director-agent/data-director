@@ -50,3 +50,13 @@ def drafted(
             f"{requirements.conforms_to}, and does not convert a record to another standard.",
         )
     return requirements, standard
+
+
+def unwritable(name: str, requirements: RepositoryRequirements, why: Exception) -> AgentResult:
+    """The stop for requirements that name a property the standard's serialisation has no place
+    for, such as a DataCite property in a set that says it follows Dublin Core."""
+    return abstain(
+        ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
+        f"The record cannot be written in {name}: {why}. The requirements of "
+        f"{requirements.repository_name} name a property the standard has no place for.",
+    )

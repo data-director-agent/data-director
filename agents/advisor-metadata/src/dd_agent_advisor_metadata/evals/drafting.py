@@ -87,8 +87,15 @@ def _researcher(keywords: list[str]) -> dict[str, Any]:
     }
 
 
-def draft_request(given: dict[str, Any], requirements: dict[str, Any]) -> dict[str, Any]:
-    """A case's `input` as the `DraftRequest` the librarian is given (`cases.yaml`)."""
+def draft_request(
+    given: dict[str, Any],
+    requirements: dict[str, Any],
+    other: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """A case's `input` as the `DraftRequest` the librarian is given (`cases.yaml`): ORDA's
+    requirements, or those `standard` names in `other`."""
+    if given.get("standard"):
+        requirements = (other or {})[given["standard"]]
     asked: dict[str, Any] = {
         "schema_class": "DraftRequest",
         "document_kind": given.get("document_kind", "metadata_record"),
@@ -109,7 +116,9 @@ def load_cases(path: Path = CASES) -> list[dict[str, Any]]:
     table = yaml.safe_load(path.read_text(encoding="utf-8"))
     cases: list[dict[str, Any]] = table["cases"]
     for case in cases:
-        case["input"] = draft_request(case["input"], table["requirements"])
+        case["input"] = draft_request(
+            case["input"], table["requirements"], table.get("other_requirements")
+        )
     return cases
 
 

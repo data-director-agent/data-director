@@ -38,9 +38,11 @@ It accepts two classes:
   core's `GivenProjectMetadataRecord`, so in a project the conductor gives the record's latest
   version, whatever its state (`project_metadata_draft`), and the version a person approved last
   (`project_metadata_approved`). Outside a project, a caller sends the record as `draft_text`.
-  The record is in DataCite's JSON form, as the librarian drafts it, and a value it leaves null
-  reads as not given (`datacite.py`). With no record, or text that is not a JSON object, the agent
-  abstains and says what it needs.
+  The record is read in DataCite's JSON form, as the librarian drafts it for most repositories,
+  and a value it leaves null reads as not given (`datacite.py`). A draft in another standard, such
+  as Dublin Core for a repository that declares it, is not read yet: the version's standard is
+  not given with it, and the agent abstains and says what it needs, as it does with no record or
+  text that is not a JSON object.
 
 `FairnessReport` holds one `FairCheck` per rule: the FAIR sub-principle (`F1`, `R1.1`, …), the
 check's short identifier, whether it is `met`, and, for a check to act on, a `recommendation` with

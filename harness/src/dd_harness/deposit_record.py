@@ -86,8 +86,12 @@ def describe_root(
             root[key] = ", ".join(values)
         else:
             root[key] = values if len(values) > 1 and iri not in _ROOT_SINGLE else values[0]
+    # A licence named by its identifier or its URL, or, in a standard with no part for either,
+    # such as Dublin Core's rights, by a value that is a URL.
     given = [
-        str(url or identifier) for identifier, url, _name in licences(record) if url or identifier
+        str(url or identifier or name)
+        for identifier, url, name in licences(record)
+        if url or identifier or (name or "").startswith(("http://", "https://"))
     ]
     if given:
         licence = given[0]

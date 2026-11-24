@@ -10,3 +10,4 @@ from dd_metadata_records.definition import load
 HERE: Final = Path(__file__).resolve().parent
 
 DATACITE_4: Final = load(HERE / "datacite-4.yaml")
+DUBLIN_CORE_OAI: Final = load(HERE / "dublin-core-oai.yaml")

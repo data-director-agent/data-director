@@ -21,7 +21,7 @@ usually from `advisor.repository`'s shortlist. Nobody has to write a file for it
 from two kinds of set:
 
 - `standards/` holds one set per metadata standard: what any record in that standard needs.
-  DataCite is the only standard so far; others are #401. A set's standard must be one whose
+  DataCite and Dublin Core (OAI-DC) so far; others are #401. A set's standard must be one whose
   definition `dd-metadata-records` registers ([Metadata standards](../../../docs/specs/metadata-standards.md)),
   or the deployment does not start.
 - `overrides/` holds what one repository asks beyond its standard, such as the fields its deposit
@@ -122,6 +122,7 @@ that cites an issue, never guessed, and listed under `unconfirmed` so a research
 | File | Set |
 |---|---|
 | `standards/datacite-4.yaml` | The DataCite Metadata Schema 4. |
+| `standards/dublin-core.yaml` | Dublin Core, as OAI-DC carries it: the 15 elements, none of which Dublin Core makes mandatory. The title and creator are required, as DataCite requires them, so that a record can be cited. |
 | `overrides/orda.yaml` | ORDA, the University of Sheffield's repository on Figshare. What its public pages leave open is TODO(#385). |
 | `overrides/zenodo.yaml` | Zenodo, from its developer documentation and help pages, with a `deposit` block that sends drafts to the Zenodo sandbox. Moving to Zenodo itself is TODO(#648). |
 | `overrides/eidc.yaml` | The NERC EDS Environmental Information Data Centre (EIDC), from its Service Agreement and its DataCite records. It builds on DataCite until a UK GEMINI / ISO 19115 set exists (#401). What its public pages leave open is TODO(#1250). |

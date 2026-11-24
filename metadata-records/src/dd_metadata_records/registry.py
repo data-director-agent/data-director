@@ -16,6 +16,7 @@ from typing import Any, Final
 
 from dd_metadata_records.codecs import Codec, CodecError, Tree
 from dd_metadata_records.definition import Definition, DefinitionError
+from dd_metadata_records.layout import LayoutError
 from dd_metadata_records.record import Record
 
 CODECS_GROUP: Final = "dd_metadata_records.codecs"
@@ -48,6 +49,11 @@ class Standard:
             raise RecordError(str(exc)) from None
         if not isinstance(tree, dict):
             raise RecordError(f"it is not a {serialisation.name} object")
+        if serialisation.xml is not None:
+            try:
+                tree = serialisation.xml.to_logical(tree)
+            except LayoutError as exc:
+                raise RecordError(f"it is not a {self.definition.name} record: {exc}") from None
         for envelope in serialisation.envelopes:
             inner: Any = tree
             for key in envelope:
@@ -67,6 +73,13 @@ class Standard:
             raise RecordError(f"{self.definition.name} has no serialisation in {media_type}")
         if serialisation.gap is not None:
             tree = _swapped(tree, None, serialisation.gap)
+        if serialisation.xml is not None:
+            if not isinstance(tree, dict):
+                raise RecordError("a record's logical tree is an object")
+            try:
+                tree = serialisation.xml.to_document(tree)
+            except LayoutError as exc:
+                raise RecordError(str(exc)) from None
         return self.codecs[media_type].emit(tree)
 
     def gap(self, media_type: str) -> Any:

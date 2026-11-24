@@ -34,9 +34,15 @@ Issues = "https://github.com/data-director-agent/data-director/issues"
 # (docs/specs/metadata-standards.md, invariant 11).
 [project.entry-points."dd_metadata_records.codecs"]
 json-indent-2 = "dd_metadata_records.codecs:JSON"
+xml-indent-2 = "dd_metadata_records.xml:XML"
 
 [project.entry-points."dd_metadata_records.standards"]
 datacite-4 = "dd_metadata_records.standards:DATACITE_4"
+dublin-core-oai = "dd_metadata_records.standards:DUBLIN_CORE_OAI"
+
+# What the tests use: lxml validates a record against a standard's published XML Schema.
+[dependency-groups]
+dev = ["lxml>=6.0"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dd_metadata_records"]

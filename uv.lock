@@ -2258,8 +2258,16 @@ dependencies = [
     { name = "pyyaml" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "lxml" },
+]
+
 [package.metadata]
 requires-dist = [{ name = "pyyaml", specifier = ">=6.0" }]
+
+[package.metadata.requires-dev]
+dev = [{ name = "lxml", specifier = ">=6.0" }]
 
 [[package]]
 name = "data-director-model-broker"

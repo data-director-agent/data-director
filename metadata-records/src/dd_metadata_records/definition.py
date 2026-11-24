@@ -16,6 +16,8 @@ from typing import Any, Final
 
 import yaml
 
+from dd_metadata_records.layout import XmlLayout
+
 # The vocabularies a pivot term may come from, by the prefix a CURIE names it with (invariant 7).
 TERM_NAMESPACES: Final = {
     "schema": "http://schema.org/",
@@ -108,6 +110,8 @@ class Serialisation:
     # The paths a record may be wrapped in, such as an API response's envelope.
     envelopes: tuple[tuple[str, ...], ...] = ()
     gap: Any = None
+    # Where each property is in an XML serialisation's elements (`layout.py`).
+    xml: XmlLayout | None = None
 
 
 @dataclass(frozen=True)
@@ -206,6 +210,7 @@ def _serialisation(spec: Mapping[str, Any]) -> Serialisation:
         codec_id=str(spec["codec"]),
         envelopes=tuple(tuple(str(key) for key in path) for path in envelopes),
         gap=spec.get("gap"),
+        xml=XmlLayout.of(spec["xml"]) if spec.get("xml") else None,
     )
 
 
