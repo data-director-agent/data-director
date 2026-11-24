@@ -230,12 +230,12 @@ carries both sets' items. What ORDA's public pages leave open is TODO(#385).
 **The metadata record follows the merged set's standard.** The drafter writes a `Document` of kind
 `metadata_record` in the standard the merged set's `conforms_to` names, in a serialisation that
 standard defines, with `media_type` set to it ([Metadata standards](metadata-standards.md)). DataCite
-in its JSON form is the only standard built, and it is the default: it is the schema ORDA's DOIs are
+in its JSON form and Dublin Core as OAI-DC XML are built, and DataCite is the default: it is the schema ORDA's DOIs are
 registered in, and a DataCite record serves any repository that mints DataCite DOIs. An override's
 form labels tell a person depositing by hand where each value goes, and its `url`, carried in the
 merged set as `repository_url`, where to deposit; a standard's `url` describes the standard and is
-not carried. A set for another standard, such as Dublin Core, ISO 19115 or DDI, needs a set and a
-definition of the standard, not a drafter of its own, TODO(#1360, #1361, #401).
+not carried. A set for another standard, such as ISO 19115 or DDI, needs a set and a definition of
+the standard, not a drafter of its own, TODO(#1361, #401).
 
 **Validation** checks, against the merged set:
 

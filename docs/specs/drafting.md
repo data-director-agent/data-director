@@ -38,8 +38,8 @@ The Metadata Librarian (`advisor.metadata`) drafts the metadata record by the sa
 serves `preparation.metadata` and drafts the record from a `DraftRequest` with the chosen
 repository's requirements, asks about every value it leaves null, and places the answers recorded to
 them. It drafts in the standard those requirements follow, from the standard's registered definition
-([Metadata standards](metadata-standards.md)); DataCite in its JSON form is the only one defined
-so far. Its model, on unless the operator turns it off,
+([Metadata standards](metadata-standards.md)): DataCite in its JSON form, or Dublin Core as OAI-DC
+XML. Its model, on unless the operator turns it off,
 suggests some of those values beside their questions
 ([`agents/advisor-metadata/README.md`](../../agents/advisor-metadata/README.md)).
 

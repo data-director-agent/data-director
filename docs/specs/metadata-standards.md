@@ -19,15 +19,15 @@ It does not cover reading a record a researcher already has, or extracting metad
 (#789). The design leaves room for both: a standard's definition is the place to say how a record in
 it is recognised, and the codecs are shared. Neither is built or specified here.
 
-**What is built.** The library `metadata-records/` holds a JSON codec and one standard's
-definition, DataCite's in its JSON form. The harness reads an approved record through it to
+**What is built.** The library `metadata-records/` holds a JSON codec, an XML codec, and two
+standards' definitions: DataCite's in its JSON form, and Dublin Core's 15 elements as OAI-DC XML. The harness reads an approved record through it to
 validate it, describe the package's root dataset and render the Zenodo item, and refuses a record
 in a pair of standard and serialisation no registered definition covers. The Documentation Editor
 and the FAIR Assessor read records through the pivot. The Metadata Librarian drafts in whichever
 registered standard the merged set follows, from its definition alone: its value keys, its
 drafting block, and the researchers' ORCID records written into the standard's own keys from
-pivot terms. No other standard than DataCite is defined yet (#1360, #1361). A requirement set's field may leave out its term,
-and a field that names one is checked against the definition. A statement below that the code
+pivot terms. UK GEMINI is TODO(#1361). A requirement set's field may leave out its term, and a
+field that names one is checked against the definition. A statement below that the code
 does not yet meet is marked in place.
 
 ## Invariants
@@ -160,8 +160,9 @@ researcher's ORCID record (a creator with an iD and affiliations, keywords, gran
 nodes of the pivot, which the definition writes into the standard's own keys; a part the standard
 has no key for is left out. Which of the definition's properties is the licence, the keywords, the
 files' formats and sizes or the schema version, it finds by their pivot terms. A standard that is
-not registered is an abstention, `capability_not_implemented`. DataCite in JSON is the only
-standard defined so far; Dublin Core is TODO(#1360).
+not registered is an abstention, `capability_not_implemented`, and so are requirements that name a
+property the standard's serialisation has no place for. DataCite in JSON and Dublin Core as OAI-DC
+XML are defined.
 
 **Converting a record.** A conversion reads a record into the pivot with its standard's definition
 and writes the pivot into another with the target's, so that n standards need n definitions, not n²
@@ -240,12 +241,30 @@ agents and the harness add the contract's parts, such as classes, evidence and o
   record in a standard that a definition covers only in part says so, as a repository without an
   override is told its own form is not checked.
 
+## Decided
+
+- **The XML parser** is the standard library's `xml.etree.ElementTree` pull parser, behind the
+  codec's interface, so the library needs no new dependency. The codec refuses a document type or
+  entity declaration before parsing, and writes with its own writer so that prefixes are fixed and
+  no process-wide state is touched. If the standard library's parser is ever found wanting,
+  `defusedxml` is the fallback behind the same interface.
+- **Dublin Core is the 15 elements OAI-DC carries**, the form a repository harvested over OAI-PMH
+  serves and the one re3data's "Dublin Core" most often means. DCMI Terms refinements would be a
+  definition of their own.
+- **A record is checked against its standard's published schema in the library's tests, not by
+  the harness.** The OAI-DC XML Schema is kept with the tests (`metadata-records/tests/data/xsd/`)
+  and a drafted record is validated against it there. The harness's validation stays in the
+  validation report's vocabulary ([Deposit](deposit.md), *Rejected alternatives*).
+- **An XML serialisation's layout is the definition's.** A definition says, for an XML
+  serialisation, the root element, the namespaces declared on it, the schema it names, and the
+  element each property is written as; the codec turns the document into a tree of elements and
+  knows no standard. Only properties written as repeatable text elements under the root are
+  supported; nested elements are TODO(#1361).
+- **A gap in OAI-DC is the text `:unav`**, the ERC code for a value not yet available, which the
+  schema accepts, since an element holds a string and no other attribute than `xml:lang`.
+
 ## Open questions
 
-- Which XML parser the XML codec uses, and its fallback: TODO(#1360).
-- Which Dublin Core: the 15 elements OAI-DC carries, Dublin Core Terms, or both: TODO(#1360).
-- Whether the harness also checks a record against its standard's published schema, reporting each
-  error as an `sh:Violation`, or leaves that to the codec's tests: TODO(#1360).
 - How the harness chooses among several standards a repository declares, and how a person chooses
   one explicitly, as for Croissant (#933): TODO(#1362).
 - Whether a conversion for a second repository is a derived package or a document a person approves:

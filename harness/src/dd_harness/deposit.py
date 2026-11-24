@@ -120,6 +120,7 @@ PROVENANCE_NAME = "provenance.jsonld"
 EXTENSIONS = {
     "application/json": "json",
     "application/ld+json": "jsonld",
+    "application/xml": "xml",
     "text/markdown": "md",
     "text/plain": "txt",
     "text/csv": "csv",

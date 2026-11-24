@@ -35,6 +35,7 @@ deposited. A codec refuses text over `MAX_RECORD_BYTES` before parsing it.
 | Identifier | Media type | Output |
 |---|---|---|
 | `json-indent-2` | `application/json` | UTF-8, two spaces of indentation, keys in the tree's order, characters outside ASCII as they are, and a final newline |
+| `xml-indent-2` | `application/xml` | UTF-8 with a declaration, the root's namespaces declared on it in order of prefix, two spaces of indentation, an element with nothing in it written empty, and a final newline. It refuses a document type or entity declaration, so it resolves no external entity and fetches nothing. Standard library only |
 
 ## Standards
 
@@ -56,6 +57,13 @@ drafter and a ceiling, not a licence.
 | Identifier | Standard | Serialisations | Mapping |
 |---|---|---|---|
 | `datacite-4` | [DataCite Metadata Schema 4](https://schema.datacite.org/meta/kernel-4/) | JSON, the form of the DataCite REST API's attributes | [DataCite's mapping to schema.org](https://github.com/datacite/schema.org) |
+| `dublin-core-oai` | [Dublin Core Metadata Element Set 1.1](https://www.dublincore.org/specifications/dublin-core/dces/), the 15 elements as OAI-DC carries them | OAI-DC XML, each gap written as `:unav` | The terms DataCite's definition gives the property of the same meaning, after [DataCite's mapping to Dublin Core](https://datacite-metadata-schema.readthedocs.io/en/4.5/mappings/dublincore/) |
+
+For an XML serialisation, the definition also gives its layout (`xml`): the root element, the
+namespaces declared on it, the schema it names, and the element each property is written as. The
+codec reads and writes elements and knows no standard; the layout makes a document the standard's
+logical tree. `unplaced(pivot, target)` names, by their paths in the source standard, the values a
+record would lose in another standard, as the start of a conversion.
 
 A definition says nothing about what a repository requires. That is a requirement set's job.
 
@@ -71,8 +79,10 @@ named by its standard's identifier, as a `Definition` loaded with `dd_metadata_r
 
 ## Honest limits
 
-- There is one standard and one serialisation. Dublin Core in XML is TODO(#1360), and UK GEMINI is
-  TODO(#1361).
+- There are two standards, each in one serialisation. UK GEMINI is TODO(#1361).
+- An XML layout writes each property as repeatable text elements under the root. A property under
+  nested elements, as ISO 19139 has, is TODO(#1361). Attributes such as `xml:lang` are read but
+  not mapped to the pivot.
 - A drafter writes an entry from a node of the pivot with `entry`, in the order the definition
   lists its parts, but no whole record is converted from one standard to another yet: that is
   TODO(#1363).
@@ -87,3 +97,12 @@ The DataCite terms follow DataCite's own [mapping to schema.org](https://github.
 where it gives one. The pivot terms are those of [schema.org](https://schema.org/),
 [DCMI Metadata Terms](https://www.dublincore.org/specifications/dublin-core/dcmi-terms/),
 [DCAT](https://www.w3.org/TR/vocab-dcat-3/) and [PROV-O](https://www.w3.org/TR/prov-o/).
+
+The Dublin Core elements are those of the
+[Dublin Core™ Metadata Element Set, version 1.1](https://www.dublincore.org/specifications/dublin-core/dces/),
+as the [OAI-PMH](https://www.openarchives.org/OAI/openarchivesprotocol.html#dublincore) carries
+them. The tests validate a drafted OAI-DC record against the OAI-DC XML Schema and the two schemas
+it imports. These are copied unchanged into `tests/data/xsd/`, and each stays under its
+publisher's licence (the Open Archives Initiative's, DCMI's and W3C's), as
+[`tests/data/xsd/NOTICE.md`](tests/data/xsd/NOTICE.md) says. They are test data and are not in the
+library's wheel. The tests use [lxml](https://lxml.de/) to validate; the library itself does not.

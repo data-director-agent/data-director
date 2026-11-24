@@ -224,7 +224,8 @@ class DocumentStub:
     says its draft was derived by `model` (docs/specs/disclosure.md); its card says the model is
     `hosting` (docs/specs/projects.md, invariant 8). With `asks`, its draft asks
     `STUB_QUESTION` (docs/specs/drafting.md). Given any `draft_answers` or `project_decisions`, it
-    says how many."""
+    says how many. Its metadata record names `record_standard`, a `conforms_to` URI and media type,
+    DataCite's JSON form unless a test gives another."""
 
     spec = AgentSpec(
         agent_id="stub.document",
@@ -242,9 +243,11 @@ class DocumentStub:
         *,
         asks: bool = False,
         hosting: Literal["hosted", "local"] = "local",
+        record_standard: tuple[str, str] = (STUB_RECORD_STANDARD, "application/json"),
     ) -> None:
         self.model_id = model_id
         self.asks = asks
+        self.record_standard = record_standard
         if model_id is not None:
             # A model call is allowed in input_only, not in none (docs/specs/grounding.md).
             self.spec = replace(
@@ -259,6 +262,9 @@ class DocumentStub:
         assert isinstance(asked, ProbeDocumentRequest | DraftRequest)
         kind = asked.document_kind
         media_type, text = _DRAFTS[kind]
+        conforms_to = None
+        if kind == DocumentKind.METADATA_RECORD:
+            conforms_to, media_type = self.record_standard
         calls = ModelCallLog(MODEL_PROVIDER)
         if self.model_id is not None:
             with chat_span(ctx.tracer, self.model_id) as span:
@@ -292,7 +298,7 @@ class DocumentStub:
             payload=Document(
                 document_kind=kind,
                 media_type=media_type,
-                conforms_to=STUB_RECORD_STANDARD if kind == DocumentKind.METADATA_RECORD else None,
+                conforms_to=conforms_to,
                 document_text=text,
                 document_derivation=Derivation.TEMPLATE
                 if self.model_id is None

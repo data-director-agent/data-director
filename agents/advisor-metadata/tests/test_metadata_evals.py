@@ -79,10 +79,12 @@ def test_the_case_file_has_unique_ids_and_valid_inputs() -> None:
     for case in cases:
         DraftRequest.model_validate(case["input"])
         expect = case["expect"]
-        if expect["status"] == "succeeded":
-            # Every drafted case names the categories a curator would choose.
+        fields = case["input"].get("requirements", {}).get("fields", [])
+        if expect["status"] == "succeeded" and any(f.get("qualifier") for f in fields):
+            # Every drafted case whose repository asks for categories names those a curator
+            # would choose.
             assert expect["subjects"], case["id"]
-        else:
+        elif expect["status"] != "succeeded":
             assert "reason_code" in expect, case["id"]
 
 

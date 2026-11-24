@@ -689,3 +689,28 @@ def test_a_malformed_readme_template_is_refused(
     path.write_text(json.dumps([section]), encoding="utf-8")
     with pytest.raises(ValueError, match=why):
         load_sections(path)
+
+
+def test_a_record_in_dublin_core_is_read_through_its_definition(runs_dir: Path) -> None:
+    """The editor reads a record in any standard a registered definition covers
+    (docs/specs/metadata-standards.md; #1360): an OAI-DC record's title, creator and description."""
+    asked = sample(WITH_RECORD)
+    assert asked.metadata_record is not None
+    text = (
+        '<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" '
+        'xmlns:dc="http://purl.org/dc/elements/1.1/">'
+        "<dc:title>Hope Valley soil cores</dc:title><dc:creator>Carberry, Josiah</dc:creator>"
+        "<dc:description>Cores taken in 2026.</dc:description></oai_dc:dc>"
+    )
+    record = asked.metadata_record.model_copy(
+        update={
+            "conforms_to": "http://www.openarchives.org/OAI/2.0/oai_dc/",
+            "media_type": "application/xml",
+            "document_text": text,
+        }
+    )
+    env, _ = draft(runs_dir, asked.model_copy(update={"metadata_record": record}))
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "was not used" not in env.outcome.statement
+    readme = env.payload_as(Document).document_text
+    assert "Hope Valley soil cores" in readme and "Cores taken in 2026." in readme

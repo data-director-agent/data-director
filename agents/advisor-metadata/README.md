@@ -11,7 +11,7 @@ submission (R2). It serves two steps of the Blueprint's process flow (§8.2):
 
 | Step | What it does |
 |---|---|
-| `preparation.metadata-standard` | Follows the standard of the repository chosen, in any standard with a registered definition; today DataCite's (docs/specs/metadata-standards.md). |
+| `preparation.metadata-standard` | Follows the standard of the repository chosen, in any standard with a registered definition; today DataCite and Dublin Core (docs/specs/metadata-standards.md). |
 | `preparation.metadata` | Drafts a record in it with every property the repository requires or recommends, and asks about every value it cannot fill. |
 
 It follows the rules of [Drafting documents](../../docs/specs/drafting.md): it infers only from
@@ -26,9 +26,9 @@ It accepts the core `DraftRequest` with `document_kind: metadata_record`, and re
 
 The record is in the standard the requirements' `conforms_to` names, written as its registered
 definition in [`dd-metadata-records`](../../metadata-records/README.md) says, in the definition's
-first serialisation, with `media_type` and `conforms_to` set to match. Today that is DataCite's
-JSON form, the form of the DataCite REST API's attributes; another standard needs a definition, not
-a change here. Every property in the request's `requirements` is written:
+first serialisation, with `media_type` and `conforms_to` set to match: DataCite's JSON form, the
+form of the DataCite REST API's attributes, or Dublin Core as OAI-DC XML, with each gap written
+as `:unav`. Another standard needs a definition, not a change here. Every property in the request's `requirements` is written:
 
 - A property whose value is a list of objects gets one entry per field, with the field's
   qualifier, such as ORDA's `subjectScheme: ANZSRC Fields of Research`, and a `null` value for the
@@ -168,8 +168,9 @@ grants it in the institutional profile (`tool_servers: {advisor.metadata: [subje
   chose (TODO(#956)). It does not split names into given and family names: TODO(#1588).
 - It does not map a record between schemas (R6): for requirements in a standard no registered
   definition covers it abstains with `capability_not_implemented`. It drafts in a definition's
-  first serialisation only, and only DataCite is defined so far (Dublin Core is TODO(#1360)). Conversion between standards, which reports each
-  value it could not place, is TODO(#1363). Nor does it write Figshare's own item format (#383).
+  first serialisation only. DataCite and Dublin Core (OAI-DC) are defined; it also abstains when
+  the requirements name a property the standard's serialisation has no place for. Conversion
+  between standards, which reports each value it could not place, is TODO(#1363). Nor does it write Figshare's own item format (#383).
 - It does not use metadata extracted from the files themselves: TODO(#789).
 - It does not check that a value is correct. Validating the record is the harness's work (#19).
 - It does not read an earlier version, or the reason a person gave for a decision on it.

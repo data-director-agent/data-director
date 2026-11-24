@@ -52,7 +52,7 @@ from dd_agent_advisor_metadata.questions import (
     place,
 )
 from dd_agent_advisor_metadata.suggest import Ask, Suggester, Suggestions, TemplateSuggester
-from dd_metadata_records import Standards, set_path
+from dd_metadata_records import RecordError, Standards, set_path
 from dd_sdk import shared_answers
 from dd_sdk.agent import (
     AgentResult,
@@ -184,6 +184,10 @@ class MetadataLibrarian:
         if current is not None:
             statement += f" It replaces version {current.version_ref.version} of the document."
 
+        try:
+            text = standard.write(record, draft.media_type)
+        except RecordError as exc:
+            return scope.unwritable(draft.definition.name, requirements, exc)
         ref = input_ref(ctx)
         return AgentResult(
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=f"{statement} {LIMITATIONS}"),
@@ -193,7 +197,7 @@ class MetadataLibrarian:
                 or f"Metadata record for {requirements.repository_name}",
                 media_type=draft.media_type,
                 conforms_to=requirements.conforms_to,
-                document_text=standard.write(record, draft.media_type),
+                document_text=text,
                 document_derivation=Derivation.TEMPLATE,
                 revises=current.version_ref if current else None,
                 document_questions=questions,

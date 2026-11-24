@@ -1,0 +1,53 @@
+# What any metadata record in Dublin Core, as OAI-DC carries it, must or should have
+# (docs/specs/deposit.md). A chosen repository is checked against it when its re3data record
+# declares Dublin Core and no override names another standard, with the repository's override, if
+# the deployment has one, merged on top. Keys are as in README.md one folder up.
+schema_class: RequirementSet
+requirement_set_id: dublin-core
+version: 1
+title: Dublin Core (OAI-DC)
+url: https://www.dublincore.org/specifications/dublin-core/dces/
+conforms_to: http://www.openarchives.org/OAI/2.0/oai_dc/
+re3data_names:
+  - Dublin Core
+
+# Dublin Core makes no element mandatory: every one of the 15 is optional and repeatable. A
+# record no one can cite is of little use, so the title and creator, which DataCite makes
+# mandatory for the same reason, are required here, and the elements that describe and license
+# the dataset are recommended. Each field's term comes from Dublin Core's definition in
+# dd-metadata-records (docs/specs/metadata-standards.md).
+fields:
+  - property: title
+    obligation: required
+  - property: creator
+    obligation: required
+    supplied_on: researchers
+  - property: description
+    obligation: recommended
+  - property: subject
+    obligation: recommended
+  - property: date
+    obligation: recommended
+  - property: type
+    obligation: recommended
+  - property: rights
+    obligation: recommended
+
+required_documents:
+  - metadata_record
+recommended_documents: []
+
+# A repository that serves OAI-DC records gives each its own identifier and names itself as
+# publisher; the researcher is not asked for them.
+filled_by_repository:
+  - identifier
+  - publisher
+
+guidance:
+  - https://www.dublincore.org/specifications/dublin-core/dces/
+  - https://www.openarchives.org/OAI/openarchivesprotocol.html#dublincore
+  - https://www.re3data.org/schema
+
+unconfirmed:
+  - Which elements a repository that declares Dublin Core requires of a deposit; each sets its own
+    rules, and none is in an override yet (#401).
