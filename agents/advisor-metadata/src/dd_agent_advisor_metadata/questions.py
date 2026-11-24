@@ -13,26 +13,27 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from collections.abc import Iterator, Mapping, Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from dataclasses import dataclass, replace
 from typing import Any
 
 from dd_sdk.contract.models import DocumentQuestion, DraftAnswer
 
 QUESTION_ID_DIGITS = 16
-# A qualifier that names a vocabulary, such as subjectScheme: an entry asked for in one is chosen
-# from it, so a model suggests one only from the vocabulary's own fields (`categories.py`).
-_SCHEME_KEY = re.compile(r"Scheme$")
 
 
 @dataclass(frozen=True, slots=True)
 class Gap:
-    """One value left null: its path in the record, the property it belongs to in the rule
-    table (`titles`, `types.resourceTypeGeneral`), and the qualifiers beside it in its entry."""
+    """One gap: its path in the record's logical tree, the property it belongs to in the
+    standard's definition, and the qualifiers beside it in its entry. `schemes` are the keys of
+    the property's entries that name the vocabulary an entry's value comes from, as the
+    definition gives them: an entry asked for from one is chosen from it, so a model suggests a
+    value only from the vocabulary's own fields (`categories.py`)."""
 
     path: str
     prop: str
     qualifier: Mapping[str, Any]
+    schemes: frozenset[str] = frozenset()
 
     @property
     def question_id(self) -> str:
@@ -40,12 +41,12 @@ class Gap:
 
     @property
     def names_a_vocabulary(self) -> bool:
-        return any(_SCHEME_KEY.search(key) for key in self.qualifier)
+        return any(key in self.schemes for key in self.qualifier)
 
     @property
     def vocabulary(self) -> str | None:
         """The vocabulary the entry's qualifier names, such as `ANZSRC Fields of Research`."""
-        named = [v for k, v in self.qualifier.items() if _SCHEME_KEY.search(k) and v]
+        named = [v for k, v in self.qualifier.items() if k in self.schemes and v]
         return str(named[0]) if named else None
 
 
@@ -54,9 +55,12 @@ def question_id(path: str) -> str:
     return "q-" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:QUESTION_ID_DIGITS]
 
 
-def gaps(record: Mapping[str, Any]) -> list[Gap]:
-    """Every null value in `record`, in the order the record is written."""
-    return list(_walk(record, "", ""))
+def gaps(
+    record: Mapping[str, Any], schemes: Callable[[str], frozenset[str]] = lambda _: frozenset()
+) -> list[Gap]:
+    """Every gap, a None in the logical tree, in `record`, in the order the record is written.
+    `schemes` gives the keys of a property's entries that name a vocabulary."""
+    return [replace(gap, schemes=schemes(gap.prop)) for gap in _walk(record, "", "")]
 
 
 def _walk(node: Any, path: str, prop: str) -> Iterator[Gap]:

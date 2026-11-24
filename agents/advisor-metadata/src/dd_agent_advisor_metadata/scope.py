@@ -1,36 +1,36 @@
 """What the librarian drafts, and the stop for a request it does not: a document other than a
 metadata record (`outside_agent_scope`), no repository chosen (`insufficient_input`), or
-requirements in a standard it cannot draft in (`capability_not_implemented`, R6; conversion
-between standards is TODO(#1363)).
+requirements in a standard no registered definition covers (`capability_not_implemented`, R6;
+conversion between standards is TODO(#1363)).
 
-A standard is read from its registered definition (docs/specs/metadata-standards.md). The librarian
-drafts in DataCite's alone until it drafts from any standard's definition, TODO(#1359).
+A standard is drafted in from its registered definition (docs/specs/metadata-standards.md), so a
+standard is available to the librarian by being installed.
 """
 
 from __future__ import annotations
 
 from functools import cache
 
-from dd_metadata_records import Standard, discover
+from dd_metadata_records import Standard, Standards, discover
 from dd_sdk.agent import AgentResult, abstain
 from dd_sdk.contract.models import DocumentKind, DraftRequest, ReasonCode, RepositoryRequirements
 
-# The standard the librarian drafts in, by its `conforms_to` URI (docs/specs/deposit.md).
+# The standard most repositories' requirements follow, by its `conforms_to` URI
+# (docs/specs/deposit.md).
 DATACITE = "http://datacite.org/schema/kernel-4"
 
 
 @cache
-def standard() -> Standard:
-    """The registered definition of the standard the librarian drafts in."""
-    found = discover().by_uri(DATACITE)
-    if found is None:
-        raise LookupError(f"no registered standard's definition covers {DATACITE}")
-    return found
+def standards() -> Standards:
+    """The registered standards, found once per process."""
+    return discover()
 
 
-def drafted(asked: DraftRequest) -> RepositoryRequirements | AgentResult:
-    """The requirements the record is drafted to, or the stop for a request the librarian does
-    not draft."""
+def drafted(
+    asked: DraftRequest, registered: Standards | None = None
+) -> tuple[RepositoryRequirements, Standard] | AgentResult:
+    """The requirements the record is drafted to and the standard it is drafted in, or the stop
+    for a request the librarian does not draft."""
     if asked.document_kind != DocumentKind.METADATA_RECORD:
         return abstain(
             ReasonCode.OUTSIDE_AGENT_SCOPE,
@@ -42,10 +42,11 @@ def drafted(asked: DraftRequest) -> RepositoryRequirements | AgentResult:
             ReasonCode.INSUFFICIENT_INPUT,
             "Choose a repository first: the record has the properties it asks for.",
         )
-    if requirements.conforms_to not in standard().definition.conforms_to:
+    standard = (registered or standards()).by_uri(requirements.conforms_to)
+    if standard is None:
         return abstain(
             ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
-            f"The librarian drafts DataCite records only, not {requirements.conforms_to}, "
-            "and does not convert a record to another standard.",
+            "The librarian drafts only in a standard a registered definition covers, not "
+            f"{requirements.conforms_to}, and does not convert a record to another standard.",
         )
-    return requirements
+    return requirements, standard

@@ -33,7 +33,7 @@ from inspect_ai import Task, task
 from inspect_ai.dataset import MemoryDataset
 
 from dd_agent_advisor_metadata import scope
-from dd_agent_advisor_metadata.agent import SHARES, MetadataLibrarian
+from dd_agent_advisor_metadata.agent import MetadataLibrarian
 from dd_agent_advisor_metadata.categories import SERVER
 from dd_agent_advisor_metadata.evals.scorers import (
     nothing_placed,
@@ -41,6 +41,7 @@ from dd_agent_advisor_metadata.evals.scorers import (
     subjects_recalled,
     terms_cited,
 )
+from dd_agent_advisor_metadata.form import SHARES
 
 if TYPE_CHECKING:
     from dd_harness.gateway.config import ToolServer
@@ -123,7 +124,7 @@ def identity(agents: str | None) -> dict[str, Any]:
 
     hashes = {
         "cases_sha256": sha256_of(CASES),
-        "definition_sha256": scope.standard().definition.sha256,
+        "definitions_sha256": {s.standard_id: s.definition.sha256 for s in scope.standards()},
         "shares_sha256": sha256_of(SHARES),
         "system_prompt_sha256": sha256_of(PACKAGE / "suggest_prompt.md"),
     }

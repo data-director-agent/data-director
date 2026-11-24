@@ -55,18 +55,34 @@ class Standard:
             if isinstance(inner, dict):
                 tree = inner
                 break
+        if serialisation.gap is not None:
+            tree = _swapped(tree, serialisation.gap, None)
         return Record(self.definition, media_type, tree)
 
     def write(self, tree: Tree, media_type: str) -> str:
-        """`tree` written in the serialisation of `media_type`, through its codec."""
-        if media_type not in self.codecs:
+        """`tree` written in the serialisation of `media_type`, through its codec, each gap (a
+        None in the logical tree) as the serialisation writes one (invariant 6)."""
+        serialisation = self.definition.serialisation(media_type)
+        if serialisation is None or media_type not in self.codecs:
             raise RecordError(f"{self.definition.name} has no serialisation in {media_type}")
+        if serialisation.gap is not None:
+            tree = _swapped(tree, None, serialisation.gap)
         return self.codecs[media_type].emit(tree)
 
     def gap(self, media_type: str) -> Any:
         """How a gap is written in the serialisation of `media_type` (invariant 6)."""
         serialisation = self.definition.serialisation(media_type)
         return serialisation.gap if serialisation else None
+
+
+def _swapped(tree: Any, old: Any, new: Any) -> Any:
+    """`tree` with every leaf equal to `old` written as `new`: a serialisation's gap as the
+    logical tree's None, or back."""
+    if isinstance(tree, dict):
+        return {key: _swapped(value, old, new) for key, value in tree.items()}
+    if isinstance(tree, list):
+        return [_swapped(value, old, new) for value in tree]
+    return new if tree == old and type(tree) is type(old) else tree
 
 
 class Standards:

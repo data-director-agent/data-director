@@ -376,7 +376,7 @@ def test_a_field_may_leave_its_term_to_its_standards_definition(tmp_path: Path) 
 def test_a_field_that_names_another_term_than_its_standards_is_refused(tmp_path: Path) -> None:
     fields = [{"property": "titles", "term": "schema:headline", "obligation": "required"}]
     root = write(tmp_path / "repositories", ("standards", standard(fields=fields)))
-    with pytest.raises(RequirementsError, match=r"datacite-4@v1 gives it http://schema.org/name"):
+    with pytest.raises(RequirementsError, match=r"datacite-4@v\d+ gives it http://schema.org/name"):
         load_requirements(root)
 
 

@@ -23,10 +23,10 @@ it is recognised, and the codecs are shared. Neither is built or specified here.
 definition, DataCite's in its JSON form. The harness reads an approved record through it to
 validate it, describe the package's root dataset and render the Zenodo item, and refuses a record
 in a pair of standard and serialisation no registered definition covers. The Documentation Editor
-and the FAIR Assessor read records through the pivot, and the Metadata Librarian takes its
-questions and value keys from the definition's drafting block and writes through its codec. The
-Librarian still writes DataCite's keys itself and drafts in no other standard (#1359), and no
-other standard is defined yet (#1360, #1361). A requirement set's field may leave out its term,
+and the FAIR Assessor read records through the pivot. The Metadata Librarian drafts in whichever
+registered standard the merged set follows, from its definition alone: its value keys, its
+drafting block, and the researchers' ORCID records written into the standard's own keys from
+pivot terms. No other standard than DataCite is defined yet (#1360, #1361). A requirement set's field may leave out its term,
 and a field that names one is checked against the definition. A statement below that the code
 does not yet meet is marked in place.
 
@@ -45,8 +45,7 @@ does not yet meet is marked in place.
    properties. A check fails a module that does, as `scripts/check_boundaries.py` fails an
    undeclared import: `scripts/check_standard_keys.py` reports a string literal in a member's
    `src/` that is a distinctive identifier of a definition (a camelCase or dotted property path,
-   value key, part key or qualifier key). The Metadata Librarian is exempt until it drafts from any
-   definition, TODO(#1359).
+   value key, part key or qualifier key).
 4. **A codec knows no standard, and writes the same bytes for the same tree.** A codec parses a
    serialisation into a generic tree and writes a tree back to it. Approval, the package and a
    deposit name a record by its digest, so a codec's output is deterministic, and its identifier
@@ -153,9 +152,16 @@ package's root dataset properties are written from it.
 **Drafting in a standard.** The Metadata Librarian drafts a record in the standard the merged set
 follows, from the standard's definition and the project's facts, and writes it through the
 standard's codec with `conforms_to` and `media_type` set. It asks one question for each gap, named by
-the property's path (invariant 5), and places the researcher's answer as given. A standard that is
-not registered is an abstention, `capability_not_implemented`, as now. DataCite in JSON is the only
-standard built (#1359 makes the Librarian read the definition, and #1360 adds Dublin Core).
+the property's path (invariant 5), and places the researcher's answer as given. It drafts the
+record as a logical tree in which a gap is `None`, and the codec's serialisation writes each gap
+as the definition says (invariant 6), so the questions and their identifiers are the same whatever
+the serialisation. It writes in the definition's first serialisation. What it fills from a
+researcher's ORCID record (a creator with an iD and affiliations, keywords, grants) it gives as
+nodes of the pivot, which the definition writes into the standard's own keys; a part the standard
+has no key for is left out. Which of the definition's properties is the licence, the keywords, the
+files' formats and sizes or the schema version, it finds by their pivot terms. A standard that is
+not registered is an abstention, `capability_not_implemented`. DataCite in JSON is the only
+standard defined so far; Dublin Core is TODO(#1360).
 
 **Converting a record.** A conversion reads a record into the pivot with its standard's definition
 and writes the pivot into another with the target's, so that n standards need n definitions, not n²

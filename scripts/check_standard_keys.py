@@ -33,11 +33,7 @@ DEFINITIONS = ROOT / "metadata-records" / "src" / "dd_metadata_records" / "stand
 # The members whose src/ is read: every member but the library that holds the definitions.
 MEMBERS = ("sdk", "harness", "workbench", "app", "admin", "agents")
 # Members that still name a standard's properties, each with the issue that removes it.
-EXEMPT = {
-    # The Metadata Librarian writes DataCite's keys until it drafts from any standard's
-    # definition. TODO(#1359)
-    "agents/advisor-metadata": "#1359",
-}
+EXEMPT: dict[str, str] = {}
 DISTINCTIVE = re.compile(r"[a-z][a-z0-9]*[A-Z][A-Za-z0-9]*|[A-Za-z]+(\.[A-Za-z]+)+")
 
 

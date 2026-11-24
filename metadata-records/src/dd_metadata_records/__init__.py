@@ -16,6 +16,7 @@ from dd_metadata_records.definition import (
 )
 from dd_metadata_records.record import Node, Pivot, Record
 from dd_metadata_records.registry import RecordError, Standard, Standards, discover
+from dd_metadata_records.tree import entry, get_path, has_path, set_path
 
 __all__ = [
     "JSON",
@@ -36,6 +37,10 @@ __all__ = [
     "Standards",
     "Tree",
     "discover",
+    "entry",
     "expand",
+    "get_path",
+    "has_path",
     "load",
+    "set_path",
 ]

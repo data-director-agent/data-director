@@ -13,11 +13,16 @@ from dd_metadata_records import (
     MAX_RECORD_BYTES,
     CodecError,
     DefinitionError,
+    Node,
     Pivot,
     RecordError,
     Standards,
     discover,
+    entry,
+    get_path,
+    has_path,
     load,
+    set_path,
 )
 from dd_metadata_records.standards import DATACITE_4
 
@@ -132,7 +137,7 @@ def test_a_requirement_fields_term_comes_from_the_definition() -> None:
 
 def test_the_definition_names_itself_for_the_project_log() -> None:
     described = DATACITE_4.describe()
-    assert described["ref"] == "datacite-4@v1"
+    assert described["ref"] == f"datacite-4@v{DATACITE_4.version}"
     assert len(described["sha256"]) == 64
     assert described["codecs"] == {JSON.media_type: JSON.codec_id}
 
@@ -156,3 +161,46 @@ def test_a_definition_with_an_invented_vocabulary_is_refused(tmp_path: Path) -> 
     )
     with pytest.raises(DefinitionError, match="not a term"):
         load(path)
+
+
+def test_an_entry_written_from_a_node_reads_back_as_the_same_node() -> None:
+    """The builder is the inverse of reading an entry into the pivot."""
+    creators = DATACITE_4.property_for(SCHEMA + "creator")
+    assert creators is not None and creators.path == "creators"
+    orcid = Node("", "0000-0002-1825-0097", {SCHEMA + "propertyID": (Node("", "ORCID"),)})
+    node = Node("", "Carberry, Josiah", {SCHEMA + "identifier": (orcid,)})
+    written = entry(creators, node)
+    assert written == {
+        "name": "Carberry, Josiah",
+        "nameIdentifiers": [
+            {"nameIdentifier": "0000-0002-1825-0097", "nameIdentifierScheme": "ORCID"}
+        ],
+    }
+    standard = datacite().covering(DATACITE, "application/json")
+    assert standard is not None
+    (read,) = standard.read(json.dumps({"creators": [written]}), "application/json").pivot()[
+        SCHEMA + "creator"
+    ]
+    assert read.value == node.value
+    assert read.parts[SCHEMA + "identifier"][0].part(SCHEMA + "propertyID") == ["ORCID"]
+
+
+def test_a_part_the_standard_has_no_key_for_is_left_out() -> None:
+    titles = DATACITE_4.property_for(SCHEMA + "name")
+    assert titles is not None
+    node = Node("", "Soil", {SCHEMA + "url": (Node("", "https://example.org"),)})
+    assert entry(titles, node) == {"title": "Soil"}
+
+
+def test_a_logical_path_is_read_and_written_through_its_objects() -> None:
+    tree: dict[str, object] = {}
+    set_path(tree, "types.resourceTypeGeneral", "Dataset")
+    assert tree == {"types": {"resourceTypeGeneral": "Dataset"}}
+    assert get_path(tree, "types.resourceTypeGeneral") == "Dataset"
+    assert has_path(tree, "types.resourceTypeGeneral") and not has_path(tree, "types.resourceType")
+    assert get_path(tree, "titles.title") is None
+
+
+def test_the_keys_that_name_a_vocabulary_come_from_the_definition() -> None:
+    assert DATACITE_4.vocabulary_keys("subjects") == frozenset({"subjectScheme"})
+    assert DATACITE_4.vocabulary_keys("titles") == frozenset()
