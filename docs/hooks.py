@@ -54,6 +54,8 @@ UNPUBLISHED = (
     "formats/src/dd_formats/data/*",
     # The licence of the pinned GA4GH Data Use Ontology terms, which travels with the data.
     "duo/src/dd_duo/data/*",
+    # The licences of the XML Schemas a library's tests validate against, which travel with them.
+    "metadata-records/tests/data/xsd/*",
     # The source and licence of the journal registry built from OpenAlex, which travel with it.
     "journals/src/dd_journals/data/*",
     # The licence of the pinned SPDX licence list, which travels with the data.
