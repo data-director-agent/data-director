@@ -14,9 +14,11 @@ governed by the harness and recorded, so you can see what an agent did and why.
 6. [Making an inventory](making-an-inventory.md): describe your dataset's files without sharing
    them, and attach the description to a conversation.
 7. [Understanding outcomes](outcomes.md): what succeeded, abstained, referred and failed mean.
-8. [Working on a project with others](members.md): add colleagues by ORCID iD, their roles,
+8. [Asking a data steward](ask-a-data-steward.md): hand a matter to a person at your institution,
+   see what they can see, and follow the request.
+9. [Working on a project with others](members.md): add colleagues by ORCID iD, their roles,
    and what members see of one another's work.
-9. [What the Data Director records](records.md): what is kept about each run and conversation,
-   where you can see it, and who else can.
-10. [Giving feedback](feedback.md): tell the project where its advice, its specifications or its
+10. [What the Data Director records](records.md): what is kept about each run and conversation,
+    where you can see it, and who else can.
+11. [Giving feedback](feedback.md): tell the project where its advice, its specifications or its
     reading of the Blueprint fall short, without writing code.

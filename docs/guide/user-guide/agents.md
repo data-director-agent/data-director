@@ -12,7 +12,7 @@ Every agent works the same way:
 - **It shows its sources.** Each result cites the records it rests on, and the harness checks
   that it does.
 - **It says when it cannot help.** Rather than guess, an agent abstains and says why. You can
-  then ask a data steward ([Understanding outcomes](outcomes.md)).
+  then ask a data steward ([Asking a data steward](ask-a-data-steward.md)).
 - **Most use an AI model, which your deployment can turn off.** Each section below says what the
   agent sends to the model. Fixed rules make the decisions that matter; the model explains,
   suggests or reads text, and the agent checks what it returns. Which agents run, and what may
