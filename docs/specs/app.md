@@ -837,7 +837,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   `app/web/src/components/project/ProjectPanelPage.test.tsx`).
 - **The phases** come from the SDK's process flow, served by the app and joined in the shell to
   each manifest's `serves` ([Orchestration](orchestration.md)), so the shell keeps no copy of the
-  flow. The shell shows them as "Your data journey", in a researcher's words: each phase has a
+  flow. The shell shows them on the journey map, as "Your data journey", in a researcher's words, and not on the conversation page: each phase has a
   short `name` and a one-sentence `summary`, and each step a `label` and a `prompt`, a first-person
   opening for a conversation about it, all carried by the process flow beside the Blueprint's own
   wording, which the orchestrator reasons over. The journey names
@@ -852,7 +852,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 - **The journey map** draws a project's journey whole, at `/projects/{id}/journey`, after the
   Blueprint's §8 figures: each phase a line of stops, the entry points pinned to the phases they
   join at, the intake's decision points as diamonds before the steps they can skip, with the
-  answer given, and the last phase looping back rather than ending. Like the strip it names no agent and
+  answer given, and the last phase looping back rather than ending. Like the process flow it names no agent and
   no requirement, and computes no state: each stop's state, the word that decided it
   (`reasons`) and the decision points (`decisions`) are the harness's, in the progress it
   serves. Each stop is a button that says its state in words. A step out of scope says "Not in
@@ -865,8 +865,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   own word starts the turn. A key at the foot of the page, **How to read the map**, says each
   mark in words: a stop's state, optional, not in this version, suggested next, waiting on you, a
   decision point and where the project started. **Waiting on you** picks out the steps whose document awaits the
-  researcher's decision and the decision points not yet answered; the strip shows the same count
-  and leads with a button-styled link to the map, and names the suggested step's phase. Each card
+  researcher's decision and the decision points not yet answered; the project pane shows the same count. Each card
   on the projects page shows the journey at a glance, linking to the map, and a **Journey map**
   link beside **Open conversations**
   (`app/web/src/flow/journey.test.ts`, `app/web/src/components/journey/JourneyPage.test.tsx`).
@@ -946,12 +945,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   open conversation. Which project is active is a convenience of the browser, kept in
   `localStorage`, and a remembered project the server no longer lists is dropped.
 - **The conversation at the centre of a workspace.** Above it, whom the work acts for and whose
-  policy applies, then the Blueprint's six phases as a strip, like a progress bar, that opens to
-  each phase's steps and the agents serving them. On the left, the person's conversations, so
+  policy applies. On the left, the person's conversations, so
   that another is one press away; on the right, the project pane.
 - **The project pane holds what a conversation needs, not a summary of the project.** The
-  project's pages show it in full, and the header and phase strip already name the project and
-  draw the journey, so the pane repeats none of them. From the top: what waits on the researcher
+  project's pages show it in full, and the header already names the project and the
+  journey map draws the journey, so the pane repeats none of them. From the top: what waits on the researcher
   (documents to review, fact proposals to decide, repository warnings, unanswered setup
   questions), each with the one thing to do about it; where the project stands, the step under way
   and the one suggested next; what Data Director is working from, the facts that shape its answers
