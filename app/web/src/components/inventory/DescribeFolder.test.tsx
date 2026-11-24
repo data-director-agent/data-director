@@ -91,7 +91,7 @@ describe("DescribeFolder", () => {
     expect(within(panel).getByText(/Open Government Licence v3\.0/)).toBeVisible();
     expect(within(panel).getByRole("link", { name: "Licence notices" })).toHaveAttribute(
       "href",
-      "inventory-bundle/NOTICES.md",
+      "/inventory-bundle/NOTICES.md",
     );
     expect(await axe(document.body)).toHaveNoViolations();
   });

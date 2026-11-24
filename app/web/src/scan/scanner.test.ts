@@ -51,6 +51,18 @@ describe("makeScanner", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
+  it("asks the site's root for the bundle, whatever page is open", async () => {
+    const before = location.pathname + location.search;
+    history.pushState(null, "", "/projects/p1/facts");
+    try {
+      const { fetcher } = bundleServer();
+      await makeScanner({ fetcher }).available();
+      expect(fetcher).toHaveBeenCalledWith(new URL("/inventory-bundle/manifest.json", location.origin).href);
+    } finally {
+      history.replaceState(null, "", before);
+    }
+  });
+
   it.each([
     ["not served", async () => new Response(null, { status: 404 })],
     ["the shell's page, not a manifest", async () => new Response("<!doctype html>")],
