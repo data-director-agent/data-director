@@ -3,9 +3,11 @@
     "agent_id": "advisor.metadata",
     "cases_sha256": "5c37565d39e66353261a336e2d5871577f814acae04494add1052f3d9076dfd2",
     "configuration": {},
-    "definition_sha256": "87ad64bb1ef9688421779b73aa0d901d2a26bf5c2c0578cf7d95ca42286e92a6",
-    "git_revision": "30fb1be81ab8a5c3fa9a394b5a01b612a19e1683",
-    "shares_sha256": "c39b8047bdf0a9aca7275785478534b7ba885aceef81973f77923e30d4116020",
+    "definitions_sha256": {
+      "datacite-4": "aa9eecdeb2da43d34aeb03beb6b6ead6156e482aa40cba5ca9ab32420237b7ca"
+    },
+    "git_revision": "18621d3dca3609ac5188a9d5c2e1fe248e0baf73",
+    "shares_sha256": "8c9eaaef5a8313c664ce169238e3469c90ca6562a66f15330654f19c085d85f6",
     "spec_version": "0.3.0a0",
     "system_prompt_sha256": "8c93f2f784cf427eb38e681579c9888ea7c858791e60a6b9b269df78da886bbe"
   },
