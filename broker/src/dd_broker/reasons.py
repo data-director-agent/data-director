@@ -19,6 +19,8 @@ SERVICE = "model-broker"
 class Reason(StrEnum):
     # The calling agent.
     AGENT_UNAUTHENTICATED = "agent-unauthenticated"
+    # The operator, on the admin summary (`dd_broker.admin`).
+    OPERATOR_UNAUTHENTICATED = "operator-unauthenticated"
     # The grant.
     GRANT_MISSING = "grant-missing"
     GRANT_INVALID = "grant-invalid"
@@ -62,6 +64,7 @@ class Refused(Exception):
 ACCESS = frozenset(
     {
         Reason.AGENT_UNAUTHENTICATED,
+        Reason.OPERATOR_UNAUTHENTICATED,
         Reason.GRANT_MISSING,
         Reason.GRANT_INVALID,
         Reason.GRANT_EXPIRED,

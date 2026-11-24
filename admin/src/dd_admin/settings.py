@@ -13,6 +13,8 @@ setting is unset says so rather than failing, so the service also runs on a deve
 | `DD_FEEDBACK_REPO` | Where the app files feedback (default `data-director-agent/data-director`) |
 | `DD_ADMIN_LITELLM_URL` | The LLM gateway (`deploy/llm-gateway/`), for prices and spend |
 | `DD_ADMIN_LITELLM_KEY_FILE` | A read-only gateway key (else the unit's `litellm-key` credential) |
+| `DD_ADMIN_BROKER_URL` | The model broker (`broker/`), for its health and summary |
+| `DD_ADMIN_BROKER_KEY_FILE` | The operators' broker credential (else `model-broker-admin`) |
 | `DD_ADMIN_MONTHLY_BUDGET` | A month's budget, in the gateway's currency; shown, not enforced |
 """
 
@@ -30,6 +32,8 @@ DEFAULT_APP_URL = "http://127.0.0.1:7860"
 DEFAULT_FEEDBACK_REPO = "data-director-agent/data-director"
 # The name the gateway key is loaded under (LoadCredential=litellm-key:…), in the unit's drop-in.
 LITELLM_CREDENTIAL = "litellm-key"
+# The name the operators' broker credential is loaded under, by deploy/broker-admin-credential.sh.
+BROKER_CREDENTIAL = "model-broker-admin"
 
 
 @dataclass(frozen=True)
@@ -46,6 +50,8 @@ class AdminSettings:
     litellm_url: str | None = None
     litellm_key_file: Path | None = None
     monthly_budget: float | None = None
+    broker_url: str | None = None
+    broker_key_file: Path | None = None
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> AdminSettings:
@@ -70,17 +76,20 @@ class AdminSettings:
             systemd=env.get("DD_ADMIN_SYSTEMD", "").strip().lower() in {"1", "yes", "true"},
             feedback_repo=env.get("DD_FEEDBACK_REPO", "").strip() or DEFAULT_FEEDBACK_REPO,
             litellm_url=env.get("DD_ADMIN_LITELLM_URL", "").strip().rstrip("/") or None,
-            litellm_key_file=path("DD_ADMIN_LITELLM_KEY_FILE") or _credential(env),
+            litellm_key_file=path("DD_ADMIN_LITELLM_KEY_FILE")
+            or _credential(env, LITELLM_CREDENTIAL),
             monthly_budget=_budget(env.get("DD_ADMIN_MONTHLY_BUDGET", "").strip()),
+            broker_url=env.get("DD_ADMIN_BROKER_URL", "").strip().rstrip("/") or None,
+            broker_key_file=path("DD_ADMIN_BROKER_KEY_FILE") or _credential(env, BROKER_CREDENTIAL),
         )
 
 
-def _credential(env: Mapping[str, str]) -> Path | None:
-    """The gateway key systemd loaded for the unit, if its drop-in loads one."""
+def _credential(env: Mapping[str, str], name: str) -> Path | None:
+    """The credential `name` systemd loaded for the unit, if a drop-in loads it."""
     directory = env.get("CREDENTIALS_DIRECTORY", "").strip()
     if not directory:
         return None
-    found = Path(directory) / LITELLM_CREDENTIAL
+    found = Path(directory) / name
     return found if found.is_file() else None
 
 

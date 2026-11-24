@@ -47,6 +47,12 @@ FILES: tuple[tuple[str, str, str], ...] = (
         "sudoedit /etc/data-director/admin.env && sudo systemctl restart data-director-admin",
     ),
     (
+        "model-broker.env",
+        "The model broker's settings: the harness's keys, its base URLs",
+        "sudoedit /etc/data-director/model-broker.env && "
+        "sudo systemctl restart data-director-model-broker",
+    ),
+    (
         "agents.env",
         "Settings every agent shares",
         f"sudoedit /etc/data-director/agents.env && {RESTART}",

@@ -325,6 +325,16 @@ missing, invalid, expired or used is answered `401` with `ticket-missing`, `tick
 `ticket-expired` or `ticket-used`. Every answer is `Cache-Control: no-store`. The page puts each
 reason in plain words.
 
+**The operators' summary.** `GET /admin/summary` answers the deployment's admin service, which
+cannot read the broker's store, with an aggregate: accounts counted by provider, tokens summed over
+everyone by day, payer, provider and model for the last 30 days, the number of pseudonyms with any
+usage, the agents that hold a broker credential, the providers the deployment pays for, whether its
+calls go through a base URL, and the base URL origins allowed. It names no pseudonym and carries
+no account label, key, digest or grant (`dd_broker.admin`). It is served only when
+`DD_BROKER_ADMIN_CREDENTIAL` holds the SHA-256 digest of the operators' credential, which the
+admin service presents as `Authorization: Bearer`; without it the request is answered `401` with
+`operator-unauthenticated` and recorded as a security event.
+
 The browser reaches the broker on the app's own origin: the reverse proxy passes
 `/broker/enrolment/` on to the broker's `/enrolment/`, and nothing else of the broker's
 ([`deploy/nginx/data-director.conf`](../../deploy/nginx/data-director.conf)). So the broker needs

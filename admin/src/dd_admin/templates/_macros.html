@@ -79,3 +79,16 @@
   </form>
 </section>
 {%- endmacro %}
+
+{% macro budget_cell(a) -%}
+  {% set b = a.budget %}
+  {{ a.spend | money }}{% if a.max_budget is not none %} of {{ a.max_budget | money }} <span class="pill {{ {'good': 's-succeeded', 'warn': 's-abstained', 'over': 's-failed'}[b.state] or '' }}">{{ b.share | percent }}</span>{% else %} <span class="muted">no budget</span>{% endif %}{% if a.period %}<br><span class="muted">per {{ a.period }}{% if a.resets %}, resets {{ a.resets | when }}{% endif %}</span>{% endif %}
+{%- endmacro %}
+
+{% macro limits_cell(a) -%}
+  {% if a.rpm or a.tpm %}{% if a.rpm %}{{ a.rpm | number }} requests/min{% endif %}{% if a.rpm and a.tpm %}<br>{% endif %}{% if a.tpm %}{{ a.tpm | number }} tokens/min{% endif %}{% else %}<span class="muted">none</span>{% endif %}
+{%- endmacro %}
+
+{% macro models_cell(models) -%}
+  {% if models %}<span class="mono">{{ models | join(", ") }}</span>{% else %}<span class="muted">all</span>{% endif %}
+{%- endmacro %}

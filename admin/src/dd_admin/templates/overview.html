@@ -33,6 +33,20 @@
       <span class="tile-value small">Not configured</span>
     {% endif %}
   </a>
+  {% if gateway_state.configured %}
+  <a class="tile {{ 'good' if gateway_state.answered and gateway_state.ready else 'bad' }}" href="/gateway">
+    <span class="tile-label">LLM gateway</span>
+    <span class="tile-value small">{% if not gateway_state.answered %}Not answering{% elif gateway_state.ready %}Ready{% else %}Not ready{% endif %}</span>
+    {% if gateway_state.answered %}<span class="tile-sub">{{ gateway_state.models | length }} models · {{ gateway_state.keys | length }} keys</span>{% endif %}
+  </a>
+  {% endif %}
+  {% if broker.configured %}
+  <a class="tile {{ 'good' if broker.answered else 'bad' }}" href="/broker">
+    <span class="tile-label">Model broker</span>
+    <span class="tile-value small">{{ "Answering" if broker.answered else "Not answering" }}</span>
+    {% if broker.summarised %}<span class="tile-sub">{{ broker.accounts_by_provider.values() | sum }} own accounts</span>{% endif %}
+  </a>
+  {% endif %}
   <a class="tile" href="/people">
     <span class="tile-label">People active, 30 days</span>
     <span class="tile-value">{{ usage.active_people(30) | number }}</span>

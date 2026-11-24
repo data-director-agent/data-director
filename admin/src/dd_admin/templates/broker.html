@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% from "_macros.html" import unset, bar_chart %}
+{% block title %}Model broker{% endblock %}
+{% block heading %}Model broker{% endblock %}
+{% block content %}
+<p class="muted">The model broker (<code>broker/</code>) holds people's own model accounts, sealed, and makes model calls for the agents (<code>docs/guide/operations/model-broker.md</code>). It tells this page only figures summed over everyone: never a person, their pseudonym, their account's label or a key. Nothing here can be changed from this page.</p>
+
+<section class="panel">
+  <h2>Service</h2>
+  {% if not broker.configured %}
+    {{ unset("DD_ADMIN_BROKER_URL", "The model broker") }}
+    <p class="muted">On a VM, <code>sudo deploy/broker-admin-credential.sh</code> sets it and gives this service the broker's summary.</p>
+  {% elif broker.error %}
+    <div class="banner bad" role="alert">{{ broker.error }}. It is off until an operator turns it on (<code>docs/guide/operations/model-broker.md</code>, "On a VM").</div>
+  {% else %}
+    <p><span class="pill a-up">answering</span> on <code>{{ settings.broker_url }}</code></p>
+  {% endif %}
+  {% if unit %}
+    {% set active = unit.ActiveState or "unknown" %}
+    <dl class="facts">
+      <dt>Unit</dt><dd><span class="mono">{{ unit_name }}</span> <span class="pill u-{{ active }}">{{ active }}</span> {{ unit.UnitFileState or "" }} · <a href="/operations/journal/{{ unit_name }}">journal</a></dd>
+      {% if unit.NRestarts %}<dt>Restarts</dt><dd>{{ unit.NRestarts }}</dd>{% endif %}
+    </dl>
+  {% endif %}
+  <p class="fix"><span>To restart:</span> <code>sudo systemctl restart {{ unit_name }}</code></p>
+</section>
+
+{% if broker.answered and broker.summary_error %}
+  <div class="banner warn" role="alert">The broker's summary is not shown: {{ broker.summary_error }}.</div>
+{% endif %}
+
+{% if broker.summarised %}
+<section class="tiles" aria-label="At a glance">
+  <div class="tile"><span class="tile-label">Own accounts enrolled</span><span class="tile-value">{{ broker.accounts_by_provider.values() | sum }}</span><span class="tile-sub">{% for p, n in broker.accounts_by_provider.items() %}{{ p }} {{ n }}{% if not loop.last %} · {% endif %}{% else %}none{% endfor %}</span></div>
+  <div class="tile"><span class="tile-label">People calling, {{ broker.days }} days</span><span class="tile-value">{{ broker.people_with_usage | number }}</span></div>
+  {% for payer, t in broker.by_payer.items() %}
+  <div class="tile"><span class="tile-label">Tokens paid by {{ "their own accounts" if payer == "own" else "the " ~ payer }}, {{ broker.days }} days</span><span class="tile-value">{{ t.total | number }}</span><span class="tile-sub">{{ t.input | number }} in · {{ t.output | number }} out</span></div>
+  {% endfor %}
+</section>
+
+<section class="panel">
+  <h2>Tokens per day, last {{ broker.days }} days</h2>
+  {% if broker.per_day %}{{ bar_chart(broker.per_day, peak, "tokens") }}{% else %}<p class="empty">No calls through the broker.</p>{% endif %}
+</section>
+
+<section class="panel">
+  <h2>By model and payer, last {{ broker.days }} days</h2>
+  {% if broker.by_model %}
+  <div class="table-wrap"><table>
+    <thead><tr><th scope="col">Provider</th><th scope="col">Model</th><th scope="col">Paid by</th><th scope="col" class="num">Tokens in</th><th scope="col" class="num">Tokens out</th></tr></thead>
+    <tbody>
+    {% for provider, model, payer, t in broker.by_model %}
+      <tr><td>{{ provider }}</td><td class="mono">{{ model }}</td><td>{{ payer }}</td><td class="num">{{ t.input | number }}</td><td class="num">{{ t.output | number }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="empty">No calls through the broker.</p>{% endif %}
+  <p class="muted">The deployment's share is also on <a href="/spend">Spend</a>, under the broker's gateway key, when its calls go through the LLM gateway.</p>
+</section>
+
+<div class="two">
+  <section class="panel">
+    <h2>Agents</h2>
+    <p class="muted">Agents that hold a broker credential. An agent whose card declares models and holds none cannot call through the broker.</p>
+    {% if coverage and coverage.missing %}
+      <div class="banner warn" role="alert">Model-backed but holding no broker credential: {{ coverage.missing | join(", ") }}.</div>
+    {% endif %}
+    {% if broker.agents %}
+      <ul class="plain">
+      {% for a in broker.agents %}<li class="mono">{{ a }}{% if coverage and a in coverage.unused %} <span class="tag">no model-backed agent of this id answered</span>{% endif %}</li>{% endfor %}
+      </ul>
+    {% else %}<p class="empty">None.</p>{% endif %}
+    <p class="fix"><span>To change:</span> <code>sudo deploy/broker-credentials.sh &lt;agent&gt;…</code>, naming every agent that calls through the broker, then <code>sudo systemctl restart {{ unit_name }}</code></p>
+  </section>
+  <section class="panel">
+    <h2>Who pays</h2>
+    <dl class="facts">
+      <dt>The deployment pays for</dt><dd>{{ broker.providers_paid | join(", ") if broker.providers_paid else "no provider: a call the deployment would pay for is refused" }}</dd>
+      <dt>Its calls go</dt><dd>{{ "through its base URL (the LLM gateway, normally)" if broker.through_base_url else "straight to each provider" }}</dd>
+      <dt>Own accounts may name</dt><dd>{% if broker.allowed_base_urls %}<span class="mono">{{ broker.allowed_base_urls | join(", ") }}</span>{% else %}each provider's own endpoint only{% endif %}</dd>
+      {% if broker.private_base_urls %}<dt>Allowed to be private</dt><dd class="mono">{{ broker.private_base_urls | join(", ") }}</dd>{% endif %}
+    </dl>
+    <p class="muted">Whether people's own accounts pay at all is the profile's <code>model_accounts</code> (<a href="/config">Configuration</a>).</p>
+  </section>
+</div>
+{% endif %}
+
+{% if settings_file %}
+<section class="panel file">
+  <h2 class="mono">/etc/data-director/{{ settings_file.name }}</h2>
+  <p class="fix"><span>To change:</span> <code>{{ settings_file.change }}</code></p>
+  {% if settings_file.text is none %}<p class="muted">Missing, or this service's user may not read it.</p>
+  {% elif settings_file.text.strip() %}<pre class="config">{{ settings_file.text }}</pre>
+  {% else %}<p class="muted">Empty.</p>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

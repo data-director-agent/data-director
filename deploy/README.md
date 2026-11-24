@@ -230,7 +230,8 @@ alpha and nothing calls it yet, so `install.sh` creates its user, its credential
 settings file, with `DD_BROKER_HARNESS_JWKS_URL` set to the app's published keys on its loopback
 address, but does not enable it. [The model broker](../docs/guide/operations/model-broker.md)
 in the operations guide says how to turn it on. Its store is backed up with the others
-([Backups](#backups)).
+([Backups](#backups)). `broker-admin-credential.sh` lets the admin service read the broker's
+aggregate summary ([The admin service](../docs/guide/operations/admin.md#model-broker)).
 
 The broker runs as a user of its own, so it must be able to run the release's Python. uv installs
 it in `/opt/data-director/python/`. A VM installed before that kept it in

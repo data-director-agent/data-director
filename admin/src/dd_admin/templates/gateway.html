@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% from "_macros.html" import unset, budget_cell, limits_cell, models_cell %}
+{% block title %}LLM gateway{% endblock %}
+{% block heading %}LLM gateway{% endblock %}
+{% block content %}
+{% set admin_py = "deploy/llm-gateway/scripts/admin.py" %}
+<p class="muted">How the LLM gateway (<code>deploy/llm-gateway/</code>) allows and limits the deployment's model calls. What the calls cost is on <a href="/spend">Spend</a>. Nothing here can be changed from this page: on the VM, <code>{{ admin_py }}</code> changes keys, teams and users, and <code>deploy/llm-gateway/config.yaml</code> the models.</p>
+{% if not state.configured %}
+  {{ unset("DD_ADMIN_LITELLM_URL", "The LLM gateway") }}
+  <p class="muted">Setting the gateway up for this page and Spend, with a read-only key: <code>deploy/llm-gateway/README.md</code>, "The admin service's Spend page".</p>
+{% elif state.error %}
+  <div class="banner bad" role="alert">The LLM gateway is not shown: {{ state.error }}.</div>
+{% else %}
+<section class="tiles" aria-label="At a glance">
+  <div class="tile {{ 'good' if state.ready else 'bad' }}">
+    <span class="tile-label">Gateway</span>
+    <span class="tile-value small">{{ "Ready" if state.ready else "Not ready" }}</span>
+    <span class="tile-sub">database {{ state.database or "unknown" }}{% if state.version %} · LiteLLM {{ state.version }}{% endif %}</span>
+  </div>
+  <div class="tile"><span class="tile-label">Models</span><span class="tile-value">{{ state.models | length }}</span></div>
+  <div class="tile"><span class="tile-label">Keys</span><span class="tile-value">{{ state.keys | length }}</span><span class="tile-sub">{{ state.keys | selectattr("blocked") | list | length }} blocked</span></div>
+  <div class="tile"><span class="tile-label">Teams and users</span><span class="tile-value">{{ state.teams | length }} <span class="of">/ {{ state.users | length }}</span></span></div>
+</section>
+{% if state.problems %}
+  <div class="banner warn" role="alert">The gateway did not give {{ state.problems | join(", ") }}, so {{ "that is" if state.problems | length == 1 else "those are" }} not shown. The key may lack the <code>proxy_admin_viewer</code> role.</div>
+{% endif %}
+{% if state.capped %}
+  <div class="banner warn">The gateway has more {{ state.capped | join(" and ") }} than this page reads; only the first 1,000 are shown.</div>
+{% endif %}
+
+<section class="panel">
+  <h2>Models</h2>
+  {% if state.models %}
+  <div class="table-wrap"><table>
+    <thead><tr><th scope="col">Name</th><th scope="col">Provider</th><th scope="col">Upstream</th><th scope="col" class="num">Input, per million</th><th scope="col" class="num">Output, per million</th><th scope="col" class="num">Max tokens in / out</th><th scope="col">Rate limits</th></tr></thead>
+    <tbody>
+    {% for m in state.models %}
+      <tr>
+        <td class="mono">{{ m.name }}</td>
+        <td>{{ m.provider }}</td>
+        <td class="mono">{{ m.upstream or "—" }}</td>
+        {% if m.price %}<td class="num">{{ (m.price.input * 1000000) | money }}</td><td class="num">{{ (m.price.output * 1000000) | money }}</td>
+        {% else %}<td class="num muted" colspan="2">no price: its tokens are counted as unpriced</td>{% endif %}
+        <td class="num">{{ m.max_input_tokens | number if m.max_input_tokens else "—" }} / {{ m.max_output_tokens | number if m.max_output_tokens else "—" }}</td>
+        <td>{{ limits_cell(m) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="empty">The gateway serves no model.</p>{% endif %}
+  <p class="fix"><span>To change:</span> edit <code>deploy/llm-gateway/config.yaml</code>, then restart the gateway (<code>deploy/llm-gateway/scripts/systemd.sh</code>).</p>
+</section>
+
+<section class="panel">
+  <h2>Keys</h2>
+  <p class="muted">One key per agent, or one for the model broker when it pays for the deployment's calls. A key is shown by its alias, never by the key.</p>
+  {% if state.keys %}
+  <div class="table-wrap"><table>
+    <thead><tr><th scope="col">Alias</th><th scope="col">Team</th><th scope="col">Spend and budget</th><th scope="col">Rate limits</th><th scope="col">Models</th><th scope="col">Expires</th></tr></thead>
+    <tbody>
+    {% for k in state.keys %}
+      <tr>
+        <td class="mono">{{ k.name }}{% if k.blocked %} <span class="pill s-failed">blocked</span>{% endif %}</td>
+        <td>{{ k.team or "—" }}</td>
+        <td>{{ budget_cell(k) }}</td>
+        <td>{{ limits_cell(k) }}</td>
+        <td>{{ models_cell(k.models) }}</td>
+        <td class="nowrap">{{ k.expires | when if k.expires else "never" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="empty">No keys.</p>{% endif %}
+  <p class="fix"><span>To change:</span> <code>{{ admin_py }} key create &lt;alias&gt; --team &lt;team_id&gt; --budget &lt;dollars&gt; --period 30d --models &lt;models&gt;</code></p>
+</section>
+
+<div class="two">
+  <section class="panel">
+    <h2>Teams</h2>
+    {% if state.teams %}
+    <div class="table-wrap"><table>
+      <thead><tr><th scope="col">Team</th><th scope="col">Spend and budget</th><th scope="col">Rate limits</th><th scope="col">Models</th></tr></thead>
+      <tbody>
+      {% for t in state.teams %}
+        <tr><td>{{ t.name }}{% if t.name != t.ident %}<br><span class="muted mono">{{ t.ident | short(13) }}</span>{% endif %}</td><td>{{ budget_cell(t) }}</td><td>{{ limits_cell(t) }}</td><td>{{ models_cell(t.models) }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}<p class="empty">No teams.</p>{% endif %}
+    <p class="fix"><span>To change:</span> <code>{{ admin_py }} team create &lt;alias&gt; --budget &lt;dollars&gt; --period 30d</code></p>
+  </section>
+  <section class="panel">
+    <h2>Users</h2>
+    {% if state.users %}
+    <div class="table-wrap"><table>
+      <thead><tr><th scope="col">User</th><th scope="col">Role</th><th scope="col">Spend and budget</th></tr></thead>
+      <tbody>
+      {% for u in state.users %}
+        <tr><td class="mono">{{ u.name }}</td><td>{{ u.role or "—" }}</td><td>{{ budget_cell(u) }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}<p class="empty">No users.</p>{% endif %}
+    <p class="fix"><span>To change:</span> <code>{{ admin_py }} user create &lt;email&gt; --team &lt;team_id&gt; --budget &lt;dollars&gt; --period 30d</code></p>
+  </section>
+</div>
+{% endif %}
+{% endblock %}

@@ -30,7 +30,8 @@ no prompt and no reply. A rejected or limited own key never falls back to the de
 that would silently change who pays (invariant 10).
 
 `GET`, `PUT` and `DELETE /enrolment/account` are the enrolment interface for the browser
-(`dd_broker.enrolment`).
+(`dd_broker.enrolment`). `GET /admin/summary` is an aggregate for the operators' admin service
+(`dd_broker.admin`).
 """
 
 from __future__ import annotations
@@ -50,8 +51,8 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 from starlette.routing import Route
 
-from dd_broker import anthropic, chat_completions, enrolment, gateway, upstream
-from dd_broker.agents import AgentCredentials
+from dd_broker import admin, anthropic, chat_completions, enrolment, gateway, upstream
+from dd_broker.agents import AgentCredentials, OperatorCredential
 from dd_broker.grants import (
     GrantVerifier,
     HarnessKeys,
@@ -111,6 +112,7 @@ class Broker:
     private_base_urls: Collection[str] = ()
     resolve: Resolver = system_resolver
     transport: httpx.AsyncBaseTransport | None = None
+    operator: OperatorCredential | None = field(default=None, repr=False)
 
     @classmethod
     def open(cls, settings: BrokerSettings) -> Broker:
@@ -130,6 +132,7 @@ class Broker:
             deployment_base_url=settings.deployment_base_url,
             allowed_base_urls=settings.allowed_base_urls,
             private_base_urls=settings.private_base_urls,
+            operator=settings.operator,
         )
 
 
@@ -454,6 +457,9 @@ def build_app(broker: Broker) -> Starlette:
             record_refusal(refused.reason)
             return route_refusal(refused.status, refused.reason)
 
+    async def summary(request: Request) -> Response:
+        return await admin.answer(broker, request)
+
     async def healthz(request: Request) -> Response:
         return JSONResponse({"status": "ok"})
 
@@ -463,6 +469,7 @@ def build_app(broker: Broker) -> Starlette:
             Route("/{provider}" + chat_completions.COMPLETIONS_PATH, completions, methods=["POST"]),
             Route(enrolment.ACCOUNT_PATH, account, methods=["GET", "PUT", "DELETE"]),
             Route(ROUTE_PATH, route, methods=["POST"]),
+            Route(admin.SUMMARY_PATH, summary, methods=["GET"]),
             Route("/healthz", healthz, methods=["GET"]),
         ],
         lifespan=lifespan,
