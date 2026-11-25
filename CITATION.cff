@@ -103,3 +103,71 @@ references:
     notes: >-
       The policy advisor identifies funders in a pinned ROR data dump
       (agents/advisor-policy/data/ror/SOURCE.md).
+  - type: article
+    title: FAIRsharing as a community approach to standards, repositories and policies
+    authors:
+      - family-names: Sansone
+        given-names: Susanna-Assunta
+      - family-names: McQuilton
+        given-names: Peter
+      - family-names: Rocca-Serra
+        given-names: Philippe
+    journal: Nature Biotechnology
+    volume: 37
+    start: 358
+    end: 367
+    year: 2019
+    doi: 10.1038/s41587-019-0080-8
+    url: https://fairsharing.org
+    license: CC-BY-SA-4.0
+    notes: >-
+      The standards, repository and policy advisors read FAIRsharing records, in committed
+      snapshots and through its API. The article is a citation of the registry, which asks for
+      attribution (NOTICE.md; agents/advisor-standards/data/fairsharing/LICENCE.md).
+  - type: article
+    title: "OpenAlex: A fully-open index of scholarly works, authors, venues, institutions, and concepts"
+    authors:
+      - family-names: Priem
+        given-names: Jason
+      - family-names: Piwowar
+        given-names: Heather
+      - family-names: Orr
+        given-names: Richard
+    year: 2022
+    doi: 10.48550/arXiv.2205.01833
+    url: https://openalex.org
+    license: CC0-1.0
+    notes: >-
+      The journal registry is built from an OpenAlex snapshot (journals/src/dd_journals/data/SOURCE.md).
+  - type: database
+    title: PRONOM
+    authors:
+      - name: The National Archives
+    url: https://www.nationalarchives.gov.uk/PRONOM/
+    license: OGL-UK-3.0
+    notes: >-
+      Contains public sector information licensed under the Open Government Licence v3.0.
+      Format identification and descriptions use PRONOM (formats/src/dd_formats/data/LICENCE.md).
+  - type: database
+    title: SPDX License List
+    authors:
+      - name: SPDX Workgroup
+    publisher:
+      name: Linux Foundation
+    url: https://spdx.org/licenses/
+    license: CC0-1.0
+    notes: The rights advisor reads a pinned copy (mcp-spdx/src/dd_mcp_spdx/data/LICENCE.md).
+  - type: database
+    title: GA4GH Data Use Ontology (DUO)
+    authors:
+      - name: Global Alliance for Genomics and Health
+    url: https://github.com/EBISPOT/DUO
+    license: CC-BY-4.0
+    notes: The ethics advisor reads a pinned release (duo/src/dd_duo/data/LICENCE.md).
+  - type: database
+    title: Directory of Open Access Journals (DOAJ)
+    authors:
+      - name: DOAJ
+    url: https://doaj.org
+    license: CC0-1.0
+    notes: The policy advisor reads a journal's terms live; nothing is kept (mcp-doaj/README.md).

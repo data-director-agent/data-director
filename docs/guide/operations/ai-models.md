@@ -176,6 +176,23 @@ data, and an organisation under a zero-data-retention agreement gets an error on
 such a model. Check the chosen model against the institution's agreement, not only against its
 price.
 
+Using a hosted model also puts the deployment under that provider's terms, which are not Data
+Director's to waive. Read the current version of each for the providers you turn on, with the
+institution's own agreement where there is one:
+
+- Anthropic: [Commercial Terms](https://www.anthropic.com/legal/commercial-terms) and
+  [Usage Policy](https://www.anthropic.com/legal/aup).
+- OpenAI: [Terms of use](https://openai.com/policies/terms-of-use),
+  [Service terms](https://openai.com/policies/service-terms) and
+  [Usage policies](https://openai.com/policies/usage-policies).
+- Google (Gemini API): [Additional terms of service](https://ai.google.dev/gemini-api/terms).
+
+They govern what may be sent, what the provider keeps and what may be done with the output.
+Where a person supplies their own key, as the model broker allows, their account agreement
+applies to their runs.
+These links were added without a review of the terms' text; the institution's information
+compliance team owns that check.
+
 Each agent declares the models it sends data to in its manifest (`models`: provider, model and
 hosting). The app's **About** tab for the agent shows the list, or says that it calls no model.
 This is what the deployment configured, declared by the agent itself; it is not proof of what

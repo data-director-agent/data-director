@@ -28,6 +28,7 @@ from dd_agent_advisor_standards.fairsharing.records import (
     Record,
     from_public_json,
 )
+from dd_sdk.registry import pinned
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data" / "fairsharing"
@@ -37,6 +38,7 @@ MANIFEST = DATA_DIR / "manifest.json"
 
 DELAY_S = 0.5  # between requests; the public site is not an API
 TIMEOUT_S = 30.0
+DISTRIBUTION = "data-director-agent-advisor-standards"
 
 
 def read_ids(path: Path) -> list[str]:
@@ -67,7 +69,13 @@ def main(ids_path: str | None = None, out_path: str | None = None) -> int:
     ids = read_ids(ids_file)
     records: list[Record] = []
     missing: list[str] = []
-    with httpx.Client(timeout=TIMEOUT_S, follow_redirects=True) as client:
+    with httpx.Client(
+        timeout=TIMEOUT_S,
+        follow_redirects=True,
+        headers={
+            "User-Agent": pinned.user_agent(DISTRIBUTION, "data-director-fairsharing-snapshot")
+        },
+    ) as client:
         for i, fid in enumerate(ids, start=1):
             print(f"[{i}/{len(ids)}] {fid}", file=sys.stderr)
             rec = fetch(client, fid)

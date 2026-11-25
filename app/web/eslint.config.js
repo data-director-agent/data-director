@@ -24,7 +24,7 @@ const LIVE_REGION = {
 // reason is marked TODO(#494) is debt to remove, not a pattern to copy. Remove an entry when its import goes.
 const FEATURE_IMPORTS = [
   // The frame's page header is the top of every page, so that each page names itself the same way.
-  ...["errors", "escalation", "feedback", "journey", "policy", "profile", "project", "session", "settings", "workspace"].map((from) => ({
+  ...["errors", "escalation", "feedback", "journey", "policy", "profile", "project", "session", "settings", "sources", "workspace"].map((from) => ({
     from,
     to: "frame",
     reason: "PageHeader is the top of every page.",
@@ -147,7 +147,7 @@ export default tseslint.config(
         { type: "component", pattern: "src/components/*" },
         {
           type: "domain",
-          pattern: "src/{api,run,manifest,conversation,flow,session,project,feedback,policy,model-account,scan}/**",
+          pattern: "src/{api,run,manifest,conversation,flow,session,project,feedback,policy,sources,model-account,scan}/**",
         },
       ],
     },

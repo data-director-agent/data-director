@@ -78,3 +78,11 @@
     margin: 0;
   }
 }
+
+@layer components {
+  .evidence-credit {
+    margin: 0 0 var(--space-2);
+    font-size: var(--font-size-small);
+    color: var(--color-text-muted);
+  }
+}

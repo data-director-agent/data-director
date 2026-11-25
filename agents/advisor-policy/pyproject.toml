@@ -8,6 +8,7 @@ version = "0.1.0-alpha.3"
 description = "advisor.policy: checks funder, journal and institutional data policies from FAIRsharing"
 requires-python = ">=3.14"
 license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
 # pypdf reads policies published as PDF, behind `pdf_text.py` (docs/specs/dependencies.md).
 dependencies = [

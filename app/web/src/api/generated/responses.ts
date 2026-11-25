@@ -33,6 +33,7 @@ export type AppResponse =
   | ConversationDeleted
   | ConversationSummary
   | ConversationTurn
+  | CreditMatch
   | Decision
   | DeletedConversation
   | DeletedProject
@@ -129,6 +130,8 @@ export type AppResponse =
   | RunRow
   | SavedInventory
   | ServerFolderRoots
+  | SourceCredit
+  | Sources
   | Started
   | StepReason
   | StepState
@@ -600,6 +603,16 @@ export interface ConversationSummary {
   title: string;
   title_source: "model" | "message";
   turns: number;
+}
+export interface CreditMatch {
+  /**
+   * An evidence item whose `snapshot_ref` starts with one of these is from the source.
+   */
+  snapshot_ref_prefixes: string[];
+  /**
+   * An evidence item whose `source_id` starts with one of these is from the source.
+   */
+  source_id_prefixes: string[];
 }
 /**
  * A deleted conversation the person may still restore
@@ -2081,6 +2094,40 @@ export interface RunRow {
  */
 export interface ServerFolderRoots {
   roots: string[];
+}
+/**
+ * An external source, the credit it asks for and the terms it sets.
+ */
+export interface SourceCredit {
+  /**
+   * The credit as the source asks for it, to be shown as written.
+   */
+  attribution: string;
+  badge_url: string | null;
+  citation: string | null;
+  credit_required: boolean;
+  id: string;
+  kind: "data" | "service" | "font";
+  /**
+   * An SPDX identifier, or a `LicenseRef-` for terms without one.
+   */
+  licence: string;
+  licence_url: string;
+  match: CreditMatch;
+  name: string;
+  /**
+   * The source's own terms limit use to non-commercial purposes.
+   */
+  non_commercial: boolean;
+  terms_url: string | null;
+  url: string;
+  use: "pinned" | "live" | "both";
+}
+/**
+ * The external sources the app uses, with their credits (`GET /api/sources`).
+ */
+export interface Sources {
+  sources: SourceCredit[];
 }
 /**
  * A conversation the server started, and the project it was started in

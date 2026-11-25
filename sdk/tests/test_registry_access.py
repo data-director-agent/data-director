@@ -125,3 +125,9 @@ def test_get_json_on_a_server_error_is_unavailable() -> None:
     client = _client(httpx.MockTransport(lambda r: httpx.Response(503)))
     with pytest.raises(RegistryUnavailable):
         client.get_json("https://fairsharing.org/FAIRsharing.x")
+
+
+def test_the_client_it_makes_names_the_project_and_no_person() -> None:
+    sent = FairsharingClient()._client.headers["User-Agent"]
+    assert sent.startswith("data-director-sdk/")
+    assert "@" not in sent

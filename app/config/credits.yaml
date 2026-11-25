@@ -1,0 +1,241 @@
+# The external sources, services and assets the app uses, with the credit each asks for.
+#
+# `GET /api/sources` serves this file and the "Sources and licences" page draws it. The evidence
+# panel names the source of an item and its licence by matching the item's `source_id` or
+# `snapshot_ref` against `match` here. The wording of `attribution` is the publisher's, copied
+# from the `LICENCE.md` or `SOURCE.md` beside the data, so change it there first.
+#
+# Every source in the register in docs/specs/dependencies.md has an entry (scripts/tests/test_credits_register.py).
+# Format of an entry (dd_app.credits.Credit):
+#   id               a stable label
+#   name             what a reader calls it
+#   url              its home
+#   kind             data | service | font
+#   licence          SPDX identifier, or LicenseRef- for terms without one
+#   licence_url      where the licence is
+#   attribution      the credit as the source asks for it, shown as written
+#   credit_required  true if the licence, or the source's terms, require credit
+#   non_commercial   true if the source's own terms limit use to non-commercial purposes
+#   use              pinned (a copy, kept with its licence), live (asked at run time), or both
+#   terms_url        the source's terms or API terms, if separate from the licence
+#   citation         how the source asks to be cited
+#   badge_url        a badge the source asks to be shown
+#   match            source_id_prefixes and snapshot_ref_prefixes that mark an evidence item as
+#                    from this source
+sources:
+  - id: fairsharing
+    name: FAIRsharing
+    url: https://fairsharing.org
+    kind: data
+    licence: CC-BY-SA-4.0
+    licence_url: https://creativecommons.org/licenses/by-sa/4.0/
+    attribution: >-
+      FAIRsharing content is licensed under CC BY-SA 4.0. Please link to https://fairsharing.org
+      and use the attribution badge.
+    credit_required: true
+    non_commercial: false
+    use: both
+    terms_url: https://fairsharing.org/licence
+    citation: "Sansone, SA., McQuilton, P., Rocca-Serra, P. et al. FAIRsharing as a community approach to standards, repositories and policies. Nat Biotechnol 37, 358-367 (2019). https://doi.org/10.1038/s41587-019-0080-8"
+    badge_url: https://api.fairsharing.org/img/fairsharing-attribution.svg
+    match:
+      source_id_prefixes: ["FAIRsharing."]
+      snapshot_ref_prefixes: ["snapshot:", "fairsharing:", "fairsharing-policy:"]
+  - id: re3data
+    name: re3data
+    url: https://www.re3data.org
+    kind: data
+    licence: CC0-1.0
+    licence_url: https://creativecommons.org/publicdomain/zero/1.0/
+    attribution: "re3data.org - Registry of Research Data Repositories. https://doi.org/10.17616/R3D"
+    credit_required: false
+    non_commercial: false
+    use: pinned
+    citation: "re3data.org - Registry of Research Data Repositories. https://doi.org/10.17616/R3D"
+    match:
+      snapshot_ref_prefixes: ["re3data:"]
+  - id: datacite-repositories
+    name: DataCite repositories
+    url: https://datacite.org
+    kind: data
+    licence: CC0-1.0
+    licence_url: https://support.datacite.org/docs/datacite-data-file-use-policy
+    attribution: DataCite repository metadata, https://datacite.org
+    credit_required: false
+    non_commercial: false
+    use: pinned
+    match:
+      snapshot_ref_prefixes: ["datacite:"]
+  - id: datacite-dois
+    name: DataCite and Crossref DOI metadata
+    url: https://api.datacite.org
+    kind: service
+    licence: CC0-1.0
+    licence_url: https://support.datacite.org/docs/datacite-data-file-use-policy
+    attribution: >-
+      DOI metadata from DataCite (CC0) and Crossref (openly available; facts are not
+      copyrightable).
+    credit_required: false
+    non_commercial: false
+    use: live
+    terms_url: https://www.crossref.org/documentation/retrieve-metadata/rest-api/
+    match:
+      source_id_prefixes: ["tool:datacite/", "tool:crossref/"]
+  - id: orcid
+    name: ORCID
+    url: https://orcid.org
+    kind: service
+    licence: LicenseRef-ORCID-public-API-terms
+    licence_url: https://info.orcid.org/public-client-terms-of-service/
+    attribution: Public data from ORCID, https://orcid.org
+    credit_required: false
+    non_commercial: true
+    use: live
+    terms_url: https://info.orcid.org/public-client-terms-of-service/
+    match:
+      source_id_prefixes: ["tool:orcid/"]
+  - id: ror
+    name: Research Organization Registry (ROR)
+    url: https://ror.org
+    kind: data
+    licence: CC0-1.0
+    licence_url: https://creativecommons.org/publicdomain/zero/1.0/
+    attribution: "Research Organization Registry (ROR) data dump. https://doi.org/10.5281/zenodo.6347574"
+    credit_required: false
+    non_commercial: false
+    use: both
+    terms_url: https://ror.org/about/faqs/
+    citation: "Research Organization Registry (ROR) data dump. https://doi.org/10.5281/zenodo.6347574"
+    match:
+      source_id_prefixes: ["tool:ror/"]
+      snapshot_ref_prefixes: ["ror:"]
+  - id: openalex
+    name: OpenAlex
+    url: https://openalex.org
+    kind: data
+    licence: CC0-1.0
+    licence_url: https://creativecommons.org/publicdomain/zero/1.0/
+    attribution: Journal records derived from the OpenAlex snapshot, https://openalex.org
+    credit_required: false
+    non_commercial: false
+    use: pinned
+    citation: "Priem, J., Piwowar, H., & Orr, R. (2022). OpenAlex: A fully-open index of scholarly works, authors, venues, institutions, and concepts. https://doi.org/10.48550/arXiv.2205.01833"
+  - id: openaire
+    name: OpenAIRE Graph
+    url: https://graph.openaire.eu
+    kind: service
+    licence: CC-BY-4.0
+    licence_url: https://graph.openaire.eu/docs/license/
+    attribution: Grant records from the OpenAIRE Graph, https://graph.openaire.eu
+    credit_required: true
+    non_commercial: false
+    use: live
+    terms_url: https://graph.openaire.eu/docs/apis/terms/
+  - id: pronom
+    name: PRONOM
+    url: https://www.nationalarchives.gov.uk/PRONOM/
+    kind: data
+    licence: OGL-UK-3.0
+    licence_url: https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/
+    attribution: >-
+      Contains public sector information licensed under the Open Government Licence v3.0.
+      Source: The National Archives, PRONOM.
+    credit_required: true
+    non_commercial: false
+    use: pinned
+    match:
+      snapshot_ref_prefixes: ["pronom:"]
+  - id: spdx
+    name: SPDX License List
+    url: https://spdx.org/licenses/
+    kind: data
+    licence: CC0-1.0
+    licence_url: https://creativecommons.org/publicdomain/zero/1.0/
+    attribution: SPDX License List, spdx/license-list-data
+    credit_required: false
+    non_commercial: false
+    use: pinned
+    match:
+      snapshot_ref_prefixes: ["spdx:"]
+  - id: doaj
+    name: Directory of Open Access Journals (DOAJ)
+    url: https://doaj.org
+    kind: service
+    licence: CC0-1.0
+    licence_url: https://doaj.org/docs/faq/
+    attribution: Journal metadata from DOAJ, https://doaj.org
+    credit_required: false
+    non_commercial: false
+    use: live
+    match:
+      snapshot_ref_prefixes: ["doaj-journals:"]
+  - id: open-policy-finder
+    name: Jisc Open Policy Finder
+    url: https://openpolicyfinder.jisc.ac.uk
+    kind: service
+    licence: CC-BY-NC-ND-4.0
+    licence_url: https://creativecommons.org/licenses/by-nc-nd/4.0/
+    attribution: Publisher and funder open access policy from Jisc Open Policy Finder.
+    credit_required: true
+    non_commercial: true
+    use: live
+    terms_url: https://openpolicyfinder.jisc.ac.uk/help/developers/api-types/object-retrieval-api
+  - id: duo
+    name: GA4GH Data Use Ontology
+    url: https://github.com/EBISPOT/DUO
+    kind: data
+    licence: CC-BY-4.0
+    licence_url: https://creativecommons.org/licenses/by/4.0/
+    attribution: >-
+      GA4GH Data Use Ontology, developed by the Global Alliance for Genomics and Health and
+      maintained at EMBL-EBI. https://github.com/EBISPOT/DUO
+    credit_required: true
+    non_commercial: false
+    use: pinned
+  - id: ucum
+    name: Unified Code for Units of Measure (UCUM)
+    url: https://ucum.org
+    kind: data
+    licence: LicenseRef-UCUM
+    licence_url: https://unitsofmeasure.org/license
+    attribution: Copyright 1999-2024 Regenstrief Institute, Inc. All rights reserved.
+    credit_required: true
+    non_commercial: false
+    use: pinned
+  - id: anzsrc-for
+    name: ANZSRC 2020 Fields of Research
+    url: https://www.abs.gov.au/statistics/classifications/australian-and-new-zealand-standard-research-classification-anzsrc
+    kind: data
+    licence: CC-BY-4.0
+    licence_url: https://creativecommons.org/licenses/by/4.0/
+    attribution: >-
+      Australian Bureau of Statistics and Stats NZ, Australian and New Zealand Standard Research
+      Classification (ANZSRC) 2020, Fields of Research, Table 2: divisions and groups. Division
+      titles, printed in capitals, are given in sentence case.
+    credit_required: true
+    non_commercial: false
+    use: pinned
+  - id: oecd-fos
+    name: OECD Fields of Science and Technology
+    url: https://doi.org/10.1787/9789264239012-en
+    kind: data
+    licence: LicenseRef-OECD-excerpt
+    licence_url: https://doi.org/10.1787/9789264239012-en
+    attribution: >-
+      OECD (2015), Frascati Manual 2015: Guidelines for Collecting and Reporting Data on
+      Research and Experimental Development, The Measurement of Scientific, Technological and
+      Innovation Activities, OECD Publishing, Paris, Table 2.2. Fields of R&D classification.
+      (c) OECD 2015.
+    credit_required: true
+    non_commercial: false
+    use: pinned
+  - id: inter
+    name: Inter typeface
+    url: https://rsms.me/inter/
+    kind: font
+    licence: OFL-1.1
+    licence_url: https://openfontlicense.org/
+    attribution: Inter is by Rasmus Andersson, under the SIL Open Font License 1.1.
+    credit_required: true
+    non_commercial: false
+    use: pinned

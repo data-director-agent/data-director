@@ -54,7 +54,12 @@ when written alone, so that a person is asked. With a prefix (`mC`), they mean w
 [ucumvert](https://github.com/dalito/ucumvert) (MIT), which implements the UCUM grammar with
 [lark](https://github.com/lark-parser/lark) and ships `ucum-essence.xml`, the UCUM table this
 library reads its names, symbols and prefixes from. The table is under the
-[UCUM Copyright Notice and License](https://github.com/ucum-org/ucum/blob/main/LICENSE.md).
+[UCUM Copyright Notice and License](https://unitsofmeasure.org/license), which asks that a
+distribution of the work carry its copyright notice: *Copyright 1999-2024 Regenstrief Institute,
+Inc. All rights reserved.* The licence grants a royalty-free right to reproduce and use the work
+to build interoperating software, and does not allow a change to its content or a derived
+identifier standard. This library reads the table and does not alter it. The licence's terms were
+summarised from its text in November 2026 and have not had a legal review.
 ucumvert also brings [pint](https://github.com/hgrecco/pint), which this library does not use.
 Only `dd_units._ucum` imports ucumvert ([Dependencies](../docs/specs/dependencies.md)).
 

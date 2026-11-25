@@ -14,7 +14,7 @@ Attribution, as FAIRsharing requests in its API responses: please link to
 <https://api.fairsharing.org/img/fairsharing-attribution.svg>.
 
 Each record carries its FAIRsharing DOI and URL, so any recommendation the workbench produces
-attributes its source. Only the fields listed in `src/dd_agent_r3/fairsharing/records.py` are kept;
+attributes its source. Only the fields listed in `src/dd_agent_advisor_standards/fairsharing/records.py` are kept;
 contact details and other personal data present in the full records are not copied.
 
 To rebuild the snapshot: `uv run python scripts/build_snapshot.py` (no account required).
