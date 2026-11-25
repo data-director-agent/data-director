@@ -17,6 +17,14 @@ what an operator otherwise reads from several commands:
 - **Model broker:** whether the broker answers, people's own accounts counted by provider, tokens
   by model and who paid, and which agents hold a broker credential; from the broker's aggregate
   `/admin/summary`, never naming a person.
+- **Monitoring:** links to Grafana, Prometheus, Alertmanager, the LLM gateway's own page and
+  Langfuse, whether each answers, and the alerts Prometheus and Alertmanager hold.
+- **Policy:** the institutional profile as the harness parses it (agents and action classes,
+  approvals, hosted models, who pays, administrators, stewards and access), compared with the roster.
+- **Escalations:** each steward team's live escalations and how long each has waited, without any
+  note.
+- **Security:** the security events the services record in their journal, by event, outcome and
+  service.
 - **Configuration:** the settings files under `/etc/data-director`, with any value whose name says
   it is a secret hidden, and the command that changes each.
 - **Feedback:** where the app's feedback goes (GitHub issues).

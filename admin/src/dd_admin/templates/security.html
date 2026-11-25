@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% from "_macros.html" import unset %}
+{% block title %}Security{% endblock %}
+{% block heading %}Security events{% endblock %}
+{% block content %}
+<p class="muted">Sign-ins and refusals, grants and enrolments, steward actions and case downloads, as each service records them in its journal (<code>docs/specs/security.md</code>). A record holds a reason code and identifiers, never a message, a note or a secret. Any process that logs to a unit can write a line like one, so treat this as the record the services keep, not as proof.</p>
+{% if not found.configured %}
+  {{ unset("DD_ADMIN_SYSTEMD", "The security events") }}
+{% elif found.error %}
+  <div class="banner bad" role="alert">The journal cannot be read: {{ found.error }}</div>
+{% else %}
+<form class="filters" method="get" action="/security">
+  <label>Window
+    <select name="days">
+      {% for d in windows %}<option value="{{ d }}"{% if found.days == d %} selected{% endif %}>{{ "Last day" if d == 1 else "Last " ~ d ~ " days" }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Event
+    <select name="event">
+      <option value="">Any</option>
+      {% for n in found.names %}<option value="{{ n }}"{% if filters.event == n %} selected{% endif %}>{{ n }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Outcome
+    <select name="outcome">
+      <option value="">Any</option>
+      {% for o in ["success", "failure"] %}<option value="{{ o }}"{% if filters.outcome == o %} selected{% endif %}>{{ o }}</option>{% endfor %}
+    </select>
+  </label>
+  <label>Service
+    <select name="service">
+      <option value="">Any</option>
+      {% for s in found.services %}<option value="{{ s }}"{% if filters.service == s %} selected{% endif %}>{{ s }}</option>{% endfor %}
+    </select>
+  </label>
+  <button type="submit">Show</button>
+  {% if filters.event or filters.outcome or filters.service %}<a href="/security?days={{ found.days }}">Clear</a>{% endif %}
+</form>
+{% if not found.searched %}
+  <div class="banner warn">This machine's <code>journalctl</code> could not search, so the whole journal was read. A busy deployment may show only part of the window.</div>
+{% endif %}
+{% if found.truncated %}
+  <div class="banner warn">There are more than {{ max_entries | number }} events in the window; only the newest are kept.</div>
+{% endif %}
+<section class="tiles" aria-label="At a glance">
+  <div class="tile"><span class="tile-label">Events</span><span class="tile-value">{{ found.entries | length }}</span></div>
+  <div class="tile {{ 'warn' if found.failures }}"><span class="tile-label">Failures</span><span class="tile-value">{{ found.failures }}</span></div>
+</section>
+<section class="panel">
+  <h2>Events</h2>
+  {% if entries %}
+  <div class="table-wrap"><table>
+    <thead><tr><th scope="col">Time</th><th scope="col">Event</th><th scope="col">Outcome</th><th scope="col">Service</th><th scope="col">Principal</th><th scope="col">Reason</th><th scope="col">Detail</th></tr></thead>
+    <tbody>
+    {% for e in entries %}
+      <tr>
+        <td class="nowrap">{{ e.at | when }}</td>
+        <td class="mono">{{ e.event }}</td>
+        <td><span class="pill {{ 's-succeeded' if e.outcome == 'success' else 's-failed' }}">{{ e.outcome }}</span></td>
+        <td>{{ e.service }}</td>
+        <td class="mono">{{ e.principal or "—" }}</td>
+        <td class="mono">{{ e.reason or "—" }}</td>
+        <td class="mono">{% for k, v in e.context %}{{ k }}={{ v }}{% if not loop.last %} {% endif %}{% else %}—{% endfor %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="empty">No security event{{ " matches" if filters.event or filters.outcome or filters.service else " in this window" }}.</p>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

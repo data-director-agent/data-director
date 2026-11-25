@@ -16,6 +16,10 @@ setting is unset says so rather than failing, so the service also runs on a deve
 | `DD_ADMIN_BROKER_URL` | The model broker (`broker/`), for its health and summary |
 | `DD_ADMIN_BROKER_KEY_FILE` | The operators' broker credential (else `model-broker-admin`) |
 | `DD_ADMIN_MONTHLY_BUDGET` | A month's budget, in the gateway's currency; shown, not enforced |
+| `DD_ADMIN_GRAFANA_URL` | Grafana, as the operator's browser reaches it, for the Monitoring page |
+| `DD_ADMIN_PROMETHEUS_URL` | Prometheus, likewise; the page also reads its firing alerts |
+| `DD_ADMIN_ALERTMANAGER_URL` | Alertmanager, likewise; the page also reads its active alerts |
+| `DD_ADMIN_LANGFUSE_URL` | Langfuse, if the deployment runs it |
 """
 
 from __future__ import annotations
@@ -25,6 +29,7 @@ import shlex
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from dd_harness.settings import SettingsError, StorageLocation, storage_location
 
@@ -52,6 +57,10 @@ class AdminSettings:
     monthly_budget: float | None = None
     broker_url: str | None = None
     broker_key_file: Path | None = None
+    grafana_url: str | None = None
+    prometheus_url: str | None = None
+    alertmanager_url: str | None = None
+    langfuse_url: str | None = None
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> AdminSettings:
@@ -64,6 +73,10 @@ class AdminSettings:
         def store(name: str) -> StorageLocation | None:
             value = env.get(name, "").strip()
             return storage_location(value, name) if value else None
+
+        def link(name: str) -> str | None:
+            value = env.get(name, "").strip()
+            return _web_address(value, name) if value else None
 
         return cls(
             runs=store("DD_RUNS_DIR"),
@@ -81,6 +94,10 @@ class AdminSettings:
             monthly_budget=_budget(env.get("DD_ADMIN_MONTHLY_BUDGET", "").strip()),
             broker_url=env.get("DD_ADMIN_BROKER_URL", "").strip().rstrip("/") or None,
             broker_key_file=path("DD_ADMIN_BROKER_KEY_FILE") or _credential(env, BROKER_CREDENTIAL),
+            grafana_url=link("DD_ADMIN_GRAFANA_URL"),
+            prometheus_url=link("DD_ADMIN_PROMETHEUS_URL"),
+            alertmanager_url=link("DD_ADMIN_ALERTMANAGER_URL"),
+            langfuse_url=link("DD_ADMIN_LANGFUSE_URL"),
         )
 
 
@@ -91,6 +108,17 @@ def _credential(env: Mapping[str, str], name: str) -> Path | None:
         return None
     found = Path(directory) / name
     return found if found.is_file() else None
+
+
+def _web_address(value: str, name: str) -> str:
+    """`value` as an http(s) address with no sign-in in it, without a trailing slash: it becomes a
+    link on a page, so it may not be a script, and the page shows it."""
+    parts = urlsplit(value)
+    if parts.scheme not in {"http", "https"} or not parts.hostname:
+        raise SettingsError(f"{name} must be an http or https address, not {value!r}")
+    if parts.username or parts.password:
+        raise SettingsError(f"{name} must not carry a user name or password")
+    return value.rstrip("/")
 
 
 def _budget(value: str) -> float | None:
