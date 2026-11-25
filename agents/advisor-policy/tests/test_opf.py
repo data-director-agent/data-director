@@ -1,10 +1,8 @@
-"""The Open Policy Finder and Crossref clients over a mocked transport, and the first search's
-rules for journals and funders (`discover.py`)."""
+"""The agent's Open Policy Finder source over a mocked transport (the client itself is tested in
+`mcp-opf`), the Crossref client, and the first search's rules for journals and funders
+(`discover.py`)."""
 
 from __future__ import annotations
-
-import json
-import re
 
 import httpx
 import pytest
@@ -24,7 +22,8 @@ from opf_fixture import (
 
 from dd_agent_advisor_policy import discover
 from dd_agent_advisor_policy.classes import Actor, ActorRole
-from dd_agent_advisor_policy.opf import MAX_CONDITIONS, filter_for, from_item
+from dd_agent_advisor_policy.opf import OpfRecord
+from dd_mcp_opf.client import record_from_item
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, verify
 from dd_sdk.registry import RegistryUnavailable
 
@@ -40,40 +39,13 @@ def test_a_search_sends_the_key_in_a_header_and_never_in_the_address() -> None:
     assert request.url.params["item-type"] == "funder"
     assert request.url.params["format"] == "Json"
     assert refusal(request) is None
-    assert "data-director-advisor-policy" in request.headers["user-agent"]
+    assert "data-director-mcp-opf" in request.headers["user-agent"]
     assert record.source_id == NERC_OPF
     assert (record.name, record.acronyms, record.country) == (
         "Natural Environment Research Council",
         ["NERC"],
         "gb",
     )
-
-
-@pytest.mark.parametrize(
-    ("item_type", "text"),
-    [
-        ("funder", "Natural Environment Research Council"),
-        ("funder", "Deutsche Forschungsgemeinschaft"),
-        ("publication", "The Journal of the Society for the Study of Things and Others"),
-        ("publisher", "Elsevier"),
-    ],
-)
-def test_a_filter_asks_for_whole_words_of_the_name_in_documented_terms(
-    item_type: str, text: str
-) -> None:
-    found = json.loads(filter_for(item_type, text))  # type: ignore[arg-type]
-    assert 1 <= len(found) <= MAX_CONDITIONS
-    name_words = {w.casefold() for w in re.findall(r"\w+", text)}
-    for field, operator, value in found:
-        assert field in ("name", "title") and operator == "contains word"
-        assert value.casefold() in name_words and value.casefold() not in {"the", "of", "for"}
-
-
-def test_a_single_word_in_capitals_is_looked_for_among_acronyms() -> None:
-    [record] = opf().search("funder", "NERC")
-    assert record.source_id == NERC_OPF
-    [[field, _, value]] = json.loads(filter_for("funder", "NERC"))
-    assert (field, value) == ("acronym", "NERC")
 
 
 def test_a_refused_filter_is_unavailable_not_empty() -> None:
@@ -95,8 +67,9 @@ def test_a_journal_is_read_by_issn_with_its_publisher_and_policies() -> None:
 
 
 def test_a_record_is_evidence_hashed_whole() -> None:
-    record = from_item(STOTEN["items"][0], "publication")
-    assert record is not None
+    projected = record_from_item(STOTEN["items"][0], "publication")
+    assert projected is not None
+    record = OpfRecord.from_record(projected)
     assert verify(record.document(), DOCUMENT_CANONICALISATION, record.content_hash())
     assert "cc_by_nc_nd" in record.prompt_text()
 

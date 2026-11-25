@@ -159,6 +159,13 @@
         "mcp-doaj/tests"
       ]
     },
+    "mcp-opf": {
+      "component": "mcp-opf",
+      "release-type": "python",
+      "exclude-paths": [
+        "mcp-opf/tests"
+      ]
+    },
     "units": {
       "component": "units",
       "release-type": "python",

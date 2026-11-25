@@ -203,13 +203,14 @@ FAIRsharing's database records. It is pinned in `workbench/sources.yaml` and
 `uv run python agents/advisor-policy/scripts/build_policy_snapshot.py` with the FAIRsharing login set, then pin
 the new file.
 
-Open Policy Finder (`api.openpolicyfinder.jisc.ac.uk`, key in the `x-api-key` header), DOAJ
+Open Policy Finder (`api.openpolicyfinder.jisc.ac.uk`, key in the `x-api-key` header, through the
+client in [`mcp-opf`](../../mcp-opf/README.md)), DOAJ
 (`doaj.org/api/v4`, no key, through the client in [`mcp-doaj`](../../mcp-doaj/README.md)) and
 Crossref's journals API are read live only, labelled `open-policy-finder:live:<date>`,
 `doaj-journals:live:<date>` and `crossref-journals:live:<date>`. DOAJ waives its rights in the
 metadata under CC0 and allows two requests a second. Jisc licenses the data under CC BY-NC-ND 4.0 and the API is for
 non-commercial use, so no copy is kept to fall back to; Jisc states no rate limit (#952). To check the route with a key, run
-`uv run python -m dd_agent_advisor_policy.opf check`; `--record <folder>` writes what came back,
+`uv run dd-mcp-opf check`; `--record <folder>` writes what came back,
 for the test fixtures.
 
 `data/ror/` pins one ROR data dump (CC0; see `data/ror/SOURCE.md`). The registry built from it
@@ -221,7 +222,7 @@ its label is `ror:dump:<version>`. `uv run dd-ror fetch --update-pin` pins the n
 - FAIRsharing's policy records are coarse, and many institutions have none. They have no field
   for embargoes or for when data must be shared; a model can read these from a record's text
   only where the record states them, or from the policy's own page (below).
-- Open Policy Finder's client was written without a key. Its endpoints, item types, filter
+- Open Policy Finder's client (`mcp-opf`) was written without a key. Its endpoints, item types, filter
   fields and operators follow Jisc's developer documentation: a name is searched by up to three
   of its words, each a whole word, or a single word in capitals as an acronym, and the agent then
   keeps only exact matches. Where a funder's record keeps its policies is read in the Sherpa v2

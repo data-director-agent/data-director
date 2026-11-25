@@ -22,6 +22,7 @@
 #   mcp-spdx/         data-director-mcp-spdx         an MCP server for a pinned SPDX licence list
 #   mcp-subjects/     data-director-mcp-subjects     an MCP server for subject classifications (ANZSRC, OECD)
 #   mcp-doaj/         data-director-mcp-doaj         an MCP server for DOAJ journal records
+#   mcp-opf/          data-director-mcp-opf          an MCP server for Jisc Open Policy Finder records
 #   registry-cache/  data-director-registry-cache  a local cache in front of a slowly changing registry
 
 [project]
@@ -81,6 +82,7 @@ dependencies = [
   "data-director-mcp-spdx",
   "data-director-mcp-subjects",
   "data-director-mcp-doaj",
+  "data-director-mcp-opf",
 ]
 
 [project.urls]
@@ -137,7 +139,7 @@ mutation = [
 package = false
 
 [tool.uv.workspace]
-members = ["sdk", "harness", "workbench", "agents/*", "app", "admin", "broker", "deposit-broker", "inventory", "mcp-pid", "mcp-fairsharing", "mcp-spdx", "mcp-subjects", "mcp-doaj", "units", "subjects", "formats", "duo", "journals", "dmp-template", "metadata-records", "registry-cache"]
+members = ["sdk", "harness", "workbench", "agents/*", "app", "admin", "broker", "deposit-broker", "inventory", "mcp-pid", "mcp-fairsharing", "mcp-spdx", "mcp-subjects", "mcp-doaj", "mcp-opf", "units", "subjects", "formats", "duo", "journals", "dmp-template", "metadata-records", "registry-cache"]
 
 [tool.uv.sources]
 data-director-sdk = { workspace = true }
@@ -177,6 +179,7 @@ data-director-mcp-fairsharing = { workspace = true }
 data-director-mcp-spdx = { workspace = true }
 data-director-mcp-subjects = { workspace = true }
 data-director-mcp-doaj = { workspace = true }
+data-director-mcp-opf = { workspace = true }
 
 # Package direction (docs/specs/system.md, ADR-0031): `uv run lint-imports`. Imports a member
 # declares and the paths it reads are checked by scripts/check_boundaries.py.
@@ -203,6 +206,7 @@ root_packages = [
   "dd_mcp_spdx",
   "dd_mcp_subjects",
   "dd_mcp_doaj",
+  "dd_mcp_opf",
   "dd_agent_advisor_dmp",
   "dd_agent_advisor_documentation",
   "dd_agent_advisor_ethics",
@@ -279,7 +283,7 @@ forbidden_modules = ["dd_admin"]
 name = "the model broker imports nothing but the SDK"
 type = "forbidden"
 source_modules = ["dd_broker"]
-forbidden_modules = ["dd_harness", "workbench", "dd_app", "dd_admin", "dd_deposit_broker", "dd_inventory", "dd_mcp_doaj", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
+forbidden_modules = ["dd_harness", "workbench", "dd_app", "dd_admin", "dd_deposit_broker", "dd_inventory", "dd_mcp_doaj", "dd_mcp_opf", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
 
 [[tool.importlinter.contracts]]
 name = "nothing imports the model broker"
@@ -291,7 +295,7 @@ forbidden_modules = ["dd_broker"]
 name = "the deposit broker imports nothing but the SDK"
 type = "forbidden"
 source_modules = ["dd_deposit_broker"]
-forbidden_modules = ["dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_inventory", "dd_mcp_doaj", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
+forbidden_modules = ["dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_inventory", "dd_mcp_doaj", "dd_mcp_opf", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
 
 [[tool.importlinter.contracts]]
 name = "nothing imports the deposit broker"
@@ -331,79 +335,85 @@ modules = [
 name = "the PID resolver server imports no other member"
 type = "forbidden"
 source_modules = ["dd_mcp_pid"]
-forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_doaj", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
+forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_doaj", "dd_mcp_opf", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
 
 [[tool.importlinter.contracts]]
 name = "the units library imports no other member"
 type = "forbidden"
 source_modules = ["dd_units"]
-forbidden_modules = ["dd_subjects", "dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_doaj", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
+forbidden_modules = ["dd_subjects", "dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_doaj", "dd_mcp_opf", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
 
 [[tool.importlinter.contracts]]
 name = "the registry cache library imports no other member"
 type = "forbidden"
 source_modules = ["dd_registry_cache"]
-forbidden_modules = ["dd_units", "dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_doaj", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub", "dd_subjects", "dd_dmp_template"]
+forbidden_modules = ["dd_units", "dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_doaj", "dd_mcp_opf", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub", "dd_subjects", "dd_dmp_template"]
 
 [[tool.importlinter.contracts]]
 name = "the DMP template library imports no other member"
 type = "forbidden"
 source_modules = ["dd_dmp_template"]
-forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_doaj", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_units", "dd_subjects", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
+forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_doaj", "dd_mcp_opf", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_units", "dd_subjects", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
 
 [[tool.importlinter.contracts]]
 name = "the metadata records library imports no other member"
 type = "forbidden"
 source_modules = ["dd_metadata_records"]
-forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_doaj", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_units", "dd_subjects", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub", "dd_dmp_template", "dd_formats", "dd_duo", "dd_journals", "dd_registry_cache"]
+forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_doaj", "dd_mcp_opf", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_units", "dd_subjects", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub", "dd_dmp_template", "dd_formats", "dd_duo", "dd_journals", "dd_registry_cache"]
 
 [[tool.importlinter.contracts]]
 name = "the subjects library imports no other member"
 type = "forbidden"
 source_modules = ["dd_subjects"]
-forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_doaj", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub", "dd_units"]
+forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_doaj", "dd_mcp_opf", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub", "dd_units"]
 
 [[tool.importlinter.contracts]]
 name = "the formats library imports no other member"
 type = "forbidden"
 source_modules = ["dd_formats"]
-forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_doaj", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_units", "dd_subjects", "dd_dmp_template", "dd_registry_cache", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
+forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_doaj", "dd_mcp_opf", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_units", "dd_subjects", "dd_dmp_template", "dd_registry_cache", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
 
 [[tool.importlinter.contracts]]
 name = "the duo library imports no other member"
 type = "forbidden"
 source_modules = ["dd_duo"]
-forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_doaj", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_units", "dd_subjects", "dd_formats", "dd_journals", "dd_dmp_template", "dd_registry_cache", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
+forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_doaj", "dd_mcp_opf", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_units", "dd_subjects", "dd_formats", "dd_journals", "dd_dmp_template", "dd_registry_cache", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
 
 [[tool.importlinter.contracts]]
 name = "the journals library imports no other member"
 type = "forbidden"
 source_modules = ["dd_journals"]
-forbidden_modules = ["dd_mcp_doaj", "dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_units", "dd_subjects", "dd_formats", "dd_dmp_template", "dd_registry_cache", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
+forbidden_modules = ["dd_mcp_doaj", "dd_mcp_opf", "dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_units", "dd_subjects", "dd_formats", "dd_dmp_template", "dd_registry_cache", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
 
 [[tool.importlinter.contracts]]
 name = "the FAIRsharing server imports no other member"
 type = "forbidden"
 source_modules = ["dd_mcp_fairsharing"]
-forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_doaj", "dd_mcp_spdx", "dd_mcp_subjects", "dd_units", "dd_subjects", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
+forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_doaj", "dd_mcp_opf", "dd_mcp_spdx", "dd_mcp_subjects", "dd_units", "dd_subjects", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
 
 [[tool.importlinter.contracts]]
 name = "the SPDX server imports no other member"
 type = "forbidden"
 source_modules = ["dd_mcp_spdx"]
-forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_doaj", "dd_mcp_fairsharing", "dd_units", "dd_subjects", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
+forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_doaj", "dd_mcp_opf", "dd_mcp_fairsharing", "dd_units", "dd_subjects", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
 
 [[tool.importlinter.contracts]]
 name = "the subjects server imports no other member but the subjects library"
 type = "forbidden"
 source_modules = ["dd_mcp_subjects"]
-forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_doaj", "dd_mcp_fairsharing", "dd_units", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub", "dd_mcp_spdx"]
+forbidden_modules = ["dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_doaj", "dd_mcp_opf", "dd_mcp_fairsharing", "dd_units", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub", "dd_mcp_spdx"]
 
 [[tool.importlinter.contracts]]
 name = "the DOAJ server imports no other member"
 type = "forbidden"
 source_modules = ["dd_mcp_doaj"]
-forbidden_modules = ["dd_journals", "dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_mcp_doaj", "dd_units", "dd_subjects", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
+forbidden_modules = ["dd_journals", "dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_mcp_doaj", "dd_mcp_opf", "dd_units", "dd_subjects", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
+
+[[tool.importlinter.contracts]]
+name = "the OPF server imports no other member"
+type = "forbidden"
+source_modules = ["dd_mcp_opf"]
+forbidden_modules = ["dd_journals", "dd_sdk", "dd_harness", "workbench", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_mcp_opf", "dd_mcp_doaj", "dd_units", "dd_subjects", "dd_agent_advisor_dmp", "dd_agent_advisor_documentation", "dd_agent_advisor_ethics", "dd_agent_advisor_fairness", "dd_agent_advisor_files", "dd_agent_advisor_linking", "dd_agent_advisor_metadata", "dd_agent_advisor_policy", "dd_agent_advisor_quality", "dd_agent_advisor_repository", "dd_agent_advisor_rights", "dd_agent_advisor_standards", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_orchestrator_model", "dd_agent_orchestrator_stub"]
 
 [[tool.importlinter.contracts]]
 name = "the inventory command imports no other member"
@@ -487,7 +497,7 @@ max-args = 7
 max-returns = 6
 
 [tool.ruff.lint.isort]
-known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_mcp_doaj", "dd_units", "dd_subjects", "dd_formats", "dd_duo", "dd_journals", "dd_dmp_template", "dd_metadata_records", "dd_registry_cache"]
+known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_mcp_doaj", "dd_mcp_opf", "dd_units", "dd_subjects", "dd_formats", "dd_duo", "dd_journals", "dd_dmp_template", "dd_metadata_records", "dd_registry_cache"]
 
 [tool.ruff.lint.per-file-ignores]
 "**/tests/*" = ["ANN", "C90", "PLR09", "FBT", "S110"]
@@ -506,7 +516,7 @@ known-first-party = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hell
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-testpaths = ["sdk/tests", "harness/tests", "workbench/tests", "agents", "app/tests", "admin/tests", "broker/tests", "deposit-broker/tests", "inventory/tests", "mcp-pid/tests", "mcp-fairsharing/tests", "mcp-spdx/tests", "mcp-subjects/tests", "mcp-doaj/tests", "units/tests", "subjects/tests", "formats/tests", "duo/tests", "journals/tests", "dmp-template/tests", "metadata-records/tests", "registry-cache/tests", "scripts/tests"]
+testpaths = ["sdk/tests", "harness/tests", "workbench/tests", "agents", "app/tests", "admin/tests", "broker/tests", "deposit-broker/tests", "inventory/tests", "mcp-pid/tests", "mcp-fairsharing/tests", "mcp-spdx/tests", "mcp-subjects/tests", "mcp-doaj/tests", "mcp-opf/tests", "units/tests", "subjects/tests", "formats/tests", "duo/tests", "journals/tests", "dmp-template/tests", "metadata-records/tests", "registry-cache/tests", "scripts/tests"]
 # Test directories are not packages, so every test module is imported by its basename: keep the
 # basenames unique across the workspace. Shared doubles live in `dd_harness.testing` and
 # `dd_agent_advisor_standards.testing`, not in a test directory.
@@ -537,7 +547,7 @@ markers = [
 # and the generated schema are not what is being measured.
 [tool.coverage.run]
 branch = true
-source_pkgs = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_mcp_doaj", "dd_units", "dd_subjects", "dd_formats", "dd_duo", "dd_journals", "dd_dmp_template", "dd_metadata_records", "dd_registry_cache"]
+source_pkgs = ["dd_sdk", "dd_harness", "workbench", "dd_agent_example_hello", "dd_agent_advisor_storage", "dd_agent_advisor_quality", "dd_agent_advisor_standards", "dd_agent_advisor_repository", "dd_agent_advisor_policy", "dd_agent_advisor_ethics", "dd_agent_advisor_files", "dd_agent_advisor_dmp", "dd_agent_advisor_metadata", "dd_agent_advisor_documentation", "dd_agent_advisor_rights", "dd_agent_advisor_linking", "dd_agent_advisor_fairness", "dd_agent_orchestrator_stub", "dd_agent_orchestrator_model", "dd_app", "dd_admin", "dd_broker", "dd_deposit_broker", "dd_inventory", "dd_mcp_pid", "dd_mcp_fairsharing", "dd_mcp_spdx", "dd_mcp_subjects", "dd_mcp_doaj", "dd_mcp_opf", "dd_units", "dd_subjects", "dd_formats", "dd_duo", "dd_journals", "dd_dmp_template", "dd_metadata_records", "dd_registry_cache"]
 relative_files = true
 
 [tool.coverage.report]
@@ -556,7 +566,7 @@ python_version = "3.14"
 files = [
   "conftest.py", "sdk/src", "sdk/tests", "harness/src", "harness/tests", "harness/scripts", "workbench/src", "workbench/tests",
   "workbench/browser_tests", "workbench/scripts", "agents/*/src", "agents/*/tests", "agents/advisor-standards/scripts", "agents/advisor-repository/scripts", "agents/advisor-policy/scripts",
-  "app/src", "app/tests", "admin/src", "admin/tests", "broker/src", "broker/tests", "deposit-broker/src", "deposit-broker/tests", "inventory/src", "inventory/tests", "mcp-pid/src", "mcp-pid/tests", "mcp-fairsharing/src", "mcp-fairsharing/tests", "mcp-spdx/src", "mcp-subjects/src", "mcp-spdx/tests", "mcp-subjects/tests", "mcp-doaj/src", "mcp-doaj/tests", "units/src", "units/tests", "subjects/src", "subjects/tests", "formats/src", "formats/tests", "formats/scripts", "duo/src", "duo/tests", "duo/scripts", "journals/src", "journals/tests", "dmp-template/src", "dmp-template/tests", "metadata-records/src", "metadata-records/tests", "registry-cache/src", "registry-cache/tests", "scripts",
+  "app/src", "app/tests", "admin/src", "admin/tests", "broker/src", "broker/tests", "deposit-broker/src", "deposit-broker/tests", "inventory/src", "inventory/tests", "mcp-pid/src", "mcp-pid/tests", "mcp-fairsharing/src", "mcp-fairsharing/tests", "mcp-spdx/src", "mcp-subjects/src", "mcp-spdx/tests", "mcp-subjects/tests", "mcp-doaj/src", "mcp-doaj/tests", "mcp-opf/src", "mcp-opf/tests", "units/src", "units/tests", "subjects/src", "subjects/tests", "formats/src", "formats/tests", "formats/scripts", "duo/src", "duo/tests", "duo/scripts", "journals/src", "journals/tests", "dmp-template/src", "dmp-template/tests", "metadata-records/src", "metadata-records/tests", "registry-cache/src", "registry-cache/tests", "scripts",
 ]
 explicit_package_bases = true
 mypy_path = [
@@ -565,7 +575,7 @@ mypy_path = [
   "agents/advisor-ethics/src", "agents/advisor-dmp/src", "agents/advisor-documentation/src", "agents/advisor-fairness/src",
   "agents/advisor-files/src", "agents/advisor-linking/src", "agents/advisor-metadata/src", "agents/advisor-rights/src",
   "agents/orchestrator-stub/src", "agents/orchestrator-model/src", "app/src", "app/tests", "admin/src", "broker/src", "deposit-broker/src", "inventory/src", "mcp-pid/src", "units/src", "subjects/src", "formats/src", "duo/src", "journals/src", "dmp-template/src", "metadata-records/src", "registry-cache/src",
-  "agents/orchestrator-stub/src", "agents/orchestrator-model/src", "app/src", "app/tests", "admin/src", "broker/src", "deposit-broker/src", "inventory/src", "mcp-pid/src", "mcp-fairsharing/src", "mcp-spdx/src", "mcp-subjects/src", "mcp-doaj/src",
+  "agents/orchestrator-stub/src", "agents/orchestrator-model/src", "app/src", "app/tests", "admin/src", "broker/src", "deposit-broker/src", "inventory/src", "mcp-pid/src", "mcp-fairsharing/src", "mcp-spdx/src", "mcp-subjects/src", "mcp-doaj/src", "mcp-opf/src",
   "harness/tests", "sdk/tests", "broker/tests", "deposit-broker/tests", "scripts/tests",
 ]
 strict = true

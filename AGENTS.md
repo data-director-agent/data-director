@@ -26,7 +26,9 @@ Put code in the package whose job it is, not the one you have open; the full tab
   MCP server for a pinned SPDX licence list; depends on no other member. `mcp-subjects/`: the
   subjects server, an MCP server for the subject classifications of `dd-subjects`; depends only
   on `dd-subjects`. `mcp-doaj/`: the DOAJ
-  server, a client and MCP server for open access journals' terms; depends on no other member. `units/`: `dd-units`, a unit as
+  server, a client and MCP server for open access journals' terms; depends on no other member.
+  `mcp-opf/`: the Open Policy Finder server, a client and MCP server for Jisc's funder, publisher
+  and journal open access policies; depends on no other member. `units/`: `dd-units`, a unit as
   written into a UCUM code, by rule; depends on no other member. `subjects/`: `dd-subjects`,
   subject classifications to suggest a field of study from; depends on no other member.
   `formats/`: `dd-formats`, file formats described from a pinned PRONOM release's records;

@@ -17,6 +17,8 @@ dependencies = [
     "data-director-mcp-pid",
     # DOAJ's client (dd_mcp_doaj.journals): an open access journal's terms, with no key (#1517).
     "data-director-mcp-doaj",
+    # Open Policy Finder's client (dd_mcp_opf.client): funders' and journals' policies, with a key.
+    "data-director-mcp-opf",
     # ISSNs written as ISO 3297 writes them (dd_journals.issn), shared with the journal registry.
     "data-director-journals",
     "httpx>=0.28",

@@ -40,6 +40,7 @@ members = [
     "data-director-journals",
     "data-director-mcp-doaj",
     "data-director-mcp-fairsharing",
+    "data-director-mcp-opf",
     "data-director-mcp-pid",
     "data-director-mcp-spdx",
     "data-director-mcp-subjects",
@@ -1185,6 +1186,7 @@ dependencies = [
     { name = "data-director-journals" },
     { name = "data-director-mcp-doaj" },
     { name = "data-director-mcp-fairsharing" },
+    { name = "data-director-mcp-opf" },
     { name = "data-director-mcp-pid" },
     { name = "data-director-mcp-spdx" },
     { name = "data-director-mcp-subjects" },
@@ -1264,6 +1266,7 @@ requires-dist = [
     { name = "data-director-journals", editable = "journals" },
     { name = "data-director-mcp-doaj", editable = "mcp-doaj" },
     { name = "data-director-mcp-fairsharing", editable = "mcp-fairsharing" },
+    { name = "data-director-mcp-opf", editable = "mcp-opf" },
     { name = "data-director-mcp-pid", editable = "mcp-pid" },
     { name = "data-director-mcp-spdx", editable = "mcp-spdx" },
     { name = "data-director-mcp-subjects", editable = "mcp-subjects" },
@@ -1577,6 +1580,7 @@ source = { editable = "agents/advisor-policy" }
 dependencies = [
     { name = "data-director-journals" },
     { name = "data-director-mcp-doaj" },
+    { name = "data-director-mcp-opf" },
     { name = "data-director-mcp-pid" },
     { name = "data-director-sdk" },
     { name = "httpx" },
@@ -1599,6 +1603,7 @@ dev = [
 requires-dist = [
     { name = "data-director-journals", editable = "journals" },
     { name = "data-director-mcp-doaj", editable = "mcp-doaj" },
+    { name = "data-director-mcp-opf", editable = "mcp-opf" },
     { name = "data-director-mcp-pid", editable = "mcp-pid" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "data-director-sdk", extras = ["anthropic", "openai"], marker = "extra == 'model'", editable = "sdk" },
@@ -2145,6 +2150,29 @@ requires-dist = [
 dev = [
     { name = "data-director-harness", extras = ["gateway"], editable = "harness" },
     { name = "data-director-sdk", editable = "sdk" },
+]
+
+[[package]]
+name = "data-director-mcp-opf"
+version = "0.1.0a0"
+source = { editable = "mcp-opf" }
+dependencies = [
+    { name = "anyio" },
+    { name = "httpx" },
+    { name = "mcp" },
+    { name = "mcp-types" },
+    { name = "starlette" },
+    { name = "uvicorn" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "anyio", specifier = ">=4" },
+    { name = "httpx", specifier = ">=0.28" },
+    { name = "mcp", specifier = ">=2.3,<2.4" },
+    { name = "mcp-types", specifier = ">=2.3,<2.4" },
+    { name = "starlette", specifier = ">=0.40" },
+    { name = "uvicorn", specifier = ">=0.30" },
 ]
 
 [[package]]

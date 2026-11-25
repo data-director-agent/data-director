@@ -121,7 +121,7 @@ def build_opf(env: Mapping[str, str]) -> OpenPolicyFinder | None:
             OPF_KEY,
         )
         return None
-    return OpenPolicyFinder(api_key(env, OPF_KEY))
+    return OpenPolicyFinder(api_key(env, OPF_KEY), contact=contact_from(env))
 
 
 def build_crossref(env: Mapping[str, str]) -> CrossrefJournals | None:

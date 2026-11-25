@@ -217,6 +217,8 @@ nav:
           - /mcp-subjects/README.md
       - DOAJ server:
           - /mcp-doaj/README.md
+      - Open Policy Finder server:
+          - /mcp-opf/README.md
       - Agents:
           - Working on an agent: /agents/AGENTS.md
           - /agents/README.md
