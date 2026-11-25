@@ -52,6 +52,10 @@ LIMITATIONS = (
     "is not configured or cannot be asked is named in the statement and in not_searched, and a "
     "run that found no policy because of it says that it could not search, not that there is "
     "none.",
+    "Contains data from Jisc Open Policy Finder (https://openpolicyfinder.jisc.ac.uk), licensed "
+    "under CC BY-NC-ND 4.0 (https://creativecommons.org/licenses/by-nc-nd/4.0/), for "
+    "non-commercial use. Of an obligation taken from one of its records, only the quote is Jisc's "
+    "wording; the brief, rationale, kind, strength and value are the model's reading, not Jisc's.",
     "It does not decide which of differing policies applies, nor whether an actor meets a policy's "
     "requirements.",
     "It is an alpha with no evaluation set yet: how many policies it misses is not measured.",

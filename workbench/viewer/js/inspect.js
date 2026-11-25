@@ -121,6 +121,11 @@ function render(envelope) {
   $("evidence").replaceChildren(rows.length
     ? el("table", {}, el("thead", {}, el("tr", {}, ...["source_id", "cited", "retrieved_at", "canonicalisation", "snapshot_ref", "content_hash"].map((t) => el("th", { scope: "col" }, t, help(t))))), el("tbody", {}, ...rows))
     : el("p", { className: "muted", textContent: "No evidence: this outcome rests on no retrieved record." }));
+  // A source whose licence asks for credit is credited where its records are shown, as in the app.
+  if ((envelope.evidence || []).some((e) => (e.snapshot_ref || "").startsWith("open-policy-finder:"))) {
+    $("evidence").append(el("p", { className: "muted" }, "Contains data from ",
+      el("a", { href: "https://creativecommons.org/licenses/by-nc-nd/4.0/", target: "_blank", rel: "noopener", textContent: "Jisc Open Policy Finder, CC BY-NC-ND 4.0 (non-commercial use)" })));
+  }
 
   const t = envelope.telemetry || {};
   const tel = $("telemetry"); tel.replaceChildren();

@@ -555,6 +555,11 @@ without it but cannot check funders' and journals' open access policies: a run t
 policy for one then reports that it could not search (abstained, `registry_unavailable`), not
 that there is none. `data-director doctor` notes each optional key an agent is missing.
 
+Jisc licenses Open Policy Finder's data under CC BY-NC-ND 4.0 and its API is for non-commercial
+use, so set the key only on a deployment run for research and not for a fee or commercial
+advantage, and do not share the key: each deployment's operator requests its own from Jisc
+([terms and credit](../agents/advisor-policy/data/open-policy-finder/SOURCE.md)).
+
 `data-director secret` is `deploy/secret.sh` from the clone, which can also be run directly.
 
 A secret is a root-only file, `/etc/data-director/credentials/<agent>/<secret>`. Its name maps to

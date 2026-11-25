@@ -61,7 +61,8 @@ export type {
   Problem,
   Telemetry,
 } from "./payload/types";
-export { evidenceAnchor, evidenceKey } from "./payload/evidence";
+export { evidenceAnchor, evidenceCredit, evidenceKey } from "./payload/evidence";
+export type { EvidenceCredit } from "./payload/evidence";
 export { type Context, isEmpty, makeContext, recorders } from "./payload/context";
 export { DOCUMENT_TEXT, type DocumentPart, documentOf } from "./payload/document";
 export { className, DERIVATION, DERIVATION_SHORT, fieldName } from "./wording";

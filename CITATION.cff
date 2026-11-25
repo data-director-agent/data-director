@@ -103,3 +103,14 @@ references:
     notes: >-
       The policy advisor identifies funders in a pinned ROR data dump
       (agents/advisor-policy/data/ror/SOURCE.md).
+  - type: database
+    title: Jisc Open Policy Finder
+    authors:
+      - name: Jisc
+    publisher:
+      name: Jisc
+    url: https://openpolicyfinder.jisc.ac.uk
+    license: CC-BY-NC-ND-4.0
+    notes: >-
+      The policy advisor reads funders' and journals' open access policies live, with an API key,
+      for non-commercial use only (agents/advisor-policy/data/open-policy-finder/SOURCE.md).

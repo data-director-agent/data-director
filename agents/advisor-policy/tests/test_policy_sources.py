@@ -350,3 +350,18 @@ def test_the_older_anthropic_setting_names_only_anthropic() -> None:
                 "OPENAI_API_KEY": "k",
             }
         )
+
+
+# --- Open Policy Finder's licence and credit ---------------------------------------------------
+
+
+def test_open_policy_finder_is_documented_with_its_licence_and_credited() -> None:
+    from dd_agent_advisor_policy.report import LIMITATIONS
+
+    source = (DATA.parent.parent / "data" / "open-policy-finder" / "SOURCE.md").read_text(
+        encoding="utf-8"
+    )
+    assert "CC BY-NC-ND 4.0" in source
+    assert any(
+        "Jisc Open Policy Finder" in line and "CC BY-NC-ND 4.0" in line for line in LIMITATIONS
+    )

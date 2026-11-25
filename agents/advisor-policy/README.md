@@ -162,6 +162,9 @@ never taken alone:
   default).
 - `OPEN_POLICY_FINDER_API_KEY` or `OPEN_POLICY_FINDER_API_KEY_FILE`: a free key from
   [Open Policy Finder](https://openpolicyfinder.jisc.ac.uk/help/developers/how-to-request-a-new-api-key).
+  Its data is CC BY-NC-ND 4.0 and the API is for non-commercial use only: keep the key out of
+  version control and do not share it
+  ([terms](data/open-policy-finder/SOURCE.md)).
   On a VM: `sudo data-director secret set advisor-policy open-policy-finder-api-key`. Without
   it, the agent warns at start-up and lists Open Policy Finder in the payload's `not_searched`;
   a run that finds nothing for a funder or journal, identifies nothing and reads no text abstains
@@ -184,7 +187,9 @@ Crossref's journals API are read live only, labelled `open-policy-finder:live:<d
 `crossref-journals:live:<date>`. Jisc licenses the data under CC BY-NC-ND 4.0 and the API is for
 non-commercial use, so no copy is kept to fall back to; Jisc states no rate limit (#952). To check the route with a key, run
 `uv run python -m dd_agent_advisor_policy.opf check`; `--record <folder>` writes what came back,
-for the test fixtures.
+to build the test fixtures from. Recorded answers are Jisc's content under CC BY-NC-ND 4.0, so
+commit only what [`data/open-policy-finder/SOURCE.md`](data/open-policy-finder/SOURCE.md) allows,
+and never the key. The licence, the credit shown and what a run keeps are set out there.
 
 `data/ror/` pins one ROR data dump (CC0; see `data/ror/SOURCE.md`). The registry built from it
 is not committed: `uv run dd-sources prepare` builds it, as it builds the re3data registry, and
@@ -200,6 +205,9 @@ its label is `ror:dump:<version>`. `uv run dd-ror fetch --update-pin` pins the n
   of its words, each a whole word, or a single word in capitals as an acronym, and the agent then
   keeps only exact matches. Where a funder's record keeps its policies is read in the Sherpa v2
   API's shape and still to be confirmed, and the test fixtures are hand-written. TODO(#302)
+- A run's evidence holds each Open Policy Finder record it cites, and an obligation's brief,
+  rationale, kind, strength and value are the model's reading, not Jisc's wording: only the quote
+  is. Whether that is within the licence is TODO(#952).
 - Open Policy Finder mostly states open access policy for articles, not data policy. Its
   obligations are marked `scope: publication` unless the text is about data.
 - A quote shows that the record says it; it does not show that the model read it rightly. Each

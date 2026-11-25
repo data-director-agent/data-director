@@ -8,7 +8,7 @@
 
 import "./EvidencePanel.css";
 
-import { evidenceAnchor, evidenceKey } from "@data-director/agent-view";
+import { evidenceAnchor, evidenceCredit, evidenceKey } from "@data-director/agent-view";
 
 import { fieldName } from "../../manifest/wording";
 import type { CheckReport, Checks, EvidenceItem } from "../../run/types";
@@ -71,6 +71,7 @@ export function EvidencePanel({
             const name = typeof content.name === "string" ? content.name : item.source_id;
             const description =
               typeof content.description === "string" ? content.description : null;
+            const credit = evidenceCredit(item);
             return (
               <li key={evidenceKey(item)} id={evidenceAnchor(idPrefix, i)} tabIndex={-1}>
                 <p className="evidence-name">
@@ -82,6 +83,11 @@ export function EvidencePanel({
                   {item.snapshot_ref && <> · from {item.snapshot_ref}</>}
                   {item.retrieved_at && <> · retrieved {item.retrieved_at}</>}
                 </p>
+                {credit && (
+                  <p className="evidence-meta evidence-credit">
+                    Contains data from <a href={credit.href}>{credit.text}</a>
+                  </p>
+                )}
                 <dl className="evidence-facts">
                   {facts(content).map(([key, value]) => (
                     <div key={key}>

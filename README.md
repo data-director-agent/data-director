@@ -203,7 +203,12 @@ The advisors read two community registries, and we are grateful to the people wh
 [re3data.org](https://www.re3data.org), the Registry of Research Data Repositories
 ([doi:10.17616/R3D](https://doi.org/10.17616/R3D), CC0), and
 [FAIRsharing](https://fairsharing.org) (Sansone et al. 2019,
-[doi:10.1038/s41587-019-0080-8](https://doi.org/10.1038/s41587-019-0080-8); CC BY-SA 4.0). Each record an agent relies on is cited in its evidence, and how each copy is
+[doi:10.1038/s41587-019-0080-8](https://doi.org/10.1038/s41587-019-0080-8); CC BY-SA 4.0). The
+policy advisor also reads the [Research Organization Registry](https://ror.org) (CC0) and, with a
+key, [Jisc Open Policy Finder](https://openpolicyfinder.jisc.ac.uk), live only; its data is CC BY-NC-ND 4.0 and its API is for non-commercial use, which binds anyone who runs
+the agent with a key
+([`agents/advisor-policy/data/open-policy-finder/SOURCE.md`](agents/advisor-policy/data/open-policy-finder/SOURCE.md)).
+Each record an agent relies on is cited in its evidence, and how each copy is
 taken is described beside it (for example
 [`agents/advisor-repository/data/re3data/SOURCE.md`](agents/advisor-repository/data/re3data/SOURCE.md)).
 
