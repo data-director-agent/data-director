@@ -87,6 +87,8 @@ install -d -m 0755 /usr/local/lib/data-director
 install -m 0755 "$SRC/deploy/backup.sh" /usr/local/lib/data-director/backup.sh
 install -m 0644 "$SRC/deploy/stores.sh" /usr/local/lib/data-director/stores.sh
 install -m 0644 "$SRC/deploy/gateway-store.sh" /usr/local/lib/data-director/gateway-store.sh
+# data-director-restart.service and a root --bootstrap run this one, for the same reason.
+install -m 0755 "$SRC/deploy/restart.sh" /usr/local/lib/data-director/restart.sh
 
 step "User and directories"
 if ! id "$USER_NAME" &>/dev/null; then

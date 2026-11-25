@@ -27,12 +27,18 @@ pytestmark = pytest.mark.skipif(
     reason="needs bash, flock, git and jq",
 )
 
-# Answers the checks API from checks.json ({sha: conclusion}, an absent sha has no run) and
-# /api/about with the commit `current` points at.
+# Answers the checks API from checks.json ({sha: conclusion}, an absent sha has no run),
+# /api/about with the commit `current` points at and the agents missing.json lists for that commit
+# ({sha: [agent]}), and /server-status with the turns running (the number in busy, if it exists).
 CURL = """#!/usr/bin/env bash
 url="${@: -1}"
 case "$url" in
-  */api/about) echo "{\\"commit\\": \\"$(basename "$(readlink "$DD_DEPLOY_ROOT/current")")\\"}" ;;
+  */api/about)
+    sha="$(basename "$(readlink "$DD_DEPLOY_ROOT/current")")"
+    jq -n --arg sha "$sha" --slurpfile missing "$DD_TEST_MISSING" \
+      '{commit: $sha, unavailable: ($missing[0][$sha] // []), incompatible: []}'
+    ;;
+  */server-status*) echo "BusyWorkers: $(cat "$DD_TEST_BUSY" 2>/dev/null || echo 0)" ;;
   */check-runs)
     sha="$(basename "$(dirname "$url")")"
     echo "$sha" >>"$DD_TEST_ASKED"
@@ -72,6 +78,14 @@ class Vm:
     def asked(self) -> Path:
         return self.base / "asked"
 
+    @property
+    def busy(self) -> Path:
+        return self.base / "busy"
+
+    @property
+    def missing(self) -> Path:
+        return self.base / "missing.json"
+
     def live(self) -> str:
         return (self.root / "current").readlink().name
 
@@ -84,7 +98,7 @@ class Vm:
     def fail(self, sha: str) -> None:
         (self.root / "failed-commits").write_text(sha + "\n")
 
-    def deploy(self, *args: str, depth: int = 10) -> subprocess.CompletedProcess[str]:
+    def deploy(self, *args: str, depth: int = 10, **env: str) -> subprocess.CompletedProcess[str]:
         bin_dir = self.base / "bin"
         env = {
             "PATH": f"{bin_dir}{os.pathsep}{os.environ.get('PATH', '/usr/bin:/bin')}",
@@ -94,6 +108,9 @@ class Vm:
             "DD_DEPLOY_DEPTH": str(depth),
             "DD_TEST_CHECKS": str(self.checks),
             "DD_TEST_ASKED": str(self.asked),
+            "DD_TEST_BUSY": str(self.busy),
+            "DD_TEST_MISSING": str(self.missing),
+            **env,
         }
         return subprocess.run(
             ["bash", str(DEPLOY), *args], env=env, capture_output=True, text=True, timeout=60
@@ -133,6 +150,7 @@ def vm(tmp_path: Path) -> Vm:
     made = Vm(tmp_path, commits)
     made.link(commits[0])
     made.answer({})
+    made.missing.write_text("{}")
     return made
 
 
@@ -234,3 +252,76 @@ def test_force_deploys_through_a_pause(vm: Vm) -> None:
 
     assert done.returncode == 0, done.stderr
     assert vm.live() == vm.commits[-1]
+
+
+def test_a_build_waits_while_memory_is_short_and_records_no_failure(vm: Vm) -> None:
+    tip = vm.commits[-1]
+    (vm.root / "releases" / tip / ".built").unlink()
+    vm.answer({tip: "success"})
+    meminfo = vm.base / "meminfo"
+    meminfo.write_text("MemTotal: 3900000 kB\nMemAvailable: 204800 kB\n")
+
+    done = vm.deploy(DD_DEPLOY_MEMINFO=str(meminfo))
+
+    assert done.returncode == 0, done.stderr
+    assert vm.live() == vm.commits[0]
+    assert not (vm.root / "releases" / tip / ".built").exists()
+    assert not (vm.root / "failed-commits").exists()
+
+
+def test_a_release_waits_for_the_turns_running(vm: Vm) -> None:
+    vm.answer(dict.fromkeys(vm.commits, "success"))
+    vm.busy.write_text("2")
+
+    done = vm.deploy()
+
+    assert done.returncode == 0, done.stderr
+    assert vm.live() == vm.commits[0]
+    assert not (vm.root / "failed-commits").exists()
+
+    vm.busy.write_text("0")
+    assert vm.deploy().returncode == 0
+    assert vm.live() == vm.commits[-1]
+
+
+def test_a_release_waits_for_the_turns_only_so_long(vm: Vm) -> None:
+    tip = vm.commits[-1]
+    vm.answer({tip: "success"})
+    vm.busy.write_text("2")
+    built = vm.root / "releases" / tip / ".built"
+    os.utime(built, (0, 0))
+
+    done = vm.deploy()
+
+    assert done.returncode == 0, done.stderr
+    assert vm.live() == tip
+
+
+def test_force_does_not_wait_for_the_turns_running(vm: Vm) -> None:
+    vm.busy.write_text("2")
+
+    assert vm.deploy("--force").returncode == 0
+    assert vm.live() == vm.commits[-1]
+
+
+def test_a_release_whose_agent_does_not_start_is_rolled_back(vm: Vm) -> None:
+    tip = vm.commits[-1]
+    vm.answer({tip: "success"})
+    vm.missing.write_text(json.dumps({tip: ["advisor-quality"]}))
+
+    done = vm.deploy(DD_DEPLOY_HEALTH_TIMEOUT="1")
+
+    assert done.returncode != 0
+    assert vm.live() == vm.commits[0]
+    assert tip in (vm.root / "failed-commits").read_text().split()
+
+
+def test_an_agent_that_was_already_down_does_not_roll_a_release_back(vm: Vm) -> None:
+    first, tip = vm.commits[0], vm.commits[-1]
+    vm.answer({tip: "success"})
+    vm.missing.write_text(json.dumps({first: ["advisor-quality"], tip: ["advisor-quality"]}))
+
+    done = vm.deploy(DD_DEPLOY_HEALTH_TIMEOUT="1")
+
+    assert done.returncode == 0, done.stderr
+    assert vm.live() == tip

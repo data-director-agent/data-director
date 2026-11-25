@@ -1,10 +1,11 @@
-# Restart the app and agents, as root, when data-director-restart.path sees a deployment ask. It
-# does this one thing and takes no input from the file that triggers it.
+# Restart the app and agents, as root, when data-director-restart.path sees a deployment ask: the
+# agents a few at a time, the app last (deploy/restart.sh). It does this one thing and takes no
+# input from the file that triggers it.
 [Unit]
 Description=Restart Data Director
 Documentation=https://github.com/data-director-agent/data-director/blob/main/deploy/README.md
 
 [Service]
 Type=oneshot
-ExecStart=/usr/bin/systemctl restart data-director.target
+ExecStart=/usr/local/lib/data-director/restart.sh
 SyslogIdentifier=data-director-restart
