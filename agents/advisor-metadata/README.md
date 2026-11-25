@@ -169,8 +169,10 @@ grants it in the institutional profile (`tool_servers: {advisor.metadata: [subje
 - It does not map a record between schemas (R6): for requirements in a standard no registered
   definition covers it abstains with `capability_not_implemented`. It drafts in a definition's
   first serialisation only. DataCite and Dublin Core (OAI-DC) are defined; it also abstains when
-  the requirements name a property the standard's serialisation has no place for. Conversion
-  between standards, which reports each value it could not place, is TODO(#1363). Nor does it write Figshare's own item format (#383).
+  the requirements name a property the standard's serialisation has no place for. Converting an
+  approved record to another standard, reporting each value it could not place, is the harness's
+  work, not the librarian's ([Metadata standards](../../docs/specs/metadata-standards.md),
+  invariant 9). Nor does it write Figshare's own item format (#383).
 - It does not use metadata extracted from the files themselves: TODO(#789).
 - It does not check that a value is correct. Validating the record is the harness's work (#19).
 - It does not read an earlier version, or the reason a person gave for a decision on it.

@@ -246,6 +246,11 @@ class Requirements:
     def all(self) -> list[LoadedSet]:
         return [*self.standards, *self.overrides]
 
+    def standard_set(self, conforms_to: str) -> RequirementSet | None:
+        """The standard's set for `conforms_to`, without any repository's override."""
+        found = self._by_standard.get(conforms_to)
+        return found.requirement_set if found else None
+
     def connector(self, repository_id: str) -> DepositConnector | None:
         """How the harness may deposit a draft to the repository through its API, as its override
         says now; None when it is deposited to by hand. Read when a deposit is approved, not when

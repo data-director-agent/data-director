@@ -33,7 +33,8 @@ record.
 Keywords from other vocabularies are TODO(#956). Regenerating a record drafts it afresh, and names
 the version it replaces in `revises`. It does not convert a record to another standard (R6): it
 abstains with `capability_not_implemented` for requirements in a standard no registered definition
-covers. Conversion through a shared pivot is TODO(#1363).
+covers. Converting an approved record through the pivot is the harness's work, not the
+librarian's (docs/specs/metadata-standards.md, invariant 9).
 """
 
 from __future__ import annotations

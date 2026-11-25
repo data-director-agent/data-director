@@ -16,7 +16,7 @@
 #
 # Raise `version` on every change.
 standard_id: dublin-core-oai
-version: 1
+version: 2
 title: Dublin Core Metadata Element Set 1.1, as OAI-DC
 name: Dublin Core
 url: https://www.dublincore.org/specifications/dublin-core/dces/
@@ -54,6 +54,8 @@ serialisations:
         coverage: dc:coverage
         rights: dc:rights
 
+# Every element repeats: a property holds a list of values.
+properties_repeat: true
 properties:
   title: schema:name
   creator: schema:creator

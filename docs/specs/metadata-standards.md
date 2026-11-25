@@ -26,7 +26,9 @@ in a pair of standard and serialisation no registered definition covers. The Doc
 and the FAIR Assessor read records through the pivot. The Metadata Librarian drafts in whichever
 registered standard the merged set follows, from its definition alone: its value keys, its
 drafting block, and the researchers' ORCID records written into the standard's own keys from
-pivot terms. UK GEMINI is TODO(#1361). A requirement set's field may leave out its term, and a
+pivot terms. The harness converts an approved record to another registered standard through the
+pivot and keeps the result as a package derived from it, and the Repository tab offers it. UK
+GEMINI is TODO(#1361). A requirement set's field may leave out its term, and a
 field that names one is checked against the definition. A statement below that the code
 does not yet meet is marked in place.
 
@@ -71,7 +73,8 @@ does not yet meet is marked in place.
 9. **A conversion reports every loss and invents nothing.** Converting a record goes through the
    pivot. It reports each value it could not place and each it placed less precisely, with the
    reason, and a property the target requires that the source cannot supply is a question for the
-   researcher, never a value the converter chose. TODO(#1363).
+   researcher, never a value the converter chose (`metadata-records/tests/test_convert.py`,
+   `harness/tests/test_conversion.py`, `app/tests/test_conversions_route.py`).
 10. **No model writes a mapping, converts a record or writes a value at run time.** A standard's
     definition is a file a person reviews, as a requirement set is, and a drafter follows
     [Drafting documents](drafting.md): it infers only from the project's facts, asks for the rest,
@@ -169,8 +172,24 @@ and writes the pivot into another with the target's, so that n standards need n 
 converters. A property is placed if it has a pivot term in both. The result lists what was not
 placed, as a platform's item lists `unplaced` ([Deposit](deposit.md), *Depositing through an API*),
 and what was reduced, such as a structured value written as text. A conversion is a package derived
-from the approved record (invariant 2). Whether a project that deposits in more than one repository
-holds a record in each standard, and how a person approves it, is TODO(#1363).
+from the approved record (invariant 2). A property's cardinality is the definition's: a property
+whose entries have a value key holds a list, as does one marked `repeats` (or every property of a
+definition marked `properties_repeat`, as Dublin Core's elements are), and a second value for a
+property that holds one is reported as reduced. A value read under a qualified term is written
+with the qualifier its rule names, so a DataCite methods description stays one. A gap is not
+copied.
+
+The harness converts the project's approved record (`dd_harness.conversion`). It writes the result
+in the target's first serialisation and reads it back, and checks it against the required fields
+of the deployment's set for the target standard. If one has no value, nothing is kept: the refusal
+names each field and says to add it to the approved record and approve it again, since the
+converter fills in nothing. Otherwise the result is kept by its digest with a `package_built`
+event of format `metadata-record`, which names the approved record by digest (`derived_from`) and
+as the document version it is (`documents`), both definitions by reference and digest, and what
+was unplaced and reduced. The Repository tab offers the deployment's other standards, lists each
+conversion with these losses, and downloads it in its own media type
+(`/api/projects/{id}/conversions`). A conversion is not deposited: a project has one chosen
+repository, and its record is drafted in that repository's standard.
 
 **Where the code lives.** The codecs and definitions are a member of their own, `metadata-records/`
 (distribution `data-director-metadata-records`), that imports no other member, as `inventory/` and
@@ -265,13 +284,15 @@ agents and the harness add the contract's parts, such as classes, evidence and o
   of several, the first in the deployment's `standard_preference.yaml`; else DataCite's. Each
   choice records why ([Deposit](deposit.md), invariant 5). A standard re3data does not list, such
   as Croissant (#933), is reached by a person's choice once it has a definition and a set.
+- **A conversion is a derived package, not a document.** A person approves the record in one
+  standard; its conversions are kept by digest beside it and name it, and a conversion that would
+  need a value the record lacks is refused rather than approved on its own (invariant 2). To change
+  a converted record, a person edits and approves the record it came from, and converts again.
 - **A gap in OAI-DC is the text `:unav`**, the ERC code for a value not yet available, which the
   schema accepts, since an element holds a string and no other attribute than `xml:lang`.
 
 ## Open questions
 
-- Whether a conversion for a second repository is a derived package or a document a person approves:
-  TODO(#1363).
 - How a standard's controlled vocabularies are reached and cited is decided for the subject
   classifications a repository names (ANZSRC, OECD): through the tool gateway, from
   `mcp-subjects`, each suggested field citing its record ([Drafting documents](drafting.md),

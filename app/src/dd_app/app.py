@@ -59,6 +59,7 @@ from dd_app.repository_accounts import deposit_broker_path
 from dd_app.routes import (
     conversation_deletion,
     conversations,
+    conversions,
     deposit,
     documents,
     drafts,
@@ -124,6 +125,7 @@ AREAS = (
     project_runs,
     deposit,
     standards,
+    conversions,
     drafts,
     escalations,
     stewarding,
