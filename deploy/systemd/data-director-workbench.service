@@ -15,6 +15,10 @@ Documentation=https://github.com/data-director-agent/data-director/blob/main/dep
 After=network-online.target
 Wants=network-online.target
 PartOf=data-director.target
+# Give up after ten starts in five minutes. systemd's default (five in ten seconds) never trips on
+# RestartSec=5 plus a slow start, so a unit that cannot start would loop for ever.
+StartLimitIntervalSec=300
+StartLimitBurst=10
 
 [Service]
 Type=exec
@@ -37,6 +41,8 @@ ExecStartPre=/opt/data-director/current/deploy/wait-for-ports.sh 60 $DD_WAIT_POR
 ExecStart=/opt/data-director/current/.venv/bin/workbench serve --host 127.0.0.1 --port 8000
 Restart=on-failure
 RestartSec=5
+# A configuration error (dd_sdk.serve.EXIT_CONFIG): stopping again is all a restart would do.
+RestartPreventExitStatus=2
 TimeoutStartSec=90
 TimeoutStopSec=30
 SyslogIdentifier=data-director-workbench
