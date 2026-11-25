@@ -18,6 +18,7 @@ import { useEffect, useState } from "react";
 import { type RepositoryRequirements, useProjectApi } from "../../project/api";
 import { homePath, navigate } from "../../route";
 import { Button } from "../ui/Button";
+import { ConvertRecord } from "./ConvertRecord";
 import { MetadataStandardChoice } from "./MetadataStandardChoice";
 import { RepositoryDetails } from "./RepositoryDetails";
 import { RepositoryPicker } from "./RepositoryPicker";
@@ -29,7 +30,13 @@ type Load =
 
 const HEADING_ID = "repository-heading";
 
-export function RepositoryPanel({ projectId, revision }: { projectId: string; revision: number }) {
+export function RepositoryPanel({
+  projectId,
+  revision,
+}: {
+  projectId: string;
+  revision: number;
+}) {
   const api = useProjectApi();
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [changing, setChanging] = useState(false);
@@ -61,7 +68,10 @@ export function RepositoryPanel({ projectId, revision }: { projectId: string; re
   }, [api, projectId, revision, standardChoices]);
 
   const identify = (
-    <Button icon={MessageSquarePlus} onPress={() => navigate(homePath({ repository: true }))}>
+    <Button
+      icon={MessageSquarePlus}
+      onPress={() => navigate(homePath({ repository: true }))}
+    >
       Start a new chat to identify the target data repository
     </Button>
   );
@@ -71,14 +81,19 @@ export function RepositoryPanel({ projectId, revision }: { projectId: string; re
     if (load.state === "failed") {
       return (
         <div role="alert" className="callout status-danger">
-          <p>Data Director could not read the chosen repository: {load.message}</p>
+          <p>
+            Data Director could not read the chosen repository: {load.message}
+          </p>
         </div>
       );
     }
     if (load.value === null) {
       return (
         <>
-          <p>No repository has been chosen yet. Choose one below, or start a new chat to identify it.</p>
+          <p>
+            No repository has been chosen yet. Choose one below, or start a new
+            chat to identify it.
+          </p>
           {identify}
           <RepositoryPicker projectId={projectId} onChosen={chosen} />
         </>
@@ -95,7 +110,8 @@ export function RepositoryPanel({ projectId, revision }: { projectId: string; re
           </>
         ) : (
           <>
-            <Button onPress={() => setChanging(true)}>Change repository</Button> {identify}
+            <Button onPress={() => setChanging(true)}>Change repository</Button>{" "}
+            {identify}
           </>
         )}
         <MetadataStandardChoice
@@ -104,6 +120,10 @@ export function RepositoryPanel({ projectId, revision }: { projectId: string; re
           onChosen={() => setStandardChoices((n) => n + 1)}
         />
         <RepositoryDetails choice={load.value} />
+        <ConvertRecord
+          projectId={projectId}
+          revision={revision + repositoryChoices}
+        />
       </>
     );
   };
@@ -112,8 +132,8 @@ export function RepositoryPanel({ projectId, revision }: { projectId: string; re
     <section className="repository" aria-labelledby={HEADING_ID}>
       <h2 id={HEADING_ID}>Repository</h2>
       <p className="hint">
-        The package is checked against what this repository asks for. To change it, choose another
-        here or from a shortlist; the last choice counts.
+        The package is checked against what this repository asks for. To change
+        it, choose another here or from a shortlist; the last choice counts.
       </p>
       {content()}
     </section>

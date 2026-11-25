@@ -773,7 +773,12 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   (`GET /api/projects/{id}/repository/standard`), marking one assumed for want of a declared
   standard, and lets a person on the project choose another the deployment has a set for
   (`PUT`), unless the deployment's settings for the repository name it ([Deposit](deposit.md),
-  invariant 5). It also offers a way to choose one there (below); with none chosen it says so. A button
+  invariant 5). It offers to convert the approved record to another of the deployment's standards
+  (`POST /api/projects/{id}/conversions`), lists each conversion kept with what it did not carry
+  over and what it kept less precisely, and downloads it in its own media type; a conversion the
+  target's requirements refuse names what to add to the record
+  ([Metadata standards](metadata-standards.md), *Converting a record*;
+  `app/web/src/components/project/ConvertRecord.test.tsx`). It also offers a way to choose one there (below); with none chosen it says so. A button
   starts a new chat to identify the target data repository (`?repository=identify`), with the
   request in the message box, unsent; it is offered with or without a repository chosen. Whether a package meets them is the
   deposit check's to say. The Deposit package tab checks the project against its chosen repository's

@@ -131,7 +131,9 @@ TODO(#394, #200).
    unless an override names it (`harness/tests/test_standard_choice.py`,
    `harness/tests/test_requirements.py`, `app/tests/test_repositories.py`,
    `app/tests/test_standard_route.py`). One project has one chosen repository at a time; drafting
-   a second record in another standard, for another repository, is TODO(#1363).
+   the approved record converted to another standard is a package derived from it, kept and
+   downloaded but not deposited ([Metadata standards](metadata-standards.md), *Converting a
+   record*).
 6. **A choice records exactly what it resolved to.** The project log names the repository by its
    `repository_id`, and its `re3data_id` where it has one (a choice recorded before there was a
    `repository_id` gives it from its `re3data_id`, as does a merged set kept then), and the

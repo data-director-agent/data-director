@@ -1,7 +1,7 @@
 """What the librarian drafts, and the stop for a request it does not: a document other than a
 metadata record (`outside_agent_scope`), no repository chosen (`insufficient_input`), or
 requirements in a standard no registered definition covers (`capability_not_implemented`, R6;
-conversion between standards is TODO(#1363)).
+converting an approved record is the harness's, docs/specs/metadata-standards.md, invariant 9).
 
 A standard is drafted in from its registered definition (docs/specs/metadata-standards.md), so a
 standard is available to the librarian by being installed.

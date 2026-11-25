@@ -34,6 +34,9 @@ export type AppResponse =
   | ConversationDeleted
   | ConversationSummary
   | ConversationTurn
+  | ConversionRefusedProblem
+  | ConvertedRecord
+  | ConvertedRecords
   | Decision
   | DeletedConversation
   | DeletedProject
@@ -72,6 +75,7 @@ export type AppResponse =
   | ListedProject
   | LiveEscalation
   | MetadataStandard
+  | MissingField
   | MoveName
   | MoveTarget
   | Notice
@@ -116,6 +120,7 @@ export type AppResponse =
   | RawStewardTeam
   | ReasonRequired
   | RecordedAnswer
+  | Reduced
   | RepositoryMatch
   | RepositorySearch
   | RepositoryTicket
@@ -628,6 +633,74 @@ export interface ConversationSummary {
   title: string;
   title_source: "model" | "message";
   turns: number;
+}
+/**
+ * No conversion was kept, because the target requires what the approved record lacks.
+ */
+export interface ConversionRefusedProblem {
+  detail: string;
+  missing: MissingField[];
+  status: number;
+  title: string;
+  /**
+   * The problem's kind: a URI under the deployment's problem base, ending in its slug.
+   */
+  type: string;
+}
+/**
+ * A field the target standard's set requires that the approved record gives nothing for.
+ */
+export interface MissingField {
+  label: string;
+  /**
+   * Its property in the target standard.
+   */
+  property: string;
+  /**
+   * What to do: add it to the approved record, and approve it again.
+   */
+  question: string;
+}
+/**
+ * The approved metadata record in another standard, kept as a package derived from it.
+ */
+export interface ConvertedRecord {
+  conforms_to: string;
+  /**
+   * The digest of the approved record it was converted from.
+   */
+  derived_from: string;
+  /**
+   * The SHA-256 of its bytes, by which it is kept and downloaded.
+   */
+  digest: string;
+  made_at: string;
+  media_type: string;
+  reduced: Reduced[];
+  /**
+   * The target standard's name, such as Dublin Core.
+   */
+  title: string;
+  /**
+   * The approved record's properties, by path, that the target has no place for.
+   */
+  unplaced: string[];
+}
+/**
+ * A value placed less precisely than the approved record gave it.
+ */
+export interface Reduced {
+  /**
+   * Its property's path in the approved record's standard.
+   */
+  path: string;
+  reason: string;
+}
+/**
+ * The project's converted records, newest first.
+ */
+export interface ConvertedRecords {
+  conversions: ConvertedRecord[];
 }
 /**
  * A deleted conversation the person may still restore

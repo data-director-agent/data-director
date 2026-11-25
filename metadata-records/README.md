@@ -62,8 +62,36 @@ drafter and a ceiling, not a licence.
 For an XML serialisation, the definition also gives its layout (`xml`): the root element, the
 namespaces declared on it, the schema it names, and the element each property is written as. The
 codec reads and writes elements and knows no standard; the layout makes a document the standard's
-logical tree. `unplaced(pivot, target)` names, by their paths in the source standard, the values a
-record would lose in another standard, as the start of a conversion.
+logical tree.
+
+A property holds a list of values if its entries have a value key, or if the definition marks it
+`repeats: true`; `properties_repeat: true` at the top of a definition marks every property so, as
+Dublin Core's elements are.
+
+## Converting
+
+`convert(record, target)` writes a record as a logical tree of another standard, through the pivot,
+and invents nothing:
+
+```python
+>>> from dd_metadata_records import convert, discover
+>>> found = discover()
+>>> datacite = found.covering("http://datacite.org/schema/kernel-4", "application/json")
+>>> dc = found.by_uri("http://www.openarchives.org/OAI/2.0/oai_dc/")
+>>> record = datacite.read('{"titles": [{"title": "Soil cores"}], "publicationYear": "2026"}', "application/json")
+>>> conversion = convert(record, dc.definition)
+>>> conversion.tree
+{'title': ['Soil cores']}
+>>> conversion.unplaced
+('publicationYear',)
+```
+
+Each value is written into the target property read under the same term, or under a qualified
+term, with the qualifier that term's rule names. The result says what it could not place
+(`unplaced`, by path in the source) and what it placed less precisely (`reduced`): a structured
+value whose parts the target has no place for, or a second value where the target holds one. A
+gap is not copied, and a property with no value in the source is left out; whether that is
+acceptable is for the target's requirements to say.
 
 A definition says nothing about what a repository requires. That is a requirement set's job.
 
@@ -83,9 +111,9 @@ named by its standard's identifier, as a `Definition` loaded with `dd_metadata_r
 - An XML layout writes each property as repeatable text elements under the root. A property under
   nested elements, as ISO 19139 has, is TODO(#1361). Attributes such as `xml:lang` are read but
   not mapped to the pivot.
-- A drafter writes an entry from a node of the pivot with `entry`, in the order the definition
-  lists its parts, but no whole record is converted from one standard to another yet: that is
-  TODO(#1363).
+- A conversion copies only what has a pivot term in both standards. A controlled value, such as
+  DataCite's `resourceTypeGeneral` or a DCMI Type, is copied as it is, not mapped to the target's
+  vocabulary.
 - A definition covers the properties a drafter writes or a reader reads, not every property of
   its standard. A property it does not name is listed as unmapped, and is never dropped
   silently.
