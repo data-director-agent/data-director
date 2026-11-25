@@ -109,13 +109,29 @@ TODO(#394, #200).
    an override merged on its standard, never share a term, compared as its full IRI, since a
    record's values are checked under their field's term and one field's value would pass for the
    other's; such sets are refused on load.
-5. **A choice resolves deterministically.** The override is the one for the repository's
-   identifier. The standard is the one the override names, because a steward who wrote the
-   override knows the repository better than its registry record (re3data lists only Dublin Core
-   for ORDA, which registers DataCite DOIs); without an override, a set matching a standard the
-   repository declares; else DataCite's, with a warning. A repository without an override gets a
-   warning that its own form, formats, sizes and licences are not checked
-   (`harness/tests/test_requirements.py`, `app/tests/test_repositories.py`).
+5. **A choice resolves deterministically, and says why.** The override is the one for the
+   repository's identifier. The standard is, in order (`dd_harness.standard_choice`):
+   - the one the override names, because a steward who wrote the override knows the repository
+     better than its registry record (re3data lists only Dublin Core for ORDA, which registers
+     DataCite DOIs): reason `override`. A person's choice of another standard is refused, since
+     the override's fields, labels and licences are written for its own;
+   - the one a person on the project chose (`PUT /api/projects/{id}/repository/standard`), which
+     is recorded as a new choice of the repository, so the last choice still counts and choosing
+     the repository again goes back to this rule: reason `chosen`;
+   - the one standard the repository declares that the deployment has a set for: `declared`;
+   - of several it declares, the first in the deployment's order of preference,
+     `standard_preference.yaml` beside the sets, which names every standard's set once (DataCite's
+     first, then the others by identifier, without it), with a warning naming the others:
+     `declared_several`;
+   - else DataCite's, with a warning that it was assumed: `fallback`.
+
+   A repository without an override gets a warning that its own form, formats, sizes and
+   licences are not checked. The Repository tab shows the standard and its reason, marks a
+   fallback as assumed, and offers a person on the project the deployment's other standards
+   unless an override names it (`harness/tests/test_standard_choice.py`,
+   `harness/tests/test_requirements.py`, `app/tests/test_repositories.py`,
+   `app/tests/test_standard_route.py`). One project has one chosen repository at a time; drafting
+   a second record in another standard, for another repository, is TODO(#1363).
 6. **A choice records exactly what it resolved to.** The project log names the repository by its
    `repository_id`, and its `re3data_id` where it has one (a choice recorded before there was a
    `repository_id` gives it from its `re3data_id`, as does a merged set kept then), and the
@@ -124,7 +140,9 @@ TODO(#394, #200).
    pinned) and its content hash under `dd-json-document-v1`, the hash
    evidence citing that record carries ([Grounding](grounding.md)). It names each set used by
    `<requirement_set_id>@v<version>` and the SHA-256 of its file, keeps the merged set by its
-   digest, and records the warnings. The last choice counts (`harness/tests/test_projects.py`).
+   digest, and records the warnings. It names the standard's definition, its set's title and the
+   reason the choice resolved to it; for a person's choice, the event's actor is who chose it, and
+   its time when. The last choice counts (`harness/tests/test_projects.py`).
    A set's version is raised on every change; nothing checks this.
 7. **The drafter and validation read the same merged set**, the one recorded for the choice.
    Validation reads it (`dd_harness.deposit`); giving it to the drafter is TODO(#394).

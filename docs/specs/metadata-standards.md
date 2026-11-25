@@ -260,13 +260,16 @@ agents and the harness add the contract's parts, such as classes, evidence and o
   element each property is written as; the codec turns the document into a tree of elements and
   knows no standard. Only properties written as repeatable text elements under the root are
   supported; nested elements are TODO(#1361).
+- **Which standard a repository's record is in** is the override's; else a person's explicit
+  choice; else the one standard the repository declares that the deployment has a set for; else,
+  of several, the first in the deployment's `standard_preference.yaml`; else DataCite's. Each
+  choice records why ([Deposit](deposit.md), invariant 5). A standard re3data does not list, such
+  as Croissant (#933), is reached by a person's choice once it has a definition and a set.
 - **A gap in OAI-DC is the text `:unav`**, the ERC code for a value not yet available, which the
   schema accepts, since an element holds a string and no other attribute than `xml:lang`.
 
 ## Open questions
 
-- How the harness chooses among several standards a repository declares, and how a person chooses
-  one explicitly, as for Croissant (#933): TODO(#1362).
 - Whether a conversion for a second repository is a derived package or a document a person approves:
   TODO(#1363).
 - How a standard's controlled vocabularies are reached and cited is decided for the subject

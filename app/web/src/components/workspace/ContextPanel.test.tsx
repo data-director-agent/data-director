@@ -59,6 +59,7 @@ describe("ContextPanel", () => {
         repository_name: "Zenodo",
         warnings: ["the deployment has no override for Zenodo"],
         chosen_at: "2026-11-07T12:00:00Z",
+        standard: { title: "DataCite Metadata Schema 4", reason: "declared", chosen_by: null },
       },
     };
     const { container } = renderPanel(
