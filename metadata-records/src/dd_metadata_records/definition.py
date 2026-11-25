@@ -78,6 +78,9 @@ class Property:
     term: str | None = None
     qualified: tuple[Qualified, ...] = ()
     parts: Mapping[str, Property] = field(default_factory=dict)
+    # Whether it holds a list of values rather than one. A property whose entries have a value key
+    # always does; one with none does where its definition says so.
+    repeats: bool = False
 
     def term_for(self, entry: Mapping[str, Any] | None = None) -> str | None:
         """The pivot term of an entry of this property: the first qualified term whose qualifier
@@ -178,7 +181,12 @@ def load(path: Path) -> Definition:
 
 
 def _definition(data: Mapping[str, Any], digest: str) -> Definition:
-    properties = {path: _property(path, spec) for path, spec in data["properties"].items()}
+    # Whether a property with no value key holds a list unless it says otherwise, as every
+    # element of a standard written as repeatable elements does.
+    repeats = bool(data.get("properties_repeat", False))
+    properties = {
+        path: _property(path, spec, repeats=repeats) for path, spec in data["properties"].items()
+    }
     drafting = {str(path): dict(spec) for path, spec in (data.get("drafting") or {}).items()}
     for path, spec in drafting.items():
         if path not in properties:
@@ -214,14 +222,15 @@ def _serialisation(spec: Mapping[str, Any]) -> Serialisation:
     )
 
 
-def _property(path: str, spec: Any) -> Property:
+def _property(path: str, spec: Any, *, repeats: bool = False) -> Property:
     if isinstance(spec, str):
-        return Property(path=path, term=expand(spec))
+        return Property(path=path, term=expand(spec), repeats=repeats)
     if not isinstance(spec, dict):
         raise DefinitionError(f"{path} is neither a term nor a mapping")
-    if unknown := set(spec) - {"value", "term", "qualified", "parts"}:
+    if unknown := set(spec) - {"value", "term", "qualified", "parts", "repeats"}:
         raise DefinitionError(f"{path} has unknown keys {sorted(unknown)}")
     return Property(
+        repeats=bool(spec["value"]) if spec.get("value") else bool(spec.get("repeats", repeats)),
         path=path,
         value=spec.get("value"),
         term=expand(spec["term"]) if spec.get("term") else None,

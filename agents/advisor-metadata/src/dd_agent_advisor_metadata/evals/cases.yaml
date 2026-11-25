@@ -313,7 +313,8 @@ cases:
   # --- When the librarian must stop ------------------------------------------------------------
   - id: unknown-standard-repository
     # A repository asking for a standard no registered definition covers: the librarian maps
-    # nothing between schemas (R6), so it says the capability is not implemented (TODO(#1363)).
+    # nothing between schemas (R6), so it says the capability is not implemented. Converting an
+    # approved record is the harness's work (docs/specs/metadata-standards.md, invariant 9).
     input:
       conforms_to: https://ddialliance.org/Specification/DDI-Codebook/2.5/
       files:

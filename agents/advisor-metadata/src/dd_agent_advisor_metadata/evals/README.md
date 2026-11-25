@@ -37,8 +37,8 @@ categories from the ANZSRC Fields of Research. The cases cover:
 
 Each drafted case names the ANZSRC groups a curator would choose. Three cases must stop instead:
 
-- a repository that asks for Dublin Core (`capability_not_implemented`: the librarian drafts
-  DataCite only and maps nothing between schemas, TODO(#1363));
+- a repository that asks for a standard no registered definition covers
+  (`capability_not_implemented`: the librarian maps nothing between schemas, R6);
 - no repository chosen (`insufficient_input`);
 - a README asked of the librarian (`outside_agent_scope`).
 

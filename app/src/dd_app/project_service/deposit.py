@@ -6,7 +6,7 @@ from typing import Any
 
 from dd_app import deposit
 from dd_app.project_service._area import Area, RepositoriesUnavailableError
-from dd_harness import deposit_api, institution_repositories
+from dd_harness import conversion, deposit_api, institution_repositories
 from dd_harness.deposit import Package, Validation, build_package, check
 from dd_harness.disclosure import Disclosure, disclose
 from dd_harness.projects import ProjectError
@@ -146,6 +146,26 @@ class Deposit(Area):
         if not deposit.DIGEST.fullmatch(digest):
             return None
         return store.package(project_id, digest)
+
+    def convert_record(
+        self, project_id: str, conforms_to: str, *, acted_for: Principal, caused_by: str
+    ) -> conversion.Converted | conversion.Refused:
+        """The approved metadata record converted to the standard `conforms_to` names and kept
+        as a package derived from it, or refused for what the target requires that it lacks
+        (`dd_harness.conversion`). Raises `ConversionError` for a conversion that cannot be
+        asked for."""
+        return conversion.convert_record(
+            self._store,
+            project_id,
+            conforms_to,
+            requirements=self._requirements(),
+            acted_for=acted_for,
+            caused_by=caused_by,
+        )
+
+    def conversions(self, project_id: str) -> list[dict[str, Any]]:
+        """The project's converted records, newest first."""
+        return conversion.conversions(self._store, project_id)
 
     def disclosure(self, project_id: str) -> Disclosure:
         store: ProjectDocuments = self._store

@@ -5,7 +5,7 @@ record is read as (docs/specs/metadata-standards.md). It speaks no Data Director
 from __future__ import annotations
 
 from dd_metadata_records.codecs import JSON, MAX_RECORD_BYTES, Codec, CodecError, JsonCodec, Tree
-from dd_metadata_records.convert import unplaced
+from dd_metadata_records.convert import Conversion, Reduced, convert, unplaced
 from dd_metadata_records.definition import (
     TERM_NAMESPACES,
     Definition,
@@ -27,6 +27,7 @@ __all__ = [
     "XML",
     "Codec",
     "CodecError",
+    "Conversion",
     "Definition",
     "DefinitionError",
     "JsonCodec",
@@ -35,11 +36,13 @@ __all__ = [
     "Property",
     "Record",
     "RecordError",
+    "Reduced",
     "Serialisation",
     "Standard",
     "Standards",
     "Tree",
     "XmlCodec",
+    "convert",
     "discover",
     "entry",
     "expand",
