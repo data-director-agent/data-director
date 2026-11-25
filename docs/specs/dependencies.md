@@ -111,6 +111,11 @@ no runtime dependency.
 | GA4GH Data Use Ontology (DUO) | Ethics adviser, through `dd-duo` | A committed copy of the current permissions and modifiers of one tagged release (`v2021-02-23`), reduced from its `duo.owl` by `duo/scripts/pin_duo.py` and checked against its hash | Nothing: lookup is local | CC BY 4.0, kept with the copy (`LICENCE.md`) | — |
 | SPDX licence list | The gateway's `spdx` server; rights adviser | A pinned copy served by the gateway | A licence identifier | Pinned with the gateway | The adviser's packaged `licences.yaml` |
 
+Each source's licence, the credit it asks for and whether its terms limit it to non-commercial use
+are recorded in [`app/config/credits.yaml`](../../app/config/credits.yaml), which the app shows on
+its Sources and licences page and beside the evidence an agent cites. A row added to this table
+gets an entry there in the same pull request (`scripts/tests/test_credits_register.py` fails otherwise).
+
 A query never carries a researcher's unpublished text, file contents or names taken from their
 files (column and variable names, a project description) to an external source unless the
 researcher has confirmed that term first; where that matters, a local copy or a self-hosted

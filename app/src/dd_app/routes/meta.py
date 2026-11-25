@@ -4,7 +4,8 @@
 the operator's privacy notice (`DD_PRIVACY_NOTICE_URL`) if there is one, and whether it may
 describe folders on its own machine (`server_folders`, `dd_app.folder_scan`);
 `POST /api/feedback` files a problem report or feature request as a GitHub issue
-(docs/specs/app.md). `GET /api/policy` is the profile the gate holds runs to, `GET /api/examples`
+(docs/specs/app.md). `GET /api/policy` is the profile the gate holds runs to, `GET /api/sources`
+is the credit each external source asks for (`dd_app.credits`), open to all; `GET /api/examples`
 lists example inputs and `GET /api/process-flow` is the Blueprint's entry points and phases
 (`dd_sdk.process_flow`), which the shell's phase tracker draws. `GET /server-status` answers a
 monitor. The shell's own pages serve its `index.html`.
@@ -27,6 +28,7 @@ from starlette.requests import Request
 from starlette.responses import FileResponse, PlainTextResponse, Response
 from starlette.routing import Route
 
+from dd_app import credits as credits_file
 from dd_app import feedback
 from dd_app.routes.common import (
     Deps,
@@ -56,6 +58,7 @@ SHELL_PAGES = (
     "/settings",
     "/sign-in",
     "/signed-out",
+    "/sources",
     "/steward",
 )
 
@@ -67,6 +70,41 @@ class Example(ResponseBody):
     schema_class: str | None
     """The class the example names, or null if it names none."""
     input: dict[str, Any]
+
+
+class CreditMatch(ResponseBody):
+    source_id_prefixes: list[str]
+    """An evidence item whose `source_id` starts with one of these is from the source."""
+    snapshot_ref_prefixes: list[str]
+    """An evidence item whose `snapshot_ref` starts with one of these is from the source."""
+
+
+class SourceCredit(ResponseBody):
+    """An external source, the credit it asks for and the terms it sets."""
+
+    id: str
+    name: str
+    url: str
+    kind: Literal["data", "service", "font"]
+    licence: str
+    """An SPDX identifier, or a `LicenseRef-` for terms without one."""
+    licence_url: str
+    attribution: str
+    """The credit as the source asks for it, to be shown as written."""
+    credit_required: bool
+    non_commercial: bool
+    """The source's own terms limit use to non-commercial purposes."""
+    use: Literal["pinned", "live", "both"]
+    terms_url: str | None
+    citation: str | None
+    badge_url: str | None
+    match: CreditMatch
+
+
+class Sources(ResponseBody):
+    """The external sources the app uses, with their credits (`GET /api/sources`)."""
+
+    sources: list[SourceCredit]
 
 
 class FlowStep(ResponseBody):
@@ -204,6 +242,7 @@ def routes(deps: Deps) -> list[Route]:
         Route("/api/process-flow", signed_in(deps, get_process_flow), methods=["GET"]),
         Route("/api/policy", signed_in(deps, get_policy), methods=["GET"]),
         Route("/api/about", bind(deps, get_about), methods=["GET"]),
+        Route("/api/sources", bind(deps, get_sources), methods=["GET"]),
         Route("/server-status", bind(deps, server_status), methods=["GET"]),
         Route("/api/feedback", signed_in(deps, send_feedback), methods=["POST"]),
     ]
@@ -253,6 +292,12 @@ async def get_process_flow(request: Request, _: Principal, deps: Deps) -> Respon
 async def get_policy(request: Request, _: Principal, deps: Deps) -> Response:
     # It refreshes the registry, which reaches agents over the network.
     return respond(Policy, await run_in_threadpool(deps.deployment.policy))
+
+
+async def get_sources(request: Request, deps: Deps) -> Response:
+    # Open to all, as the credit is owed on the sign-in page too.
+    found = await run_in_threadpool(credits_file.load, deps.credits_file)
+    return respond(Sources, {"sources": [c.model_dump() for c in found]})
 
 
 async def get_about(request: Request, deps: Deps) -> Response:

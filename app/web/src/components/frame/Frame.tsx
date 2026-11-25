@@ -226,12 +226,13 @@ export function Frame({
                 RDA Data Director Agentic AI Blueprint
                 <span className="visually-hidden"> (opens in a new tab)</span>
               </a>
-              . Open source under the MIT licence:{" "}
+              . The code is open source under the MIT licence:{" "}
               <a href={SOURCE} target="_blank" rel="noreferrer">
                 view the code
                 <span className="visually-hidden"> (opens in a new tab)</span>
               </a>
-              .
+              . The data and services it reads stay under their own licences:{" "}
+              <Link to="/sources">sources and licences</Link>.
             </p>
             <FooterBuild />
           </div>

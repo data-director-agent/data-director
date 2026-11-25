@@ -1,0 +1,19 @@
+/* The sources page: each source's credit, licence and terms. */
+
+@layer components {
+  .source-credits {
+    list-style: none;
+    margin: var(--space-3) 0 0;
+    padding: 0;
+  }
+
+  .source-credit {
+    padding: var(--space-3) 0;
+    border-top: var(--border-width) solid var(--color-surface-selected);
+    max-width: var(--measure);
+  }
+
+  .source-credit h3 {
+    margin: 0 0 var(--space-2);
+  }
+}

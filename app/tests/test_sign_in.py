@@ -263,7 +263,14 @@ def test_a_request_with_no_session_is_refused(deployment: Deployment, method: st
 
 
 # The `/api` routes open to a caller with no session, so the shell can draw its sign-in page.
-OPEN_API = {"/api/about", "/api/session", "/api/sign-in", "/api/sign-in/callback", "/api/sign-out"}
+OPEN_API = {
+    "/api/about",
+    "/api/sources",
+    "/api/session",
+    "/api/sign-in",
+    "/api/sign-in/callback",
+    "/api/sign-out",
+}
 
 
 def test_every_api_route_but_the_open_ones_needs_a_session(deployment: Deployment):

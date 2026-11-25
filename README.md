@@ -207,6 +207,17 @@ The advisors read two community registries, and we are grateful to the people wh
 taken is described beside it (for example
 [`agents/advisor-repository/data/re3data/SOURCE.md`](agents/advisor-repository/data/re3data/SOURCE.md)).
 
+## Licences and credit
+
+The code is under the [MIT licence](LICENSE). The data, registries and services the agents read
+are not ours: each stays under its publisher's licence and terms, which can be stricter than MIT
+(FAIRsharing is CC BY-SA 4.0; Jisc Open Policy Finder is CC BY-NC-ND 4.0 and its API is for
+non-commercial use; ORCID's public API is for non-commercial use). [NOTICE.md](NOTICE.md) lists
+every source, its licence and where a copy is kept. The app credits each source on its **Sources
+and licences** page and beside the evidence an agent cites, from
+[`app/config/credits.yaml`](app/config/credits.yaml). A reuse of this repository carries those
+terms with it.
+
 ## Contributing
 
 This is a community-driven, open-source project. See:

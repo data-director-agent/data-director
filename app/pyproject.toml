@@ -9,6 +9,7 @@ version = "0.3.0-alpha.9"
 description = "An alpha Data Director: a browser shell drawn from each agent's manifest, over the harness (docs/specs/app.md)"
 requires-python = ">=3.14"
 license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
 dependencies = [
   # Capacity limiter for the listing routes (dd_app.listing_limit).
@@ -21,6 +22,8 @@ dependencies = [
   "httpx>=0.28",
   "joserfc>=1.0",
   "pydantic>=2.14.1,<3",
+  # The credits file (dd_app.credits).
+  "pyyaml>=6.0",
   "starlette>=1.8.0",
   "uvicorn>=0.54.0",
 ]
