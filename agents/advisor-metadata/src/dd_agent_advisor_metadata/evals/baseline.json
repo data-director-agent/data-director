@@ -1,13 +1,13 @@
 {
   "identity": {
     "agent_id": "advisor.metadata",
-    "cases_sha256": "0b8c143cce4249ee4d73da0c76e10f0549e95173fbfa1b2c93b617b7189b524c",
+    "cases_sha256": "7a29601f590d48a09fd938ea89aebe0c6b354552b58b5d821142aebfcff57f8d",
     "configuration": {},
     "definitions_sha256": {
-      "datacite-4": "aa9eecdeb2da43d34aeb03beb6b6ead6156e482aa40cba5ca9ab32420237b7ca",
-      "dublin-core-oai": "8a44d46897e6f887f1e5c55e2d2387f10288e88a6345f40578ced10fd518dad9"
+      "datacite-4": "d9084fd69289075e6cc25b233c7ad5f48b1145f4f539cf702fe941c1a6778876",
+      "dublin-core-oai": "b97fe5a4c564eb7f6c0631d97a92b2cd362042e5e65876312870f464f7f222c4"
     },
-    "git_revision": "b24cba1782344f6db2d769ddfcdc4d4636b215cc",
+    "git_revision": "bd4beea95abe7c742079a19e07b0558e97496871",
     "shares_sha256": "8c9eaaef5a8313c664ce169238e3469c90ca6562a66f15330654f19c085d85f6",
     "spec_version": "0.3.0a0",
     "system_prompt_sha256": "8c93f2f784cf427eb38e681579c9888ea7c858791e60a6b9b269df78da886bbe"
