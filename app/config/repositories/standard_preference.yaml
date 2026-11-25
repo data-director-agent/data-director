@@ -1,0 +1,7 @@
+# The order in which this deployment prefers its standards' sets when a chosen repository's
+# re3data record declares several it has a set for (docs/specs/deposit.md, invariant 5). Every
+# set under standards/ is named once, by its requirement_set_id. DataCite comes first: a DataCite
+# record serves any repository that mints DataCite DOIs, which most general-purpose repositories do.
+preference:
+  - datacite-4
+  - dublin-core

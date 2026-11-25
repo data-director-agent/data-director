@@ -42,14 +42,18 @@ elsewhere it would need a sign-in, which it does not have (#154).
 | Spend | Spend this month against an optional budget; spend over the last 30 days by day, model and gateway key; the tokens runs recorded over 30 days by model, agent, person and project, with their estimated cost | The LLM gateway's `/spend/logs/v2` and `/model/info`; the run store |
 | LLM gateway | Whether the gateway is ready and its database connected; each model with its upstream, prices and limits; each key, team and user with its spend against its budget, its period and rate limits | The gateway's `/health/readiness`, `/model/info`, `/key/list`, `/team/list` and `/user/list` |
 | Model broker | Whether the broker answers and its unit's state; people's own accounts counted by provider; tokens over 30 days by day, model and who paid; which agents hold a broker credential, and which model-backed agents do not; who the deployment pays for; `model-broker.env` | The broker's `/healthz` and `/admin/summary`; `systemctl show`; the agents' cards; `/etc/data-director` |
+| Monitoring | Links to Grafana, Prometheus, Alertmanager, the LLM gateway's own page and Langfuse; whether each answers; the alerts Prometheus is firing and Alertmanager holds | Each service's health and alerts endpoints, at the addresses in `DD_ADMIN_*_URL` |
+| Policy | The profile as the harness parses it: the agents it allows with their action class, which wait for a person, tool servers and settings; what a hosted model or remote tool may receive; whose account pays; administrators, steward teams and who is admitted; the roster compared with the profile and `deployment.yaml` | `/etc/data-director/profile.yaml` and `deployment.yaml`; the agents' cards; the app's `/api/about` |
+| Escalations | Each steward team's live escalations, who has taken them, how long each has waited and which are overdue to be sent to the team again | The project store, for the teams the profile names |
+| Security | The security events services record, by event, outcome and service, over the last day or week | The journal of the deployment's units |
 | Projects | Every project: who created it, its documents and repository; a project's event log and runs | The project store |
 | Download case | On a run, a project, and the runs of one conversation: everything recorded about it, as a case for a developer to debug | The run and project stores; the journal if asked |
 | Configuration | The files under `/etc/data-director`, each with the command that changes it; the stores' locations and the live profile | `/etc/data-director`; the app's `/api/about` |
 | Feedback | A link to the feedback issues | `DD_FEEDBACK_REPO` |
 
-The stores, the doctor and the broker are read at most once a minute, and the gateway every five
-minutes;
-**Refresh** reads them again.
+The stores, the doctor, the broker, the escalation queues and the security events are read at most
+once a minute, the monitoring services and the profile every 30 seconds, and the gateway every
+five minutes; **Refresh** reads them again.
 
 ### Spend
 
@@ -112,6 +116,56 @@ says whether the broker answers, its unit's state and its settings file.
 The page also compares the agents that hold a broker credential with those whose cards declare
 models: a model-backed agent without one cannot call through the broker
 (`deploy/broker-credentials.sh`).
+
+### Monitoring
+
+The LLM gateway's optional `monitoring` profile ([deploy/llm-gateway](../../../deploy/llm-gateway/README.md#monitoring-optional))
+runs Prometheus, Alertmanager and Grafana, each on the VM's loopback address, so a link to one
+works only through an SSH tunnel ([Reaching the admin interfaces over SSH](tunnels.md)) or at an
+address you publish. The page links to each. A service without a setting is linked at its tunnel
+address (`localhost:3000`, `9090`, `9093`) and is not asked. One with a setting is asked from the
+service, so the address can be one the VM reaches, and the page shows whether it answers and lists
+its alerts: the ones Prometheus is firing or pending, and the ones Alertmanager holds. The
+overview counts the firing ones. Grafana ships with no dashboard and no data source: add
+Prometheus at `http://prometheus:9090`, as the gateway's README describes. Alertmanager sends its
+alerts nowhere until you add a receiver.
+
+The gateway's own page (`/ui` on `DD_ADMIN_LITELLM_URL`) and Langfuse, if you run it
+(`DD_ADMIN_LANGFUSE_URL`), are linked and not asked. Traces are not exported to a viewer
+([Transport](../../specs/transport.md)), so there is no link to one.
+
+### Policy
+
+The policy page reads `profile.yaml` with the harness's own parser, so it shows what the harness
+enforces, and a profile the harness would refuse is reported with the harness's reason and not
+shown. It compares the agents the profile allows with those in `agents.yaml` and flags each
+mismatch: an agent the roster has and the profile does not allow, which the harness refuses, and
+one the profile allows that nothing answers for. It lists what `deployment.yaml` turns off, and
+says when the running app holds another profile version than the file, which is the case after
+`apply` until the restart. People appear by identifier, as the People page shows them. Each
+section names the `deployment.yaml` key that changes it; the page changes nothing.
+
+### Escalations
+
+The page shows each steward team's queue, for the teams the profile names: the escalations still
+live in its projects (open, taken or waiting), the project each is in, who has taken it, and how
+long it has been with the team. An open escalation is overdue once it has been with its team
+longer than the profile's `stewardship.reroute_after`, which is when the sweep
+(`data-director-escalations.timer`, on Operations) should send it again; one that stays overdue
+means the sweep is not running. It shows no researcher's note and no steward's reply, and stewards
+act in the app, not here. An escalation routed to a team the profile no longer names is not shown.
+
+### Security
+
+The page lists the security events ([Security](../../specs/security.md)): sign-ins and refusals,
+sessions ended, steward actions, grants and enrolments, case downloads. Each service writes a
+record to the journal; the page reads the deployment's units' journal for the last day or week
+and keeps the lines that are records, newest first, by event, outcome and service. A record holds
+a reason code and identifiers, never a message, a note or a secret, and the page keeps only the
+fields a record is defined to carry, each cut short. Any process that logs to a unit can write a
+line that looks like a record, so treat the page as what the services recorded, not as proof.
+It needs `DD_ADMIN_SYSTEMD` to read the journal. A busy week's journal is large: the page asks
+`journalctl` to search for the records and says if it could not, and it keeps the newest 1,000.
 
 ### Downloading a case
 
@@ -184,6 +238,8 @@ settings.
 | `DD_ADMIN_MONTHLY_BUDGET` | A month's budget, in US dollars; shown, not enforced | Unset |
 | `DD_ADMIN_BROKER_URL` | The model broker, for its health and summary | Set to `http://127.0.0.1:8300` by `broker-admin-credential.sh` |
 | `DD_ADMIN_BROKER_KEY_FILE` | The operators' credential for the broker's summary | Unset: the `model-broker-admin` credential the drop-in loads |
+| `DD_ADMIN_GRAFANA_URL`, `DD_ADMIN_PROMETHEUS_URL`, `DD_ADMIN_ALERTMANAGER_URL` | Each service, as your browser reaches it, for its link; the page also asks it from the VM. An `http` or `https` address with no user name | Unset: linked at `localhost:3000`, `9090` and `9093`, and not asked. To have the page ask, set them in `admin.env` (the monitoring profile's services are at `http://127.0.0.1:3000`, `:9090` and `:9093` on the VM) |
+| `DD_ADMIN_LANGFUSE_URL` | Langfuse, if the gateway sends it traces | Unset: not linked |
 
 A page whose setting is unset says which one, so the service also runs on a developer's machine:
 

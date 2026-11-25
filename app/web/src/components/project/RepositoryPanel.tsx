@@ -18,6 +18,7 @@ import { useEffect, useState } from "react";
 import { type RepositoryRequirements, useProjectApi } from "../../project/api";
 import { homePath, navigate } from "../../route";
 import { Button } from "../ui/Button";
+import { MetadataStandardChoice } from "./MetadataStandardChoice";
 import { RepositoryDetails } from "./RepositoryDetails";
 import { RepositoryPicker } from "./RepositoryPicker";
 
@@ -32,10 +33,15 @@ export function RepositoryPanel({ projectId, revision }: { projectId: string; re
   const api = useProjectApi();
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [changing, setChanging] = useState(false);
+  // Bumped by a choice of repository made in the panel, so that its standard is read again, and
+  // by a choice of standard, so that the requirements it resolved to are.
+  const [repositoryChoices, setRepositoryChoices] = useState(0);
+  const [standardChoices, setStandardChoices] = useState(0);
 
   const chosen = (value: RepositoryRequirements) => {
     setLoad({ state: "loaded", value });
     setChanging(false);
+    setRepositoryChoices((n) => n + 1);
   };
 
   useEffect(() => {
@@ -52,7 +58,7 @@ export function RepositoryPanel({ projectId, revision }: { projectId: string; re
       },
     );
     return () => controller.abort();
-  }, [api, projectId, revision]);
+  }, [api, projectId, revision, standardChoices]);
 
   const identify = (
     <Button icon={MessageSquarePlus} onPress={() => navigate(homePath({ repository: true }))}>
@@ -92,6 +98,11 @@ export function RepositoryPanel({ projectId, revision }: { projectId: string; re
             <Button onPress={() => setChanging(true)}>Change repository</Button> {identify}
           </>
         )}
+        <MetadataStandardChoice
+          projectId={projectId}
+          revision={revision + repositoryChoices}
+          onChosen={() => setStandardChoices((n) => n + 1)}
+        />
         <RepositoryDetails choice={load.value} />
       </>
     );

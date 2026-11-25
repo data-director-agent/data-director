@@ -60,6 +60,9 @@ and open the interface in your browser:
 | Prometheus | <http://localhost:9090> | None |
 | Alertmanager | <http://localhost:9093> | None |
 
+The admin service's [Monitoring page](admin.md#monitoring) links to these and shows the alerts
+Prometheus and Alertmanager hold, so the tunnel is needed only to open them.
+
 What each setting does:
 
 - `127.0.0.1:` at the start of a `LocalForward` binds the local end to your own loopback address,

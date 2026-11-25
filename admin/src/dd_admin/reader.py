@@ -5,10 +5,21 @@ each kept for a short while (docs/guide/operations/admin.md). `dd_admin.pages` r
 
 from __future__ import annotations
 
+import functools
 from dataclasses import dataclass, field
 
 from dd_admin import agents as agents_module
-from dd_admin import broker, gateway, operations, spend, usage
+from dd_admin import (
+    broker,
+    escalation_queue,
+    gateway,
+    monitoring,
+    operations,
+    policy_view,
+    security_events,
+    spend,
+    usage,
+)
 from dd_admin.cache import Cached
 from dd_admin.settings import AdminSettings
 from dd_admin.system import System
@@ -42,9 +53,28 @@ class Admin:
             lambda: gateway.read_state(self.settings, self.system), ttl_s=300
         )
         self.broker = Cached(lambda: broker.read_broker(self.settings, self.system), ttl_s=60)
+        # What the monitoring services say they are alerting on, a little fresher than the rest.
+        self.monitoring = Cached(lambda: monitoring.read(self.settings, self.system), ttl_s=30)
         self.about = Cached(
             lambda: self.system.get_json(self.settings.app_url.rstrip("/") + "/api/about"),
             ttl_s=30,
+        )
+        self.policy = Cached(
+            lambda: policy_view.read(
+                self.settings, self.system, self.agents.get(), self.about.get()
+            ),
+            ttl_s=30,
+        )
+        # The journal is read whole for a window, so each window is kept for a while.
+        self.security = {
+            days: Cached(
+                functools.partial(security_events.read, self.settings, self.system, days),
+                ttl_s=60,
+            )
+            for days in security_events.WINDOWS
+        }
+        self.escalations = Cached(
+            lambda: escalation_queue.read(self.projects, self.policy.get()), ttl_s=60
         )
 
     @classmethod

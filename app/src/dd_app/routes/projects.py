@@ -77,6 +77,20 @@ class DeleteProject(RequestBody):
     title: str
 
 
+class ChosenStandard(ResponseBody):
+    """The metadata standard a repository choice resolved to, and why (docs/specs/deposit.md,
+    invariant 5)."""
+
+    title: str
+    """The title of the standard's requirement set, such as Dublin Core (OAI-DC)."""
+    reason: Literal["override", "chosen", "declared", "declared_several", "fallback"]
+    """Why it is this standard: the deployment's settings for the repository name it, a person
+    chose it, it is the one the repository declares, the first by the deployment's preference of
+    several it declares, or DataCite's because it declares none the deployment has a set for."""
+    chosen_by: str | None
+    """For a standard a person chose, their name."""
+
+
 class ChosenRepository(ResponseBody):
     """The repository a project chose last, as its summary names it."""
 
@@ -87,6 +101,9 @@ class ChosenRepository(ResponseBody):
     warnings: list[str]
     """What the choice does not check, for example that re3data does not list DataCite for it."""
     chosen_at: str
+    standard: ChosenStandard | None
+    """The metadata standard its record is drafted and checked in, and why; None for a choice
+    recorded before the reason was."""
 
 
 class DocumentCounts(ResponseBody):

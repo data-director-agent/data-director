@@ -769,7 +769,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   each only where a set states it; what Data Director assumes (that the package is checked against
   those sets alone and deposited by hand), with the warnings and the sets' `unconfirmed` items;
   the documents and metadata they ask for; and the sets' `guidance`, the pages the values came
-  from. It also offers a way to choose one there (below); with none chosen it says so. A button
+  from. It names the metadata standard the record is drafted and checked in and why
+  (`GET /api/projects/{id}/repository/standard`), marking one assumed for want of a declared
+  standard, and lets a person on the project choose another the deployment has a set for
+  (`PUT`), unless the deployment's settings for the repository name it ([Deposit](deposit.md),
+  invariant 5). It also offers a way to choose one there (below); with none chosen it says so. A button
   starts a new chat to identify the target data repository (`?repository=identify`), with the
   request in the message box, unsent; it is offered with or without a repository chosen. Whether a package meets them is the
   deposit check's to say. The Deposit package tab checks the project against its chosen repository's

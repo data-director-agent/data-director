@@ -1,5 +1,6 @@
-"""The LLM gateway's and the model broker's pages (docs/guide/operations/admin.md), mounted by
-`dd_admin.pages.Pages.routes`. Each is a GET and changes nothing; it names the command that does.
+"""The LLM gateway's, the model broker's and the monitoring services' pages
+(docs/guide/operations/admin.md), mounted by `dd_admin.pages.Pages.routes`. Each is a GET and
+changes nothing; it names the command that does.
 """
 
 from __future__ import annotations
@@ -9,7 +10,7 @@ from typing import Any, Protocol
 from starlette.requests import Request
 from starlette.responses import Response
 
-from dd_admin import broker, config_files, operations
+from dd_admin import broker, config_files, operations, security_events
 from dd_admin.reader import Admin
 
 BROKER_UNIT = "data-director-model-broker.service"
@@ -31,6 +32,42 @@ def _fresh(request: Request) -> bool:
 def gateway_page(pages: Renders, request: Request) -> Response:
     found = pages.admin.gateway_state.get(fresh=_fresh(request))
     return pages.page(request, "gateway.html", state=found)
+
+
+def monitoring_page(pages: Renders, request: Request) -> Response:
+    return pages.page(
+        request, "monitoring.html", found=pages.admin.monitoring.get(fresh=_fresh(request))
+    )
+
+
+def policy_page(pages: Renders, request: Request) -> Response:
+    return pages.page(request, "policy.html", view=pages.admin.policy.get(fresh=_fresh(request)))
+
+
+def escalations_page(pages: Renders, request: Request) -> Response:
+    found = pages.admin.escalations.get(fresh=_fresh(request))
+    return pages.page(request, "escalations.html", queue=found)
+
+
+def security_page(pages: Renders, request: Request) -> Response:
+    query = request.query_params
+    try:
+        days = int(query.get("days", ""))
+    except ValueError:
+        days = security_events.WINDOWS[0]
+    if days not in security_events.WINDOWS:
+        days = security_events.WINDOWS[0]
+    found = pages.admin.security[days].get(fresh=_fresh(request))
+    filters = {key: query.get(key, "").strip() for key in ("event", "outcome", "service")}
+    return pages.page(
+        request,
+        "security.html",
+        found=found,
+        filters=filters,
+        windows=security_events.WINDOWS,
+        max_entries=security_events.MAX_ENTRIES,
+        entries=security_events.select(found, **filters),
+    )
 
 
 def broker_page(pages: Renders, request: Request) -> Response:

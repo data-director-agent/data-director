@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% from "_macros.html" import unset, person %}
+{% block title %}Policy{% endblock %}
+{% block heading %}Policy{% endblock %}
+{% block content %}
+{% set profile = view.profile %}
+<p class="muted">The institutional profile as the harness reads it: which agents it allows, which actions wait for a person, what may reach a hosted model, whose account pays, and who administers, stewards and is admitted. The raw file is on <a href="/config">Configuration</a>. Nothing here can be changed from this page: <code>sudo data-director edit</code> changes <code>deployment.yaml</code>, and <code>sudo data-director apply</code> makes the profile from it.</p>
+{% if not view.configured %}
+  {{ unset("DD_ADMIN_ETC", "The profile") }}
+{% elif view.error %}
+  <div class="banner bad" role="alert">The profile is not shown: {{ view.error }}.</div>
+{% else %}
+<section class="tiles" aria-label="At a glance">
+  <div class="tile"><span class="tile-label">Profile</span><span class="tile-value small mono">{{ profile.profile_id }}</span><span class="tile-sub">version {{ profile.version }} · {{ profile.digest | short(10) }}</span></div>
+  <div class="tile"><span class="tile-label">Agents allowed</span><span class="tile-value">{{ profile.agents | length }}</span></div>
+  <div class="tile"><span class="tile-label">Orchestrator</span><span class="tile-value small mono">{{ profile.orchestrator or "none" }}</span></div>
+  <div class="tile"><span class="tile-label">Admitted</span><span class="tile-value small">{{ profile.access.admit }}</span><span class="tile-sub">{{ profile.access.allow | length }} allowed · {{ profile.access.block | length }} blocked</span></div>
+</section>
+{% if view.stale %}
+  <div class="banner warn" role="alert">The running app holds profile <span class="mono">{{ view.running.id }}</span> version {{ view.running.version }}, not the file's version {{ profile.version }}. Restart to load it: <code>sudo systemctl restart data-director.target</code>.</div>
+{% endif %}
+{% if profile.description %}<p>{{ profile.description }}</p>{% endif %}
+
+<section class="panel">
+  <h2>Agents</h2>
+  <p class="muted">Each agent is allowed at an action class. Calls in a class that needs approval wait for a person. An agent in <code>agents.yaml</code> that the profile does not allow, or the reverse, is flagged.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th scope="col">Agent</th><th scope="col">Action class</th><th scope="col">Approval</th><th scope="col">Tool servers</th><th scope="col">Settings</th><th scope="col">State</th></tr></thead>
+    <tbody>
+    {% for row in view.agents %}
+      <tr>
+        <td>{% if row.in_roster %}<a class="mono" href="/agents/{{ row.agent_id | replace('.', '-') | urlencode }}">{{ row.agent_id }}</a>{% else %}<span class="mono">{{ row.agent_id }}</span>{% endif %}{% if row.orchestrator %} <span class="tag">orchestrator</span>{% endif %}{% if row.agent_id in view.disabled or (row.agent_id | replace('.', '-')) in view.disabled %} <span class="tag">disabled</span>{% endif %}</td>
+        <td>{{ row.action_class or "—" }}</td>
+        <td>{{ "needs a person" if row.needs_approval else "none" }}</td>
+        <td class="mono">{{ row.tool_servers | join(", ") or "—" }}</td>
+        <td class="mono">{% for k, v in row.settings.items() %}{{ k }}={{ v }}{% if not loop.last %}, {% endif %}{% else %}—{% endfor %}</td>
+        <td>{% if row.problem %}<span class="pill a-down">mismatch</span> <span class="muted">{{ row.problem }}</span>{% elif row.state %}<span class="pill a-{{ row.state }}">{{ row.state }}</span>{% else %}<span class="muted">not asked</span>{% endif %}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="empty">The profile allows no agent.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% if view.disabled %}<p class="muted">Turned off in <code>deployment.yaml</code>: <span class="mono">{{ view.disabled | join(", ") }}</span>.</p>{% endif %}
+  <p class="fix"><span>To change:</span> <code>sudo data-director edit</code> (<code>disabled</code>, <code>orchestrator</code>), then apply.</p>
+</section>
+
+<section class="panel">
+  <h2>Models and tools</h2>
+  <dl class="facts">
+    <dt>Actions needing approval</dt><dd class="mono">{{ profile.actions_requiring_approval | sort | join(", ") or "none" }}</dd>
+    <dt>Content a hosted model may receive</dt><dd class="mono">{{ profile.hosted_models | sort | join(", ") or "none" }}</dd>
+    <dt>Content a remote tool may receive</dt><dd class="mono">{{ profile.remote_tool_content | sort | join(", ") or "none" }}</dd>
+    <dt>Whose account pays</dt><dd>people's own accounts: <strong>{{ profile.model_accounts.own }}</strong>{% if profile.model_accounts.fallback %}, falling back to the {{ profile.model_accounts.fallback }}{% endif %}{% if profile.model_accounts.providers %} · providers <span class="mono">{{ profile.model_accounts.providers | map(attribute="provider") | join(", ") }}</span>{% endif %} (<a href="/broker">Model broker</a>)</dd>
+    <dt>Energy and cost estimates</dt><dd>{{ "from a table in the profile" if profile.model_footprint else "none" }}</dd>
+    <dt>Attached documents</dt><dd>{{ profile.attached_documents }}</dd>
+    <dt>Deposit transports</dt><dd class="mono">{{ profile.deposit_transports | sort | join(", ") or "manual only" }}</dd>
+    <dt>Institution's repositories and storage</dt><dd>{{ profile.institution_repositories | length }} repositories · {{ profile.institution_storage | length }} storage services</dd>
+  </dl>
+</section>
+
+<section class="panel">
+  <h2>People</h2>
+  <h3>Administrators</h3>
+  {% if profile.administrators %}<p>{% for p in profile.administrators | sort %}{{ person(None, p) }}{% if not loop.last %}, {% endif %}{% endfor %}</p>
+  {% else %}<p class="empty">The profile names no administrator.</p>{% endif %}
+  <h3>Data stewards</h3>
+  {% if profile.stewardship.teams %}
+  <div class="table-wrap"><table>
+    <thead><tr><th scope="col">Team</th><th scope="col">Supports</th><th scope="col">Response time</th><th scope="col">Members</th></tr></thead>
+    <tbody>
+    {% for team in profile.stewardship.teams %}
+      <tr>
+        <td>{{ team.name }} <span class="muted mono">{{ team.team_id }}</span></td>
+        <td>{{ team.supports | join(", ") or "—" }}</td>
+        <td>{{ team.response_time or "—" }}</td>
+        <td>{% for p in team.members | sort %}{{ person(None, p) }}{% if not loop.last %}, {% endif %}{% else %}—{% endfor %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  <p class="muted">Stewards see {{ profile.stewardship.visibility }} projects. {% if profile.stewardship.reroute_after %}An escalation nobody takes goes to its team again after {{ profile.stewardship.reroute_after | duration }}.{% else %}An escalation nobody takes is not sent again.{% endif %} Their queue is on <a href="/escalations">Escalations</a>.</p>
+  {% else %}<p class="empty">The profile names no steward team.</p>{% endif %}
+  <h3>Access</h3>
+  <p>Admits <strong>{{ profile.access.admit }}</strong>.{% if profile.access.allow %} Allowed: {% for p in profile.access.allow | sort %}{{ person(None, p) }}{% if not loop.last %}, {% endif %}{% endfor %}.{% endif %}{% if profile.access.block %} Blocked: {% for p in profile.access.block | sort %}{{ person(None, p) }}{% if not loop.last %}, {% endif %}{% endfor %}.{% endif %}</p>
+  <p class="fix"><span>To change:</span> <code>sudo data-director edit</code> (<code>administrators</code>, <code>access</code>, <code>stewardship</code>), then apply.</p>
+</section>
+{% endif %}
+{% endblock %}

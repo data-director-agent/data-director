@@ -275,9 +275,11 @@ class ProjectRepository(ProjectRecord, Protocol):
         requirements: Requirements,
         acted_for: Principal,
         caused_by: str,
+        standard: str | None = None,
     ) -> str:
-        """Record the repository chosen by its re3data or DataCite identifier; returns the
-        merged requirement set's digest."""
+        """Record the repository chosen by its re3data or DataCite identifier, and the
+        `conforms_to` of the standard a person chose for it, if any; returns the merged
+        requirement set's digest."""
         ...
 
     def requirements(self, project_id: str) -> dict[str, Any] | None:

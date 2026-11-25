@@ -40,6 +40,8 @@ Environment="DD_ADMIN_DOCTOR=/opt/data-director/current/.venv/bin/python /opt/da
 # DD_ADMIN_LITELLM_URL there and a drop-in that loads the gateway's read-only key, which only an
 # operator who runs the gateway adds (deploy/llm-gateway/README.md):
 #   LoadCredential=litellm-key:/etc/data-director/credentials/admin/litellm-key
+# For the Monitoring page, DD_ADMIN_GRAFANA_URL, DD_ADMIN_PROMETHEUS_URL and
+# DD_ADMIN_ALERTMANAGER_URL, each an http(s) address (docs/guide/operations/admin.md).
 EnvironmentFile=-/etc/data-director/admin.env
 ExecStart=/opt/data-director/current/.venv/bin/dd-admin serve --host 127.0.0.1 --port 8200
 Restart=on-failure

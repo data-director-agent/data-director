@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Monitoring{% endblock %}
+{% block heading %}Monitoring{% endblock %}
+{% block content %}
+<p class="muted">The monitoring services that run beside the deployment, and what they are alerting on. The LLM gateway's optional <code>monitoring</code> profile (<code>deploy/llm-gateway/</code>) runs Prometheus, Alertmanager and Grafana on loopback, so a link at its default address works through an SSH tunnel (<code>docs/guide/operations/tunnels.md</code>). Nothing here can be changed from this page.</p>
+
+<section class="cards" aria-label="Services">
+{% for link in found.links %}
+  <article class="panel">
+    <h2>{{ link.name }}
+      {% if link.state == "up" %}<span class="pill a-up">answering</span>
+      {% elif link.state == "down" %}<span class="pill a-down">not answering</span>{% endif %}
+    </h2>
+    <p class="muted">{{ link.purpose }}</p>
+    <p><a class="button" href="{{ link.url }}" target="_blank" rel="noreferrer noopener">Open {{ link.name }}</a> <span class="mono muted">{{ link.url }}</span></p>
+    {% if not link.configured %}
+      <p class="muted">Its default address, reached through an SSH tunnel. To link another address and have this page ask the service, set <code>DD_ADMIN_{{ link.key | upper }}_URL</code> in <code>/etc/data-director/admin.env</code>.</p>
+    {% endif %}
+    {% if link.detail %}<div class="banner warn" role="alert">{{ link.detail }}.</div>{% endif %}
+  </article>
+{% endfor %}
+</section>
+
+{% for link in found.links if link.state == "up" and link.key in ("prometheus", "alertmanager") %}
+<section class="panel">
+  <h2>{{ link.name }} alerts</h2>
+  {% if link.alerts %}
+  <div class="table-wrap"><table>
+    <thead><tr><th scope="col">Alert</th><th scope="col">Severity</th><th scope="col">State</th><th scope="col">Since</th><th scope="col">Summary</th></tr></thead>
+    <tbody>
+    {% for alert in link.alerts %}
+      <tr>
+        <td class="mono">{{ alert.name }}</td>
+        <td>{{ alert.severity or "—" }}</td>
+        <td><span class="pill {{ 's-failed' if alert.state == 'firing' else 's-abstained' }}">{{ alert.state }}</span></td>
+        <td class="nowrap">{{ alert.since | when }}</td>
+        <td>{{ alert.summary or "—" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% if link.more_alerts %}<p class="muted">{{ link.more_alerts }} more not shown; open {{ link.name }} for all of them.</p>{% endif %}
+  {% else %}<p class="empty">{{ link.name }} reports no alert.</p>{% endif %}
+</section>
+{% endfor %}
+{% endblock %}
