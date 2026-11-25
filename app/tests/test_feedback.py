@@ -309,3 +309,22 @@ def test_a_report_without_browser_details_still_files(governance: Governance, di
     client, seen = client_for(governance, dist)
     assert client.post("/api/feedback", json=REPORT).status_code == 201
     assert "Browser:" not in json.loads(seen[0].content)["body"]
+
+
+def test_server_status_counts_the_turns_holding_a_lock(governance: Governance, dist: Path) -> None:
+    client, _ = client_for(governance, dist)
+
+    def busy() -> int:
+        line = next(
+            line
+            for line in client.get("/server-status?auto").text.splitlines()
+            if line.startswith("BusyWorkers: ")
+        )
+        return int(line.removeprefix("BusyWorkers: "))
+
+    assert busy() == 0
+    release = governance.active_turns.hold(lambda: None)
+    assert busy() == 1
+    release()
+    release()
+    assert busy() == 0

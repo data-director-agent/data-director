@@ -5,11 +5,12 @@
 #   1. fetch the branch into the bare clone;
 #   2. pick the newest commit on the branch that passed CI, did not fail here before and is newer
 #      than the live one (pick() below); stop if there is none;
-#   3. build it into its own release directory (uv sync, the re3data registry, npm build of
+#   3. build it into its own release directory, unless the VM is short of memory (the pass waits) (uv sync, the re3data registry, npm build of
 #      app/web, the browser scanner's bundle);
-#   4. point /opt/data-director/current at it and ask for data-director.target to be restarted
-#      (restart() below);
-#   5. if the app does not report the new commit, point `current` back and restart again.
+#   4. once no turn is running (or after DD_DEPLOY_BUSY_LIMIT_MIN), point /opt/data-director/current
+#      at it and ask for data-director.target to be restarted, agents in batches (restart.sh);
+#   5. if the app does not report the new commit, or lists an agent unavailable that was not
+#      before, point `current` back and restart again.
 #
 # "Running" means the app reports the commit on /api/about, not only that `current` points at
 # it: if the restart did not happen, the old processes are still serving the old commit.
@@ -23,6 +24,10 @@
 #   DD_DEPLOY_KEEP        3               release directories kept, the live one included
 #   DD_DEPLOY_DEPTH       10              commits back from the tip that a pass looks at
 #   DD_DEPLOY_ABOUT_URL   http://127.0.0.1:7860/api/about   where the app names its commit
+#   DD_DEPLOY_STATUS_URL  http://127.0.0.1:7860/server-status?auto   where the app counts the turns running
+#   DD_DEPLOY_MIN_MEMORY_MB    600        a build waits while less memory than this is available; 0 never waits
+#   DD_DEPLOY_BUSY_LIMIT_MIN   120        minutes a built release waits for the turns running to end
+#   DD_DEPLOY_HEALTH_TIMEOUT   120        seconds the app has to report the new commit and its agents
 #   GITHUB_TOKEN          (unset)         only for a private repository or the API rate limit
 #
 # A pass does nothing while DD_DEPLOY_ROOT/deploy.paused exists (deploy/README.md, "Holding
@@ -30,8 +35,8 @@
 # then, when the pass removes it and goes on. A file that names no time it can read holds them back
 # too, so a mistyped pause still pauses.
 #
-# `deploy.sh --force` deploys the tip, skipping the CI check, the record of failed commits and any
-# pause.
+# `deploy.sh --force` deploys the tip, skipping the CI check, the record of failed commits, any
+# pause, the wait for memory and the wait for turns.
 #
 # `deploy.sh --bootstrap [sha]` is the way out when this script, the copy in the live release, is
 # what stops a deployment: it points `current` at a release that is already built (sha, or the
@@ -55,7 +60,12 @@ export UV_PYTHON_INSTALL_DIR="${UV_PYTHON_INSTALL_DIR:-$ROOT/python}"
 ABOUT_URL="${DD_DEPLOY_ABOUT_URL:-http://127.0.0.1:7860/api/about}"
 # Seconds the app has to report the new commit after a restart: the agents get 60 (wait-for-ports.sh) and the
 # app then reads their cards.
-HEALTH_TIMEOUT=120
+HEALTH_TIMEOUT="${DD_DEPLOY_HEALTH_TIMEOUT:-120}"
+# Memory and turns hold a pass back without failing it: nothing is recorded, and the next pass tries again.
+MIN_MEMORY_MB="${DD_DEPLOY_MIN_MEMORY_MB:-600}"
+BUSY_LIMIT_MIN="${DD_DEPLOY_BUSY_LIMIT_MIN:-120}"
+STATUS_URL="${DD_DEPLOY_STATUS_URL:-http://127.0.0.1:7860/server-status?auto}"
+MEMINFO="${DD_DEPLOY_MEMINFO:-/proc/meminfo}"
 # Seconds after a commit's date before "no CI run at all" is reported as a problem, not a wait.
 MISSING_CHECK_GRACE=1800
 
@@ -75,6 +85,8 @@ case "${1:-}" in
     ;;
 esac
 
+# Root's copy, installed from the clone (install.sh), like the restart unit that runs it.
+RESTART="${DD_RESTART_SCRIPT:-/usr/local/lib/data-director/restart.sh}"
 BARE="$ROOT/repo.git"
 RELEASES="$ROOT/releases"
 CURRENT="$ROOT/current"
@@ -96,7 +108,7 @@ running_commit() {
 # Root (a --bootstrap by hand) restarts them directly.
 restart() {
   if ((EUID == 0)); then
-    systemctl restart data-director.target 9>&-
+    "$RESTART" 9>&-
     return
   fi
   systemctl is-active --quiet data-director-restart.path ||
@@ -112,11 +124,28 @@ link() {
   mv -T "$ROOT/current.new" "$CURRENT"
 }
 
-# Wait until the app reports the given commit.
+# The agents the app lists as unavailable or built against another contract, one a line, sorted;
+# nothing if it does not answer.
+missing_agents() {
+  curl --fail --silent --max-time 5 "$ABOUT_URL" 2>/dev/null |
+    jq -r '((.unavailable // []) + (.incompatible // []))[]' 2>/dev/null | sort -u || true
+}
+
+# Wait until the app reports the given commit and lists no agent missing that is not in $2 (the
+# agents missing before the switch), so that a release whose agent does not start is rolled back,
+# and an agent that was already down does not roll back every release. The app retries the
+# missing agents as /api/about is asked (dd_app.about_refresh).
 healthy() {
-  local deadline=$((SECONDS + HEALTH_TIMEOUT))
-  until [[ "$(running_commit)" == "$1" ]]; do
-    ((SECONDS >= deadline)) && return 1
+  local deadline=$((SECONDS + HEALTH_TIMEOUT)) added=""
+  while true; do
+    if [[ "$(running_commit)" == "$1" ]]; then
+      added="$(comm -13 <(printf '%s\n' "${2:-}" | sort -u) <(missing_agents))"
+      [[ -z "$added" ]] && return 0
+    fi
+    if ((SECONDS >= deadline)); then
+      [[ -n "$added" ]] && log "unavailable after the restart: $(tr '\n' ' ' <<<"$added")" >&2
+      return 1
+    fi
     sleep 2
   done
 }
@@ -126,6 +155,20 @@ exec 9>"$ROOT/deploy.lock"
 # Created by root, the lock would be unusable by the deploy user's next pass.
 if ((EUID == 0)); then chown --reference="$ROOT" "$ROOT/deploy.lock"; fi
 flock -n 9 || { log "another deployment is running"; exit 0; }
+
+# Megabytes of memory available to start something, which counts what the kernel can reclaim;
+# unlimited if the VM does not say.
+available_mb() {
+  awk '/^MemAvailable:/ { print int($2 / 1024); found = 1 } END { if (!found) print 1000000 }' "$MEMINFO"
+}
+
+# The number of turns the app is running, or 0 if it does not say (a pass must not wait for ever
+# on an app that is down).
+busy_turns() {
+  local n
+  n="$(curl --fail --silent --max-time 5 "$STATUS_URL" 2>/dev/null | sed -n 's/^BusyWorkers: *//p')" || true
+  [[ "$n" =~ ^[0-9]+$ ]] && echo "$n" || echo 0
+}
 
 # --- Bootstrap ---------------------------------------------------------------------------------
 
@@ -164,12 +207,14 @@ bootstrap() {
   fi
 
   log "$short: bootstrapping (was ${prev_short:-nothing})"
+  local missing
+  missing="$(missing_agents)"
   link "$release"
   if ! (restart); then
     [[ -n "$previous" ]] && link "$previous"
     exit 1
   fi
-  if ! healthy "$sha"; then
+  if ! healthy "$sha" "$missing"; then
     if [[ -n "$previous" ]]; then
       log "$short: the app did not report $short at $ABOUT_URL; putting $prev_short back"
       link "$previous"
@@ -293,8 +338,9 @@ if [[ -z "$sha" || "$sha" == "$live" ]]; then
   running="$(running_commit)"
   if [[ -n "$live" && -n "$running" && "$running" != "$live" ]]; then
     log "${live:0:12}: is current but the app reports ${running:0:12}; restarting"
+    missing="$(missing_agents)"
     restart
-    healthy "$live" || die "${live:0:12}: the app did not report ${live:0:12} at $ABOUT_URL after a restart"
+    healthy "$live" "$missing" || die "${live:0:12}: the app did not report ${live:0:12} at $ABOUT_URL after a restart"
     log "${live:0:12}: live"
   fi
   exit 0
@@ -307,6 +353,11 @@ short="${sha:0:12}"
 # source, and the virtual environment records its own path, so neither can be moved afterwards.
 release="$RELEASES/$sha"
 if [[ ! -f "$release/.built" ]]; then
+  # A build beside a VM that is already swapping makes it worse (#1616). Wait, and record nothing.
+  if ((FORCE == 0 && MIN_MEMORY_MB > 0)) && (($(available_mb) < MIN_MEMORY_MB)); then
+    log "$short: not building: $(available_mb) MB of memory is available, less than DD_DEPLOY_MIN_MEMORY_MB ($MIN_MEMORY_MB); will try again"
+    exit 0
+  fi
   log "$short: building"
   rm -rf "$release"
   mkdir -p "$release"
@@ -342,8 +393,21 @@ fi
 
 # --- 4. Switch ---------------------------------------------------------------------------------
 
+# A restart cuts off the turns running, so wait for them to end, up to a limit so that a deployment
+# with people always at work is not held back for ever. The built release is kept: the next pass
+# switches to it without building.
+if ((FORCE == 0)); then
+  built_age=$((($(date +%s) - $(stat -c %Y "$release/.built")) / 60))
+  turns="$(busy_turns)"
+  if ((turns > 0 && built_age < BUSY_LIMIT_MIN)); then
+    log "$short: built, but $turns turn(s) are running; will switch when they end (or after $((BUSY_LIMIT_MIN - built_age)) more minutes)"
+    exit 0
+  fi
+fi
+
 previous=""
 [[ -L "$CURRENT" ]] && previous="$(readlink -f "$CURRENT")"
+missing="$(missing_agents)"
 
 was="${live:0:12}"
 log "$short: going live (was ${was:-nothing})"
@@ -357,13 +421,13 @@ fi
 
 # --- 5. Check, or roll back --------------------------------------------------------------------
 
-if ! healthy "$sha"; then
+if ! healthy "$sha" "$missing"; then
   echo "$sha" >>"$FAILED"
   if [[ -n "$previous" ]]; then
     log "$short: the app did not report $short at $ABOUT_URL; rolling back to ${live:0:12}"
     link "$previous"
     restart
-    healthy "$live" || die "${live:0:12} did not answer after the rollback either"
+    healthy "$live" "$missing" || die "${live:0:12} did not answer after the rollback either"
   fi
   die "$short: the app did not report $short at $ABOUT_URL"
 fi

@@ -36,7 +36,8 @@ on loopback alone and is reached through an SSH tunnel.
 | `credentials.sh` | Turns the files in `/etc/data-director/credentials/<agent>/` into that agent's credentials drop-in. `install.sh` and `secret.sh` use it. |
 | `install.sh` | Run once as root: packages, Node 22, uv, the `datadirector` user, directories, units, NGINX site (in place of the packaged default site), first deployment. Run again to install changed units or NGINX config. With `--gateway`, also runs the [LiteLLM gateway](#the-litellm-gateway). |
 | `deploy.sh` | One pass of the deployment (fetch, check CI, build, switch, check health, roll back). |
-| `deploy.env.example` | `deploy.sh`'s settings: repository, branch, check name, releases kept. |
+| `restart.sh` | Restarts the target's units, the agents a few at a time and the app last. `install.sh` installs it to `/usr/local/lib/data-director/`; `data-director-restart.service` runs it as root. |
+| `deploy.env.example` | `deploy.sh`'s settings: repository, branch, check name, releases kept, when a build or a switch waits. |
 | `systemd/data-director.target` | The app and the agents, started and restarted together. It names no agent: `apply` writes which agents it starts. |
 | `systemd/data-director-app.service` | The app (`data-director`), on 127.0.0.1:7860. |
 | `systemd/data-director-workbench.service` | The workbench (`workbench serve`), on 127.0.0.1:8000, for admins only. Part of the target once `install.sh` enables it. |
@@ -47,7 +48,7 @@ on loopback alone and is reached through an SSH tunnel.
 | `llm-gateway/` | The LiteLLM gateway: its compose file, models, admin script and tests ([its README](llm-gateway/README.md)). |
 | `systemd/data-director-agent@.service` | One agent per instance, named as in `app/config/agents.yaml` (`@example-hello`, `@advisor-quality`, …): each agent `deployment.yaml` runs. |
 | `systemd/data-director-deploy.{service,timer}` | Runs `deploy.sh` every five minutes. |
-| `systemd/data-director-restart.{path,service}` | Restart `data-director.target`, as root, when `deploy.sh` writes `/opt/data-director/restart-requested`. The deploy user has no sudo rule. |
+| `systemd/data-director-restart.{path,service}` | Restart `data-director.target`'s units (`restart.sh`), as root, when `deploy.sh` writes `/opt/data-director/restart-requested`. The deploy user has no sudo rule. |
 | `agents/<name>.env` | Each agent's port, which must match `app/config/agents.yaml`. |
 | `../scripts/check_systemd.sh` | Lints the units with `systemd-analyze verify` and systemdlint; run it before changing one. CI runs it. |
 | `systemd-lint-baseline.txt` | The systemdlint findings accepted, each with its reason. A new finding fails the check; so does a line that no longer matches one. |
@@ -346,23 +347,46 @@ curl -s http://127.0.0.1:7860/api/about                 # which commit is runnin
 
 `deploy.sh` waits while CI is running, and skips a commit whose CI failed until it passes on a
 re-run. If the app does not report the new commit on `/api/about` within two minutes of
-starting, it puts the previous release back, records the commit in `failed-commits`, and the
-deploy unit fails, which `systemctl --failed` shows.
+starting, or it lists an agent as unavailable (or built against another contract) that it did not
+before the switch, it puts the previous release back, records the commit in `failed-commits`, and
+the deploy unit fails, which `systemctl --failed` shows. An agent that was already down does not
+roll a release back.
 
 `deploy.sh` runs nothing as root and needs no sudo rule. To restart the services it writes
 `/opt/data-director/restart-requested`, and `data-director-restart.path`, which root installed,
-restarts `data-director.target`. The path unit can do that one thing and no other. If it is not
+restarts the target's units, the agents four at a time (`DD_RESTART_BATCH`) and the app last, so
+that sixteen agents do not load at once. The path unit can do that one thing and no other. If it is not
 active, `deploy.sh` puts the link back and the deploy unit fails on every pass, while the old
 release goes on running: the About page shows an old commit. Re-run `install.sh` to install and
 start it, or on a host where sudoers or `install.sh` is out of reach:
 
 ```bash
+sudo install -d /usr/local/lib/data-director
+sudo install -m 0755 /opt/data-director/current/deploy/restart.sh /usr/local/lib/data-director/restart.sh
 sudo install -m 0644 /opt/data-director/current/deploy/systemd/data-director-restart.{path,service} /etc/systemd/system/
 sudo systemctl daemon-reload && sudo systemctl enable --now data-director-restart.path
 ```
 
 A deployment that failed to restart needs this once. If the About page still shows an old commit
 afterwards, see [The app shows an old commit](#the-app-shows-an-old-commit).
+
+### A build and a switch on a small VM
+
+A build (`uv sync`, two `npm ci` runs, two front-end builds) beside the live stack can push a
+small VM into swap: on 24 November 2026 a build that takes about two minutes on an idle VM took
+twenty with a workshop running, and the restart that followed started every service at once
+([#1616](https://github.com/data-director-agent/data-director/issues/1616)). So:
+
+- The deploy unit runs at the lowest CPU and disk priority, with a memory budget: slowed past
+  `MemoryHigh=1G`, killed past `MemoryMax=1500M`, and Node limited to a 768 MB heap
+  (`NODE_OPTIONS`). A killed build leaves no `.built`, and the next pass starts it again.
+- A pass does not start a build while less than `DD_DEPLOY_MIN_MEMORY_MB` (600) is available. It
+  says so in `journalctl -u data-director-deploy`, records nothing, and tries again in five
+  minutes. A VM that always sits below the figure never deploys: lower it, or set `0`.
+- A built release is not switched in while the app is running a turn (`BusyWorkers` on the app's
+  loopback-only `/server-status`). It stays built, and the pass that sees no turn switches at once. After
+  `DD_DEPLOY_BUSY_LIMIT_MIN` (120) minutes it switches anyway. `deploy.sh --force` waits for neither.
+- The restart goes by batches, as above.
 
 To deploy a commit by hand anyway, or to retry one that failed to start (after removing it from
 `failed-commits`):
@@ -410,7 +434,8 @@ sudo rm /opt/data-director/deploy.paused
 
 While paused, each pass says so in `journalctl -u data-director-deploy`, and `data-director doctor`
 reports it. A file that does not hold a time `date` can read holds deployments back until it is
-removed. `deploy.sh --force` deploys through a pause. A crash still restarts the app
+removed. `deploy.sh --force` deploys through a pause. Without a pause, a deployment still waits
+for the turns running, for up to two hours ([A build and a switch on a small VM](#a-build-and-a-switch-on-a-small-vm)). A crash still restarts the app
 (`Restart=on-failure`), and still signs nobody out.
 
 ### The app shows an old commit

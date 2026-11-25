@@ -323,6 +323,8 @@ async def server_status(request: Request, deps: Deps) -> Response:
         f"ServerVersion: data-director/{deps.identity.get('app_version')}",
         f"ServerUptimeSeconds: {uptime}",
         f"Uptime: {uptime}",
+        # The turns running now: deploy.sh waits for none before it restarts the app.
+        f"BusyWorkers: {deps.governance.active_turns.count}",
     ]
     return Response("\n".join(lines) + "\n", media_type="text/plain")
 

@@ -19,6 +19,17 @@ Environment=UV_PYTHON_INSTALL_DIR=/opt/data-director/python
 ExecStart=/opt/data-director/current/deploy/deploy.sh
 # A first build downloads Python, the locked packages and the shell's npm packages.
 TimeoutStartSec=30min
+# The build shares the VM with the people using it: on a 3.8 GiB VM an unbounded one pushed the
+# stack into swap for twenty minutes (#1616). It gets the least CPU and disk, and a memory budget:
+# past MemoryHigh the kernel slows it, past MemoryMax it is killed, leaving no .built, so the next
+# pass starts again. NODE_OPTIONS keeps each Node build's heap inside that budget.
+Nice=19
+IOSchedulingClass=idle
+CPUWeight=20
+IOWeight=20
+MemoryHigh=1G
+MemoryMax=1500M
+Environment=NODE_OPTIONS=--max-old-space-size=768
 SyslogIdentifier=data-director-deploy
 # deploy.sh restarts the services by writing /opt/data-director/restart-requested, which
 # data-director-restart.path watches. It runs no command as root.

@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from dd_app.about_refresh import AboutRefresh
+from dd_app.active_turns import ActiveTurns
 from dd_app.attached import keep_attached
 from dd_app.config import DEFAULT_PROJECTS_DIR, DEFAULT_REPOSITORIES_DIR
 from dd_app.documentation_check import accept
@@ -126,6 +127,8 @@ class Governance:
     # Each conversation's turn lock: the run store's, shared by app processes over one store, or,
     # built without one (a test), this process's alone (docs/specs/app.md, "Turn locks").
     turn_locks: ConversationLocks = field(default_factory=LocalConversationLocks, repr=False)
+    # The turns holding a lock now, which a deployment waits for (`GET /server-status`).
+    active_turns: ActiveTurns = field(default_factory=ActiveTurns, repr=False)
     # Conversations started in this process that have no turn yet, in no project, each with the
     # `principal_id` of whoever started it. Only an app that keeps no projects (a test) fills it,
     # so it is this process's alone. There is no conversation store (docs/specs/orchestration.md):
@@ -294,6 +297,7 @@ class Governance:
                 "conversation once it has been answered, then send the message again if it is "
                 "still needed."
             )
+        release = self.active_turns.hold(release)
         try:
             found = await asyncio.to_thread(self.stored_conversation, conversation_id)
             # Someone else's conversation is answered as one that does not exist (#153).
