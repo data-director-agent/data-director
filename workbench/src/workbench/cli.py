@@ -33,6 +33,7 @@ from dd_harness.sources import SourceConfigError
 from dd_harness.storage import SOURCES
 from dd_sdk.contract.models import InvocationRequest, OpenInput
 from dd_sdk.credentials import ConfigError
+from dd_sdk.serve import EXIT_CONFIG
 from dd_sdk.tracing import records_from_jsonl
 from workbench.config import CONFIG_DIR_FILES, CONFIG_DIR_VARIABLE, settings_from_env
 
@@ -226,7 +227,9 @@ def main(argv: list[str] | None = None) -> int:
         result: int = args.func(args)
     # No principal (docs/specs/policy-and-identity.md), a path the deployment must name
     # (docs/specs/system.md), or a profile, agent list or source list that is missing or malformed:
-    # nothing may run.
+    # nothing may run. The exit status is `EXIT_CONFIG`, which the unit does not restart on
+    # (`RestartPreventExitStatus=`): the workbench would only stop again, each time loading the
+    # whole harness first.
     except (
         IdentityError,
         SettingsError,
@@ -235,7 +238,8 @@ def main(argv: list[str] | None = None) -> int:
         SourceConfigError,
         ConfigError,
     ) as exc:
-        sys.exit(f"workbench: {exc}")
+        sys.stderr.write(f"workbench: {exc}\n")
+        return EXIT_CONFIG
     return result
 
 

@@ -7,6 +7,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -51,10 +52,14 @@ def test_a_missing_configuration_file_is_a_one_line_error(
     message: str,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setenv(variable, str(tmp_path / "nonexistent.yaml"))
-    with pytest.raises(SystemExit, match=f"^workbench: {message}"):
-        cli.main(command)
+    # The status a unit does not restart on, so a misconfigured workbench stops, not loops.
+    assert cli.main(command) == serve.EXIT_CONFIG
+    lines = capsys.readouterr().err.splitlines()
+    assert len(lines) == 1
+    assert re.match(f"workbench: {message}", lines[0])
 
 
 # --- agents -----------------------------------------------------------------------------------

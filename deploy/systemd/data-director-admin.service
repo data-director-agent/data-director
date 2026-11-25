@@ -16,6 +16,10 @@ Documentation=https://github.com/data-director-agent/data-director/blob/main/dep
 After=network-online.target
 Wants=network-online.target
 PartOf=data-director.target
+# Give up after ten starts in five minutes. systemd's default (five in ten seconds) never trips on
+# RestartSec=5 plus a slow start, so a unit that cannot start would loop for ever.
+StartLimitIntervalSec=300
+StartLimitBurst=10
 
 [Service]
 Type=exec
