@@ -16,7 +16,8 @@ including any data archiving requirement (Juliet). A journal's record links to i
 It is read live only. Jisc licenses the data under CC BY-NC-ND 4.0, and the API is for
 non-commercial use. No-derivatives rules out the projected registry a snapshot would be built
 into, and Jisc states no rate limit, so there is no snapshot to fall back to: when the route
-fails, the agent says so and carries on with FAIRsharing (docs/specs/dependencies.md).
+fails, the agent says so and carries on with FAIRsharing (docs/specs/dependencies.md). The terms
+of use, the credit shown and what a run keeps are in data/open-policy-finder/SOURCE.md.
 
 The requests follow Jisc's developer documentation
 (https://openpolicyfinder.jisc.ac.uk/help/developers/api-types/object-retrieval-api): the item
@@ -386,7 +387,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     sub = parser.add_subparsers(dest="command", required=True)
     run = sub.add_parser("check", help="ask the live API for a few known records")
-    run.add_argument("--record", type=Path, help="write each answer, as projected, to this folder")
+    run.add_argument(
+        "--record",
+        type=Path,
+        help="write each answer, as projected, to this folder (Jisc's content, CC BY-NC-ND 4.0: "
+        "commit it only as data/open-policy-finder/SOURCE.md allows)",
+    )
     args = parser.parse_args(argv)
     from dd_sdk.credentials import ConfigError, api_key
 

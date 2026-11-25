@@ -67,7 +67,7 @@ The Policy Adviser shows what the data and open access policies of your funders,
 
 **You give it** the funders, journals and institution behind your project, and optionally your discipline, kinds of data and publication date. You can add a policy web address or attach your institution's policy or award letter.
 
-**You get back** the matching policy records from FAIRsharing and Jisc Open Policy Finder, and what each asks (depositing data, a repository, a licence), with a quote. It flags where policies differ, and asks which organisation you mean when a name is ambiguous.
+**You get back** the matching policy records from FAIRsharing and Jisc Open Policy Finder, and what each asks (depositing data, a repository, a licence), with a quote. Open Policy Finder's data is licensed CC BY-NC-ND 4.0; only the quote is Jisc's wording, and the summary of what each asks is the model's reading. It flags where policies differ, and asks which organisation you mean when a name is ambiguous.
 
 **It will not** decide which policy applies, give legal advice or confirm that you comply. Check each result against the policy itself.
 

@@ -105,7 +105,7 @@ no runtime dependency.
 | DataCite and Crossref REST (works) | `mcp-pid` | Live, through the tool gateway | A DOI | CC0; facts | The run says the resolver is unavailable |
 | ORCID public API | `dd_harness.orcid`; `mcp-pid` | Live, anonymous | An iD | Nothing kept; ORCID's API licence is for non-commercial use | As above |
 | Crossref grants and the OpenAIRE Graph API v4 (projects) | `mcp-pid`'s `grants` server | Live, through the tool gateway; OpenAIRE anonymously (60 requests an hour) or with a refresh token (7,200) | An award number or a grant DOI; never the funder's name, which narrows the answers locally | Crossref: facts; OpenAIRE: CC BY 4.0, with OpenAIRE credited | The other source answers, and the run says which failed |
-| Jisc Open Policy Finder, Crossref journals | Policy adviser (`opf`, `crossref`) | Live only | An ISSN, a journal title, a publisher or funder name | Nothing kept | FAIRsharing answers |
+| Jisc Open Policy Finder, Crossref journals | Policy adviser (`opf`, `crossref`) | Live only | An ISSN, a journal title, a publisher or funder name | No copy kept. Open Policy Finder: CC BY-NC-ND 4.0, API for non-commercial use, credited where shown (`agents/advisor-policy/data/open-policy-finder/SOURCE.md`); a run's evidence holds the record it cites | FAIRsharing answers |
 | Directory of Open Access Journals (DOAJ) | Policy adviser (`doaj`), through `mcp-doaj`'s client | Live only | An ISSN or a journal title | CC0 (metadata); nothing kept | The run says DOAJ could not be asked; the other registries answer |
 | PRONOM | `dd_inventory.identify`, through `opf-fido`; the files adviser, through `dd-formats` | For identification, a committed signature file built from a recent release by `inventory/scripts/pin_pronom.py`; for describing a format, the same release's records, committed as JSON Lines by `formats/scripts/pin_pronom_records.py`; each checked against its hash. A live record lookup is TODO(#1475) | Nothing: identification and lookup are local | Open Government Licence v3.0, kept with each copy (`LICENCE.md`) | Media types from extensions; a file with no PUID is described by extension only |
 | GA4GH Data Use Ontology (DUO) | Ethics adviser, through `dd-duo` | A committed copy of the current permissions and modifiers of one tagged release (`v2021-02-23`), reduced from its `duo.owl` by `duo/scripts/pin_duo.py` and checked against its hash | Nothing: lookup is local | CC BY 4.0, kept with the copy (`LICENCE.md`) | — |
@@ -173,7 +173,8 @@ Which licences are acceptable is not yet decided or enforced: TODO(#82).
   (#302, #905). Open Policy Finder's data is licensed CC BY-NC-ND 4.0 and its API is for
   non-commercial use: no-derivatives rules out the projected registry a pinned copy would be built
   into, and non-commercial would bind anyone reusing this repository, so there is no pinned copy
-  to fall back to. When its route fails, or no key is given, the run says so and FAIRsharing
+  to fall back to. Its terms, the credit the viewers show and what a run keeps are in the
+  source's `SOURCE.md`. When its route fails, or no key is given, the run says so and FAIRsharing
   still answers. Crossref is asked only for the publisher a journal belongs to. Their evidence is
   cited as `open-policy-finder:live:<date>` and `crossref-journals:live:<date>`, which the source
   check reports unresolved.

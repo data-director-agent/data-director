@@ -3,7 +3,8 @@
 The fixtures (`data/opf-*.json`, `data/crossref-journal-stoten.json`) follow the shape of the
 Sherpa v2 API, which Jisc says the Open Policy Finder platform replicates, and Crossref's journals
 API. They were written by hand, not recorded: no key was at hand. TODO(#302) replace them with
-answers recorded by `python -m dd_agent_advisor_policy.opf check --record`.
+answers recorded by `python -m dd_agent_advisor_policy.opf check --record`. Recorded answers are
+Jisc's content under CC BY-NC-ND 4.0: commit one only as data/open-policy-finder/SOURCE.md allows.
 
 The mocked `/retrieve` refuses, with a 400 as Jisc documents, a filter that uses an operator or
 field the documentation does not list for the item type, or more than three conditions.
