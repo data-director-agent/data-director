@@ -17,8 +17,11 @@
   "mcp-pid": "0.1.0-alpha.1",
   "mcp-fairsharing": "0.1.0-alpha.0",
   "mcp-spdx": "0.1.0-alpha.0",
+  "mcp-subjects": "0.1.0-alpha.0",
+  "mcp-doaj": "0.1.0-alpha.0",
   "units": "0.1.0-alpha.0",
   "registry-cache": "0.1.0-alpha.0",
   "subjects": "0.1.0-alpha.0",
-  "dmp-template": "0.1.0-alpha.0"
+  "dmp-template": "0.1.0-alpha.0",
+  "metadata-records": "0.1.0-alpha.0"
 }

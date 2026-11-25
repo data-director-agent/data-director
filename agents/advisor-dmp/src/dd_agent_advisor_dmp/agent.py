@@ -1,6 +1,9 @@
-"""advisor.dmp: the Data Management Plan Checker persona (docs/specs/agents.md). An alpha.
+"""advisor.dmp: the Data Management Planner persona (docs/specs/agents.md). An alpha.
 
-Serves `governance.dmp` (R8) and `setup.dmp-review`. Given a `DmpReviewRequest`, a model reviews
+Serves `setup.project`, `governance.dmp` (R8) and `setup.dmp-review`. Given a
+`ProjectDescriptionRequest`, it proposes what the project is and the data it will produce as
+project facts for the researcher to confirm, from what they said and, with a model, the documents
+they attached (`describe.py`). Given a `DmpReviewRequest`, a model reviews
 the plan the researcher attached against the core requirements of a plan, good practice and the
 decisions people in the project made (`review.py`, `review_model.py`); there is no rule behind the
 review, so with no model it abstains. Given `DmpCommitments`, the rest of this docstring applies.
@@ -36,9 +39,11 @@ from dd_agent_advisor_dmp.classes import (
     DmpCommitments,
     DmpDiscrepancies,
     DmpReviewRequest,
+    ProjectDescriptionRequest,
     Reconciliation,
     SharingCommitment,
 )
+from dd_agent_advisor_dmp.describe import Describer, TemplateDescriber, describe
 from dd_agent_advisor_dmp.match import (
     Matcher,
     Matches,
@@ -124,19 +129,27 @@ RENAMED = (
 class DmpChecker:
     spec = AgentSpec(
         agent_id="advisor.dmp",
-        version="0.3.0a1",
-        title="Data Management Plan Checker",
+        version="0.4.0a1",
+        title="Data Management Planner",
         icon="📋",
         description=(
-            "Alpha. With a model, reviews the data management plan the researcher attached "
-            "against Science Europe's core requirements, good practice and the decisions made in "
+            "Alpha. Describes a project before its data are collected: proposes what it is for, "
+            "its field of study, when it runs and the data it will produce, from what the "
+            "researcher said and, with a model, a proposal or award letter they attached, each "
+            "as a project fact they confirm, and says what is still needed. With a model, "
+            "reviews the data management plan the researcher attached against Science Europe's "
+            "core requirements, good practice and the decisions made in "
             "the project; and compares what a plan committed to share with what is planned at "
             "publication, listing each difference in output, repository, access or licence for a "
             "person to review. Its model also pairs renamed outputs and two names for one thing "
             "among what its rules leave over. Never enforces the plan."
         ),
         action_class="advise",
-        accepts=(ClassSchema.of(DmpCommitments), ClassSchema.of(DmpReviewRequest)),
+        accepts=(
+            ClassSchema.of(ProjectDescriptionRequest),
+            ClassSchema.of(DmpCommitments),
+            ClassSchema.of(DmpReviewRequest),
+        ),
         grounding_mode=GroundingMode.INPUT_ONLY,
         payload=ClassSchema.of(DmpDiscrepancies),
         derivations={
@@ -149,13 +162,15 @@ class DmpChecker:
             "section_findings.finding": Derived(Derivation.MODEL),
             "section_findings.reason": Derived(Derivation.MODEL),
             "section_findings.message": Derived(Derivation.TEMPLATE),
+            "still_needed": Derived(Derivation.TEMPLATE),
             "dropped": Derived(Derivation.TEMPLATE),
             "limitations": Derived(Derivation.TEMPLATE),
         },
-        serves=("governance.dmp", "setup.dmp-review"),
+        serves=("setup.project", "governance.dmp", "setup.dmp-review"),
         reads_attached=(
-            "to review your data management plan, and to find its commitments to share your "
-            "data, which you then confirm or correct"
+            "to propose what your project is and the data it will produce from a proposal or "
+            "award letter, to review your data management plan, and to find its commitments to "
+            "share your data, each of which you then confirm or correct"
         ),
     )
 
@@ -164,12 +179,16 @@ class DmpChecker:
         matcher: Matcher | None = None,
         reader: PlanReader | None = None,
         reviewer: Reviewer | None = None,
+        describer: Describer | None = None,
     ) -> None:
         self.matcher: Matcher = TemplateMatcher() if matcher is None else matcher
         self.reader: PlanReader = TemplateReader() if reader is None else reader
         self.reviewer: Reviewer = TemplateReviewer() if reviewer is None else reviewer
+        self.describer: Describer = TemplateDescriber() if describer is None else describer
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
+        if isinstance(request.input, ProjectDescriptionRequest):
+            return describe(request.input, self.describer, ctx)
         if isinstance(request.input, DmpReviewRequest):
             return self._review(request.input, ctx)
         commitments = request.input
@@ -235,11 +254,12 @@ class DmpChecker:
     def _review(self, asked: DmpReviewRequest, ctx: RunContext) -> AgentResult:
         """A model's review of the attached plan; with no model, or none of its readings usable, the
         agent abstains, because nothing else reviews a plan."""
-        plan = plan_of(asked.project_documents)
+        plan = plan_of(asked.project_documents, asked.project_plan_approved)
         if plan is None:
             return abstain(
                 ReasonCode.INSUFFICIENT_INPUT,
-                "Attach your data management plan to the project, and ask for a review again.",
+                "Write and approve a data management plan in the project, or attach yours, and "
+                "ask for a review again.",
             )
         if self.reviewer.model_id is None:
             return abstain(
@@ -255,15 +275,14 @@ class DmpChecker:
                     status=OutcomeStatus.ABSTAINED,
                     reason_code=ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
                     statement=(
-                        f"It could not review '{plan.documentation_name}', because {read.unused} "
+                        f"It could not review '{plan.name}', because {read.unused} "
                         f"({read.model_id}). Try again."
                     ),
                 ),
                 **used,
             )
-        which = "the project's plan" if plan.documentation_is_plan else "the latest attached"
         statement = (
-            f"It reviewed '{plan.documentation_name}', {which}. {counted(read.findings)}. "
+            f"It reviewed '{plan.name}', {plan.which}. {counted(read.findings)}. "
             f"{_how_reviewed(read)} Each finding is advice for you to judge: the plan is not "
             "changed."
         )

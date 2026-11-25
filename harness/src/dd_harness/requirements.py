@@ -13,10 +13,14 @@ kept as YAML under `DD_REPOSITORIES_DIR`:
 A choice resolves to the repository's override, if the deployment has one, and the standard's
 set: the one the override names in `conforms_to`, else one the repository's re3data record
 declares, else DataCite's, with a warning. The two are merged. A field is identified by its
-property, qualifier and schema.org term; an override may add one, or raise one from recommended
-to required, label it and say where its value is supplied, but never lower one. Documents, and
-the properties the repository fills in itself, are the union of both, and a kind either requires
-is required. Media types, sizes and licences come from the override alone.
+property, qualifier and term, compared as the term's full IRI; an override may add one, or raise
+one from recommended to required, label it and say where its value is supplied, but never lower
+one. Documents, and the properties the repository fills in itself, are the union of both, and a
+kind either requires is required. Media types, sizes and licences come from the override alone.
+
+A field's term may be left out: it is the one the standard's definition gives the field's
+property and qualifier (docs/specs/metadata-standards.md). A field that names a term the definition
+gives otherwise is refused, and so is a set whose standard no registered definition covers.
 
 Every set is checked when it is loaded, so a deployment whose sets are malformed, of neither
 kind, or contradict one another does not start. Recording the choice in a project is
@@ -28,6 +32,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
@@ -36,6 +41,17 @@ from typing import Any
 
 import yaml
 
+from dd_harness.metadata_standards import registered
+from dd_harness.requirement_terms import defined_terms, definition_problem
+from dd_harness.standard_choice import (
+    PREFERENCE_FILE,
+    StandardChoiceError,
+    StandardReason,
+    choose,
+    load_preference,
+    ordered,
+)
+from dd_metadata_records import Standards
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
     RE3DATA_ID_PATTERN,
@@ -45,6 +61,9 @@ from dd_sdk.contract.models import (
     RequirementField,
     RequirementSet,
 )
+from dd_sdk.contract.requirements import expand_term, legacy_term
+
+log = logging.getLogger(__name__)
 
 STANDARDS_DIR = "standards"
 OVERRIDES_DIR = "overrides"
@@ -99,6 +118,8 @@ class Resolved:
     standard: LoadedSet
     override: LoadedSet | None
     warnings: tuple[str, ...]
+    # Why the standard is the one it is (`dd_harness.standard_choice`).
+    standard_reason: StandardReason = StandardReason.OVERRIDE
 
     @property
     def re3data_id(self) -> str | None:
@@ -174,6 +195,8 @@ class Requirements:
         standards: Iterable[LoadedSet],
         overrides: Iterable[LoadedSet],
         suggested: Sequence[str] = (),
+        definitions: Standards | None = None,
+        preference: Sequence[str] | None = None,
     ) -> None:
         for repository_id in suggested:
             if not REPOSITORY_ID.fullmatch(repository_id):
@@ -201,8 +224,16 @@ class Requirements:
                 f"no standard's set conforms to {DATACITE}: DataCite's is the one a repository "
                 "is checked against when it declares no other (docs/specs/deposit.md)"
             )
+        try:
+            self.preferred = ordered(self.standards, preference, DATACITE)
+        except StandardChoiceError as exc:
+            raise RequirementsError(str(exc)) from exc
         for override in self.overrides:
             self._check_override(override)
+        for loaded in self.all:
+            problem = definition_problem(loaded.requirement_set, definitions or registered())
+            if problem is not None:
+                raise RequirementsError(problem)
 
     @property
     def suggested(self) -> tuple[str, ...]:
@@ -215,6 +246,11 @@ class Requirements:
     def all(self) -> list[LoadedSet]:
         return [*self.standards, *self.overrides]
 
+    def standard_set(self, conforms_to: str) -> RequirementSet | None:
+        """The standard's set for `conforms_to`, without any repository's override."""
+        found = self._by_standard.get(conforms_to)
+        return found.requirement_set if found else None
+
     def connector(self, repository_id: str) -> DepositConnector | None:
         """How the harness may deposit a draft to the repository through its API, as its override
         says now; None when it is deposited to by hand. Read when a deposit is approved, not when
@@ -224,10 +260,17 @@ class Requirements:
         return None if override is None else override.requirement_set.deposit
 
     def resolve(
-        self, repository_id: str, repository_name: str, declared_standards: Sequence[str] = ()
+        self,
+        repository_id: str,
+        repository_name: str,
+        declared_standards: Sequence[str] = (),
+        chosen: str | None = None,
     ) -> Resolved:
-        """What a repository's requirements are, from its identifier and the metadata standards
-        its registry record declares. Raises `RequirementsError` for a malformed identifier."""
+        """What a repository's requirements are, from its identifier, the metadata standards its
+        registry record declares and, if a person chose one, the `conforms_to` of the standard
+        they chose (`dd_harness.standard_choice`). Raises `RequirementsError` for a malformed
+        identifier, or a chosen standard the deployment has no set for or the override is not
+        written for."""
         if not REPOSITORY_ID.fullmatch(repository_id):
             raise RequirementsError(
                 f"{repository_id!r} is neither a re3data identifier (r3d + 9 digits) nor a "
@@ -236,30 +279,33 @@ class Requirements:
         if not repository_name.strip():
             raise RequirementsError("a chosen repository needs its name")
         declared = tuple(dict.fromkeys(declared_standards))
-        warnings: list[str] = []
         override = self._by_repository.get(repository_id)
-        if override is not None:
-            standard = self._by_standard[override.requirement_set.conforms_to]
-        else:
-            matching = [
-                s for s in self.standards if set(s.requirement_set.re3data_names) & set(declared)
-            ]
-            if matching:
-                standard = matching[0]
-            else:
-                standard = self._by_standard[DATACITE]
-                listed = ", ".join(declared) if declared else "none"
-                warnings.append(
-                    f"re3data does not list DataCite for {repository_name} (it lists: {listed}); "
-                    "its requirements are checked against DataCite's"
-                )
+        try:
+            choice = choose(
+                self.preferred,
+                self._by_standard[DATACITE],
+                override=override,
+                repository_name=repository_name,
+                declared=declared,
+                chosen=chosen,
+            )
+        except StandardChoiceError as exc:
+            raise RequirementsError(str(exc)) from exc
+        standard, warnings = choice.standard, list(choice.warnings)
+        if override is None:
             warnings.append(
                 f"the deployment has no override for {repository_name}: only "
                 f"{standard.requirement_set.title} is checked, not the repository's own form, "
                 "formats, sizes or licences"
             )
         return Resolved(
-            repository_id, repository_name, declared, standard, override, tuple(warnings)
+            repository_id,
+            repository_name,
+            declared,
+            standard,
+            override,
+            tuple(warnings),
+            choice.reason,
         )
 
     def _check_override(self, override: LoadedSet) -> None:
@@ -286,14 +332,22 @@ class Requirements:
                 )
 
 
-def load_requirements(directory: Path) -> Requirements:
-    """Load the sets under `directory`. The path is the operator's, never a caller's."""
+def load_requirements(directory: Path, definitions: Standards | None = None) -> Requirements:
+    """Load the sets under `directory`, reading each field's term from its standard's definition
+    in `definitions`, the registered ones by default. The path is the operator's, never a
+    caller's."""
     if not directory.is_dir():
         raise RequirementsError(f"repository requirements not found at {directory}")
     schema = ClassSchema.of(RequirementSet)
-    standards = [_load(p, schema, override=False) for p in _files(directory / STANDARDS_DIR)]
-    overrides = [_load(p, schema, override=True) for p in _files(directory / OVERRIDES_DIR)]
-    return Requirements(standards, overrides, _suggested(directory / SUGGESTED_FILE))
+    found = definitions or registered()
+    standards = [_load(p, schema, found, override=False) for p in _files(directory / STANDARDS_DIR)]
+    overrides = [_load(p, schema, found, override=True) for p in _files(directory / OVERRIDES_DIR)]
+    try:
+        preference = load_preference(directory / PREFERENCE_FILE)
+    except StandardChoiceError as exc:
+        raise RequirementsError(str(exc)) from exc
+    suggested = _suggested(directory / SUGGESTED_FILE)
+    return Requirements(standards, overrides, suggested, found, preference)
 
 
 def _suggested(path: Path) -> list[str]:
@@ -314,7 +368,7 @@ def _files(directory: Path) -> list[Path]:
     return sorted(directory.glob("*.yaml")) if directory.is_dir() else []
 
 
-def _load(path: Path, schema: ClassSchema, *, override: bool) -> LoadedSet:
+def _load(path: Path, schema: ClassSchema, definitions: Standards, *, override: bool) -> LoadedSet:
     raw = path.read_bytes()
     try:
         data = yaml.safe_load(raw)
@@ -322,6 +376,7 @@ def _load(path: Path, schema: ClassSchema, *, override: bool) -> LoadedSet:
         raise RequirementsError(f"{path}: not YAML: {exc}") from exc
     if not isinstance(data, dict):
         raise RequirementsError(f"{path}: not a mapping")
+    data = defined_terms(_legacy_terms(path, data), definitions)
     errors = schema.errors(data)
     if errors:
         raise RequirementsError(f"{path}: not a RequirementSet: {'; '.join(errors)}")
@@ -375,21 +430,38 @@ def _misplaced(found: RequirementSet) -> list[str]:
 
 
 def _field_key(field: RequirementField) -> tuple[str, str, str]:
-    return field.property, json.dumps(field.qualifier, sort_keys=True), field.schema_org
+    return field.property, json.dumps(field.qualifier, sort_keys=True), expand_term(field.term)
+
+
+def _legacy_terms(path: Path, data: dict[str, Any]) -> dict[str, Any]:
+    """A set whose fields name a schema.org local name in `schema_org`, as sets did before terms
+    were IRIs, read with `schema:` terms (#1357), and a warning to rewrite it."""
+    fields = data.get("fields")
+    if not isinstance(fields, list) or not any(
+        isinstance(f, dict) and "schema_org" in f for f in fields
+    ):
+        return data
+    log.warning(
+        "%s: a field names schema_org, read as a schema: term; write it as term instead "
+        "(docs/specs/deposit.md)",
+        path,
+    )
+    return {**data, "fields": [legacy_term(f) for f in fields]}
 
 
 def _distinct_terms(set_id: str, fields: Iterable[RequirementField]) -> None:
-    """Refuse two fields, of a set or of an override merged on its standard, that share a
-    schema.org term. A record's values are checked under their field's term, so the value of one
-    would satisfy the other: a lineage mapped to `description` would pass on the abstract alone."""
+    """Refuse two fields, of a set or of an override merged on its standard, that share a term,
+    compared as its full IRI. A record's values are checked under their field's term, so the
+    value of one would satisfy the other: a lineage mapped to `description` would pass on the
+    abstract alone."""
     seen: dict[str, tuple[str, str]] = {}
     for field in fields:
         named = field.property, json.dumps(field.qualifier, sort_keys=True)
-        other = seen.setdefault(field.schema_org, named)
+        other = seen.setdefault(expand_term(field.term), named)
         if other != named:
             raise RequirementsError(
                 f"{set_id!r} maps both {_described(other)} and {_described(named)} to "
-                f"schema:{field.schema_org}, so a value of one would be taken for the other; "
+                f"{field.term}, so a value of one would be taken for the other; "
                 "give each field its own term (docs/specs/deposit.md)"
             )
 

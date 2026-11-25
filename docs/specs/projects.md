@@ -140,7 +140,10 @@ intended design, and each part says where it is not built yet.
    (`project_decisions`), `GivenProjectRepository` (`project_repository`) or
    `GivenProjectMetadataRecord` (`project_metadata_draft`, the latest version of the project's
    metadata record whatever its state, and `project_metadata_approved`, the version a person
-   approved last, as a `DraftRequest`'s `metadata_record` is; #432); an agent that reads
+   approved last, as a `DraftRequest`'s `metadata_record` is; #432) or `GivenProjectPlan`
+   (`project_plan_approved`, the version of the project's `dmp` document a person approved last,
+   an `ApprovedPlan`) or `GivenProjectInventory` (`project_file_inventory`, the project's
+   `FileInventory`, as a `DraftRequest`'s `inventory` is); an agent that reads
    the documents it is given also says so in its card's `reads_attached` ([Agents](agents.md),
    invariant 12): where the accepted schema on the agent's card declares the slot, the
    conductor fills it as it fills a `DraftRequest`'s, by slot name and never by the class's name,
@@ -151,7 +154,11 @@ intended design, and each part says where it is not built yet.
    when asked nothing else, `advisor.rights` takes a decided licence as the mandated licence and a
    decision to withhold or generalise as saying the data are sensitive, and `advisor.policy` looks
    up each decided funder's policy. Each takes a person's decision over what its caller wrote
-   (each agent's `given.py`). `advisor.fairness` gives feedback on the metadata record this way,
+   (each agent's `given.py`). `advisor.dmp` reviews the plan written in the project this way when no
+   attached document is marked as the plan (invariant 32). `advisor.ethics` checks the names in the inventory and carries over
+   what its personal data detector found, and `advisor.standards`, `advisor.repository` and
+   `advisor.storage` take formats, kinds of data and size from it where their caller left them
+   out (#1540). `advisor.fairness` gives feedback on the metadata record this way,
    at any point in the work and for no step of its own
    (`harness/tests/test_project_metadata_record_given.py`).
    Filling any other class is not built yet.
@@ -172,9 +179,10 @@ intended design, and each part says where it is not built yet.
    values and never anyone's words). The profile lists the classes that may be given to an agent
    whose card declares a `hosted` model; where it does not say, `inventory` and `decisions` may. The conductor refuses anything
    else before it is sent, with a Problem Details response, and records the refusal. The key is
-   `hosted_models` (`dd_harness.policy`). A `DraftRequest`'s inventory, a plain `FileInventory`
-   and a `Message`'s `project_inventory` are `inventory`; a metadata record, the version a
-   drafter regenerates, a person's answers, the `project_documents` of a `DraftRequest` or an agent's own class and the `project_metadata_draft` and `project_metadata_approved` of an agent's own class are
+   `hosted_models` (`dd_harness.policy`). A `DraftRequest`'s inventory, a plain `FileInventory`,
+   a `Message`'s `project_inventory` and an agent's own class's `project_file_inventory` are
+   `inventory`; a metadata record, the version a
+   drafter regenerates, a person's answers, the `project_documents` of a `DraftRequest` or an agent's own class and the `project_metadata_draft`, `project_metadata_approved` and `project_plan_approved` of an agent's own class are
    `documentation`; a `Message`'s `project_researchers` and a `DraftRequest`'s `researchers` are
    `researcher`; the `project_decisions` of any of these, and the `project_repository` of a
    `Message` or an agent's own class, a researcher's choice, are `decisions`; a repository's
@@ -240,8 +248,10 @@ intended design, and each part says where it is not built yet.
     member (`member_id`, their principal identifier) and the role, and `member_removed` the member;
     `membership.member_roles` is the one fold of them (`Membership.add_member`, `change_role`,
     `remove_member`, `members`; `harness/tests/test_project_membership.py`). The project's support
-    team (`support_team_chosen`) and its escalations to a data steward (`escalation_opened` and
-    the moves after it) are events of the log too, which give no one a role
+    team (`support_team_chosen`) and its escalations to a data steward (`escalation_opened`, the
+    moves after it, among them `escalation_reassigned` and `escalation_transferred`, and
+    `escalation_rerouted` when nobody took one in time) are events of the log
+    too, which give no one a role
     ([Data stewards](stewardship.md), invariant 4), as are what a steward does in the project:
     `steward_viewed`, `steward_message`, `project_paused`, `project_resumed`, `gate_cleared`,
     `gate_refused`, and a proposed version marked `acting_as: steward` (invariants 3 and 6).
@@ -292,7 +302,11 @@ intended design, and each part says where it is not built yet.
     3. a skip implied by an intake answer.
 
     So answering again replaces the skips the earlier answer implied. Marking a step open from the tracker
-    overrides the intake without changing the answer. `dd_harness.intake.next_question` derives
+    overrides the intake without changing the answer. A skip also lapses once the log shows the
+    answer's premise no longer holds: after "No" to `intake.dmp`, an approved version of a plan
+    written in the project (a `dmp` document) leaves `setup.dmp-review` open, so that the plan is
+    offered for review; a draft alone does not, and the researcher's own mark still outranks it
+    (`dd_harness.progress.REOPENED_BY_DOCUMENT`). `dd_harness.intake.next_question` derives
     which question comes next in the same way, and none is stored; `ProjectStore.intake` reads the
     questions with their current answers for the app's card. Any entry point recorded,
     the researcher's or one a model worked out, places the project and decides which questions
@@ -379,7 +393,17 @@ intended design, and each part says where it is not built yet.
     document's text that holds them in `commitment_document`, both required), or a standard,
     vocabulary, ontology or format chosen for the dataset or one field of its tables (`standard`:
     its name, required, its identifier, its kind and what it is for, #1391), or which attached
-    document is the project's Data Management Plan (`data_management_plan`, invariant 32). A succeeded run's proposals are
+    document is the project's Data Management Plan (`data_management_plan`, invariant 32), or
+    what data the project collects, produces or reuses (`data_description`: what, required, and
+    how, which existing data, in which formats and in what volume, each in the researcher's own
+    words; its subject is always `project`, so the last decision is the project's one
+    description, #160). An orchestrator proposes a data description from what the researcher said
+    in a conversation ([Orchestration](orchestration.md), invariant 8), so that once a person
+    confirms it every agent in the project is given it, whichever conversation it runs in, and
+    what the researcher said of their data is not lost with the conversation. Also about the
+    project as a whole, under the same one subject, are what it is for (`project_summary`), its
+    field of study (`field_of_study`) and when it starts and ends (`project_period`, each a year,
+    a month or a day). A succeeded run's proposals are
     `fact_proposed` events, one each, caused by the run and naming its agent, from a payload of
     any class (`dd_harness.project_effects`); they are checked before anything is written and
     recorded only once the run's draft is kept, so a run that fails leaves none. A person decides each as a `fact_decided` event:
@@ -399,12 +423,24 @@ intended design, and each part says where it is not built yet.
     a fact that stands, or state one nobody proposed
     (`GET /api/projects/{project_id}/facts`, `READ`; `POST …/facts/decisions`, `CONTRIBUTE`, or
     `DECIDE` for `sensitivity` and `licence`). A sharing commitment is shown with the plan's words
-    and is only proposed, never stated, since it quotes the plan; the DMP Checker compares only
-    those a person decided ([Agents](agents.md)). The Standards Librarian proposes each standard it
+    and is only proposed, never stated, since it quotes the plan; the Data Management Planner compares only
+    those a person decided ([Agents](agents.md)). The Policy Adviser proposes each funder it
+    identifies in ROR, with its ROR identifier and its Crossref Funder ID from the same record,
+    and never one whose name ROR gives to more than one organisation, which the researcher is
+    asked about instead. At "Describe your project" (`setup.project`) the Data Management Planner
+    proposes what the project is for, its field and period from what the researcher said, and
+    those and a data description from a proposal or award letter they attached, each read from a
+    document quoting its passage in `proposed_because`; the step is started once a summary is
+    proposed and done once a person decides one (`dd_harness.progress`), and the README that plans
+    the documentation and the Data Management Plan place what was decided
+    ([Drafting documents](drafting.md)). The Standards Librarian proposes each standard it
     recommends; a person confirms the ones they will use and rejects the others, and only those
     confirmed, or stated by a person, reach the Metadata Librarian, which names the vocabularies
     chosen for the dataset in its question about subjects, and the Documentation Editor, which
-    lists every standard chosen in the README's Variables section (`dd_harness.testing.storage`,
+    lists every standard chosen in the README's Variables section. The Standards Librarian is
+    itself given the decided field of study, description of the data and summary of the project,
+    and fills from them only what its input leaves empty, saying which values came from the
+    record (#1529) (`dd_harness.testing.storage`,
     `harness/tests/test_project_decisions.py`, `app/tests/test_project_facts.py`,
     `app/web/src/components/project/FactsPanel.test.tsx`).
 29. **Deleting a conversation is an event in its project's log, not a removal.** A conversation
@@ -441,7 +477,7 @@ intended design, and each part says where it is not built yet.
     document as the plan by stating the fact, on the project's Documents page (**Mark as the Data
     Management Plan**, `PlanMark.tsx`), and removes the mark by rejecting it (**Not the
     plan**); a member may do either (`CONTRIBUTE`). An agent may only propose which document is
-    the plan: the DMP Checker, given no marked plan, proposes the document it read the plan's
+    the plan: the Data Management Planner, given no marked plan, proposes the document it read the plan's
     commitments from, for a person to confirm on the **Project facts** panel. A decision naming a
     document the project does not hold is refused and the refusal recorded
     (`documentation-not-found`), and a proposal naming one is left out
@@ -454,9 +490,13 @@ intended design, and each part says where it is not built yet.
     ([Contract](contract.md), invariant 36; `dd_harness.projects.holdings`). Which agents read the
     plan's text is which read attached documents (invariant 6, an agent card's `reads_attached`),
     under the same `hosted_models` and `attached_documents` rules (invariant 8), so a profile that
-    refuses attached documents has no plan to mark. The DMP Checker reads the marked plan alone,
-    and every document while none is marked. A plan does not change the phase tracker: no step is
-    marked by it, and `setup.dmp-review` and `post.dmp-update` are not marked by it. When the
+    refuses attached documents has no plan to mark. The Data Management Planner reads the marked plan alone,
+    and, while none is marked, the plan written in the project as a person approved it last
+    (`GivenProjectPlan`, `project_plan_approved`, invariant 6), and every document while there is
+    neither. An attached plan does not change the phase tracker: no step is marked by it, and
+    `setup.dmp-review` and `post.dmp-update` are not marked by it. A plan written in the project and
+    approved shows `setup.dmp-create` done and lifts a "No" answer's skip of `setup.dmp-review`
+    (rule 20); it marks the review neither started nor done. When the
     researcher answered "Yes" to `intake.dmp` and no plan is marked, the orchestrator invites them
     to attach their plan, or to mark which attached document it is ([Orchestration](orchestration.md),
     invariant 20). A plan given by its DMP ID, a link or a machine-actionable plan (RDA DMP Common
@@ -464,6 +504,16 @@ intended design, and each part says where it is not built yet.
     TODO(#701). (`dd_harness.testing.plan_storage`, `harness/tests/test_project_agent_inputs.py`,
     `sdk/tests/test_fact_kinds.py`, `agents/advisor-dmp/tests/test_reads_plan.py`,
     `app/web/src/components/project/PlanMark.test.tsx`.)
+33. **A step or intake question id, once released, is never deleted or reused.** The log stores
+    them (`step_marked`'s `step_id`, `intake_answered`'s `question_id`) and outlives the release
+    that wrote it. A step or question taken out of the flow is retired, in
+    `dd_sdk.flow_phases.RETIRED_STEPS` or `dd_sdk.intake.RETIRED_QUESTIONS`, with the one that
+    replaces it or none; the harness reads every stored id through
+    `dd_sdk.process_flow.current_step` and `dd_sdk.intake.current_question`, so a mark or answer
+    of a retired id counts for its successor, or not at all, and an id it does not know (written
+    by a later release) is left out. `sdk/tests/released_ids.toml` lists every id a release has
+    had and only grows. (`sdk/tests/test_released_ids.py`,
+    `harness/tests/test_progress_stored_ids.py`.)
 
 ## Boundaries and contracts
 

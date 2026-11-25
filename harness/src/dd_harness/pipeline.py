@@ -16,12 +16,23 @@ contract fails as the agent's error, and the project takes the run's effects
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from typing import Any
 
 from opentelemetry import trace
 
-from dd_harness import footprint, grounding, institution_repositories, model_accounts, policy, shacl
+from dd_harness import (
+    footprint,
+    grounding,
+    institution_repositories,
+    institution_storage,
+    model_accounts,
+    policy,
+    profile_vouched,
+    shacl,
+    span_scrub,
+)
 from dd_harness import observe as steps
 from dd_harness import sources as source_check
 from dd_harness.observe import cancelled_result
@@ -29,7 +40,15 @@ from dd_harness.provenance import process_run_crate
 from dd_harness.refusals import failed_result, input_refusal, refuse, stopped_by_pause
 from dd_harness.remote import Received, RemoteAgent
 from dd_harness.run_state import RunHost, RunState, Step
-from dd_harness.storage import CRATE, GROUNDING, SOURCES, SPANS, VALIDATION
+from dd_harness.storage import (
+    CRATE,
+    GROUNDING,
+    SOURCES,
+    SPANS,
+    STAGES,
+    VALIDATION,
+    WITHHELD,
+)
 from dd_sdk.agent import AgentResult, AgentSpec, RunContext, typed_request
 from dd_sdk.contract import problem as problems
 from dd_sdk.contract import validate
@@ -159,14 +178,19 @@ def invoke_agent(conductor: RunHost, run: RunState) -> None:
         run.result = failed_result(f"Agent raised: {exc}")
         run.prob = problems.agent_error(spec.agent_id, exc)
     else:
-        _received(conductor, run, received)
+        issued = [
+            g.token if isinstance(g, DelegationGrant | ToolsGrant) else g
+            for g in (sent_grant, tools_grant, model_grant)
+            if g is not None
+        ]
+        _received(conductor, run, received, issued)
     run.watch.finished(steps.AGENT)
     if run.watch.cancelled():
         run.result, run.prob = cancelled_result(spec.agent_id, ran=True)
         run.from_agent = False
 
 
-def _received(conductor: RunHost, run: RunState, received: Received) -> None:
+def _received(conductor: RunHost, run: RunState, received: Received, issued: list[str]) -> None:
     """Take what the agent answered. An agent that returns a payload other than the class it
     declared, or one its own class schema does not admit, or prompts that are not those its
     calls name, is contradicting its specification: a programmer error, handled the same way as
@@ -174,8 +198,16 @@ def _received(conductor: RunHost, run: RunState, received: Received) -> None:
     spec = run.spec
     run.from_agent = True
     # A remote agent's spans were recorded in its own process; bring them into this trace so the
-    # linter reads one tree (docs/specs/agents.md).
-    conductor.tracing.import_spans(run.trace_id, received.spans)
+    # linter reads one tree (docs/specs/agents.md), with no attribute that could hold a secret
+    # (docs/specs/security.md, invariant 2).
+    spans = span_scrub.scrub_received(
+        received.spans,
+        issued,
+        agent_id=spec.agent_id,
+        invocation_id=run.request.invocation_id,
+        principal=run.acting_for.principal_id,
+    )
+    conductor.tracing.import_spans(run.trace_id, spans)
     result = run.result = received.result
     run.model_calls = result.model_calls
     run.prompts, unmatched = _matched_prompts(result)
@@ -257,7 +289,12 @@ def lint_grounding(conductor: RunHost, run: RunState) -> None:
 def check_sources(conductor: RunHost, run: RunState) -> None:
     run.watch.started(steps.SOURCES)
     # What the profile vouches for is checked against the profile itself, pinned by its digest.
-    held = conductor.sources.with_resolvers(institution_repositories.resolvers(conductor.profile))
+    profile = conductor.profile
+    vouched = {
+        **institution_repositories.vouched(profile),
+        **institution_storage.vouched(profile),
+    }
+    held = conductor.sources.with_resolvers(profile_vouched.resolvers(profile.ref, vouched))
     run.source_report = source_check.check(run.finished.to_document(), held)
     run.watch.sources(run.source_report)
     run.watch.finished(steps.SOURCES)
@@ -283,7 +320,7 @@ def withhold_violations(conductor: RunHost, run: RunState) -> None:
         + ". "
         + "; ".join(violations)
     )
-    run.envelope = failed(run.finished, statement, problems.grounding_violation(violations))
+    withhold(run, statement, problems.grounding_violation(violations))
 
 
 # 7. Validate. A result the agent returned that still breaks the contract is the agent's error,
@@ -299,8 +336,8 @@ def validate_contract(conductor: RunHost, run: RunState) -> None:
             raise
         statement = "Agent result violates the contract: " + "; ".join(exc.messages)
         prob = problems.agent_error(run.spec.agent_id, exc)
-        run.envelope = failed(run.finished, statement, prob)
-        run.doc = run.envelope.to_document()
+        withhold(run, statement, prob, kept=run.doc)
+        run.doc = run.finished.to_document()
         validate.validate_envelope(run.doc)
 
 
@@ -313,8 +350,8 @@ def apply_project_effects(conductor: RunHost, run: RunState) -> None:
     if refusal is None:
         return
     statement = f"The draft was not kept in the project: {refusal}."
-    run.envelope = failed(run.finished, statement, problems.revision_refused(refusal))
-    run.doc = run.envelope.to_document()
+    withhold(run, statement, problems.revision_refused(refusal))
+    run.doc = run.finished.to_document()
     validate.validate_envelope(run.doc)
 
 
@@ -363,11 +400,14 @@ def store_run(conductor: RunHost, run: RunState) -> None:
     spans = conductor._spans(run.trace_id)
     artifacts = {
         SPANS: spans,
+        STAGES: _jsonl(run.watch.stages()),
         GROUNDING: (run.report.summary() + "\n").encode(),
         SOURCES: (run.source_report.summary() + "\n").encode(),
     }
     if run.shapes_report is not None:
         artifacts[VALIDATION] = run.shapes_report
+    if run.withheld is not None:
+        artifacts[WITHHELD] = (json.dumps(run.withheld, indent=2) + "\n").encode()
     if conductor.write_crate:
         crate = process_run_crate(
             run.doc,
@@ -381,6 +421,10 @@ def store_run(conductor: RunHost, run: RunState) -> None:
     store.put_artifacts(run_id, artifacts)  # one transaction in a database
 
 
+def _jsonl(records: list[dict[str, Any]]) -> bytes:
+    return "".join(json.dumps(r, separators=(",", ":")) + "\n" for r in records).encode()
+
+
 # Once the run's span has ended, in order.
 AFTER_SPAN: tuple[Step, ...] = (
     lint_grounding,
@@ -391,6 +435,18 @@ AFTER_SPAN: tuple[Step, ...] = (
     check_shapes,
     store_run,
 )
+
+
+def withhold(
+    run: RunState, statement: str, prob: ProblemDetails, *, kept: dict[str, Any] | None = None
+) -> None:
+    """Fail the run after its agent answered, keeping what it answered as the `withheld.json`
+    artifact for operators (docs/specs/storage.md, invariant 5). `kept` is the envelope document
+    when the envelope itself could not be trusted to serialise again (a contract violation); the
+    first withholding is the one kept, since later ones see only the failed envelope."""
+    if run.withheld is None:
+        run.withheld = kept if kept is not None else run.finished.to_document()
+    run.envelope = failed(run.finished, statement, prob)
 
 
 def failed(envelope: Envelope, statement: str, prob: ProblemDetails) -> Envelope:

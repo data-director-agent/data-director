@@ -45,6 +45,16 @@ each is described (#1334). The app shows it as "In your plan". A name re3data do
 not list, such as "ReShare" for the UK Data Service's self-deposit repository, is read through the
 short, sourced list in `aliases.yaml`, and the statement says so.
 
+In a project that holds an inventory, the conductor gives it too (`GivenProjectInventory`). When
+the needs give no kinds of data, they are taken from the media types the inventory identified its
+files as, read through `kinds.yaml` as re3data content types ("images", "statistical data",
+"plain text"), each once (#1560). A file with no media type, or one the table does not know,
+names no kind; the statement says which kinds were taken and how many files named none. Kinds the
+caller gave stand. A kind of data adds a little to a score and never qualifies a repository on
+its own, so the discipline is still needed. Only the kinds reach the explainer's model, never the
+inventory's file names. `kinds.yaml` speaks no Data Director contract and can be reused on its
+own.
+
 `RepositoryOptions` holds one candidate per repository. A candidate names its records only in
 `grounded_on`: first its registry record, re3data's, cited by the record's own DOI, or, for a
 repository re3data does not list, DataCite's, cited by its address in DataCite's API; then the

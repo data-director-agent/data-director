@@ -103,12 +103,16 @@ OWNED_PROFILE_KEYS = frozenset(
         "orchestrator",
         "model_accounts",  # from deployment.yaml; the example's own is not carried
         "institution_repositories",  # from deployment.yaml, as the instance's own institution's
+        "institution_storage",  # likewise
         "administrators",  # from deployment.yaml: deployment roles are the instance's own
         "stewardship",  # likewise
+        "access",  # from deployment.yaml, closed (admit: listed) unless it says otherwise
         "tool_servers",  # from the PID resolver
     }
 )
 LIST_PROFILE_KEYS = ("actions_requiring_approval", "hosted_models")
+# The access a deployment's profile has when its deployment.yaml names none.
+CLOSED: dict[str, Any] = {"admit": "listed"}
 
 
 def _carried(base: dict[str, Any], disabled: set[str]) -> dict[str, Any]:
@@ -148,10 +152,15 @@ def profile(
         body["model_accounts"] = deployment.model_accounts
     if deployment.institution_repositories:
         body["institution_repositories"] = deployment.institution_repositories
+    if deployment.institution_storage:
+        body["institution_storage"] = deployment.institution_storage
     if deployment.administrators:
         body["administrators"] = deployment.administrators
     if deployment.stewardship is not None:
         body["stewardship"] = deployment.stewardship
+    # A deployment admits only whom it lists, its stewards and administrators, unless its
+    # deployment.yaml opens it (docs/specs/policy-and-identity.md, Admission).
+    body["access"] = deployment.access if deployment.access is not None else CLOSED
     if tool_servers:
         body["tool_servers"] = tool_servers
     have: dict[str, Any] = (yaml.safe_load(current) or {}) if current else {}
@@ -399,6 +408,17 @@ def _set_app_settings(env_file: Path, settings: dict[str, str | None]) -> None:
             os.chown(env_file, before.st_uid, before.st_gid)
 
 
+def _access_summary(deployment: Deployment) -> str:
+    """Whom the instance admits once people sign in, so an operator sees it before applying."""
+    access = deployment.access if deployment.access is not None else CLOSED
+    if access.get("admit", "anyone") == "anyone":
+        return "access: anyone the identity provider vouches for may sign in"
+    return (
+        "access: only the people access.allow lists, the stewards and the administrators may "
+        "sign in" + ("" if deployment.access is not None else " (access is not set)")
+    )
+
+
 def apply(system: System, place: Place, vm: Vm | None = None, *, check: bool = False) -> int:
     deployment, result = plan(system, place, vm)
     print(
@@ -406,6 +426,7 @@ def apply(system: System, place: Place, vm: Vm | None = None, *, check: bool = F
         + (f", disabled {', '.join(sorted(deployment.disabled))}" if deployment.disabled else "")
         + (f", privacy notice {deployment.privacy_notice}" if deployment.privacy_notice else "")
     )
+    print(_access_summary(deployment))
     for refusal in result.refusals:
         print(f"refused: {refusal}")
     if result.refusals:

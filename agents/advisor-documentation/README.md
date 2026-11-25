@@ -1,19 +1,31 @@
 # advisor.documentation
 
-**Alpha** (`0.9.0a1`): the Documentation Editor persona of the agent roster
+**Alpha** (`0.10.0a1`): the Documentation Editor persona of the agent roster
 (docs/specs/agents.md), and the drafter of a project's README, data dictionary and Data Management
 Plan ([Drafting documents](../../docs/specs/drafting.md)). It is likely to change shape.
 
 The Documentation Editor drafts a README and a data dictionary for a dataset (Blueprint R5), from
 the project's file inventory and approved metadata record, and a Data Management Plan from the
-decisions made in the project and the researcher's answers. It serves two steps of the process
-flow, `preparation.documentation` and `setup.dmp-create` ([A Data Management
-Plan](#a-data-management-plan)).
+decisions made in the project and the researcher's answers. It serves three steps of the process
+flow, `setup.documentation`, `preparation.documentation` and `setup.dmp-create` ([A Data
+Management Plan](#a-data-management-plan)).
 
-It does not serve the Phase 1 step `setup.documentation`, planning the documentation before data
-are collected: a project has a file inventory only once its data exist, so the editor would have
-nothing to draft from. That step has no agent yet; a planning mode that needs no inventory is
-#1017.
+## Before the data are collected
+
+At the Phase 1 step `setup.documentation` the project has no file inventory yet, as its data do not
+exist (#1017). Asked for a README then, the editor plans the documentation instead of abstaining.
+The README has the same sections, but those with a `plan_ask` in `readme.yaml` (Files, Methods and
+Variables) ask what the researcher expects: the files and formats they will produce and how they
+will name them, how they will collect and process the data and what to record as they go, and the
+variables, units and missing-value codes they expect. The first draft asks first, with a note that
+says it is a plan. A model writer is told only that the data are not collected yet
+(`data_collected: false`) and is given no files, so it writes prose only from the approved metadata
+record, if there is one.
+
+The questions are the same ones the README asks later, so the answers are kept: once the inventory
+is added, the README drafted at `preparation.documentation` places them, and the researcher may
+revise any answer that changed during collection. A data dictionary is drafted from the inventory's
+tables, so before collection the editor abstains on one.
 
 ## Ask first, then write
 
@@ -56,9 +68,10 @@ documents ([Projects](../../docs/specs/projects.md)). A request names the `docum
   ([Drafting documents](../../docs/specs/drafting.md), invariant 2). The abstract says all the
   Description asks, so that section then has no gap; the others keep theirs for what the record
   does not say, such as a part the record leaves empty or the DOI. The editor reads a record in
-  DataCite's JSON form (`conforms_to` `http://datacite.org/schema/kernel-4`), as
-  `advisor.metadata` drafts it, and skips any value left `null` or blank. It does not use a record
-  in any other form, and says so in its statement. With no record, it drafts from the inventory
+  any standard and serialisation a registered definition covers (`dd-metadata-records`; today
+  DataCite's JSON form, as `advisor.metadata` drafts it), through the pivot terms the definition
+  gives its properties, and skips any value left as a gap. It does not use a record in any other
+  standard, and says so in its statement. With no record, it drafts from the inventory
   alone and says so.
 
   When a model is configured, as it is by default (below), it also writes the README's prose: an
@@ -80,7 +93,17 @@ documents ([Projects](../../docs/specs/projects.md)). A request names the `docum
   The editor infers no units, so those are `unknown` until the researcher fills them in. The
   `missing_values` cell lists the codes the inventory's summary found in the field, as
   `inferred`, which says only that they occur, not what they mean; with none found, it is
-  `unknown` and asked. Once a field has a unit, its `unit_code` is worked out by rule as the unit's
+  `unknown` and asked. A cell is a JSON array of strings, such as `["-99","NA"]`, the form of a
+  [Frictionless Table Schema](https://datapackage.org/standard/table-schema/) field's
+  `missingValues`: each value is compared as written, before any type is applied, and `[""]`,
+  the standard's default, says that only an empty cell is missing. The question says it is
+  answered with a list (`answer_kind` `list`), so that the app shows one value on each line and
+  records the array. An answer from another client is put in the same form when each of its
+  values, split on new lines, commas or semicolons, is bare (`-99, NA`); text with a note in it,
+  such as `-99 (sensor off)`, is kept as the person wrote it, never guessed at
+  (`values.missing_values_cell`). A cell written before this form still reads the same, so it
+  keeps its `inferred` source. It depends on no library for this; the standard's object form,
+  `{"value": "-99", "label": "REFUSED"}`, is not yet read or written (TODO(#220)). Once a field has a unit, its `unit_code` is worked out by rule as the unit's
   [UCUM](https://ucum.org) code, with [`dd-units`](../../units/README.md): "micrometres" becomes
   `um` and "mg per litre" `mg/L`, and a field with no unit gets `n/a`. The statement names the
   first few codes for the researcher to check. A unit code is not asked while its unit is
@@ -129,13 +152,14 @@ since a plan is written before data are collected. Its sections are a first sect
 details (the title, the researchers and the funding, each asked part by part, and not asked when
 the approved metadata record gives it), then the six core requirements of
 [`dd-dmp-template`](../../dmp-template/README.md), after Science Europe's, each asking the
-template's one-sentence summary. Each is drafted from the project's decided facts, as given
+template's one-sentence summary, which also asks how long the data will be kept and how the plan
+will be kept up to date. Each is drafted from the project's decided facts, as given
 (`drafted.py`):
 
 | Section | Drafted from |
 |---|---|
 | Project details | the decided funders |
-| Data description and collection | the inventory's files, if the data already exist |
+| Data description and collection | the confirmed description of the project's data, in the researcher's words, and the inventory's files, if the data already exist; complete when the description says how the data are collected or which existing data are reused |
 | Documentation and data quality | the standards, vocabularies and formats chosen |
 | Legal and ethical requirements | the sensitive data identified, and how each is to be handled |
 | Data sharing and long-term preservation | the chosen and required repositories, the decided licence, and the licences the repository offers |
@@ -143,7 +167,13 @@ template's one-sentence summary. Each is drafted from the project's decided fact
 It asks first, as a README does: with no answers recorded and no current version, the version is
 a note (`document_stage` `questions`). Then each answer is placed as given, and every section left
 is a gap, marked and asked. A decided funder, the record's title and creators, and a decided
-licence are offered beside their questions as the researcher's own words (`shares`).
+licence are offered beside their questions as the researcher's own words (`shares`). The
+question on **Storage and backup during the project** is offered the institution's storage
+services, which the conductor gives from the deployment's profile (`institution_storage`): each
+by name, whether it is approved for personal or sensitive data, and its backup, the approved ones
+first when sensitive data were identified (`storage.py`). They say what is available, not what
+this project will use, so they are only offered (`suggestion_derivation` `template`,
+`suggested_from` `institution`), never placed, and a person's own words come first.
 
 No model writes a plan's text: `document_derivation` is always `template`. Where a model is
 configured and the researcher attached documents, such as a grant application or a protocol, it

@@ -2,7 +2,9 @@
 (docs/specs/deposit.md).
 
 The repository a researcher chose is a `repository_chosen` event. It records each requirement
-set the choice resolved to by reference and digest, and keeps the merged set as a blob, so that a
+set the choice resolved to by reference and digest, and the definition of the standard the merged
+set follows by reference, digest and the codec of each serialisation
+(docs/specs/metadata-standards.md, invariant 12), and keeps the merged set as a blob, so that a
 drafter and validation read exactly what was chosen. The last choice counts.
 """
 
@@ -10,10 +12,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from dd_harness.metadata_standards import registered
+from dd_harness.project_errors import ProjectError
 from dd_harness.projects.rules import REPOSITORY_CHOSEN, ProjectRules
 from dd_harness.requirements import REPOSITORY_ID, Requirements, RequirementsError
 from dd_harness.sources import Sources
 from dd_sdk.contract.models import Principal
+from dd_sdk.contract.requirements import legacy_term
 from dd_sdk.evidence import INPUT_CANONICALISATION, canonicalise, input_hash
 
 
@@ -29,6 +34,7 @@ class RepositoryChoice(ProjectRules):
         requirements: Requirements,
         acted_for: Principal,
         caused_by: str,
+        standard: str | None = None,
     ) -> str:
         """Record the repository a researcher chose, by its re3data identifier or, for one
         re3data does not list, its DataCite one, and the requirements it resolved to. Its name
@@ -36,7 +42,61 @@ class RepositoryChoice(ProjectRules):
         pins, and the event names that record by `snapshot_ref` and content hash
         (docs/specs/deposit.md). Returns the merged set's digest. Raises `ProjectError` for an
         unknown project, `RequirementsError` for an identifier no pinned copy holds, and
-        `SourceConfigError` if no built re3data export is pinned."""
+        `SourceConfigError` if no built re3data export is pinned. With `standard`, the
+        `conforms_to` of a standard a person chose, it is the standard of the choice
+        (`choose_standard`)."""
+        return self._choose(
+            project_id,
+            repository_id,
+            registry=registry,
+            requirements=requirements,
+            acted_for=acted_for,
+            caused_by=caused_by,
+            standard=standard,
+        )
+
+    def choose_standard(
+        self,
+        project_id: str,
+        conforms_to: str,
+        *,
+        registry: Sources,
+        requirements: Requirements,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> str:
+        """Record that a person chose the metadata standard of the repository chosen last, by its
+        `conforms_to`, as a new choice of that repository with the standard's reason `chosen`
+        (docs/specs/deposit.md, invariant 5). The event's actor and time say who chose it and when,
+        and, the last choice counting, the drafter and validation read it. Choosing the repository
+        again goes back to the standard the rule resolves to. Returns the merged set's digest.
+        Raises `ProjectError` when no repository has been chosen, and `RequirementsError` for a
+        standard the deployment has no set for, or another than the one the repository's
+        override is written for."""
+        chosen = self.requirements(project_id)
+        if chosen is None:
+            raise ProjectError("choose a repository before choosing its metadata standard")
+        return self._choose(
+            project_id,
+            str(chosen["repository_id"]),
+            registry=registry,
+            requirements=requirements,
+            acted_for=acted_for,
+            caused_by=caused_by,
+            standard=conforms_to,
+        )
+
+    def _choose(
+        self,
+        project_id: str,
+        repository_id: str,
+        *,
+        registry: Sources,
+        requirements: Requirements,
+        acted_for: Principal,
+        caused_by: str,
+        standard: str | None = None,
+    ) -> str:
         self._require(project_id)
         if not REPOSITORY_ID.fullmatch(repository_id):
             raise RequirementsError(
@@ -49,9 +109,12 @@ class RepositoryChoice(ProjectRules):
                 f"neither re3data nor DataCite, as pinned, holds a repository {repository_id}; "
                 "check the identifier"
             )
-        resolved = requirements.resolve(entry.repository_id, entry.name, entry.metadata_standards)
+        resolved = requirements.resolve(
+            entry.repository_id, entry.name, entry.metadata_standards, standard
+        )
         merged = resolved.requirements()
         digest = input_hash(merged)
+        definition = registered().by_uri(merged["conforms_to"])
         self._keep_blob(project_id, digest, canonicalise(merged, INPUT_CANONICALISATION))
         self._append(
             project_id,
@@ -67,6 +130,11 @@ class RepositoryChoice(ProjectRules):
                 "record_hash": entry.content_hash,
                 "record_canonicalisation": entry.canonicalisation,
                 "requirement_sets": [s.describe() for s in resolved.sets],
+                "standard": {
+                    **(definition.definition.describe() if definition else {}),
+                    "title": resolved.standard.requirement_set.title,
+                    "reason": str(resolved.standard_reason),
+                },
                 "digest": digest,
                 "canonicalisation": INPUT_CANONICALISATION,
                 "warnings": list(resolved.warnings),
@@ -76,8 +144,13 @@ class RepositoryChoice(ProjectRules):
 
     def requirements(self, project_id: str) -> dict[str, Any] | None:
         """The merged requirements of the repository chosen last, or None if none has been. A set
-        kept before repositories had an identifier of their own is given its re3data one."""
+        kept before repositories had an identifier of their own is given its re3data one, and a
+        field kept before terms were IRIs its `schema:` term (#1357)."""
         found = self._latest(project_id, REPOSITORY_CHOSEN)
-        if found is not None and "repository_id" not in found and found.get("re3data_id"):
-            return {**found, "repository_id": found["re3data_id"]}
+        if found is None:
+            return None
+        if "repository_id" not in found and found.get("re3data_id"):
+            found = {**found, "repository_id": found["re3data_id"]}
+        if any("schema_org" in field for field in found.get("fields") or []):
+            found = {**found, "fields": [legacy_term(field) for field in found["fields"]]}
         return found

@@ -1,0 +1,48 @@
+[build-system]
+requires = ["hatchling>=1.32.4"]
+build-backend = "hatchling.build"
+
+[project]
+name = "data-director-metadata-records"
+version = "0.1.0-alpha.0"
+description = "Metadata records in any standard: codecs, standards' definitions and a pivot of existing terms"
+readme = "README.md"
+requires-python = ">=3.14"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Joe Heffer", email = "j.heffer@sheffield.ac.uk" }]
+keywords = ["metadata", "datacite", "crosswalk", "research data", "schema.org"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+  "Typing :: Typed",
+]
+
+# Framework-neutral (docs/specs/system.md, docs/specs/metadata-standards.md): no workspace member is
+# imported, so publishing this library on its own is a copy.
+dependencies = ["pyyaml>=6.0"]
+
+[project.urls]
+Homepage = "https://data-director-agent.github.io/data-director/"
+Repository = "https://github.com/data-director-agent/data-director/tree/main/metadata-records"
+Issues = "https://github.com/data-director-agent/data-director/issues"
+
+# Codecs by their identifier, and standards' definitions by their standard's identifier
+# (docs/specs/metadata-standards.md, invariant 11).
+[project.entry-points."dd_metadata_records.codecs"]
+json-indent-2 = "dd_metadata_records.codecs:JSON"
+xml-indent-2 = "dd_metadata_records.xml:XML"
+
+[project.entry-points."dd_metadata_records.standards"]
+datacite-4 = "dd_metadata_records.standards:DATACITE_4"
+dublin-core-oai = "dd_metadata_records.standards:DUBLIN_CORE_OAI"
+
+# What the tests use: lxml validates a record against a standard's published XML Schema.
+[dependency-groups]
+dev = ["lxml>=6.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dd_metadata_records"]

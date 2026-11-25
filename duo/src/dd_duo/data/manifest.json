@@ -1,0 +1,14 @@
+{
+  "duo_version": "2021-02-23",
+  "source": "https://github.com/EBISPOT/DUO/blob/v2021-02-23/duo.owl",
+  "derived_from": {
+    "file": "duo.owl",
+    "sha256": "6a34ce09ae07b1e37c6756e049c12129fd1104e7d9e6e2f8cee84d2ab374c45b"
+  },
+  "terms": {
+    "file": "duo-2021-02-23.jsonl",
+    "sha256": "299bdde22f92d7121eb5a21e253dd8181c0132f01263896eb6a5efbc5496d674",
+    "count": 23
+  },
+  "licence": "CC-BY-4.0"
+}

@@ -25,7 +25,7 @@ body (docs/specs/policy-and-identity.md). Only the principal who started a run m
 from __future__ import annotations
 
 import asyncio
-import dataclasses
+import json
 import threading
 from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable
 from typing import Any
@@ -52,11 +52,10 @@ from starlette.responses import JSONResponse, Response, StreamingResponse
 from starlette.routing import Route
 
 from dd_harness.conductor import Conductor, UnknownAgent
-from dd_harness.grounding import GroundingReport
 from dd_harness.identity import Authenticator, IdentityError, Unauthenticated, record_refusal
-from dd_harness.observe import RunObserver, Step
+from dd_harness.observe import RunObserver, StageRecorder
 from dd_harness.policy import PolicyError
-from dd_harness.sources import SourceReport
+from dd_harness.storage import STAGES
 from dd_sdk.contract.models import Envelope, InvocationRequest, Principal
 from dd_sdk.contract.validate import ContractViolation
 
@@ -77,19 +76,50 @@ REFUSALS: tuple[type[Exception], ...] = (
 Start = Callable[[RunObserver, threading.Event], Awaitable[Envelope]]
 
 
-def plan_value(steps: tuple[Step, ...]) -> dict[str, Any]:
-    return {"steps": [{"id": step.id, "label": step.label} for step in steps]}
+def _child_finished(record: dict[str, Any]) -> BaseEvent:
+    # AG-UI's own `outcome` says only success or suspended, so the child's outcome status travels
+    # in `result`, in the contract's vocabulary.
+    return SubagentFinishedEvent(
+        type=EventType.SUBAGENT_FINISHED,
+        subagent_run_id=record["invocation_id"],
+        result={"status": record["status"]},
+    )
 
 
-def grounding_value(report: GroundingReport) -> dict[str, Any]:
-    return dataclasses.asdict(report)
+# The AG-UI event of each kind of stage record. A tool call carries its name only: its arguments
+# and what it returned stay out of the stream.
+_EVENTS: dict[str, Callable[[dict[str, Any]], BaseEvent]] = {
+    "plan": lambda r: CustomEvent(type=EventType.CUSTOM, name=PLAN, value={"steps": r["steps"]}),
+    "step_started": lambda r: StepStartedEvent(type=EventType.STEP_STARTED, step_name=r["step"]),
+    "step_finished": lambda r: StepFinishedEvent(type=EventType.STEP_FINISHED, step_name=r["step"]),
+    "grounding": lambda r: CustomEvent(type=EventType.CUSTOM, name=GROUNDING, value=r["report"]),
+    "sources": lambda r: CustomEvent(type=EventType.CUSTOM, name=SOURCES, value=r["report"]),
+    "child_started": lambda r: SubagentStartedEvent(
+        type=EventType.SUBAGENT_STARTED, subagent_run_id=r["invocation_id"], name=r["agent_id"]
+    ),
+    "child_finished": _child_finished,
+    "child_failed": lambda r: SubagentErrorEvent(
+        type=EventType.SUBAGENT_ERROR, subagent_run_id=r["invocation_id"], message=r["message"]
+    ),
+    "tool_started": lambda r: ToolCallStartEvent(
+        type=EventType.TOOL_CALL_START, tool_call_id=r["call_id"], tool_call_name=r["name"]
+    ),
+    "tool_finished": lambda r: ToolCallEndEvent(
+        type=EventType.TOOL_CALL_END, tool_call_id=r["call_id"]
+    ),
+}
 
 
-def sources_value(report: SourceReport) -> dict[str, Any]:
-    return {"passed": report.passed, **dataclasses.asdict(report)}
+def event_from_stage(record: dict[str, Any]) -> BaseEvent:
+    """The AG-UI event of one stage record (`dd_harness.observe.StageRecorder`): the one mapping,
+    used for a live stream and for the replay of a stored run alike."""
+    build = _EVENTS.get(record["event"])
+    if build is None:
+        raise ValueError(f"no AG-UI event for a stage record of {record['event']!r}")
+    return build(record)
 
 
-class _Events:
+class _Events(StageRecorder):
     """A run observer that turns what the conductor's thread tells it into AG-UI events on the
     event loop's queue, in the order told."""
 
@@ -97,59 +127,9 @@ class _Events:
         self._loop = loop
         self._queue = queue
 
-    def _put(self, event: BaseEvent) -> None:
+    def stage(self, record: dict[str, Any]) -> None:
+        event = event_from_stage(record)
         self._loop.call_soon_threadsafe(self._queue.put_nowait, event)
-
-    def plan(self, steps: tuple[Step, ...]) -> None:
-        self._put(CustomEvent(type=EventType.CUSTOM, name=PLAN, value=plan_value(steps)))
-
-    def step_started(self, step: Step) -> None:
-        self._put(StepStartedEvent(type=EventType.STEP_STARTED, step_name=step.id))
-
-    def step_finished(self, step: Step) -> None:
-        self._put(StepFinishedEvent(type=EventType.STEP_FINISHED, step_name=step.id))
-
-    def grounding(self, report: GroundingReport) -> None:
-        self._put(CustomEvent(type=EventType.CUSTOM, name=GROUNDING, value=grounding_value(report)))
-
-    def sources(self, report: SourceReport) -> None:
-        self._put(CustomEvent(type=EventType.CUSTOM, name=SOURCES, value=sources_value(report)))
-
-    def child_started(self, invocation_id: str, agent_id: str) -> None:
-        self._put(
-            SubagentStartedEvent(
-                type=EventType.SUBAGENT_STARTED, subagent_run_id=invocation_id, name=agent_id
-            )
-        )
-
-    def child_finished(self, invocation_id: str, agent_id: str, status: str) -> None:
-        # AG-UI's own `outcome` says only success or suspended, so the child's outcome status
-        # travels in `result`, in the contract's vocabulary.
-        self._put(
-            SubagentFinishedEvent(
-                type=EventType.SUBAGENT_FINISHED,
-                subagent_run_id=invocation_id,
-                result={"status": status},
-            )
-        )
-
-    def child_failed(self, invocation_id: str, agent_id: str, message: str) -> None:
-        self._put(
-            SubagentErrorEvent(
-                type=EventType.SUBAGENT_ERROR, subagent_run_id=invocation_id, message=message
-            )
-        )
-
-    def tool_started(self, call_id: str, name: str) -> None:
-        # The tool's name only: its arguments and what it returned stay out of the stream.
-        self._put(
-            ToolCallStartEvent(
-                type=EventType.TOOL_CALL_START, tool_call_id=call_id, tool_call_name=name
-            )
-        )
-
-    def tool_finished(self, call_id: str, name: str, *, ok: bool) -> None:
-        self._put(ToolCallEndEvent(type=EventType.TOOL_CALL_END, tool_call_id=call_id))
 
 
 class Cancellation:
@@ -312,9 +292,15 @@ def _error(message: str) -> Response:
     return sse([RunErrorEvent(type=EventType.RUN_ERROR, message=message)])
 
 
-def _stored_events(envelope: dict[str, Any], thread_id: str, run_id: str) -> list[BaseEvent]:
+def _stored_events(
+    envelope: dict[str, Any], stages: bytes | None, thread_id: str, run_id: str
+) -> list[BaseEvent]:
+    """A stored run as it streamed: its stage records between start and finish. A run stored
+    before its stages were kept has none."""
+    records = [json.loads(line) for line in (stages or b"").splitlines() if line.strip()]
     return [
         _started(thread_id, run_id),
+        *(event_from_stage(record) for record in records),
         RunFinishedEvent(
             type=EventType.RUN_FINISHED, thread_id=thread_id, run_id=run_id, result=envelope
         ),
@@ -399,8 +385,9 @@ def _replay_run_endpoint(conductor: Conductor) -> Endpoint:
         envelope = await asyncio.to_thread(conductor.store.get, invocation_id)
         if envelope is None:
             return JSONResponse({"error": f"no run {invocation_id}"}, status_code=404)
+        stages = await asyncio.to_thread(conductor.store.get_artifact, invocation_id, STAGES)
         thread_id = envelope.get("conversation_id") or "replay"
-        return sse(_stored_events(envelope, thread_id, invocation_id))
+        return sse(_stored_events(envelope, stages, thread_id, invocation_id))
 
     return replay_run
 
@@ -412,7 +399,7 @@ def agui_routes(
 ) -> list[Route]:
     """`POST /agui` runs one invocation and streams it; `POST /agui/runs/{run_id}/cancel` cancels
     the caller's run of that AG-UI `runId`; `GET /agui/runs/{invocation_id}` replays a stored run
-    as `RUN_STARTED` and `RUN_FINISHED`, since its stages were not kept."""
+    as it streamed, from its `stages.jsonl`."""
     in_flight = runs if runs is not None else RunsInFlight()
     return [
         Route("/agui", _run_agent_endpoint(conductor, authenticator, in_flight), methods=["POST"]),
@@ -433,6 +420,7 @@ __all__ = [
     "Cancellation",
     "RunsInFlight",
     "agui_routes",
+    "event_from_stage",
     "sse",
     "stream_run",
 ]

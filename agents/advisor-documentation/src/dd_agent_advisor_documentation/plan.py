@@ -4,9 +4,12 @@ answers (docs/specs/drafting.md). Serves `setup.dmp-create`.
 The plan's sections are the core requirements of `dd_dmp_template`, after Science Europe's, under
 a first section of project details. Each is drafted as a README section is (`outline.py`): what
 people in the project decided (the funders, the repository and licence chosen, how sensitive data
-are handled, the standards chosen) is placed as given, with the inventory's files if the data
-already exist, and what only the researcher can say is a gap with its question. As a README does,
-it asks first: before any answer is recorded, the version is a note that asks.
+are handled, the standards chosen, and the description of the data a person confirmed, from what
+the researcher said in any conversation in the project) is placed as given, with the inventory's
+files if the data already exist, and what only the researcher can say is a gap with its question.
+As a README does, it asks first: before any answer is recorded, the version is a note that asks.
+The section on storage and backup offers the institution's storage services, from the deployment's
+profile, as a suggestion to its question (`storage`), never placed in the plan.
 
 No model writes the plan's text. Where a model is configured, it may suggest answers to some
 sections' questions from the documents the researcher attached, such as a grant application or a
@@ -19,6 +22,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
+from dd_agent_advisor_documentation import storage
 from dd_agent_advisor_documentation.checks import count, listed
 from dd_agent_advisor_documentation.dictionary import _answers
 from dd_agent_advisor_documentation.drafted import drafted
@@ -43,7 +47,7 @@ TITLE = "Data Management Plan"
 # metadata record gives it, and a decided funder or the record's title is offered beside it.
 DETAILS: dict[str, Any] = {
     "heading": "Project details",
-    "from": ["funders"],
+    "from": ["project", "funders"],
     "parts": [
         {
             "label": "Project title",
@@ -69,11 +73,24 @@ DETAILS: dict[str, Any] = {
 # from, whether a model may suggest an answer to it (always, or only from attached documents), and
 # the value it shares with other documents. Its heading and what it asks are the template's.
 SECTION_FACTS: dict[str, dict[str, Any]] = {
-    "data-collection": {"from": ["files"], "suggest": "documents"},
+    "data-collection": {
+        "from": ["data_description", "data_description_so_far", "files"],
+        "complete_from": "data_description",
+        "suggest": "documents",
+    },
     "documentation-quality": {"from": ["standards"], "suggest": "documents"},
     "storage-backup": {"suggest": "documents"},
     "legal-ethical": {"from": ["sensitivity"], "suggest": "documents"},
+    # A plan is written before the repository (Phase 3) and the licence (Phase 5) are chosen, so
+    # its sharing question asks for what is intended, not what is decided.
     "sharing-preservation": {
+        "ask": (
+            "what you intend for sharing and long-term preservation: how and when the data will "
+            "be shared, under what licence and restrictions, where they will be preserved and "
+            "how they will get a persistent identifier. If the repository or licence is not "
+            "chosen yet, say what you expect, such as a repository that issues DOIs; the plan "
+            "is updated once they are chosen."
+        ),
         "from": ["repository", "licence", "licences"],
         "suggest": "documents",
         "shares": "licence",
@@ -126,7 +143,11 @@ def draft_plan(
     ]
     questions = [q for planned in outline for q in planned.questions]
     # A person's own words, from another document or a decision, come before a model's.
-    questions = shared_answers.offer(questions, asked.shared_answers, asked.project_decisions)
+    questions = shared_answers.offer(
+        questions, asked.shared_answers, asked.project_decisions, asked.researchers
+    )
+    # Then the institution's storage, by rule; a model is asked only about what is left.
+    questions = storage.offer(questions, asked)
     questions, suggested = suggest(
         with_documents(plan_facts(asked.project_decisions, record), asked),
         section_asks(sections, questions, has_documents=bool(asked.project_documents)),
@@ -135,6 +156,8 @@ def draft_plan(
     title = (_title(record) if record is not None else None) or TITLE
     answered = sum(bool(p.answer or p.answered_parts) for p in outline)
     said = f" {how_suggested(suggested, 'plan')}{shared_answers.how_offered(questions)}"
+    if storage.offered(questions):
+        said += " The storage question offers your institution's storage services to confirm."
     if asked.current_version is None and questions and not answered:
         statement = (
             f"It asks {count(len(questions), 'question')} before it writes the plan, about "

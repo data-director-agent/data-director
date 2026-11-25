@@ -3,7 +3,7 @@
 # under `guidance`); what they leave open is listed under `unconfirmed`.
 schema_class: RequirementSet
 requirement_set_id: zenodo
-version: 2
+version: 3
 title: Zenodo
 url: https://sandbox.zenodo.org/
 re3data_id: r3d100010468
@@ -16,37 +16,37 @@ conforms_to: http://datacite.org/schema/kernel-4
 # DataCite only recommends.
 fields:
   - property: titles
-    schema_org: name
+    term: schema:name
     obligation: required
     form_label: Title
   - property: creators
-    schema_org: creator
+    term: schema:creator
     obligation: required
     form_label: Creators
   - property: types.resourceTypeGeneral
-    schema_org: additionalType
+    term: schema:additionalType
     obligation: required
     form_label: Resource type
   - property: descriptions
     qualifier: {descriptionType: Abstract}
-    schema_org: description
+    term: schema:description
     obligation: required
     form_label: Description
   - property: rightsList
-    schema_org: license
+    term: schema:license
     obligation: required
     form_label: Licenses
   - property: subjects
-    schema_org: keywords
+    term: schema:keywords
     obligation: recommended
     form_label: Keywords and subjects
   - property: fundingReferences
-    schema_org: funding
+    term: schema:funding
     obligation: recommended
     form_label: Funding
     supplied_on: researchers
   - property: relatedIdentifiers
-    schema_org: citation
+    term: schema:citation
     obligation: recommended
     form_label: Related works
 

@@ -66,6 +66,11 @@
     },
     {
       "action_class": "advise",
+      "agent_id": "advisor.storage",
+      "requires_approval": false
+    },
+    {
+      "action_class": "advise",
       "agent_id": "example.hello",
       "requires_approval": false
     },
@@ -82,7 +87,7 @@
   ],
   "profile": {
     "description": "Reference profile for the Data Director app; enables every in-tree agent, requires approval for writes.",
-    "digest": "fdd639935b125fe88e0705ea629a3e7d521bb11aee877d2b6b0b1d19da1705de",
+    "digest": "5693bc178414ae39ea19c9c1935c6f64daa787215d71d067241798e06db6c11c",
     "id": "data-director-app",
     "orchestrator": "orchestrator.stub",
     "ref": "profile:data-director-app@v10",
@@ -93,34 +98,30 @@
       "action_classes": [],
       "agent_ids": [],
       "autonomy": "not_offered",
-      "label": "Plan how your data will be documented",
-      "phase_name": "Plan ahead",
+      "label": "Describe your project",
+      "phase_name": "Plan your data management",
       "phase_number": 1,
       "reason": "no_agent",
       "refers_to": null,
-      "step_id": "setup.documentation"
+      "step_id": "setup.project"
     },
     {
-      "action_classes": [
-        "advise"
-      ],
-      "agent_ids": [
-        "advisor.standards"
-      ],
-      "autonomy": "delegated",
-      "label": "Start a list of standard terms to describe your data",
-      "phase_name": "Plan ahead",
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Find out what your funder and institution require",
+      "phase_name": "Plan your data management",
       "phase_number": 1,
-      "reason": null,
+      "reason": "no_agent",
       "refers_to": null,
-      "step_id": "setup.vocabularies"
+      "step_id": "setup.requirements"
     },
     {
       "action_classes": [],
       "agent_ids": [],
       "autonomy": "not_offered",
       "label": "Write a Data Management Plan",
-      "phase_name": "Plan ahead",
+      "phase_name": "Plan your data management",
       "phase_number": 1,
       "reason": "no_agent",
       "refers_to": null,
@@ -130,12 +131,49 @@
       "action_classes": [],
       "agent_ids": [],
       "autonomy": "not_offered",
-      "label": "Review your Data Management Plan",
-      "phase_name": "Plan ahead",
+      "label": "Review and update your Data Management Plan",
+      "phase_name": "Plan your data management",
       "phase_number": 1,
       "reason": "no_agent",
       "refers_to": null,
       "step_id": "setup.dmp-review"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Plan how your data will be documented",
+      "phase_name": "Plan your data management",
+      "phase_number": 1,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "setup.documentation"
+    },
+    {
+      "action_classes": [],
+      "agent_ids": [],
+      "autonomy": "not_offered",
+      "label": "Plan where your data will be stored and backed up",
+      "phase_name": "Plan your data management",
+      "phase_number": 1,
+      "reason": "no_agent",
+      "refers_to": null,
+      "step_id": "setup.storage"
+    },
+    {
+      "action_classes": [
+        "advise"
+      ],
+      "agent_ids": [
+        "advisor.standards"
+      ],
+      "autonomy": "delegated",
+      "label": "Plan which open file formats to collect your data in",
+      "phase_name": "Plan your data management",
+      "phase_number": 1,
+      "reason": null,
+      "refers_to": null,
+      "step_id": "setup.formats"
     },
     {
       "action_classes": [],
@@ -277,7 +315,7 @@
         "advisor.standards"
       ],
       "autonomy": "delegated",
-      "label": "Save your data in open formats",
+      "label": "Check your files are in open formats",
       "phase_name": "Get your data ready",
       "phase_number": 4,
       "reason": null,
@@ -307,13 +345,17 @@
       "step_id": "preparation.metadata-standard"
     },
     {
-      "action_classes": [],
-      "agent_ids": [],
-      "autonomy": "not_offered",
-      "label": "Confirm the standard terms you will use",
+      "action_classes": [
+        "advise"
+      ],
+      "agent_ids": [
+        "advisor.standards"
+      ],
+      "autonomy": "delegated",
+      "label": "Choose the standard terms to describe your data",
       "phase_name": "Get your data ready",
       "phase_number": 4,
-      "reason": "no_agent",
+      "reason": null,
       "refers_to": null,
       "step_id": "preparation.vocabularies"
     },

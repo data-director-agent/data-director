@@ -24,7 +24,6 @@ from opf_fixture import (
 
 from dd_agent_advisor_policy import discover
 from dd_agent_advisor_policy.classes import Actor, ActorRole
-from dd_agent_advisor_policy.crossref import normal_issn
 from dd_agent_advisor_policy.opf import MAX_CONDITIONS, filter_for, from_item
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, verify
 from dd_sdk.registry import RegistryUnavailable
@@ -142,12 +141,6 @@ def test_crossref_names_a_journals_publisher_by_issn_or_title() -> None:
     assert all("data-director-advisor-policy" in r.headers["user-agent"] for r in seen)
     with pytest.raises(RegistryUnavailable, match="HTTP 503"):
         crossref(crossref_handler(status=503)).by_issn("0048-9697")
-
-
-def test_an_issn_is_written_one_way() -> None:
-    assert normal_issn("1879102x") == "1879-102X"
-    assert normal_issn(" 0048-9697 ") == "0048-9697"
-    assert normal_issn("0048-969") is None
 
 
 # --- the first search's rules -----------------------------------------------------------------

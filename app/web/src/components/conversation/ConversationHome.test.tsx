@@ -19,11 +19,14 @@ import {
 import type { Conversation } from "../../conversation/types";
 import { type FlowApi, FlowApiContext } from "../../flow/api";
 import { ActiveProjectProvider } from "../../project/active";
+import { ConversationSessionProvider } from "../../conversation/session";
+import { homePath } from "../../route";
 import intakeCompleteFixture from "../../../fixtures/intake-complete.json";
 import intakePendingFixture from "../../../fixtures/intake-pending.json";
 import projectCreatedFixture from "../../../fixtures/project-created.json";
 import projectsFixture from "../../../fixtures/projects.json";
 import projectFixture from "../../../fixtures/project-documents.json";
+import answersFixture from "../../../fixtures/project-answers.json";
 import {
   type DocumentVersion,
   httpProjectApi,
@@ -45,6 +48,7 @@ import { cassetteTransport, RunTransportContext, type RunTransport } from "../..
 import { SUCCEEDED, turnTransport, type TurnSent } from "../../test/turns";
 import { AnnouncerProvider } from "../ui/Announcer";
 import { ConversationHome } from "./ConversationHome";
+import { askAboutQuestion } from "./useAskAbout";
 
 /** The frame's polite region, where the page's announcements are said. */
 const announcements = () => screen.getByRole("log", { name: "Announcements" });
@@ -231,6 +235,22 @@ describe("ConversationHome", () => {
       expect(screen.getByRole("radio", { name: COLLECTED })).toBeChecked();
       await userEvent.click(screen.getByRole("button", { name: "Reply in my own words instead" }));
       expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toHaveValue("");
+    });
+
+    it("is hidden, not left below the working line, while the answer is awaited", async () => {
+      const sendTurn = vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockReturnValueOnce(new Promise<void>(() => undefined));
+      await renderHome(withOrchestrator(), fakeApi({ sendTurn, get: () => Promise.resolve(QUESTION) }));
+      await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), "hi");
+      await userEvent.click(screen.getByRole("button", { name: "Send" }));
+      await userEvent.click(await screen.findByRole("radio", { name: COLLECTED }));
+      await userEvent.click(screen.getByRole("button", { name: "Send answer" }));
+
+      expect(await screen.findByText(/is working on a reply/)).toBeVisible();
+      expect(screen.queryByRole("group", { name: "Where are you with your research data?" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Send answer" })).toBeNull();
     });
 
     it("may be ignored: a typed message is sent with no answer", async () => {
@@ -542,7 +562,7 @@ describe("ConversationHome", () => {
     /** Confirms the inventory being checked, leaving nothing out. */
     async function confirm() {
       const review = await screen.findByRole("dialog", {
-        name: "Check the inventory before attaching it",
+        name: "Check the inventory",
       });
       await userEvent.click(
         within(review).getByRole("button", { name: "Attach this inventory" }),
@@ -646,7 +666,7 @@ describe("ConversationHome", () => {
       if (!input) throw new Error("no file input");
       await userEvent.upload(input, file(JSON.stringify(INVENTORY)));
       const review = await screen.findByRole("dialog", {
-        name: "Check the inventory before attaching it",
+        name: "Check the inventory",
       });
       expect(
         within(review).getByText(/names of your files and folders/),
@@ -683,7 +703,7 @@ describe("ConversationHome", () => {
       if (!input) throw new Error("no file input");
       await userEvent.upload(input, file(JSON.stringify(leftOut.attached)));
       const review = await screen.findByRole("dialog", {
-        name: "Check the inventory before attaching it",
+        name: "Check the inventory",
       });
       await userEvent.click(
         within(review).getByRole("checkbox", {
@@ -838,6 +858,64 @@ describe("ConversationHome", () => {
     ).not.toBeInTheDocument();
   });
 
+  describe("keeps the message being written when the page is left", () => {
+    afterEach(() => history.replaceState(null, "", "/"));
+
+    /** The page inside the tab's session, drawn again by `back` after `leave`. */
+    async function renderLeavable(api: FakeApi) {
+      const app = (shown: boolean) => (
+        <AnnouncerProvider>
+          <FlowApiContext.Provider value={FLOW}>
+            <ProjectApiContext.Provider value={httpProjectApi}>
+              <ActiveProjectProvider>
+                <ConversationApiContext.Provider value={api}>
+                  <RunTransportContext.Provider value={api.turns}>
+                    <ConversationSessionProvider>
+                      {shown && <ConversationHome directory={withOrchestrator()} />}
+                    </ConversationSessionProvider>
+                  </RunTransportContext.Provider>
+                </ConversationApiContext.Provider>
+              </ActiveProjectProvider>
+            </ProjectApiContext.Provider>
+          </FlowApiContext.Provider>
+        </AnnouncerProvider>
+      );
+      const view = await opened(render(app(true)));
+      return {
+        leave: () => view.rerender(app(false)),
+        back: () => opened(view.rerender(app(true)) ?? view),
+      };
+    }
+
+    const messageBox = () => screen.getByRole("textbox", { name: "What would you like to do?" });
+
+    it("finds the unsent message in the box on coming back, and New conversation empties it", async () => {
+      const page = await renderLeavable(fakeApi());
+      await userEvent.type(messageBox(), "a half-written message");
+      page.leave();
+      expect(screen.queryByRole("textbox")).toBeNull();
+      await page.back();
+      expect(messageBox()).toHaveValue("a half-written message");
+      const history = screen.getByRole("region", { name: "Conversations" });
+      await userEvent.click(within(history).getByRole("button", { name: "New conversation" }));
+      expect(messageBox()).toHaveValue("");
+    });
+
+    it("shows the box with the message on coming back where the latest reply asks questions", async () => {
+      history.replaceState(null, "", "/?conversation=c9");
+      const page = await renderLeavable(fakeApi({ get: () => Promise.resolve(QUESTION) }));
+      await userEvent.click(
+        await screen.findByRole("button", { name: "Reply in my own words instead" }),
+      );
+      await userEvent.type(messageBox(), "my own words");
+      page.leave();
+      await page.back();
+      expect(await screen.findByRole("textbox", { name: "What would you like to do?" })).toHaveValue(
+        "my own words",
+      );
+    });
+  });
+
   describe("keeps the open conversation in the address", () => {
     afterEach(() => history.replaceState(null, "", "/"));
 
@@ -881,6 +959,97 @@ describe("ConversationHome", () => {
       await renderHome(withOrchestrator(), fakeApi({ get }));
       expect(await screen.findByText(/could not open that conversation/)).toBeVisible();
       expect(location.search).toBe("");
+    });
+
+    describe("a step or a draft's question asked about from another page", () => {
+      const asked = flowFixture.phases.flatMap((p) => p.steps)[0];
+      if (!asked) throw new Error("the flow fixture has no step");
+
+      /** The page drawn, left and drawn again in one session, as on going to the journey map
+       * and back; `back` is the address it comes back to. */
+      async function leaveAndComeBack(
+        back: string,
+        sendTurn: TurnSent,
+        { project = httpProjectApi, writing = "" }: { project?: ProjectApi; writing?: string } = {},
+      ) {
+        localStorage.setItem("dd-project", CONVERSATION.project_id ?? "p1");
+        history.replaceState(null, "", "/?conversation=c9");
+        const api = fakeApi({ sendTurn });
+        const page = (shown: boolean) => (
+          <AnnouncerProvider>
+            <FlowApiContext.Provider value={FLOW}>
+              <ProjectApiContext.Provider value={project}>
+                <ActiveProjectProvider>
+                  <ConversationApiContext.Provider value={api}>
+                    <RunTransportContext.Provider value={api.turns}>
+                      <ConversationSessionProvider>
+                        {shown && <ConversationHome directory={withOrchestrator()} />}
+                      </ConversationSessionProvider>
+                    </RunTransportContext.Provider>
+                  </ConversationApiContext.Provider>
+                </ActiveProjectProvider>
+              </ProjectApiContext.Provider>
+            </FlowApiContext.Provider>
+          </AnnouncerProvider>
+        );
+        const rendered = await opened(render(page(true)));
+        await screen.findByRole("list", { name: "Conversation" });
+        if (writing) await userEvent.type(screen.getByRole("textbox", { name: "What would you like to do?" }), writing);
+        rendered.rerender(page(false));
+        history.replaceState(null, "", back);
+        rendered.rerender(page(true));
+        return opened(rendered);
+      }
+
+      it("starts a new conversation with the step's prompt in the box, unsent", async () => {
+        const sendTurn = vi.fn(() => Promise.resolve());
+        await leaveAndComeBack(homePath({ ask: asked.id }), sendTurn);
+        const box = screen.getByRole("textbox", { name: "What would you like to do?" });
+        await waitFor(() => expect(box).toHaveValue(asked.prompt));
+        expect(screen.queryByRole("list", { name: "Conversation" })).not.toBeInTheDocument();
+        await waitFor(() => expect(box).toHaveFocus());
+        expect(new URLSearchParams(location.search).has("ask")).toBe(false);
+        expect(new URLSearchParams(location.search).has("conversation")).toBe(false);
+        expect(sendTurn).not.toHaveBeenCalled();
+      });
+
+      it("starts a new conversation with a draft's question in the box, unsent", async () => {
+        const answers = answersFixture as ProjectDocuments;
+        const readme = answers.documents[0];
+        const question = readme?.versions[0]?.questions[0];
+        if (!readme || !question) throw new Error("the answers fixture asks nothing");
+        const documents = () => Promise.resolve(answers);
+        const sendTurn = vi.fn(() => Promise.resolve());
+        await leaveAndComeBack(
+          homePath({ question: `${readme.document_id}/${question.question_id}` }),
+          sendTurn,
+          { project: { ...httpProjectApi, documents } },
+        );
+        const box = () => screen.getByRole("textbox", { name: "What would you like to do?" });
+        await waitFor(() => expect(box()).toHaveValue(askAboutQuestion("README", question)));
+        expect(screen.queryByRole("list", { name: "Conversation" })).not.toBeInTheDocument();
+        expect(new URLSearchParams(location.search).has("question")).toBe(false);
+        expect(sendTurn).not.toHaveBeenCalled();
+      });
+
+      it("asks before replacing a message being written, and replaces it only when told", async () => {
+        await leaveAndComeBack(homePath({ ask: asked.id }), vi.fn(() => Promise.resolve()), {
+          writing: "my own words",
+        });
+        const dialog = await screen.findByRole("dialog");
+        // The dialog is modal, so the box behind it is hidden from the accessibility tree meanwhile.
+        const box = (hidden = false) => screen.getByRole("textbox", { name: "What would you like to do?", hidden });
+        expect(box(true)).toHaveValue("my own words");
+        await userEvent.click(within(dialog).getByRole("button", { name: "Replace it" }));
+        await waitFor(() => expect(box()).toHaveValue(asked.prompt));
+        expect(screen.queryByRole("list", { name: "Conversation" })).not.toBeInTheDocument();
+      });
+
+      it("keeps the open conversation when the step is not in the flow", async () => {
+        await leaveAndComeBack(homePath({ ask: "no.such-step" }), vi.fn(() => Promise.resolve()));
+        expect(await screen.findByRole("list", { name: "Conversation" })).toBeVisible();
+        expect(screen.getByRole("textbox", { name: "What would you like to do?" })).toHaveValue("");
+      });
     });
   });
 
@@ -1040,69 +1209,6 @@ describe("ConversationHome", () => {
   });
 
   describe("the workspace around the conversation", () => {
-    it("lists the six phases of the journey in plain words, with no agents or requirements", async () => {
-      const { container } = await renderHome(withOrchestrator(), fakeApi());
-      const phases = await screen.findByRole("navigation", {
-        name: "Your data journey",
-      });
-      const bar = await within(phases).findByRole("list", {
-        name: "The phases in order",
-      });
-      const [first] = flowFixture.phases;
-      const step = first?.steps[0];
-      if (!first || !step)
-        throw new Error("the process-flow fixture has no phase with a step");
-      expect(within(bar).getAllByRole("listitem")).toHaveLength(
-        flowFixture.phases.length,
-      );
-      expect(within(bar).getByText(first.name)).toBeVisible();
-      await userEvent.click(
-        within(phases).getByText("Show what happens in each phase"),
-      );
-      const items = within(phases)
-        .getAllByRole("listitem")
-        .filter((li) => li.querySelector("summary"));
-      expect(items).toHaveLength(flowFixture.phases.length);
-      const detail = items.find((li) =>
-        li.querySelector("summary")?.textContent?.includes(first.name),
-      );
-      if (!detail) throw new Error("no phase");
-      await userEvent.click(within(detail).getByText(first.name));
-      expect(within(detail).getByText(step.label)).toBeVisible();
-      expect(phases).not.toHaveTextContent(
-        /Requirements|\bR\d|Served by|agent/,
-      );
-      expect(await axe(container)).toHaveNoViolations();
-    });
-
-    it("shows the Data Management Plan steps, now in scope", async () => {
-      await renderHome(withOrchestrator(), fakeApi());
-      const phases = await screen.findByRole("navigation", {
-        name: "Your data journey",
-      });
-      await within(phases).findByRole("list", { name: "The phases in order" });
-      await userEvent.click(
-        within(phases).getByText("Show what happens in each phase"),
-      );
-      const detail = within(phases)
-        .getAllByRole("listitem")
-        .find((li) =>
-          li.querySelector("summary")?.textContent?.includes("Plan ahead"),
-        );
-      if (!detail) throw new Error("no phase");
-      await userEvent.click(within(detail).getByText("Plan ahead"));
-      const create = within(detail)
-        .getByText("Write a Data Management Plan")
-        .closest("li");
-      expect(create).toHaveTextContent("(optional)");
-      expect(create).not.toHaveTextContent("(out of scope for now)");
-      expect(
-        within(detail)
-          .getByText("Review your Data Management Plan")
-          .closest("li"),
-      ).not.toHaveTextContent("(out of scope for now)");
-    });
-
     it("draws what is not built of the project pane, linked to its issues", async () => {
       await renderHome(withOrchestrator(), fakeApi());
       const panel = screen.getByRole("region", { name: "Project" });
@@ -1330,32 +1436,6 @@ describe("ConversationHome", () => {
       ).toBeNull();
     });
 
-    it("keeps the conversation working when the phases cannot be loaded", async () => {
-      const failing: FlowApi = {
-        get: () => Promise.reject(new Error("the server answered 500")),
-      };
-      await renderHome(withOrchestrator(), fakeApi(), failing);
-      const phases = screen.getByRole("navigation", {
-        name: "Your data journey",
-      });
-      expect(await within(phases).findByRole("alert")).toHaveTextContent(
-        "the server answered 500",
-      );
-      expect(
-        screen.getByRole("textbox", { name: "What would you like to do?" }),
-      ).toBeEnabled();
-    });
-
-    it("keeps the phases when there is no conversation", async () => {
-      await renderHome(normalise(raw), fakeApi());
-      expect(
-        screen.getByRole("heading", {
-          level: 1,
-          name: "No conversation is available",
-        }),
-      ).toBeVisible();
-      expect((await screen.findAllByText("Plan ahead"))[0]).toBeVisible();
-    });
   });
 
   describe("the selected run in its card", () => {
@@ -1471,106 +1551,6 @@ describe("ConversationHome", () => {
       };
     }
 
-    it("shows the harness's suggestion and each step's state, without computing either", async () => {
-      localStorage.setItem("dd-project", LOGGERS.project_id);
-      const { container } = await renderHome(
-        withOrchestrator(),
-        fakeApi(),
-        FLOW,
-        withProgress(),
-      );
-      const phases = await screen.findByRole("navigation", {
-        name: "Your data journey",
-      });
-      expect(await within(phases).findByRole("status")).toHaveTextContent(
-        `Suggested next: ${label("governance.policies")}`,
-      );
-      expect(
-        within(phases).getByRole("combobox", { name: "Where you started" }),
-      ).toHaveValue("2");
-      await userEvent.click(
-        within(phases).getByText("Show what happens in each phase"),
-      );
-      expect(
-        within(phases).getByRole("button", {
-          name: `Open again: ${label("preparation.files")}`,
-        }),
-      ).toBeInTheDocument();
-      expect(phases).not.toHaveTextContent(/\bR\d|agent/);
-      expect(await axe(container)).toHaveNoViolations();
-    });
-
-    it("records a step marked, or the entry point chosen, and draws what the server reads back", async () => {
-      localStorage.setItem("dd-project", LOGGERS.project_id);
-      const markStep = vi.fn(() =>
-        Promise.resolve(
-          projectProgress({
-            entry: 2,
-            steps: {
-              "preparation.files": "done",
-              "governance.policies": "skipped",
-            },
-            suggested: "governance.sensitive-data-identify",
-          }),
-        ),
-      );
-      const chooseEntry = vi.fn(() =>
-        Promise.resolve<ProjectProgress>({ ...AT_ENTRY_TWO, entry: 3 }),
-      );
-      await renderHome(
-        withOrchestrator(),
-        fakeApi(),
-        FLOW,
-        withProgress({ markStep, chooseEntry }),
-      );
-      const phases = await screen.findByRole("navigation", {
-        name: "Your data journey",
-      });
-      await within(phases).findByRole("status");
-      await userEvent.click(
-        within(phases).getByText("Show what happens in each phase"),
-      );
-      await userEvent.click(
-        within(phases).getByRole("button", {
-          name: `Skip: ${label("governance.policies")}`,
-        }),
-      );
-      expect(markStep).toHaveBeenCalledWith(
-        LOGGERS.project_id,
-        "governance.policies",
-        "skipped",
-      );
-      expect(await within(phases).findByRole("status")).toHaveTextContent(
-        label("governance.sensitive-data-identify"),
-      );
-
-      await userEvent.selectOptions(
-        within(phases).getByRole("combobox", { name: "Where you started" }),
-        "3",
-      );
-      expect(chooseEntry).toHaveBeenCalledWith(LOGGERS.project_id, 3);
-    });
-
-    it("suggests nothing for Phase 1 while no entry point is recorded", async () => {
-      localStorage.setItem("dd-project", LOGGERS.project_id);
-      const unknown: ProjectProgress = projectProgress();
-      await renderHome(
-        withOrchestrator(),
-        fakeApi(),
-        FLOW,
-        withProgress({ progress: () => Promise.resolve(unknown) }),
-      );
-      const phases = await screen.findByRole("navigation", {
-        name: "Your data journey",
-      });
-      const status = await within(phases).findByRole("status");
-      expect(status).not.toHaveTextContent("Suggested next");
-      expect(status).not.toHaveTextContent("done or skipped");
-      expect(
-        within(phases).getByRole("combobox", { name: "Where you started" }),
-      ).toHaveValue("");
-    });
-
     const step = (id: string) => {
       const found = flow.phases
         .flatMap((p) => p.steps)
@@ -1578,80 +1558,6 @@ describe("ConversationHome", () => {
       if (!found) throw new Error(`no step ${id} in the fixture`);
       return found;
     };
-
-    it("starts a new conversation from a step with its prompt in the box, unsent", async () => {
-      localStorage.setItem("dd-project", LOGGERS.project_id);
-      const sendTurn = vi.fn().mockResolvedValue(undefined);
-      const { container } = await renderHome(
-        withOrchestrator(),
-        fakeApi({ sendTurn }),
-        FLOW,
-        withProgress(),
-      );
-      const phases = await screen.findByRole("navigation", {
-        name: "Your data journey",
-      });
-      await within(phases).findByRole("status");
-      await userEvent.click(
-        within(phases).getByText("Show what happens in each phase"),
-      );
-      // A step done or skipped offers no conversation.
-      expect(
-        within(phases).queryByRole("button", {
-          name: `Start a conversation: ${label("preparation.files")}`,
-        }),
-      ).not.toBeInTheDocument();
-
-      const chosen = step("repository.recommend");
-      await userEvent.click(
-        within(phases).getByRole("button", {
-          name: `Start a conversation: ${chosen.label}`,
-        }),
-      );
-      const box = screen.getByRole("textbox", {
-        name: "What would you like to do?",
-      });
-      expect(box).toHaveValue(chosen.prompt);
-      await waitFor(() => expect(box).toHaveFocus());
-      expect(sendTurn).not.toHaveBeenCalled();
-      expect(await axe(container)).toHaveNoViolations();
-    });
-
-    it("asks before replacing a message being written", async () => {
-      localStorage.setItem("dd-project", LOGGERS.project_id);
-      await renderHome(withOrchestrator(), fakeApi(), FLOW, withProgress());
-      const phases = await screen.findByRole("navigation", {
-        name: "Your data journey",
-      });
-      await within(phases).findByRole("status");
-      const box = screen.getByRole("textbox", {
-        name: "What would you like to do?",
-      });
-      await userEvent.type(box, "my own words");
-      const suggested = step("governance.policies");
-      await userEvent.click(
-        within(phases).getAllByRole("button", {
-          name: `Start a conversation: ${suggested.label}`,
-        })[0] as HTMLElement,
-      );
-      const dialog = await screen.findByRole("dialog");
-      await userEvent.click(
-        within(dialog).getByRole("button", { name: "Keep my message" }),
-      );
-      expect(box).toHaveValue("my own words");
-
-      await userEvent.click(
-        within(phases).getAllByRole("button", {
-          name: `Start a conversation: ${suggested.label}`,
-        })[0] as HTMLElement,
-      );
-      await userEvent.click(
-        within(await screen.findByRole("dialog")).getByRole("button", {
-          name: "Replace it",
-        }),
-      );
-      expect(box).toHaveValue(suggested.prompt);
-    });
 
     it("offers ways to start an empty conversation, led by the suggested step", async () => {
       localStorage.setItem("dd-project", LOGGERS.project_id);
@@ -1692,33 +1598,10 @@ describe("ConversationHome", () => {
           progress: () => Promise.resolve(projectProgress()),
         }),
       );
-      const phases = await screen.findByRole("navigation", {
-        name: "Your data journey",
-      });
-      await within(phases).findByRole("status");
+      await screen.findByRole("textbox", { name: "What would you like to do?" });
       expect(
         screen.queryByRole("group", { name: "Suggested ways to start" }),
       ).not.toBeInTheDocument();
-    });
-
-    it("says when Data Director recorded the entry point from what the researcher said", async () => {
-      localStorage.setItem("dd-project", LOGGERS.project_id);
-      const read: ProjectProgress = { ...AT_ENTRY_TWO, entry_source: "model" };
-      await renderHome(
-        withOrchestrator(),
-        fakeApi(),
-        FLOW,
-        withProgress({ progress: () => Promise.resolve(read) }),
-      );
-      const phases = await screen.findByRole("navigation", {
-        name: "Your data journey",
-      });
-      expect(
-        await within(phases).findByText(/Set by Data Director/),
-      ).toBeVisible();
-      expect(
-        within(phases).getByRole("combobox", { name: "Where you started" }),
-      ).toHaveValue("2");
     });
 
     it("asks the intake as soon as New project creates a project, before anything is typed", async () => {
@@ -1790,13 +1673,6 @@ describe("ConversationHome", () => {
       expect(answerIntake).toHaveBeenCalledWith(LOGGERS.project_id, entry.question_id, [
         option.option_value,
       ]);
-      // The tracker moves with the progress the answer came back with.
-      const suggested = complete.progress.suggested;
-      if (!suggested) throw new Error("the complete fixture suggests nothing");
-      const phases = screen.getByRole("navigation", { name: "Your data journey" });
-      await waitFor(() =>
-        expect(within(phases).getByRole("status")).toHaveTextContent(label(suggested)),
-      );
       // Closing the card hands over to the message box.
       await userEvent.click(screen.getByRole("button", { name: "Not now" }));
       await waitFor(() =>
@@ -1942,24 +1818,6 @@ describe("ConversationHome", () => {
       expect(screen.queryByRole("heading", { name: "Where your project starts" })).toBeNull();
     });
 
-    it("shows no card for a complete intake until the tracker asks the questions again", async () => {
-      localStorage.setItem("dd-project", LOGGERS.project_id);
-      const complete = intakeCompleteFixture as ProjectIntake;
-      await renderHome(
-        withOrchestrator(),
-        fakeApi(),
-        FLOW,
-        withProgress({ intake: () => Promise.resolve(complete) }),
-      );
-      const again = await screen.findByRole("button", { name: "Answer the setup questions again" });
-      const first = complete.questions[0];
-      if (!first) throw new Error("the intake fixture asks nothing");
-      expect(screen.queryByRole("group", { name: first.question.question_prompt })).toBeNull();
-      await userEvent.click(again);
-      expect(
-        await screen.findByRole("group", { name: first.question.question_prompt }),
-      ).toBeInTheDocument();
-    });
   });
 
   describe("the run, drawn live from its stream", () => {

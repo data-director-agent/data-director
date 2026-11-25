@@ -196,6 +196,9 @@ activity `prov:used` the entity.
 | `deposit_failed` | `dd:DepositFailure` | The harness is associated too. `prov:wasInformedBy` the approval; uses the package and the item; `dd:status` and the reason as `schema:description`. |
 | `support_team_chosen` | `dd:SupportTeamChoice` | Uses the project; `dd:team` the team. |
 | `escalation_opened` | `dd:EscalationOpening` | Generates the escalation, with `dd:team`, `dd:origin` and `dd:scopeShared`; `prov:wasInformedBy` the run it came from, where one; the note, named by its digest, as `dd:note`. |
+| `escalation_rerouted` | `dd:EscalationRerouting` | Uses the escalation, with `dd:team`; carried out by the harness for the deployment, an accountable role ([Data stewards](stewardship.md), invariant 13). |
+| `escalation_reassigned` | `dd:EscalationReassignment` | As a move below; `dd:steward` the colleague it was passed to, a `prov:Agent` named by their principal's identifier alone ([Data stewards](stewardship.md), invariant 4). |
+| `escalation_transferred` | `dd:EscalationTransfer` | As a move below; `dd:team` the team it was sent to and `dd:fromTeam` the team it left. |
 | `escalation_taken`, `_released`, `_waiting`, `_replied`, `_resolved`, `_handed_back`, `_withdrawn`, `_reopened` | `dd:EscalationTaking`, `dd:EscalationRelease`, `dd:EscalationWaiting`, `dd:EscalationReply`, `dd:EscalationResolution`, `dd:EscalationHandBack`, `dd:EscalationWithdrawal`, `dd:EscalationReopening` | Uses the escalation; `dd:actingAs` steward where a steward acted; the note, named by its digest, as `dd:note`. |
 | `steward_viewed`, `steward_message` | `dd:StewardView`, `dd:StewardMessage` | Uses the project; `dd:actingAs` steward; the message's note, named by its digest, as `dd:note`. |
 | `project_paused`, `project_resumed` | `dd:ProjectPause`, `dd:ProjectResumption` | Uses the project; `dd:team` the team that holds the pause; `dd:actingAs` steward; the reason, named by its digest, as `dd:note`. |

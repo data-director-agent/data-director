@@ -1,6 +1,7 @@
 """The first search, one step per source, before any model is called: each funder identified in
-ROR (`resolve.py`), each journal in Open Policy Finder and Crossref (`discover.py`), every actor's
-policy in FAIRsharing (`match.py`), then funders' and journals' in Open Policy Finder.
+ROR (`resolve.py`), each journal in Open Policy Finder, DOAJ and Crossref (`discover.py`), every
+actor's policy in FAIRsharing (`match.py`), then funders' and journals' in Open Policy Finder, and
+journals' in DOAJ.
 
 Each step takes what it needs and returns what it found, or, for FAIRsharing, which the agent
 cannot do without, the outcome. `first_search` composes them into a `FirstSearch`, which holds
@@ -20,7 +21,8 @@ from dd_agent_advisor_policy.classes import (
     ResolvedFunder,
     ResolvedJournal,
 )
-from dd_agent_advisor_policy.crossref import CrossrefJournal, CrossrefJournals
+from dd_agent_advisor_policy.crossref import CrossrefJournals
+from dd_agent_advisor_policy.doaj import DoajJournal, DoajJournals
 from dd_agent_advisor_policy.grounding import org_ref, organisation_hash, record_ref
 from dd_agent_advisor_policy.opf import OpenPolicyFinder, OpfRecord
 from dd_agent_advisor_policy.records import PolicyRecord
@@ -46,6 +48,7 @@ class Sources:
     organisations_fallback: Organisations | None = None
     opf: OpenPolicyFinder | None = None
     crossref: CrossrefJournals | None = None
+    doaj: DoajJournals | None = None
 
 
 # --- ROR -------------------------------------------------------------------------------------
@@ -99,14 +102,17 @@ def resolve_funders(
 
 
 def identify_journals(
-    actors: Sequence[Actor], opf: OpenPolicyFinder | None, crossref: CrossrefJournals | None
+    actors: Sequence[Actor],
+    opf: OpenPolicyFinder | None,
+    crossref: CrossrefJournals | None,
+    doaj: DoajJournals | None = None,
 ) -> dict[int, discover.Journal]:
-    """What Open Policy Finder and Crossref say about each journal given by name or ISSN, by the
-    actor's position."""
-    if opf is None and crossref is None:
+    """What Open Policy Finder, DOAJ and Crossref say about each journal given by name or ISSN,
+    by the actor's position."""
+    if opf is None and crossref is None and doaj is None:
         return {}
     return {
-        n: discover.journal(actor, opf, crossref)
+        n: discover.journal(actor, opf, crossref, doaj)
         for n, actor in enumerate(actors)
         if actor.role == ActorRole.JOURNAL and not actor.fairsharing_id
     }
@@ -153,10 +159,10 @@ def search_fairsharing(
 
 @dataclass
 class OpfStep:
-    """Funders' and journals' Open Policy Finder records, the queries made, and the registries
-    that could not be asked."""
+    """Funders' and journals' Open Policy Finder records, journals' DOAJ records, the queries
+    made, and the registries that could not be asked."""
 
-    matched: list[tuple[Actor, list[OpfRecord]]] = field(default_factory=list)
+    matched: list[tuple[Actor, list[OpfRecord | DoajJournal]]] = field(default_factory=list)
     queries: list[str] = field(default_factory=list)
     problems: list[str] = field(default_factory=list)
 
@@ -168,7 +174,8 @@ def search_opf(
     opf: OpenPolicyFinder | None,
 ) -> OpfStep:
     """Each funder searched in Open Policy Finder by its names, and each journal's own record,
-    or its publishers' when it has none. A registry that cannot be asked is noted."""
+    or its publishers' when it has none, with its DOAJ record. A registry that cannot be asked is
+    noted."""
     out = OpfStep()
     by_name = {a.name: n for n, a in enumerate(actors)}
     for actor, wanted in searched:
@@ -177,7 +184,7 @@ def search_opf(
             try:
                 found, asked = discover.funders(actor, wanted, opf)
                 out.queries += asked
-                out.matched.append((actor, found))
+                out.matched.append((actor, list[OpfRecord | DoajJournal](found)))
             except RegistryUnavailable as exc:
                 out.problems.append(str(exc))
         elif n in journals:
@@ -186,8 +193,11 @@ def search_opf(
             out.problems += journal.problems
             # The journal's own record carries its publishers' policies; a publisher's
             # record stands in only when Open Policy Finder has none for the journal.
-            own = [journal.record] if journal.record else journal.publishers
-            out.matched.append((actor, own[: discover.PER_ACTOR]))
+            opf_own = [journal.record] if journal.record else journal.publishers
+            own: list[OpfRecord | DoajJournal] = list(opf_own[: discover.PER_ACTOR])
+            if journal.doaj is not None:
+                own.append(journal.doaj)
+            out.matched.append((actor, own))
     for j in journals.values():
         out.queries += [q for q in j.queries if q not in out.queries] if j.candidates else []
     return out
@@ -240,7 +250,7 @@ class FirstSearch:
         ]
 
     @property
-    def ambiguous_journals(self) -> list[tuple[Actor, list[OpfRecord | CrossrefJournal]]]:
+    def ambiguous_journals(self) -> list[tuple[Actor, list[discover.JournalRecord]]]:
         return [
             (self.actors[n], list(j.candidates)) for n, j in self.journals.items() if j.candidates
         ]
@@ -257,6 +267,7 @@ class FirstSearch:
             for other in (
                 journal.record,
                 journal.crossref,
+                journal.doaj,
                 *journal.publishers,
                 *journal.candidates,
             ):
@@ -302,10 +313,12 @@ class FirstSearch:
                 actor=self.actors[n].name,
                 publisher=j.publisher,
                 issn=j.issn,
-                grounded_on=[record_ref(r) for r in (j.record, j.crossref) if r is not None],
+                grounded_on=[
+                    record_ref(r) for r in (j.record, j.doaj, j.crossref) if r is not None
+                ],
             )
             for n, j in self.journals.items()
-            if not j.candidates and (j.record or j.crossref)
+            if not j.candidates and (j.record or j.doaj or j.crossref)
         ]
 
     def unresolved(self) -> list[AmbiguousActor]:
@@ -325,7 +338,7 @@ class FirstSearch:
 
     def labels(self) -> list[str]:
         """The `snapshot_ref` of each registry that was used."""
-        opf, crossref = self.sources.opf, self.sources.crossref
+        opf, crossref, doaj = self.sources.opf, self.sources.crossref, self.sources.doaj
         return [self.where] + [
             ref
             for ref, used in (
@@ -333,6 +346,10 @@ class FirstSearch:
                 (
                     opf.snapshot_ref().as_string() if opf else None,
                     bool(self.opf.matched) or bool(self.journals),
+                ),
+                (
+                    doaj.snapshot_ref().as_string() if doaj else None,
+                    any(j.doaj or j.candidates for j in self.journals.values()),
                 ),
                 (
                     crossref.snapshot_ref().as_string() if crossref else None,
@@ -344,10 +361,11 @@ class FirstSearch:
 
     def registry_labels(self) -> dict[str, str]:
         """The `snapshot_ref` of each registry's evidence."""
-        opf, crossref = self.sources.opf, self.sources.crossref
+        opf, crossref, doaj = self.sources.opf, self.sources.crossref, self.sources.doaj
         return {
             "FAIRsharing": self.where,
             "Open Policy Finder": opf.snapshot_ref().as_string() if opf else "",
+            "DOAJ": doaj.snapshot_ref().as_string() if doaj else "",
             "Crossref": crossref.snapshot_ref().as_string() if crossref else "",
         }
 
@@ -371,7 +389,7 @@ def first_search(actors: list[Actor], sources: Sources) -> FirstSearch | AgentRe
         sources=sources,
         actors=actors,
         ror=resolve_funders(actors, sources.organisations, sources.organisations_fallback),
-        journals=identify_journals(actors, sources.opf, sources.crossref),
+        journals=identify_journals(actors, sources.opf, sources.crossref, sources.doaj),
         searched=[],
         blocked=set(),
     )

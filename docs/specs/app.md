@@ -109,7 +109,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     sent afterwards continues it. The open conversation outlives the Conversation page in the tab
     (`app/web/src/conversation/session.tsx`): someone who leaves it while a reply is awaited finds,
     on coming back by any link, the conversation in the address again, the message sent and its
-    run still streaming, or the reply that arrived meanwhile. The app gives the conductor the same project store, so a turn's runs belong to the
+    run still streaming, or the reply that arrived meanwhile, and a message they had begun to write
+    but not sent still in the message box. The app gives the conductor the same project store, so a turn's runs belong to the
     project and a drafter's documents are kept in it ([Projects](projects.md),
     `app/tests/test_app.py`).
 19. **An inventory is attached, never pasted into the message.** A turn may carry an `inventory`,
@@ -139,11 +140,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     records the choice (`inventory/browser/tests/omit.test.ts`,
     `app/web/src/components/conversation/ConversationHome.test.tsx` and, with the same
     `app/web/fixtures/inventory-left-out.json`, `app/tests/test_app.py`). The checked inventory
-    shows as a chip, never as its text. **Make an inventory**, offered beside **Add an inventory** in
+    shows as a chip, never as its text. **Add an inventory**, offered beside **Make an inventory** in
     the project's panel and page and not under the message box, opens a
     dialog for a researcher who has none: one sentence on what an inventory is and that the data
     stay on their computer, then two routes as tabs, **In this browser** and **With the command**.
-    Where the deployment serves the browser scanner's bundle at `inventory-bundle/`, the dialog
+    Where the deployment serves the browser scanner's bundle at `/inventory-bundle/`, the dialog
     opens on the first, **Describe a folder in this browser**
     (`components/inventory/DescribeFolder.tsx`, `src/scan/`), under which a **Use the command
     instead** button selects the second; where it does not, the command is the only route and
@@ -180,8 +181,8 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `project_inventory` the conductor gave that turn (`app/tests/test_app.py`,
     `app/web/src/components/conversation/ConversationHome.test.tsx`).
     An inventory may also be added to a project without a conversation: the project's page and the
-    workspace's Project panel offer **Add an inventory** (**Replace the inventory** where the project
-    holds one) beside **Make an inventory**. The file goes through the same check as one attached to
+    workspace's Project panel offer **Make an inventory** beside **Add an inventory** (**Replace the
+    inventory** where the project holds one). The file goes through the same check as one attached to
     a message, and only **Add this inventory** sends it, to `POST /api/projects/{id}/inventory`; a
     refusal is said and the check stays open, and cancelling stores nothing
     (`app/web/src/components/inventory/AddInventory.test.tsx`).
@@ -199,7 +200,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     mark one as the project's Data Management Plan: the reader offers **Mark as the Data Management
     Plan** and, on the one marked, **Not the plan**; both are a person's decision on the project's
     `data_management_plan` fact, sent to `POST /api/projects/{id}/facts/decisions`, after which the
-    documents are read again ([Projects](projects.md), invariant 32; `PlanMark.test.tsx`). The page lists no
+    documents are read again ([Projects](projects.md), invariant 32; `PlanMark.test.tsx`). On the plan, **Ask the Data Management Planner to review it** opens the conversation (`?dmp=review`) with the request in the message box, unsent, as the FAIR feedback tab's button does; the orchestrator delegates the review, and the page runs no agent. The page lists no
     conversations: they are on the Conversations tab
     (`app/web/src/components/project/AttachDocument.test.tsx`, `AttachedReader.tsx`,
     `ProjectPage.test.tsx`, `app/tests/test_project_materials.py`).
@@ -410,7 +411,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
       project starts at and the suggested step, both from the project summary. The suggested step
       is one an enabled agent serves wherever its phase has one ([Orchestration](orchestration.md),
       invariant 19), so **Start with …** does not open on a step Data Director cannot help with.
-      Before the project's first turn, the card's ending then offers "Start with" the suggested
+      Where that passes over earlier steps of the phase that no enabled agent serves (the
+      progress's `passed_over`), the ending names them and says that they come first in the
+      process but Data Director cannot help with them yet, so that a suggestion out of §8's order
+      is explained. Before the project's first turn, the card's ending then offers "Start with" the suggested
       step and "Not now". Start closes the card and sends the researcher's opening turn, which
       names that step, by the ordinary turn path, so the conversation begins with Data
       Director's guidance on it. Not now closes the card and sends nothing. Asked again from the
@@ -513,7 +517,22 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     pane names links to it. Such a link names the facts by kind and subject
     (`/projects/{id}/facts?fact={kind}:{subject}`, repeated), and the panel marks them, brings the
     first into view and moves focus to it, or says that none of them is there any more
-    (`ProposedFacts.test.tsx`, `app/web/e2e/facts.spec.ts`). Nothing but the panel decides one.
+    (`ProposedFacts.test.tsx`, `app/web/e2e/facts.spec.ts`). Each proposal also offers **Discuss
+    this with Data Director**, a link to a new conversation (`/?fact={proposal}`) whose message
+    box holds, unsent, a request for help deciding it, in the researcher's voice: the fact in one
+    sentence, the plan's words for a sharing commitment, which agent proposed it and why. The app
+    never gives an agent the reason itself; the person passes it on by sending their message, and
+    may change or remove it first. The address then drops the proposal, and one no longer waiting
+    for a decision fills nothing (`useAskAboutFact.test.tsx`, `app/web/e2e/facts.spec.ts`).
+    A funder fact, proposed or decided, also links to **View funder**
+    (`/projects/{id}/facts?funder={subject}`), a page on the same tab that shows the fact and the
+    organisation behind its ROR identifier: its names, types, status, country, parents and
+    Crossref Funder IDs, with links to its ROR record and to each Crossref Funder ID. It reads the
+    organisation from the latest pinned ROR dump through the harness (`GET /api/funders/ror/{id}`,
+    answering `404` for an identifier the dump does not hold and `503` while no dump is built), never
+    from the live registry, and says which dump it read. It only shows; a funder is still decided
+    in the panel (`FunderViewer.test.tsx`, `app/tests/test_funders.py`,
+    `app/web/e2e/funders.spec.ts`). Nothing but the panel decides one.
 30. **A person's own settings are on the Settings page.** `/settings`, reached from the cog
     labelled **Settings** in the banner on every page and from the profile page, holds what a
     person sets for themselves, in tabs (**AI account**, **Appearance**, **Dates and times** and
@@ -530,7 +549,10 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
     `app/web/src/components/settings/Preferences.test.tsx`,
     `app/web/src/components/settings/SettingsPage.test.tsx`, `app/web/e2e/settings.spec.ts`).
     Every date, time and number the app shows is written through `app/web/src/format.ts`, so that
-    it follows them.
+    it follows them. A **Notifications** tab chooses which kinds of update from a data steward the
+    banner's **Updates** shows, kept in the browser in the same way (`app/web/src/session/notices.ts`,
+    `app/web/src/components/settings/NoticeSettings.test.tsx`); a steward also reads there where
+    their team is emailed, as the profile says ([Data stewards](stewardship.md), invariant 13).
 31. **A person deletes a conversation from the list beside it.** Each conversation in the workspace's list has a delete button named by its
     title, which opens a dialog saying that the conversation leaves every list for everyone
     working on its project, that nothing is erased, and until which day it can be restored, from
@@ -726,7 +748,13 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   words; it says that only the prose changes and that a fact they state counts as given by them,
   and after the run it says which version revises the one they read, or, in the agent's words, why
   none was drafted ([Drafting](drafting.md), invariant 12;
-  `app/web/src/components/project/RevisionRequest.test.tsx`). The list holds documents only.
+  `app/web/src/components/project/RevisionRequest.test.tsx`). Beneath the latest version of any
+  document an agent drafted, at either stage and with or without open questions, "Continue
+  drafting" asks that agent to draft it again from the answers recorded
+  (`POST /api/projects/{id}/documents/{document_id}/drafts`, naming the version shown); it says
+  beforehand whether questions left unanswered will stay open, and afterwards which version it
+  drafted or, in the agent's words, why none was ([Drafting](drafting.md), invariant 13;
+  `app/web/src/components/project/ContinueDrafting.test.tsx`). The list holds documents only.
 - **A project's pages are tabs.** Beneath the breadcrumb, each of a project's pages is a tab with
   an address of its own, in the order the work goes: Documents (`/projects/{id}`), Project facts
   (`/facts`), People (`/people`), Repository (`/repository`), Use of generative AI (`/ai-use`),
@@ -741,8 +769,18 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   each only where a set states it; what Data Director assumes (that the package is checked against
   those sets alone and deposited by hand), with the warnings and the sets' `unconfirmed` items;
   the documents and metadata they ask for; and the sets' `guidance`, the pages the values came
-  from. It also offers a way to choose one there (below); with none chosen it says so, and that a
-  shortlist can be asked for in the project's conversations. Whether a package meets them is the
+  from. It names the metadata standard the record is drafted and checked in and why
+  (`GET /api/projects/{id}/repository/standard`), marking one assumed for want of a declared
+  standard, and lets a person on the project choose another the deployment has a set for
+  (`PUT`), unless the deployment's settings for the repository name it ([Deposit](deposit.md),
+  invariant 5). It offers to convert the approved record to another of the deployment's standards
+  (`POST /api/projects/{id}/conversions`), lists each conversion kept with what it did not carry
+  over and what it kept less precisely, and downloads it in its own media type; a conversion the
+  target's requirements refuse names what to add to the record
+  ([Metadata standards](metadata-standards.md), *Converting a record*;
+  `app/web/src/components/project/ConvertRecord.test.tsx`). It also offers a way to choose one there (below); with none chosen it says so. A button
+  starts a new chat to identify the target data repository (`?repository=identify`), with the
+  request in the message box, unsent; it is offered with or without a repository chosen. Whether a package meets them is the
   deposit check's to say. The Deposit package tab checks the project against its chosen repository's
   requirements ([Deposit](deposit.md)) when the person asks, and lists what must be fixed and
   what is worth fixing, each in the harness's words. It offers to build the package only after
@@ -808,7 +846,7 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   `app/web/src/components/project/ProjectPanelPage.test.tsx`).
 - **The phases** come from the SDK's process flow, served by the app and joined in the shell to
   each manifest's `serves` ([Orchestration](orchestration.md)), so the shell keeps no copy of the
-  flow. The shell shows them as "Your data journey", in a researcher's words: each phase has a
+  flow. The shell shows them on the journey map, as "Your data journey", in a researcher's words, and not on the conversation page: each phase has a
   short `name` and a one-sentence `summary`, and each step a `label` and a `prompt`, a first-person
   opening for a conversation about it, all carried by the process flow beside the Blueprint's own
   wording, which the orchestrator reasons over. The journey names
@@ -823,21 +861,20 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
 - **The journey map** draws a project's journey whole, at `/projects/{id}/journey`, after the
   Blueprint's §8 figures: each phase a line of stops, the entry points pinned to the phases they
   join at, the intake's decision points as diamonds before the steps they can skip, with the
-  answer given, a band across the map saying every action is recorded (linking to the activity
-  log), and the last phase looping back rather than ending. Like the strip it names no agent and
+  answer given, and the last phase looping back rather than ending. Like the process flow it names no agent and
   no requirement, and computes no state: each stop's state, the word that decided it
   (`reasons`) and the decision points (`decisions`) are the harness's, in the progress it
   serves. Each stop is a button that says its state in words. A step out of scope says "Not in
   this version", or, where the intake's answer skipped it as the branch not taken, that it is
-  skipped, struck through like any skipped step; opening one (`?step=`) shows what
+  skipped, struck through like any skipped step, until the log shows the answer's premise no
+  longer holds ([Projects](projects.md), rule 20); opening one (`?step=`) shows what
   the step is, its state and why, a link to the document or page that produced it, the marks the
   researcher may make, and **Ask Data Director about this**, which opens the conversation with a
   question about the step in the message box, unsent (`/?ask={step_id}`), so the researcher's
   own word starts the turn. A key at the foot of the page, **How to read the map**, says each
   mark in words: a stop's state, optional, not in this version, suggested next, waiting on you, a
   decision point and where the project started. **Waiting on you** picks out the steps whose document awaits the
-  researcher's decision and the decision points not yet answered; the strip shows the same count
-  and leads with a button-styled link to the map, and names the suggested step's phase. Each card
+  researcher's decision and the decision points not yet answered; the project pane shows the same count. Each card
   on the projects page shows the journey at a glance, linking to the map, and a **Journey map**
   link beside **Open conversations**
   (`app/web/src/flow/journey.test.ts`, `app/web/src/components/journey/JourneyPage.test.tsx`).
@@ -917,12 +954,11 @@ input, whose evidence is weak, so its items are hypotheses to test, not findings
   open conversation. Which project is active is a convenience of the browser, kept in
   `localStorage`, and a remembered project the server no longer lists is dropped.
 - **The conversation at the centre of a workspace.** Above it, whom the work acts for and whose
-  policy applies, then the Blueprint's six phases as a strip, like a progress bar, that opens to
-  each phase's steps and the agents serving them. On the left, the person's conversations, so
+  policy applies. On the left, the person's conversations, so
   that another is one press away; on the right, the project pane.
 - **The project pane holds what a conversation needs, not a summary of the project.** The
-  project's pages show it in full, and the header and phase strip already name the project and
-  draw the journey, so the pane repeats none of them. From the top: what waits on the researcher
+  project's pages show it in full, and the header already names the project and the
+  journey map draws the journey, so the pane repeats none of them. From the top: what waits on the researcher
   (documents to review, fact proposals to decide, repository warnings, unanswered setup
   questions), each with the one thing to do about it; where the project stands, the step under way
   and the one suggested next; what Data Director is working from, the facts that shape its answers

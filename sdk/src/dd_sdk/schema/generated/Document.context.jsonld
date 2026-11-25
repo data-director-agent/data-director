@@ -13,6 +13,9 @@
       "GroundingRef": {
          "@id": "https://w3id.org/data-director/GroundingRef"
       },
+      "answer_kind": {
+         "@id": "https://w3id.org/data-director/answer_kind"
+      },
       "conforms_to": {
          "@id": "http://purl.org/dc/terms/conformsTo",
          "@type": "@id"
@@ -75,6 +78,9 @@
          "@id": "http://purl.org/dc/terms/format"
       },
       "prov": "http://www.w3.org/ns/prov#",
+      "question_help": {
+         "@id": "https://w3id.org/data-director/question_help"
+      },
       "question_id": {
          "@id": "https://w3id.org/data-director/question_id"
       },

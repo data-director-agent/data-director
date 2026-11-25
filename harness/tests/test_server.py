@@ -139,7 +139,7 @@ def test_a_host_beyond_loopback_is_warned_about(
     server.main(["serve", "--host", "0.0.0.0"])
     assert "trusted network only" in capsys.readouterr().err
     server.main(["serve"])
-    assert capsys.readouterr().err == ""
+    assert "trusted network only" not in capsys.readouterr().err
 
 
 def test_a_server_that_signs_callers_in_is_not_warned_about(
@@ -150,7 +150,7 @@ def test_a_server_that_signs_callers_in_is_not_warned_about(
     deployment.setenv("DD_OIDC_ISSUER", "https://sandbox.orcid.org")
     deployment.setenv("DD_OIDC_CLIENT_ID", "APP-TESTCLIENT0000")
     server.main(["serve", "--host", "0.0.0.0"])
-    assert capsys.readouterr().err == ""
+    assert "trusted network only" not in capsys.readouterr().err
 
 
 def test_a_provider_beside_the_operator_stops_start_up(

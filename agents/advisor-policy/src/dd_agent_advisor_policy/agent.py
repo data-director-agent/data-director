@@ -1,10 +1,11 @@
 """The policy advisor: retrieve → match → assess → advise, over FAIRsharing's policy records,
-Jisc Open Policy Finder's and Crossref's journals.
+Jisc Open Policy Finder's, DOAJ's and Crossref's journals.
 
 It serves the first step of Phase 2 (Figure 2), checking funder, journal and institutional data
-sharing policies, and the first step of Phase 3 (Figure 3), whether the funder, journal or
-institution mandates a repository. The repositories a policy requires are returned in the form
-`advisor.repository` takes as `RepositoryNeeds.mandated`.
+sharing policies; the same check in Phase 1, before the Data Management Plan is written
+(`setup.requirements`, #1534); and the first step of Phase 3 (Figure 3), whether the funder,
+journal or institution mandates a repository. The repositories a policy requires are returned in
+the form `advisor.repository` takes as `RepositoryNeeds.mandated`.
 
 Grounding invariant: retrieval precedes any model call, and a model's word is never taken alone.
 The first search is fixed rules (`match.py`, `discover.py`); the model advisor then reads what it
@@ -16,16 +17,19 @@ record once, in `grounded_on`; what the reader is shown about it is the evidence
 which the linter re-hashes (E1, docs/specs/grounding.md). Where policies differ, the agent flags it
 for human review and never decides which applies.
 
-A journal is identified by its ISSN or title in Open Policy Finder and Crossref, and its
+A journal is identified by its ISSN or title in Open Policy Finder, DOAJ and Crossref, and its
 publisher's name is searched too, since most journals follow their publisher's policy (#905).
 Open Policy Finder is read live, with a key; without one it is not searched and the statement
-says so.
+says so. DOAJ needs no key, and its record of an open access journal's terms is matched to the
+journal as a policy record (#1517).
 
 Before FAIRsharing is searched, each funder is identified in ROR (`resolve.py`): a name that ROR
 gives to one organisation is searched by every name ROR records for it, and the funder's ROR record
 is cited, so its identifier can be passed on. A name ROR gives to more than one organisation is not
 guessed: the candidates are returned, each grounded on its ROR record, and the researcher is asked
 which they mean. ROR's records are evidence like FAIRsharing's, under the same canonicalisation.
+Each funder ROR identifies is proposed as a funder project fact, with its ROR identifier and its
+Crossref Funder ID from the same record, for a person to confirm (`propose.py`).
 """
 
 from __future__ import annotations
@@ -85,7 +89,7 @@ class PolicyAgent:
             "readings.stated.strength": Derived(Derivation.MODEL),
             "readings.stated.value": Derived(Derivation.MODEL),
         },
-        serves=("governance.policies", "repository.mandated"),
+        serves=("setup.requirements", "governance.policies", "repository.mandated"),
         reads_attached=(
             "to find what your institution's policy or your award letter asks of the data, "
             "alongside the published policies, quoting each passage for you to confirm"
@@ -161,6 +165,7 @@ class PolicyAgent:
             explanation,
             advised,
             report.model_use(explanation, texts, self.explainer.model_id, self.extractor.model_id),
+            decisions=context.project_decisions,
         ).result()
 
     def _advise(
@@ -187,6 +192,7 @@ class PolicyAgent:
             policies=self.sources.fallback if found.snapshot_ref.stale else self.sources.policies,
             opf=self.sources.opf,
             crossref=self.sources.crossref,
+            doaj=self.sources.doaj,
             records=dict(found.records),
             blocked=frozenset(found.blocked),
         )

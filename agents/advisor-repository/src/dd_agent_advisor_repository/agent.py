@@ -405,6 +405,8 @@ class RepositoryAgent:
         statement = choose.statement(
             needs, candidates, len(evidence), got, named, ranked, shortlisted
         )
+        if project.from_inventory is not None:
+            statement += project.from_inventory.said()
         statement += " The researcher chooses; human review is required. " + source.credit()
         return AgentResult(
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=statement),

@@ -72,7 +72,7 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
    `test_delegations_are_kept_when_the_parent_fails_after_delegating`,
    `test_a_child_that_finishes_after_its_parent_is_still_recorded`)
 8. **An orchestrator has no tools except its delegations, `ask_questions`, `name_project`,
-   `set_entry_point` and `suggest_setup_answers`.** A
+   `set_entry_point`, `propose_data_description` and `suggest_setup_answers`.** A
    model-backed orchestrator is offered one tool per input class of each agent in the harness's
    manifest, and `ask_questions`, which reaches nothing: called alone it ends the turn, and the
    reply carries its questions as `Reply.reply_questions`. In a project no person has named
@@ -83,7 +83,12 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
    (`Message.project_entry_by_researcher` not true) it is also offered `set_entry_point`, which
    reaches nothing: the reply carries the entry point the model worked out from what the
    researcher said as `Reply.new_project_entry`, which the conductor records (invariant 18), and
-   the turn goes on. While the project's intake has a question the researcher has not answered
+   the turn goes on. In a project it is also offered `propose_data_description`, which reaches
+   nothing: the reply carries, as `Reply.proposed_facts`, a `data_description` fact in the
+   researcher's own words, with the words it rests on as `proposed_because`, which the conductor
+   records as a proposal for a person to confirm ([Projects](projects.md), invariant 28), and the
+   turn goes on. Only a confirmed description reaches an agent, so a model's reading of what the
+   researcher said never becomes a fact without a person. While the project's intake has a question the researcher has not answered
    (invariant 20), it is also offered `suggest_setup_answers`, which reaches nothing: the reply
    carries, as `Reply.intake_suggestions`, the answers the model read in what the researcher
    said, each a question id and one fixed option of a question asked from the project's entry
@@ -102,9 +107,15 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
 9. **An orchestrator learns what it may invoke from the harness's manifest**, read through its
    grant, and keeps no list of agents of its own. The manifest lists every registered agent; the
    policy gate still refuses a child the profile does not enable, and the orchestrator relays that
-   refusal like any other outcome.
-   (`test_a_delegation_agent_reads_what_it_may_invoke_from_the_harness_card`,
-   `test_a_child_refused_by_policy_is_recorded_and_relayed`)
+   refusal like any other outcome. The manifest is the harness card's manifest extension: one
+   entry per agent, its `describe(spec)` without the class schemas and with `schemas_digest`, the
+   digest of the schemas the harness serves for that agent at `/a2a/schemas/{agent_id}`
+   (`dd_sdk.manifest`). An orchestrator gets an agent's schemas through `delegate.schemas_of`,
+   which fetches them only when the card names a digest it does not already hold and refuses a
+   document that does not match it. (#1590;
+   `test_a_delegation_agent_reads_what_it_may_invoke_from_the_harness_card`,
+   `test_a_child_refused_by_policy_is_recorded_and_relayed`,
+   `harness/tests/test_delegation_schemas.py`)
 10. **An orchestrator succeeds once it has replied, whatever its children's outcomes.** A failed
     child stays failed on its own envelope and in the parent's `delegations`, and the reply says
     what went wrong and what to try next. The parent fails only when it cannot reply at all: for
@@ -192,7 +203,10 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
     started, done or skipped) from the project log (`dd_harness.progress`): an inventory shows the
     files described, a repository chosen shows one recommended, and a document's versions show its
     step started once drafted and done once approved, a README with any data dictionary drafted
-    alongside it. The last validation shows `deposit.validate` done if it conforms and started if
+    alongside it. A README drafted before the project's inventory is added plans the
+    documentation, so its versions show `setup.documentation`; one drafted after shows
+    `preparation.documentation` (#1017). A summary of the project proposed shows `setup.project`
+    started, and one a person decided shows it done. The last validation shows `deposit.validate` done if it conforms and started if
     not, and a package built shows `deposit.finalise` done. Everything else is the researcher's own word, an `entry_chosen` or `step_marked`
     event, which they may change at any time; what the log produced outranks a skip. The one
     exception is the entry point an orchestrator's model worked out from what the researcher said,
@@ -225,9 +239,11 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
     from the entry phase that is neither done nor skipped, in scope and not optional, with a step
     begun before one not begun. Within the phase of that first open step, a step an agent the
     deployment enables serves comes before one no agent serves, so that a new project's card does
-    not open on a step nothing can help with, such as `setup.documentation` before #1017 (#1377);
+    not open on a step nothing can help with (#1377);
     the suggestion never leaves that phase for an agent, and where none of its steps is served it
-    is the first open one, named as having no agent (invariant 14). The harness reads the enabled
+    is the first open one, named as having no agent (invariant 14). The steps it passed over for
+    a served one are named (`dd_sdk.process_flow.passed_over`, the progress's `passed_over`), so
+    the app can say why the suggestion is not the first in §8's order. The harness reads the enabled
     agents from the app's conductor (`ProjectProgress.serving`), and the model's note from the
     manifest it is given, so the card, the tracker and both orchestrators agree. With no entry point recorded,
     where the researcher is is not known, so it names only a step begun, from any phase, or none:
@@ -265,7 +281,8 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
     done. "Yes" to a mandated repository marks the recommendation of one skipped, as Figure 3's
     "Yes" branch does. The Data Management Plan question follows Figure 1's branches: "Yes" marks
     creating a plan skipped and "No" marks reviewing one skipped. The skip records the branch not
-    taken, and a skip before the entry point does not bring its phase into the tracker (`dd_sdk.process_flow.progress`). "Yes" to sensitive data
+    taken; once a plan written in the project after "No" is approved, the review is open again
+    ([Projects](projects.md), rule 20), and a skip before the entry point does not bring its phase into the tracker (`dd_sdk.process_flow.progress`). "Yes" to sensitive data
     says at once, in the card, not to paste or upload the data itself into the conversation, and
     that the governance step covers how it is handled: Blueprint §5.2 asks that sensitive data not
     reach the model without institutional authorisation, and Figure 2 asks that it be anonymised
@@ -273,6 +290,24 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
     The questions are the same for every deployment: a profile may not change or extend them. The
     intake gathers nothing else. Funder, discipline, data types,
     embargo and licence are asked by the step that needs them, when the researcher reaches it.
+    What the project is and the data it will produce are the first such step, and the first of
+    Phase 1: "Describe your project" (`setup.project`), our addition to Figure 1, which every later
+    planning step builds on. The Data Management Planner serves it, proposing what the researcher
+    said and what an attached proposal or award letter says as project facts for them to confirm
+    ([Projects](projects.md), invariant 28). It is a step and not part of the intake because its
+    answers are read from the researcher's documents and confirmed like any fact, and are asked
+    only once the researcher reaches planning: a researcher who joins at entry 2 or 3 is not
+    asked them first.
+    The rest of Phase 1 runs in this order (#1534): what the funder and institution require of the
+    data plan (`setup.requirements`, our addition, served by the Policy Adviser as it serves
+    `governance.policies`), then Figure 1's Data Management Plan decision (`setup.dmp-create` or
+    `setup.dmp-review`), then documentation, storage and formats, which work out sections of the
+    plan in more detail. Figure 1 has the plan last; requirements come first because they decide
+    what the plan must cover, and the plan before its sections because it is what a funder asks
+    for at application. The plan does not move to a later phase: Entry 2 joins at Phase 2, after
+    collection, and `governance.dmp` (R8) checks sharing against a plan that must already exist.
+    The repository and licence chosen in Phases 3 and 5 enter the plan as intentions and are
+    updated later (`setup.dmp-review`, `post.dmp-update`).
     Answers are the researcher's own word, recorded in the project log and read like
     `step_marked` ([Projects](projects.md)). They can be changed at any time, from the phase tracker
     or by answering again. The researcher may skip a question, dismiss the intake, or type instead.
@@ -285,7 +320,9 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
     them; when the researcher said they have a Data Management Plan and attached no document, the
     model invites them to attach it and mark it as their plan (#1374), and when documents are
     attached but none is marked as the plan, to mark which one it is ([Projects](projects.md),
-    invariant 32; #1447). A researcher who dismisses the intake or types instead may still say where they are
+    invariant 32; #1447). When the researcher said they have none, the model offers to help write
+    one, and, once a plan written in the project is approved (`setup.dmp-create` done), offers to
+    review it instead. A researcher who dismisses the intake or types instead may still say where they are
     in their own words; the model then records the entry point it worked out (invariant 18).
 
     The intake asks only what the researcher has not answered, but it does not ask from scratch
@@ -472,6 +509,10 @@ against it.
   as fixed example rules for a model-free reference.)
 - **The manifest in the grant's metadata.** Every delegation-mode request would carry every
   agent's schemas, and the wire keys would change.
+- **Every agent's schemas on the harness card.** The card grew with every agent and schema, to
+  more than a megabyte, and every A2A client that read it downloaded the schemas whether it needed
+  them or not (#1590). Named by digest, they are fetched once per change and only by a caller that
+  builds inputs.
 - **A current step kept by the orchestrator, the conversation or the project.** It drifts from
   what the project holds, is lost with the model's history window or a new conversation, and
   forces a linear order on work that is not linear.
@@ -487,7 +528,9 @@ against it.
   would take steps from no one, which the roster forbids ([Agents](agents.md)).
 - **A long intake that also asks funder, discipline, data types, embargo and licence.** Asking
   these before the researcher has said anything puts people off. The answers would also be
-  guesses that the steps would ask about again.
+  guesses that the steps would ask about again. What the project is and the data it will produce
+  are instead the first planning step, `setup.project`, whose answers are proposed from the
+  researcher's documents and confirmed as project facts.
 - **Intake answers as `step_marked` events.** That would lose what the researcher was asked, and
   make answering again unable to undo a skip that came from an earlier answer.
 - **A model's intake answers recorded as a weaker word, as its entry point is.** The card would

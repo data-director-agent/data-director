@@ -60,12 +60,26 @@ one. Steps marked *optional* may be left out.
 
 ### Phase 1: Pre-collection setup
 
-*Entry 1 starts here.*
+*Entry 1 starts here.* The app calls this phase "Plan your data management". It is about planning
+how the data will be managed as a whole, not only how they will be described: how they will be
+collected, documented, stored and protected, shared and preserved, and for how long; who is
+responsible; and what it will cost. The Data Management Plan written here is a living document,
+reviewed and updated as the research proceeds and again after publication (Phase 6).
 
-- Draft the data documentation (R5)
+- Describe the project and the data it will produce (not in the Blueprint's figure, added
+  because every later step plans from it: attach your proposal or award letter and the Data
+  Management Planner proposes what it says, for you to confirm)
+- Draft the data documentation (R5): before collection, a README that plans it
 - Select controlled vocabularies and ontologies (R3)
+- Plan storage, backup and security during the project (not in the Blueprint's figure, added
+  because where your data live while you work on them is the first thing to settle)
+- Choose open formats to collect data in (R3; not in the Blueprint's figure, added so that your
+  data need no conversion before deposit)
 - Create a Data Management Plan where none exists (*optional*)
 - Review and update the Data Management Plan
+
+If you said you have no plan, the review step is skipped. Once you write a plan here and approve
+it, the review step opens again, so that the Data Management Planner can review your plan.
 
 ### Phase 2: Governance and constraints
 

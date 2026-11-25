@@ -145,6 +145,20 @@
         "mcp-spdx/tests"
       ]
     },
+    "mcp-subjects": {
+      "component": "mcp-subjects",
+      "release-type": "python",
+      "exclude-paths": [
+        "mcp-subjects/tests"
+      ]
+    },
+    "mcp-doaj": {
+      "component": "mcp-doaj",
+      "release-type": "python",
+      "exclude-paths": [
+        "mcp-doaj/tests"
+      ]
+    },
     "units": {
       "component": "units",
       "release-type": "python",
@@ -171,6 +185,13 @@
       "release-type": "python",
       "exclude-paths": [
         "dmp-template/tests"
+      ]
+    },
+    "metadata-records": {
+      "component": "metadata-records",
+      "release-type": "python",
+      "exclude-paths": [
+        "metadata-records/tests"
       ]
     }
   }

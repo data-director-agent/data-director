@@ -136,6 +136,8 @@ export interface ProjectApi {
   /** Records the person's request for changes to the latest version, whose text has `digest`,
    * and runs the agent that drafted it to revise it; answers with the run's outcome as `revised`. */
   revise(projectId: string, documentId: string, request: RevisionRequest): Promise<ProjectDocuments>;
+  /** Has the document's drafter draft it again from the recorded answers, as `drafted` says. */
+  draft(projectId: string, documentId: string, version: number): Promise<ProjectDocuments>;
   /** The inventory the project holds, as it was added; the inventory dialog reads it. */
   inventory(projectId: string, signal?: AbortSignal): Promise<unknown>;
   /** Adds `inventory` as the project's latest, revising the one it holds; answers with what it then holds. */
@@ -234,6 +236,11 @@ function put(body: unknown): RequestInit {
 /** A request that changes state with no body, which the server still takes only as JSON (#728). */
 function bodiless(method: string): RequestInit {
   return { method, headers: { "content-type": "application/json" } };
+}
+
+/** The address of `action` on one of the project's documents, such as its `answers`. */
+function documentPath(projectId: string, documentId: string, action: string): string {
+  return `${documentsPath(projectId)}/${encodeURIComponent(documentId)}/${action}`;
 }
 
 function documentsPath(projectId: string): string {
@@ -366,20 +373,16 @@ export const httpProjectApi: ProjectApi = {
     return parse(await fetch(`${projectPath(projectId)}/researchers/me`, bodiless("DELETE")));
   },
   async decide(projectId, documentId, request) {
-    return parse(
-      await fetch(
-        `${documentsPath(projectId)}/${encodeURIComponent(documentId)}/decisions`,
-        post(request),
-      ),
-    );
+    return parse(await fetch(documentPath(projectId, documentId, "decisions"), post(request)));
   },
   async answer(projectId, documentId, version, answers) {
-    const path = `${documentsPath(projectId)}/${encodeURIComponent(documentId)}/answers`;
-    return parse(await fetch(path, post({ version, answers })));
+    return parse(await fetch(documentPath(projectId, documentId, "answers"), post({ version, answers })));
   },
   async revise(projectId, documentId, request) {
-    const path = `${documentsPath(projectId)}/${encodeURIComponent(documentId)}/revisions`;
-    return parse(await fetch(path, post(request)));
+    return parse(await fetch(documentPath(projectId, documentId, "revisions"), post(request)));
+  },
+  async draft(projectId, documentId, version) {
+    return parse(await fetch(documentPath(projectId, documentId, "drafts"), post({ version })));
   },
 };
 

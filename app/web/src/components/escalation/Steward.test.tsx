@@ -115,7 +115,17 @@ describe("a request already sent", () => {
   it("asks for a note before replying to a steward who is waiting", async () => {
     const waiting: ProjectEscalations = {
       ...ESCALATIONS,
-      escalations: [{ ...OPEN, state: "waiting_for_researcher" }],
+      escalations: [
+        {
+          ...OPEN,
+          state: "waiting_for_researcher",
+          // As the harness lists them for a researcher while a steward waits on them.
+          permitted_moves: [
+            { move: "reply", note: "required", permitted: true },
+            { move: "withdraw", note: "none", permitted: true },
+          ],
+        },
+      ],
     };
     const api = fakeEscalationsApi(waiting);
     inProject(api, <StewardSection />);

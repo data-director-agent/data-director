@@ -1,0 +1,40 @@
+{
+  "country_codes": [
+    "GB"
+  ],
+  "crossref_funder_ids": [
+    "100014013"
+  ],
+  "crossref_funder_preferred": "100014013",
+  "links": {
+    "crossref_funders": [
+      "https://doi.org/10.13039/100014013"
+    ],
+    "ror": "https://ror.org/001aqnf71"
+  },
+  "names": [
+    {
+      "lang": "en",
+      "types": [
+        "ror_display",
+        "label"
+      ],
+      "value": "UK Research and Innovation"
+    },
+    {
+      "lang": null,
+      "types": [
+        "acronym"
+      ],
+      "value": "UKRI"
+    }
+  ],
+  "parents": [],
+  "ror_id": "https://ror.org/001aqnf71",
+  "snapshot_ref": "ror:dump:v2.15",
+  "status": "active",
+  "types": [
+    "funder",
+    "government"
+  ]
+}

@@ -9,13 +9,16 @@ from pathlib import Path
 import pytest
 
 import dd_agent_advisor_ethics
+import dd_duo
 from dd_agent_advisor_ethics.agent import (
+    CONSENT_MODIFIERS,
     EMBARGO_QUESTION,
     LOCATION_QUESTION,
     NOT_PEOPLE_QUESTION,
     PEOPLE_QUESTION,
     UNKNOWN_EMBARGO_QUESTION,
     EthicsAdviser,
+    consent_terms,
 )
 from dd_agent_advisor_ethics.classes import SensitivityContext, SensitivityFlags
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
@@ -112,3 +115,24 @@ def test_the_card_names_the_persona_and_its_steps() -> None:
 
 def test_its_classes_are_generated_from_its_linkml() -> None:
     assert gen.stale(SCHEMA) == [], f"run `uv run dd-gen-schema {SCHEMA}`"
+
+
+def test_a_consent_question_lists_duo_conditions_and_others_list_none(runs_dir: Path) -> None:
+    context = SensitivityContext(fields=["postcode", "visit_count"], involves_people=True)
+    env = make_conductor(runs_dir, EthicsAdviser()).invoke(
+        request("advisor.ethics", context), acting_for=TEST_PRINCIPAL
+    )
+    payload = env.payload_as(SensitivityFlags)
+    by_text = {q.text: q.data_use_terms for q in payload.questions}
+    listed = by_text.pop(PEOPLE_QUESTION)
+    assert {t.term_kind for t in listed} == {"permission", "modifier"}
+    for term in listed:
+        current = dd_duo.lookup(term.term_id)
+        assert current is not None
+        assert (term.term_label, term.term_iri) == (current.label, current.url)
+    assert by_text and not any(by_text.values())
+
+
+def test_every_consent_condition_is_a_current_duo_term() -> None:
+    assert all(dd_duo.lookup(term_id) is not None for term_id in CONSENT_MODIFIERS)
+    assert {t.term_id for t in consent_terms()} >= set(CONSENT_MODIFIERS)

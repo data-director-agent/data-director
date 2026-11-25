@@ -41,6 +41,12 @@
     ],
     "entry": 1,
     "entry_source": "researcher",
+    "passed_over": [
+      "setup.project",
+      "setup.requirements",
+      "setup.documentation",
+      "setup.storage"
+    ],
     "reasons": {
       "setup.dmp-review": {
         "at": "2026-01-01T00:00:00Z",
@@ -53,7 +59,7 @@
     "steps": {
       "setup.dmp-review": "skipped"
     },
-    "suggested": "setup.vocabularies"
+    "suggested": "setup.formats"
   },
   "questions": [
     {
@@ -87,6 +93,9 @@
       "answer_values": [
         "no"
       ],
+      "notices": {
+        "no": "Writing a Data Management Plan is optional in this process. You can start one at any time: choose \"Write a Data Management Plan\" in the phase tracker, or ask in the conversation."
+      },
       "question": {
         "question_key": "dmp",
         "question_kind": "choice",

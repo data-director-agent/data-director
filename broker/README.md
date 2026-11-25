@@ -34,6 +34,11 @@ at `/{provider}/chat/completions` for `openai`, `gemini` and `openai-compatible`
 `openai-compatible`. An account with another provider than the path names counts as none for
 that call, and the broker says which provider served each call in `X-DD-Model-Provider`.
 
+`GET /admin/summary` answers the admin service, with the operators' credential
+(`DD_BROKER_ADMIN_CREDENTIAL`, a digest) only: people's own accounts counted by provider and tokens
+summed over everyone, never a pseudonym, label or key (`dd_broker.admin`). Without the setting the
+route is not served.
+
 ```bash
 uv run dd-model-broker serve        # 127.0.0.1:8300; settings in dd_broker.settings
 ```

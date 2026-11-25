@@ -17,7 +17,18 @@ from datetime import UTC, datetime
 
 import pytest
 import uvicorn
-from pid_support import CROSSREF_DOI, DATACITE_DOI, NERC, ORCID_ID, built_registry, registries
+from pid_support import (
+    CROSSREF_DOI,
+    DATACITE_DOI,
+    NERC,
+    ORCID_ID,
+    STOTEN,
+    STOTEN_ONLINE,
+    UKRI_AWARD,
+    built_journals,
+    built_registry,
+    registries,
+)
 
 from dd_harness.gateway.config import ToolServer, tools_digest
 from dd_harness.gateway.core import Gateway, recorded
@@ -25,7 +36,14 @@ from dd_harness.gateway.upstream import Upstream
 from dd_mcp_pid.app import create_app
 from dd_sdk.evidence import DOCUMENT_CANONICALISATION, content_hash
 
-ID_FIELD = {"datacite": "doi", "crossref": "doi", "orcid": "orcid", "ror": "id"}
+ID_FIELD = {
+    "datacite": "doi",
+    "crossref": "doi",
+    "orcid": "orcid",
+    "ror": "id",
+    "journals": "issn_l",
+    "grants": "id",
+}
 
 
 def listed_servers(base_url: str) -> list[ToolServer]:
@@ -53,7 +71,8 @@ def _free_port() -> int:
 @pytest.fixture(scope="module")
 def base_url(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
     """The server on a free loopback port, answering from recorded files."""
-    app = create_app(registries(built_registry(tmp_path_factory.mktemp("ror"))))
+    built = tmp_path_factory.mktemp("registries")
+    app = create_app(registries(built_registry(built), journals=built_journals(built)))
     port = _free_port()
     server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
     thread = threading.Thread(target=server.run, daemon=True)
@@ -76,7 +95,7 @@ def gateway(base_url: str) -> Gateway:
 
 def test_the_gateway_lists_and_pins_every_server_over_http(gateway: Gateway) -> None:
     assert gateway.unavailable == {}
-    assert set(gateway.available) == {"datacite", "crossref", "orcid", "ror"}
+    assert set(gateway.available) == set(ID_FIELD)
 
 
 def test_the_server_refuses_a_host_it_was_not_told_of(base_url: str) -> None:
@@ -97,6 +116,13 @@ def test_the_server_refuses_a_host_it_was_not_told_of(base_url: str) -> None:
         ("crossref", "get_doi", {"doi": CROSSREF_DOI}, CROSSREF_DOI),
         ("orcid", "get_orcid", {"orcid": ORCID_ID}, f"https://orcid.org/{ORCID_ID}"),
         ("ror", "get_organisation", {"id": NERC}, NERC),
+        ("journals", "get_journal", {"issn": STOTEN_ONLINE}, STOTEN),
+        (
+            "grants",
+            "resolve_grant",
+            {"award": UKRI_AWARD},
+            "https://explore.openaire.eu/search/project?projectId=ukri________::c510f2607fbff2ad1e3cbfea7aadbdfb",
+        ),
     ],
 )
 def test_a_found_record_is_recorded_and_hashed_by_the_gateway(

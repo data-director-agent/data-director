@@ -12,7 +12,10 @@ the closed list of invariant 6 before anything happens, then records it in the p
   cannot take a steward's action by any route;
 - a steward whose access does not open the action is refused (`StewardRefusal.NOT_PERMITTED`).
 
-`read` records a steward's read, and is how the app's project routes reach a steward.
+Each read recorded, and each action taken, is also a security event (`steward.viewed`,
+`steward.acted`, docs/specs/security.md) naming the steward, the project and the action, never a
+note's text; a refusal records none. `read` records a steward's read, and is how the app's project
+routes reach a steward.
 `permitted_actions` says what the signed-in person may do in a project and why the rest is
 refused, so that the shell renders what the harness decides (invariant 6, "Boundaries").
 """
@@ -24,7 +27,7 @@ from typing import Any, Final
 
 from dd_harness.escalation_api import check_origin
 from dd_harness.policy import Profile
-from dd_harness.project_access import Action, allowed, role_of, roles
+from dd_harness.project_access import Action, allowed, role_in, roles
 from dd_harness.projects import (
     EscalationRefusedError,
     StewardRefusal,
@@ -35,11 +38,38 @@ from dd_harness.steward_access import ACTIONS, StewardAccess, StewardAction, acc
 from dd_harness.steward_storage import GateDecision, ProposedEdit
 from dd_harness.storage import ProjectStorage
 from dd_sdk.contract.models import DocumentVersionRef, Principal
+from dd_sdk.security_log import SecurityEvent, emit
 
 type EnvelopeOf = Callable[[str], Mapping[str, Any] | None]
 
 # Why a researcher's action is not open to a steward: a steward is never a member.
 NOT_A_MEMBER: Final = "not-a-member"
+
+SERVICE: Final = "harness"
+
+
+def _audit(steward: Principal, project_id: str, action: StewardAction | None = None) -> None:
+    """The security event for a steward's read (`action` None) or action in another person's
+    project, beside its event in the project's log."""
+    event = SecurityEvent.STEWARD_VIEWED if action is None else SecurityEvent.STEWARD_ACTED
+    extra = {} if action is None else {"action": action}
+    emit(
+        event,
+        outcome="success",
+        service=SERVICE,
+        principal=steward.principal_id,
+        project_id=project_id,
+        **extra,
+    )
+
+
+def record_view(
+    store: ProjectStorage, project_id: str, steward: Principal, *, caused_by: str
+) -> None:
+    """Record `steward`'s read of the project, at most once a day, in its log and the security
+    log."""
+    if store.record_view(project_id, acted_for=steward, caused_by=caused_by):
+        _audit(steward, project_id)
 
 
 def reach(
@@ -84,7 +114,7 @@ def read(
         return None
     found = access_in(profile, store.events(project_id), reader)
     if found is not None:
-        store.record_view(project_id, acted_for=reader, caused_by=caused_by)
+        record_view(store, project_id, reader, caused_by=caused_by)
     return found
 
 
@@ -99,7 +129,9 @@ def message(
 ) -> dict[str, Any]:
     """Write to the researcher as the project's steward."""
     reach(store, profile, project_id, acted_for, "message")
-    return store.steward_message(project_id, note, acted_for=acted_for, caused_by=caused_by)
+    event = store.steward_message(project_id, note, acted_for=acted_for, caused_by=caused_by)
+    _audit(acted_for, project_id, "message")
+    return event
 
 
 def pause(
@@ -114,7 +146,9 @@ def pause(
     """Pause the project for the steward's team with the matter escalated to it (invariant 8)."""
     found = reach(store, profile, project_id, acted_for, "pause")
     team_id = min(found.escalated_teams)
-    return store.pause(project_id, team_id, reason, acted_for=acted_for, caused_by=caused_by)
+    paused = store.pause(project_id, team_id, reason, acted_for=acted_for, caused_by=caused_by)
+    _audit(acted_for, project_id, "pause")
+    return paused
 
 
 def resume(
@@ -129,6 +163,7 @@ def resume(
     """Lift the project's pause, which the steward's team holds (invariant 8)."""
     found = reach(store, profile, project_id, acted_for, "resume")
     store.resume(project_id, found.teams, reason, acted_for=acted_for, caused_by=caused_by)
+    _audit(acted_for, project_id, "resume")
 
 
 def decide_gate(
@@ -150,7 +185,9 @@ def decide_gate(
         check_origin(named, project_id, envelope_of)
     except EscalationRefusedError as exc:
         raise StewardRefusedError(StewardRefusal.NOT_REFERRED, exc.detail) from exc
-    return store.decide_gate(project_id, decision, acted_for=acted_for, caused_by=caused_by)
+    decided = store.decide_gate(project_id, decision, acted_for=acted_for, caused_by=caused_by)
+    _audit(acted_for, project_id, action)
+    return decided
 
 
 def propose_edit(
@@ -165,7 +202,9 @@ def propose_edit(
     """Propose a new version of a document as the project's steward, which its owners approve or
     reject."""
     reach(store, profile, project_id, acted_for, "propose_edit")
-    return store.propose_edit(project_id, edit, acted_for=acted_for, caused_by=caused_by)
+    proposed = store.propose_edit(project_id, edit, acted_for=acted_for, caused_by=caused_by)
+    _audit(acted_for, project_id, "propose_edit")
+    return proposed
 
 
 def permitted_actions(
@@ -173,18 +212,29 @@ def permitted_actions(
 ) -> dict[str, Any]:
     """What `principal` may do in the project, as whom (`member` or `steward`), and why each of
     the rest is refused. Raises `UnknownProjectError` for someone who reaches it neither way."""
-    if not store.exists(project_id):
+    found = store.events(project_id) if store.exists(project_id) else None
+    permitted = None if found is None else permitted_actions_in(profile, found, principal)
+    if permitted is None:
         raise UnknownProjectError(f"no project {project_id!r}")
-    role = role_of(store, project_id, principal)
+    return permitted
+
+
+def permitted_actions_in(
+    profile: Profile, events: list[dict[str, Any]], principal: Principal
+) -> dict[str, Any] | None:
+    """`permitted_actions` in the project whose log, already read, is `events`, so that a listing
+    that has read its projects' logs does not read each again; None for someone who reaches the
+    project neither as a member nor as its steward."""
+    role = role_in(events, principal)
     if role is not None:
         member = [
             _row(a.value, None if allowed(role, a) else f"not-{role.value}-action") for a in Action
         ]
         refused = StewardRefusal.MEMBER_OF_PROJECT.value
         return {"acting_as": "member", "actions": member + [_row(a, refused) for a in ACTIONS]}
-    found = access_in(profile, store.events(project_id), principal)
+    found = access_in(profile, events, principal)
     if found is None:
-        raise UnknownProjectError(f"no project {project_id!r}")
+        return None
     researcher = [_row(a.value, NOT_A_MEMBER) for a in Action]
     steward = [_row(a, found.refusal(a)) for a in ACTIONS]
     return {"acting_as": "steward", "actions": researcher + steward}

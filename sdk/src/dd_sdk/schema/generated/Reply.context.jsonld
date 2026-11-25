@@ -7,11 +7,29 @@
       "GroundingRef": {
          "@id": "https://w3id.org/data-director/GroundingRef"
       },
+      "ProjectFact": {
+         "@id": "https://w3id.org/data-director/ProjectFact"
+      },
       "Question": {
          "@id": "https://w3id.org/data-director/Question"
       },
       "Reply": {
          "@id": "https://w3id.org/data-director/Reply"
+      },
+      "commitment_access": {
+         "@id": "https://w3id.org/data-director/commitment_access"
+      },
+      "commitment_document": {
+         "@id": "https://w3id.org/data-director/commitment_document"
+      },
+      "commitment_licence": {
+         "@id": "https://w3id.org/data-director/commitment_licence"
+      },
+      "commitment_quote": {
+         "@id": "https://w3id.org/data-director/commitment_quote"
+      },
+      "commitment_repository": {
+         "@id": "https://w3id.org/data-director/commitment_repository"
       },
       "content_hash": {
          "@id": "https://w3id.org/data-director/content_hash"
@@ -19,14 +37,73 @@
       "conversation_title": {
          "@id": "http://purl.org/dc/terms/title"
       },
+      "data_collected": {
+         "@id": "https://w3id.org/data-director/data_collected"
+      },
+      "data_collection_method": {
+         "@id": "https://w3id.org/data-director/data_collection_method"
+      },
+      "data_formats": {
+         "@id": "https://w3id.org/data-director/data_formats"
+      },
+      "data_reused": {
+         "@id": "https://w3id.org/data-director/data_reused"
+      },
+      "data_volume": {
+         "@id": "https://w3id.org/data-director/data_volume"
+      },
       "dcat": "http://www.w3.org/ns/dcat#",
       "dcterms": "http://purl.org/dc/terms/",
       "dd": "https://w3id.org/data-director/",
+      "fact_check_kind": {
+         "@id": "https://w3id.org/data-director/fact_check_kind"
+      },
+      "fact_crossref_funder_id": {
+         "@id": "https://w3id.org/data-director/fact_crossref_funder_id",
+         "@type": "@id"
+      },
+      "fact_file_path": {
+         "@id": "https://w3id.org/data-director/fact_file_path"
+      },
+      "fact_funder_name": {
+         "@id": "https://w3id.org/data-director/fact_funder_name"
+      },
+      "fact_funder_ror": {
+         "@id": "https://w3id.org/data-director/fact_funder_ror",
+         "@type": "@id"
+      },
+      "fact_kind": {
+         "@id": "https://w3id.org/data-director/fact_kind"
+      },
+      "fact_re3data_id": {
+         "@id": "https://w3id.org/data-director/fact_re3data_id"
+      },
+      "fact_repository_name": {
+         "@id": "https://w3id.org/data-director/fact_repository_name"
+      },
+      "fact_required_by": {
+         "@id": "https://w3id.org/data-director/fact_required_by"
+      },
+      "fact_subject": {
+         "@id": "https://w3id.org/data-director/fact_subject"
+      },
+      "field_name": {
+         "@id": "https://w3id.org/data-director/field_name"
+      },
+      "file_decision": {
+         "@id": "https://w3id.org/data-director/file_decision"
+      },
       "grounded_on": {
          "@id": "https://w3id.org/data-director/grounded_on",
          "@type": "@id"
       },
+      "licence_id": {
+         "@id": "https://w3id.org/data-director/licence_id"
+      },
       "linkml": "https://w3id.org/linkml/",
+      "location_precision": {
+         "@id": "https://w3id.org/data-director/location_precision"
+      },
       "new_project_entry": {
          "@id": "https://w3id.org/data-director/new_project_entry"
       },
@@ -41,6 +118,22 @@
       },
       "option_value": {
          "@id": "https://w3id.org/data-director/option_value"
+      },
+      "period_end": {
+         "@id": "https://w3id.org/data-director/period_end"
+      },
+      "period_start": {
+         "@id": "https://w3id.org/data-director/period_start"
+      },
+      "plan_document": {
+         "@id": "https://w3id.org/data-director/plan_document"
+      },
+      "proposed_because": {
+         "@id": "https://w3id.org/data-director/proposed_because"
+      },
+      "proposed_facts": {
+         "@id": "https://w3id.org/data-director/proposed_facts",
+         "@type": "@id"
       },
       "prov": "http://www.w3.org/ns/prov#",
       "question_help": {
@@ -82,11 +175,33 @@
       "schema_class": {
          "@id": "https://w3id.org/data-director/schema_class"
       },
+      "sensitive_subject": {
+         "@id": "https://w3id.org/data-director/sensitive_subject"
+      },
+      "sensitivity_decision": {
+         "@id": "https://w3id.org/data-director/sensitivity_decision"
+      },
       "shex": "http://www.w3.org/ns/shex#",
       "source_id": {
          "@id": "https://w3id.org/data-director/source_id"
       },
       "spdx": "http://spdx.org/rdf/terms#",
+      "standard_id": {
+         "@id": "https://w3id.org/data-director/standard_id",
+         "@type": "@id"
+      },
+      "standard_kind": {
+         "@id": "https://w3id.org/data-director/standard_kind"
+      },
+      "standard_name": {
+         "@id": "https://w3id.org/data-director/standard_name"
+      },
+      "standard_target": {
+         "@id": "https://w3id.org/data-director/standard_target"
+      },
+      "summary_text": {
+         "@id": "https://w3id.org/data-director/summary_text"
+      },
       "xsd": "http://www.w3.org/2001/XMLSchema#"
    }
 }

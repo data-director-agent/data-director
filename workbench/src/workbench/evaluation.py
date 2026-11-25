@@ -31,10 +31,11 @@ import os
 import subprocess
 import tempfile
 import threading
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+import yaml
 from inspect_ai.dataset import MemoryDataset, Sample
 from inspect_ai.log import EvalLog
 from inspect_ai.model import ModelOutput
@@ -56,6 +57,9 @@ from inspect_ai.solver import Generate, Solver, TaskState, solver
 
 from dd_harness.conductor import Conductor
 from dd_sdk.contract.models import InvocationRequest, OpenInput, Principal
+
+if TYPE_CHECKING:
+    from dd_harness.gateway.core import Gateway
 
 # The statuses in which an agent declined to answer. The source delivery plan counts them as
 # success states, scored apart from `failed`: stopping correctly is a right answer.
@@ -313,10 +317,29 @@ def remote_conductor(agents: str | Path, runs: Path) -> Conductor:
     )
 
 
-def one_conductor(agent: Callable[[], Any], agents: str | None, prefix: str) -> ConductorFor:
+def granting_tools(profile: Path, grants: Mapping[str, Sequence[str]], to: Path) -> Path:
+    """A copy of the profile at `profile`, written to `to`, whose `tool_servers` are `grants`."""
+    data = yaml.safe_load(profile.read_text(encoding="utf-8"))
+    data["tool_servers"] = {agent_id: list(servers) for agent_id, servers in grants.items()}
+    to.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+    return to
+
+
+def one_conductor(
+    agent: Callable[[], Any],
+    agents: str | None,
+    prefix: str,
+    *,
+    gateway: Callable[[], Gateway] | None = None,
+    tool_grants: Mapping[str, Sequence[str]] | None = None,
+) -> ConductorFor:
     """A `ConductorFor` that gives every case one conductor, built on first use: to the services
     `agents` lists if given, otherwise to the agent `agent()` builds, served in memory. Its runs
-    go to a new temporary directory named with `prefix`."""
+    go to a new temporary directory named with `prefix`.
+
+    For an agent built here, `gateway()` builds the tool gateway its conductor serves, and
+    `tool_grants` (agent id to server names) is written into a copy of the workbench's default
+    profile, which governs the runs in its place. Deployed services use their harness's own."""
     built: list[Conductor] = []
     building = threading.Lock()  # cases run side by side; the conductor is built once
     runs = Path(tempfile.mkdtemp(prefix=prefix))
@@ -327,7 +350,15 @@ def one_conductor(agent: Callable[[], Any], agents: str | None, prefix: str) -> 
 
         if agents:
             return remote_conductor(agents, runs / "remote")
-        return make_conductor(runs / "local", agent(), profile=DEFAULT_PROFILE)
+        profile = DEFAULT_PROFILE
+        if tool_grants:
+            profile = granting_tools(DEFAULT_PROFILE, tool_grants, runs / "profile.yaml")
+        return make_conductor(
+            runs / "local",
+            agent(),
+            profile=profile,
+            gateway=gateway() if gateway is not None else None,
+        )
 
     def conductor_for(case: dict[str, Any]) -> Conductor:
         with building:

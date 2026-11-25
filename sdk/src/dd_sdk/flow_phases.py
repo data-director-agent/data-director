@@ -16,15 +16,27 @@ about it that the app offers to edit and send.
 
 The steps are taken from the figure captions in §8.2, with two boxes the captions leave out:
 Figure 2's check of ethical, legal and institutional constraints, and Figure 4's finalising of
-controlled vocabularies and ontologies, which settles the first choice made in Phase 1. One step
-is ours and in no figure: `deposit.fairness`, a FAIR check of the draft before submission.
+controlled vocabularies and ontologies. Figure 1's selection of controlled vocabularies and
+ontologies (R3) is moved to that Phase 4 step, `preparation.vocabularies`: a Data Management Plan
+does not need it, and the repository chosen in Phase 3 decides which vocabularies apply. Some steps
+are ours and in no figure: `setup.project`, describing the project and the data it will produce,
+which every later Phase 1 step plans from; `setup.requirements`, finding out what the funder and
+institution require before the plan is written; `setup.storage`, planning where data are stored and
+backed up while the project runs; `setup.formats`, choosing open formats before collection; and
+`deposit.fairness`, a FAIR check of the draft before submission.
 TODO(#245):
 check the rest against Figures 1 to 6 themselves, which may show other steps or decisions the
 captions leave out.
+
+A step's `id` is stored: a researcher's `step_marked` names it in the project log, which outlives
+any release. So an id is never deleted or reused. A step taken out of the flow is retired in
+`RETIRED_STEPS`, with the step that replaces it where one does, and readers of the log resolve a
+stored id through `dd_sdk.process_flow.current_step` (docs/specs/projects.md).
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 
@@ -68,6 +80,58 @@ PHASES: tuple[Phase, ...] = (
         1,
         "Pre-collection setup",
         (
+            # Not in Figure 1: our addition, and first. Each later Phase 1 step plans from what
+            # the project is and the data it will produce: the README plan, storage, formats and
+            # the Data Management Plan. The Blueprint asks that researchers be engaged at project
+            # planning (§13) and that governance be addressed at the data management planning
+            # stage (§3). The answers are project facts the researcher confirms, proposed from
+            # what they say or a proposal they attach, so this is a step and not part of the
+            # intake, which asks only what places a project in the flow
+            # (docs/specs/orchestration.md, invariant 20).
+            Step(
+                "setup.project",
+                "Describe the project and the data it will produce",
+                label="Describe your project",
+                prompt=(
+                    "Help me describe my project and the data I expect to collect, so that the "
+                    "rest of the plan can build on it."
+                ),
+            ),
+            # Not in Figure 1: our addition, before the plan. What the funder and institution
+            # require of a project's data decides what its plan must cover, and how, so it is
+            # found out before the plan is written or reviewed: the Blueprint addresses governance
+            # at the data management planning stage (§3) and confirms what is permitted before
+            # anything else (§5.2). Phase 2's `governance.policies` is still the full check, for a
+            # researcher who joins there and once the data exist.
+            Step(
+                "setup.requirements",
+                "Find out what the funder and institution require of the data plan",
+                label="Find out what your funder and institution require",
+                prompt=(
+                    "What do my funder and institution require me to plan for my data, and what "
+                    "must my Data Management Plan cover?"
+                ),
+            ),
+            # Figure 1: a decision, then create a plan where none exists (optional) or review
+            # and update the one that does. Figure 1 puts it last; here it comes before the
+            # documentation, storage and formats steps, which each work out a section of the plan
+            # in more detail and are placed into it as project facts once decided (#1534).
+            Step(
+                "setup.dmp-create",
+                "Create a Data Management Plan where none exists",
+                optional=True,
+                label="Write a Data Management Plan",
+                prompt=(
+                    "Help me write a Data Management Plan covering how my data will be "
+                    "collected, stored, shared and kept."
+                ),
+            ),
+            Step(
+                "setup.dmp-review",
+                "Review and update the Data Management Plan",
+                label="Review and update your Data Management Plan",
+                prompt="Help me review my Data Management Plan and keep it up to date.",
+            ),
             Step(
                 "setup.documentation",
                 "Draft the data documentation",
@@ -75,37 +139,37 @@ PHASES: tuple[Phase, ...] = (
                 label="Plan how your data will be documented",
                 prompt="Help me plan how I will document my data before I start collecting it.",
             ),
-            # A first choice, so that data are collected with consistent terms. The repository
-            # chosen in Phase 3 settles the final list, which Figure 4 finalises
-            # (`preparation.vocabularies`); the wording says so.
+            # Not in Figure 1: our addition. Where the data live while the project runs, how they
+            # are backed up and who can reach them is the first thing a data service asks, and
+            # one of a plan's core requirements (Storage and backup during the project); without
+            # it, a researcher who has no plan is never asked.
             Step(
-                "setup.vocabularies",
-                "Select controlled vocabularies and ontologies",
+                "setup.storage",
+                "Plan storage, backup and security during the project",
+                label="Plan where your data will be stored and backed up",
+                prompt="Help me plan where to store and back up my data while I work on it.",
+            ),
+            # Not in Figure 1: our addition. Data saved in an open format from the start need no
+            # conversion before deposit; Figure 4's `preparation.formats` checks the files once
+            # they exist.
+            Step(
+                "setup.formats",
+                "Choose open formats to collect data in",
                 ("R3",),
-                label="Start a list of standard terms to describe your data",
+                label="Plan which open file formats to collect your data in",
                 prompt=(
-                    "Help me start a list of standard terms and vocabularies to describe my data "
-                    "as I collect it."
+                    "Before I start collecting, help me choose open file formats to save my data "
+                    "in."
                 ),
             ),
-            # Figure 1: a decision, then create a plan where none exists (optional) or review
-            # and update the one that does.
-            Step(
-                "setup.dmp-create",
-                "Create a Data Management Plan where none exists",
-                optional=True,
-                label="Write a Data Management Plan",
-                prompt="Help me write a Data Management Plan for my project.",
-            ),
-            Step(
-                "setup.dmp-review",
-                "Review and update the Data Management Plan",
-                label="Review your Data Management Plan",
-                prompt="Help me review my Data Management Plan.",
-            ),
         ),
-        name="Plan ahead",
-        summary="Before you collect any data: decide how it will be described.",
+        name="Plan your data management",
+        summary=(
+            "Start from what your project is, the data it will produce and what your funder and "
+            "institution require, then plan how your data will be collected, documented, stored, "
+            "protected, shared and kept, who looks after them and at what cost, and keep the "
+            "plan up to date."
+        ),
     ),
     Phase(
         2,
@@ -219,7 +283,7 @@ PHASES: tuple[Phase, ...] = (
                 "preparation.formats",
                 "Recommend open formats",
                 ("R3",),
-                label="Save your data in open formats",
+                label="Check your files are in open formats",
                 prompt=(
                     "Help me check whether my files are in open formats, "
                     "and what to save them as if not."
@@ -239,15 +303,16 @@ PHASES: tuple[Phase, ...] = (
                 prompt="Which metadata standard should I follow for my data?",
             ),
             # Figure 4's box after the metadata standard; the caption folds it into the next step.
-            # It finalises the provisional choice of `setup.vocabularies` once the repository and
-            # its standard are known.
+            # Figure 1 also selects vocabularies in Phase 1; that selection is made here instead,
+            # once the repository and its metadata standard are known, so it carries R3.
             Step(
                 "preparation.vocabularies",
                 "Finalise controlled vocabularies and ontologies",
-                label="Confirm the standard terms you will use",
+                ("R3",),
+                label="Choose the standard terms to describe your data",
                 prompt=(
-                    "Help me confirm the standard terms to use, now that I know what my "
-                    "repository needs."
+                    "Help me choose the standard terms and vocabularies to describe my data, to "
+                    "suit my repository and metadata standard."
                 ),
             ),
             Step(
@@ -382,3 +447,11 @@ PHASES: tuple[Phase, ...] = (
         summary="Follow how your data are used and keep their records up to date.",
     ),
 )
+
+# The step ids an earlier release had and this one does not, each with the step that replaces it,
+# or None where none does, so that a project log naming one still reads. Never remove an entry.
+RETIRED_STEPS: Mapping[str, str | None] = {
+    # Figure 1's selection of vocabularies, moved to Phase 4 (#1512). Starting a list before
+    # collection is not choosing the terms for a repository, so a mark of it is not carried over.
+    "setup.vocabularies": None,
+}

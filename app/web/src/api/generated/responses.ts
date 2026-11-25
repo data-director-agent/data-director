@@ -22,16 +22,21 @@ export type AppResponse =
   | About
   | AgentSetting
   | AgentsProfile
+  | AwaitingReview
   | BuiltPackage
   | CheckReport
   | Checks
   | ChecksConfirmed
   | ChosenRepository
+  | ChosenStandard
   | ConfirmationStatement
   | Conversation
   | ConversationDeleted
   | ConversationSummary
   | ConversationTurn
+  | ConversionRefusedProblem
+  | ConvertedRecord
+  | ConvertedRecords
   | Decision
   | DeletedConversation
   | DeletedProject
@@ -67,13 +72,22 @@ export type AppResponse =
   | IntakeQuestion
   | IntakeState
   | ItemDecisionMade
+  | ListedProject
+  | LiveEscalation
+  | MetadataStandard
+  | MissingField
   | MoveName
+  | MoveTarget
+  | Notice
+  | Notices
   | OriginKind
   | OutcomeStatus
   | PackageLink
   | PackageRefusedProblem
   | PermittedAction
   | PermittedActions
+  | PermittedMove
+  | PermittedMoveName
   | Policy
   | PolicyAgent
   | PolicyProfile
@@ -106,6 +120,7 @@ export type AppResponse =
   | RawStewardTeam
   | ReasonRequired
   | RecordedAnswer
+  | Reduced
   | RepositoryMatch
   | RepositorySearch
   | RepositoryTicket
@@ -114,17 +129,24 @@ export type AppResponse =
   | RevisionRequested
   | RevisionRun
   | Role
+  | RorLinks
+  | RorName
+  | RorOrganisation
   | RunResult
   | RunRow
   | SavedInventory
   | ServerFolderRoots
+  | StandardChoice
   | Started
   | StepReason
   | StepState
   | StewardGateDecision
   | StewardMessage
   | StewardPause
+  | StewardProject
   | StewardQueue
+  | StewardReach
+  | StewardTeamRef
   | StewardView
   | StoredRun
   | SupportTeamOption
@@ -135,8 +157,22 @@ export type AppResponse =
   | VersionDecision;
 export type StepState = "started" | "done" | "skipped";
 export type OutcomeStatus = "succeeded" | "abstained" | "referred" | "failed" | "suspended";
-export type MoveName = "open" | "take" | "release" | "wait" | "reply" | "resolve" | "hand_back" | "withdraw" | "reopen";
+export type MoveName =
+  | "open"
+  | "take"
+  | "release"
+  | "wait"
+  | "reply"
+  | "resolve"
+  | "hand_back"
+  | "withdraw"
+  | "reopen"
+  | "reassign"
+  | "transfer"
+  | "reroute";
 export type OriginKind = "researcher" | "policy_gate" | "agent" | "orchestrator";
+export type PermittedMoveName =
+  "take" | "release" | "wait" | "reply" | "resolve" | "hand_back" | "withdraw" | "reopen" | "reassign" | "transfer";
 export type EscalationState = "open" | "taken" | "waiting_for_researcher" | "resolved" | "handed_back" | "withdrawn";
 export type IntakeState = "pending" | "complete" | "dismissed";
 export type Role = "owner" | "member";
@@ -192,6 +228,23 @@ export interface AgentsProfile {
    */
   orchestrator: string | null;
   ref: string;
+}
+/**
+ * What in the project waits for a person to decide.
+ */
+export interface AwaitingReview {
+  /**
+   * Facts an agent proposed that no one has yet decided.
+   */
+  fact_proposals: number;
+  /**
+   * Documents whose latest version waits for an owner's approval.
+   */
+  proposed_versions: number;
+  /**
+   * The runs the policy gate referred to a steward that no steward has cleared or refused.
+   */
+  referred_runs: string[];
 }
 /**
  * The validation that let the package be built, and the package.
@@ -354,9 +407,34 @@ export interface ChosenRepository {
   repository_id: string;
   repository_name: string;
   /**
+   * The metadata standard its record is drafted and checked in, and why; None for a choice
+   * recorded before the reason was.
+   */
+  standard: ChosenStandard | null;
+  /**
    * What the choice does not check, for example that re3data does not list DataCite for it.
    */
   warnings: string[];
+}
+/**
+ * The metadata standard a repository choice resolved to, and why (docs/specs/deposit.md,
+ * invariant 5).
+ */
+export interface ChosenStandard {
+  /**
+   * For a standard a person chose, their name.
+   */
+  chosen_by: string | null;
+  /**
+   * Why it is this standard: the deployment's settings for the repository name it, a person
+   * chose it, it is the one the repository declares, the first by the deployment's preference of
+   * several it declares, or DataCite's because it declares none the deployment has a set for.
+   */
+  reason: "override" | "chosen" | "declared" | "declared_several" | "fallback";
+  /**
+   * The title of the standard's requirement set, such as Dublin Core (OAI-DC).
+   */
+  title: string;
 }
 /**
  * A conversation as the harness derives it from the run store
@@ -429,6 +507,11 @@ export interface ProjectProgress {
    * Who recorded the entry point: the researcher, or Data Director from what they said.
    */
   entry_source: ("researcher" | "model") | null;
+  /**
+   * The steps before `suggested` in its phase that it passed over because no agent the
+   * deployment enables serves them (#1377), in order; empty when none was.
+   */
+  passed_over: string[];
   /**
    * Why each step in `steps` is in its state, keyed the same.
    */
@@ -550,6 +633,74 @@ export interface ConversationSummary {
   title: string;
   title_source: "model" | "message";
   turns: number;
+}
+/**
+ * No conversion was kept, because the target requires what the approved record lacks.
+ */
+export interface ConversionRefusedProblem {
+  detail: string;
+  missing: MissingField[];
+  status: number;
+  title: string;
+  /**
+   * The problem's kind: a URI under the deployment's problem base, ending in its slug.
+   */
+  type: string;
+}
+/**
+ * A field the target standard's set requires that the approved record gives nothing for.
+ */
+export interface MissingField {
+  label: string;
+  /**
+   * Its property in the target standard.
+   */
+  property: string;
+  /**
+   * What to do: add it to the approved record, and approve it again.
+   */
+  question: string;
+}
+/**
+ * The approved metadata record in another standard, kept as a package derived from it.
+ */
+export interface ConvertedRecord {
+  conforms_to: string;
+  /**
+   * The digest of the approved record it was converted from.
+   */
+  derived_from: string;
+  /**
+   * The SHA-256 of its bytes, by which it is kept and downloaded.
+   */
+  digest: string;
+  made_at: string;
+  media_type: string;
+  reduced: Reduced[];
+  /**
+   * The target standard's name, such as Dublin Core.
+   */
+  title: string;
+  /**
+   * The approved record's properties, by path, that the target has no place for.
+   */
+  unplaced: string[];
+}
+/**
+ * A value placed less precisely than the approved record gave it.
+ */
+export interface Reduced {
+  /**
+   * Its property's path in the approved record's standard.
+   */
+  path: string;
+  reason: string;
+}
+/**
+ * The project's converted records, newest first.
+ */
+export interface ConvertedRecords {
+  conversions: ConvertedRecord[];
 }
 /**
  * A deleted conversation the person may still restore
@@ -874,6 +1025,14 @@ export interface Escalation {
   opened_by: Principal;
   origin: EscalationOrigin;
   /**
+   * The moves the reader may make on it now; empty for someone on neither side.
+   */
+  permitted_moves: PermittedMove[];
+  /**
+   * When its team was last asked to take it: opened, released, re-opened or sent again.
+   */
+  routed_at: string;
+  /**
    * What the researcher was told would be shared, as they saw it when they confirmed it.
    */
   scope_shared: string[];
@@ -884,7 +1043,8 @@ export interface Escalation {
   updated_at: string;
 }
 /**
- * One move in an escalation's history, the opening first.
+ * One move in an escalation's history, the opening first. `reroute` is the deployment
+ * sending it to its team again because nobody took it in time, which no person makes.
  */
 export interface EscalationMove {
   /**
@@ -893,8 +1053,32 @@ export interface EscalationMove {
   acting_as?: "steward";
   at: string;
   by: Principal;
+  /**
+   * The project event that made the move.
+   */
+  event_id: string;
+  /**
+   * For `reassign`: the steward who had taken it.
+   */
+  from_steward?: Principal | null;
+  /**
+   * For `transfer`: the team it was with.
+   */
+  from_team?: string;
   move: MoveName;
   note?: string;
+  /**
+   * For `transfer`: the team it was sent to.
+   */
+  team_id?: string;
+  /**
+   * For `transfer`: the name of the team it was sent to.
+   */
+  team_name?: string;
+  /**
+   * For `reassign`: the colleague in the same team who takes it over.
+   */
+  to_steward?: Principal;
 }
 /**
  * Where an escalation came from: the researcher, or a run of the project that ended in a
@@ -907,6 +1091,36 @@ export interface EscalationOrigin {
    */
   invocation_id?: string;
   kind: OriginKind;
+}
+/**
+ * A move the reader may make on an escalation, or one refused with why.
+ */
+export interface PermittedMove {
+  move: PermittedMoveName;
+  /**
+   * Whether the move carries a note: required, optional, or none.
+   */
+  note: "required" | "optional" | "none";
+  permitted: boolean;
+  /**
+   * Why a move of the reader's side is refused.
+   */
+  refusal?: "member-of-project";
+  /**
+   * For `reassign`, the colleagues in the team it may go to; for `transfer`, the other teams.
+   * A move that names a target is listed only where there is one.
+   */
+  targets?: MoveTarget[];
+}
+/**
+ * A colleague or a team a move may pass the escalation to.
+ */
+export interface MoveTarget {
+  /**
+   * The colleague's principal identifier, or the team's id.
+   */
+  id: string;
+  name: string;
 }
 /**
  * An example input the shell offers (`GET /api/examples`).
@@ -1044,6 +1258,118 @@ export interface IntakeQuestion {
   question_id: string;
 }
 /**
+ * One project the person may read, as `GET /api/projects` lists it, with what they may do
+ * there.
+ */
+export interface ListedProject {
+  conversation_count: number;
+  conversations: ProjectConversation[];
+  created_at: string;
+  created_by: Principal;
+  /**
+   * When the project was deleted, by whom, and until when an owner may restore it; null
+   * while it is not deleted.
+   */
+  deleted: ProjectDeletion | null;
+  documents: DocumentCounts;
+  /**
+   * Whether the project's intake still has a question to ask, has none left, or was
+   * dismissed.
+   */
+  intake: "pending" | "complete" | "dismissed";
+  inventory: SavedInventory | null;
+  permitted_actions: PermittedActions;
+  progress: ProjectProgress;
+  project_id: string;
+  repository: ChosenRepository | null;
+  /**
+   * For how many days after a deletion an owner may restore the project; 0 makes deletion
+   * final.
+   */
+  restore_days: number;
+  /**
+   * The project's latest name; null until a person or the Data Director names it.
+   */
+  title: string | null;
+  /**
+   * Who gave the name. A person's name is never replaced by the model's.
+   */
+  title_source: ("researcher" | "model") | null;
+}
+/**
+ * A conversation started in a project, as the projects list names it.
+ */
+export interface ProjectConversation {
+  conversation_id: string;
+  /**
+   * When its latest turn completed; null while none has.
+   */
+  last_completed_at: string | null;
+  started_at: string;
+  title: string;
+  turns: number;
+}
+/**
+ * What a person may do in a project, as a member or as its steward, and why the rest is
+ * refused (`dd_harness.steward_api.permitted_actions`).
+ */
+export interface PermittedActions {
+  /**
+   * Whether the person is in the project as a member or as its steward.
+   */
+  acting_as: "member" | "steward";
+  actions: PermittedAction[];
+}
+/**
+ * One thing a person may ask to do in a project, and why not if they may not.
+ */
+export interface PermittedAction {
+  action: string;
+  permitted: boolean;
+  /**
+   * Why it is refused, as a code; absent where it is permitted.
+   */
+  refusal?: string;
+}
+export interface LiveEscalation {
+  escalation_id: string;
+  opened_at: string;
+  state: EscalationState;
+  team_id: string;
+}
+/**
+ * A metadata standard the deployment has a requirement set for.
+ */
+export interface MetadataStandard {
+  conforms_to: string;
+  title: string;
+}
+/**
+ * Something a data steward did in one of the person's projects (docs/specs/stewardship.md,
+ * invariant 13): a subject and where to look, never research content.
+ */
+export interface Notice {
+  at: string;
+  escalation_id?: string;
+  /**
+   * The project event it tells of, which the shell remembers as seen.
+   */
+  event_id: string;
+  kind: "waiting" | "resolved" | "handed_back" | "rerouted" | "message";
+  /**
+   * The app's page to look at.
+   */
+  path: string;
+  project_id: string;
+  subject: string;
+}
+/**
+ * What data stewards did in the person's projects in the last 30 days, the newest first.
+ */
+export interface Notices {
+  notices: Notice[];
+}
+/**
  * No package was built because the project is not valid: `validation` says why.
  */
 export interface PackageRefusedProblem {
@@ -1090,24 +1416,6 @@ export interface Validation {
    * Warnings that do not wait on a person; those that do are the `review`'s.
    */
   warnings: ValidationResult[];
-}
-/**
- * One thing a person may ask to do in a project, and why not if they may not.
- */
-export interface PermittedAction {
-  action: string;
-  permitted: boolean;
-  /**
-   * Why it is refused, as a code; absent where it is permitted.
-   */
-  refusal?: string;
-}
-export interface PermittedActions {
-  /**
-   * Whether the person is in the project as a member or as its steward.
-   */
-  acting_as: "member" | "steward";
-  actions: PermittedAction[];
 }
 /**
  * The rules the policy gate holds every run to (`GET /api/policy`).
@@ -1218,19 +1526,6 @@ export interface ProcessFlow {
   phases: FlowPhase[];
 }
 /**
- * A conversation started in a project, as the projects list names it.
- */
-export interface ProjectConversation {
-  conversation_id: string;
-  /**
-   * When its latest turn completed; null while none has.
-   */
-  last_completed_at: string | null;
-  started_at: string;
-  title: string;
-  turns: number;
-}
-/**
  * One project as the project log gives it: what it holds, how many of its documents are in
  * each state, where it is in the process flow and whether it is deleted. Renaming and restoring
  * a project answer with it.
@@ -1311,6 +1606,10 @@ export interface ProjectDocuments {
    */
   decided?: DocumentVersionRef;
   documents: ProjectDocument[];
+  /**
+   * After a request for a new draft: the run that drafted the document again, or declined to.
+   */
+  drafted?: RevisionRun;
   project_id: string;
   /**
    * The longest request for changes the harness keeps, in characters.
@@ -1321,6 +1620,16 @@ export interface ProjectDocuments {
    * After a request for changes: the run that revised the document, or declined to.
    */
   revised?: RevisionRun;
+}
+/**
+ * The run asked to revise or draft a document again: its outcome, and the version it
+ * drafted, if any.
+ */
+export interface RevisionRun {
+  invocation_id: string;
+  statement: string;
+  status: "succeeded" | "abstained" | "referred" | "failed";
+  version: DocumentVersionRef | null;
 }
 /**
  * The harness's rule for when a decision needs a reason, which the form states.
@@ -1336,15 +1645,6 @@ export interface ReasonRequired {
   approved: boolean;
   edited_and_approved: boolean;
   rejected: boolean;
-}
-/**
- * The run asked to revise a document: its outcome, and the version it drafted, if any.
- */
-export interface RevisionRun {
-  invocation_id: string;
-  statement: string;
-  status: "succeeded" | "abstained" | "referred" | "failed";
-  version: DocumentVersionRef | null;
 }
 /**
  * A project's escalations, the teams it may send to, and where a new one would go.
@@ -1603,8 +1903,16 @@ export interface QueuedEscalation {
   opened_at: string;
   opened_by: Principal;
   origin: EscalationOrigin;
+  /**
+   * The moves the reader may make on it now; empty for someone on neither side.
+   */
+  permitted_moves: PermittedMove[];
   project_id: string;
   project_title: string | null;
+  /**
+   * When its team was last asked to take it: opened, released, re-opened or sent again.
+   */
+  routed_at: string;
   /**
    * What the researcher was told would be shared, as they saw it when they confirmed it.
    */
@@ -1752,6 +2060,14 @@ export interface RawSessionPrincipal {
  */
 export interface RawStewardTeam {
   name: string;
+  /**
+   * The address the team is emailed at, if the profile names one.
+   */
+  notify?: string;
+  /**
+   * What the team is told about at that address, in the profile's vocabulary.
+   */
+  notify_on: ("opened" | "rerouted" | "replied" | "withdrawn" | "reopened")[];
   team_id: string;
 }
 /**
@@ -1793,6 +2109,54 @@ export interface RepositoryTicket {
   ticket: string;
 }
 /**
+ * Where the organisation is identified, as addresses to open.
+ */
+export interface RorLinks {
+  /**
+   * Its Crossref Funder IDs, as doi.org addresses.
+   */
+  crossref_funders: string[];
+  /**
+   * Its record at ROR.
+   */
+  ror: string;
+}
+/**
+ * One of an organisation's names, with ROR's types for it.
+ */
+export interface RorName {
+  lang: string | null;
+  /**
+   * ROR's types for the name: `ror_display`, `label`, `acronym` or `alias`.
+   */
+  types: string[];
+  value: string;
+}
+/**
+ * An organisation as the pinned ROR dump records it.
+ */
+export interface RorOrganisation {
+  country_codes: string[];
+  crossref_funder_ids: string[];
+  crossref_funder_preferred: string | null;
+  links: RorLinks;
+  names: RorName[];
+  /**
+   * The organisations ROR names as its parents, by ROR identifier.
+   */
+  parents: string[];
+  /**
+   * Its ROR identifier, as an address.
+   */
+  ror_id: string;
+  /**
+   * The dump it was read from.
+   */
+  snapshot_ref: string;
+  status: string;
+  types: string[];
+}
+/**
  * A run that has ended, as `POST /api/runs` or a conversation's turn answers it.
  */
 export interface RunResult {
@@ -1810,6 +2174,14 @@ export interface RunRow {
   agent_id: string;
   completed_at: string;
   invocation_id: string;
+  /**
+   * The project the run was in; null for a run in none.
+   */
+  project_id: string | null;
+  /**
+   * Why a run that did not succeed ended as it did; null when the outcome gives none.
+   */
+  reason_code: string | null;
   status: OutcomeStatus;
 }
 /**
@@ -1817,6 +2189,19 @@ export interface RunRow {
  */
 export interface ServerFolderRoots {
   roots: string[];
+}
+/**
+ * The metadata standard a project's record is drafted and checked in, why it is that one,
+ * the standards the deployment has a set for, in its order of preference, and whether another
+ * may be chosen (docs/specs/deposit.md, invariant 5).
+ */
+export interface StandardChoice {
+  /**
+   * False when the deployment's settings for the repository name its standard.
+   */
+  may_choose: boolean;
+  standard: ChosenStandard | null;
+  standards: MetadataStandard[];
 }
 /**
  * A conversation the server started, and the project it was started in
@@ -1828,6 +2213,79 @@ export interface Started {
    * Null where the server keeps no projects.
    */
   project_id: string | null;
+}
+/**
+ * One project the signed-in steward may see, as `GET /api/steward/projects` lists it.
+ */
+export interface StewardProject {
+  access: StewardReach;
+  awaiting_review: AwaitingReview;
+  conversation_count: number;
+  created_at: string;
+  created_by: Principal;
+  /**
+   * When the project was deleted, by whom, and until when an owner may restore it; null
+   * while it is not deleted.
+   */
+  deleted: ProjectDeletion | null;
+  documents: DocumentCounts;
+  /**
+   * The matters escalated to the steward's teams that are still open, taken or waiting.
+   */
+  escalations: LiveEscalation[];
+  /**
+   * Whether the project's intake still has a question to ask, has none left, or was
+   * dismissed.
+   */
+  intake: "pending" | "complete" | "dismissed";
+  inventory: SavedInventory | null;
+  /**
+   * The identifier each owner signs in with, such as their ORCID iD as a URL.
+   */
+  owners: string[];
+  paused: StewardPause | null;
+  permitted_actions: PermittedActions;
+  progress: ProjectProgress;
+  project_id: string;
+  /**
+   * The project's latest runs, newest first, with their outcomes.
+   */
+  recent_runs: RunRow[];
+  repository: ChosenRepository | null;
+  /**
+   * For how many days after a deletion an owner may restore the project; 0 makes deletion
+   * final.
+   */
+  restore_days: number;
+  /**
+   * The project's latest name; null until a person or the Data Director names it.
+   */
+  title: string | null;
+  /**
+   * Who gave the name. A person's name is never replaced by the model's.
+   */
+  title_source: ("researcher" | "model") | null;
+}
+/**
+ * How the steward reaches the project.
+ */
+export interface StewardReach {
+  /**
+   * Whether a matter is escalated to one of those teams, which opens a steward's actions.
+   */
+  escalated: boolean;
+  /**
+   * Whether one of those teams holds the project's pause.
+   */
+  holds_pause: boolean;
+  /**
+   * The steward's teams the project is escalated to, paused by or supported by.
+   */
+  teams: StewardTeamRef[];
+}
+export interface StewardTeamRef {
+  name: string;
+  team_id: string;
 }
 /**
  * The escalations routed to the signed-in steward's teams, the oldest first.

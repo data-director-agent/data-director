@@ -100,7 +100,9 @@ Solid arrows are calls at run time; dotted arrows are imports.
 | `workbench/` | The test bed for people who write agents: a CLI, the Inspect and Chat pages, and evaluation. Not part of a deployment. | [`workbench/README.md`](../workbench/README.md) |
 | `inventory/` | `dd-inventory`, the command a researcher runs where their data live. It writes the inventory of a dataset's files (paths, sizes, digests, PRONOM formats, table fields) and needs no other part of Data Director. | [`inventory/README.md`](../inventory/README.md), [Projects](specs/projects.md) |
 | `mcp-pid/` | The PID resolver: an MCP server, one per registry, that resolves DOIs through DataCite and Crossref, ORCID iDs through ORCID and ROR identifiers through a pinned ROR dump. The tool gateway pins its tools and records what agents read from it. It needs no other part of Data Director. | [`mcp-pid/README.md`](../mcp-pid/README.md), [Agents](specs/agents.md#tools-mcp-servers-and-agent-skills) |
+| `mcp-subjects/` | The subjects server: an MCP server that lists the fields of a subject classification, such as the ANZSRC Fields of Research, and gives one by its code, from the schemes `dd-subjects` holds. The Metadata Librarian chooses a repository's categories from it, through the tool gateway, and cites each field's record. It needs no other part of Data Director but `dd-subjects`. | [`mcp-subjects/README.md`](../mcp-subjects/README.md), [Agents](specs/agents.md#tools-mcp-servers-and-agent-skills) |
 | `mcp-spdx/` | The SPDX server: an MCP server that looks up a licence by its identifier in a pinned release of the SPDX licence list, packaged with it. The Rights and Licensing Adviser retrieves its candidate licences from it through the tool gateway. It needs no other part of Data Director. | [`mcp-spdx/README.md`](../mcp-spdx/README.md), [Agents](specs/agents.md#tools-mcp-servers-and-agent-skills) |
+| `mcp-doaj/` | The DOAJ server: a client and MCP server that reads an open access journal's terms (licences, copyright, deposit policy, preservation, charges) from the Directory of Open Access Journals. The Policy Adviser reads it as a library, live. It needs no other part of Data Director. | [`mcp-doaj/README.md`](../mcp-doaj/README.md) |
 | `formats/` | `dd-formats`, a library that describes a file format (name, version, media types, extensions) from its PRONOM identifier, from a pinned PRONOM release. The File Archivist cites its records. It needs no other part of Data Director. | [`formats/README.md`](../formats/README.md), [Dependencies](specs/dependencies.md) |
 | `units/` | `dd-units`, a library that turns a unit as a person writes it ("micrometres", "°C") into a UCUM code, by rule. The Documentation Editor fills a data dictionary's unit codes with it. It needs no other part of Data Director. | [`units/README.md`](../units/README.md), [Drafting documents](specs/drafting.md) |
 
@@ -119,6 +121,33 @@ The boundaries between packages are deliberate, and tests enforce the most impor
 This is why adding an agent needs no change to the harness, the app or the workbench: each of
 them learns about the agent from its *agent card*, the document every A2A service publishes,
 which carries the agent's `AgentSpec` ([registry](../harness/docs/registry.md)).
+
+### What it is built on
+
+Data Director uses no agent framework (LangChain, LangGraph, CrewAI or similar). The harness has
+to see and govern every step an agent takes, through one contract it owns, and a framework would
+own the loop and hide steps behind its own abstractions
+([rejected alternatives](specs/dependencies.md#rejected-alternatives)). So the governance is
+written here, and the plumbing underneath is adopted.
+
+- **Written in this repository:** the conductor, the policy gate, the input check, the grounding
+  linter, evidence hashing, the outcome vocabulary and reason codes, each agent's decisions and
+  the conformance traceability rule.
+- **Adopted open standards:** A2A (`a2a-sdk`) between the harness and agents, MCP (`mcp`) for
+  tools and data through the harness's tool gateway, AG-UI (`ag-ui-protocol`) from the harness to
+  the browser, OpenTelemetry for traces, RO-Crate (`rocrate`) for provenance and deposit
+  packages, and LinkML, JSON Schema and SHACL (`pyshacl`) for formats and validation.
+- **Adopted libraries:** `pydantic`, `starlette`, `uvicorn`, `httpx`, `psycopg` and, in the app,
+  React. Inspect AI is used for evaluation only.
+- **Models:** an agent that calls a model does so through one seam, `dd_sdk.model`, with an
+  `anthropic` adapter and an `openai` adapter for any OpenAI-compatible endpoint. There is no
+  framework-level agent loop.
+
+Every runtime dependency sits behind one thin internal interface and has a named fallback, and
+our fixed formats never depend on a library's representation, so losing a library is a local
+problem. The register of each dependency, its interface and its fallback is
+[Dependencies](specs/dependencies.md). `scripts/check_dependencies.py` checks in CI that each
+member declares what it imports.
 
 ### The shared formats
 
@@ -410,3 +439,4 @@ data: a project there holds only an inventory of its files and any uploaded docu
 | The workbench's components, module by module | [`workbench/docs/architecture.md`](../workbench/docs/architecture.md) |
 | How requirements are tested and reviewed | [`conformance.md`](conformance.md) |
 | How each part is meant to work, and why | [`specs/`](specs/README.md) |
+| What it is built on, and what it deliberately does not use | [What it is built on](#what-it-is-built-on), [Dependencies](specs/dependencies.md) |

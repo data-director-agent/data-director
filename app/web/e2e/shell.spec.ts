@@ -236,7 +236,7 @@ test("a suggested repository is chosen on the project's Repository tab with the 
   await page.keyboard.press("Enter");
 
   const panel = page.getByRole("region", { name: "Repository" });
-  await expect(panel.getByText("orda@v3")).toBeVisible();
+  await expect(panel.getByText(chosenRepository.requirement_sets.at(-1)?.ref ?? "")).toBeVisible();
   await expect(panel.getByRole("heading", { name: "What Data Director assumes" })).toBeVisible();
   expect(sent).toEqual([{ repository_id: suggested.repositories[0]?.repository_id }]);
   const overflow = await page.evaluate(
@@ -588,7 +588,7 @@ test("an inventory is checked, trimmed by keyboard and shown as a chip at 320px 
   });
 
   // It is checked first: nothing is attached until it is confirmed (#472).
-  const review = page.getByRole("dialog", { name: "Check the inventory before attaching it" });
+  const review = page.getByRole("dialog", { name: "Check the inventory" });
   await expect(review.getByText(/names of your files and folders/)).toBeVisible();
   await expect(page.getByText(/Inventory: 42 files/)).toHaveCount(0);
   expect(await overflow(page), "horizontal overflow while checking the inventory").toBeLessThanOrEqual(0);
@@ -750,26 +750,10 @@ test("the workspace at 1280px: conversations, conversation and the project side 
   await serveConversation(page);
   await page.route("/api/runs/*", (route) => route.fulfill({ json: succeeded }));
   await page.goto("/");
-  const phases = page.getByRole("navigation", { name: "Your data journey" });
-  await expect(phases.getByRole("list", { name: "The phases in order" }).getByRole("listitem")).toHaveCount(6);
   await expect(page.getByRole("region", { name: "Conversations" })).toBeVisible();
   const documents = page.getByRole("region", { name: "Project" });
   await expect(documents).toBeVisible();
   expect(await overflow(page), "horizontal overflow on the workspace").toBeLessThanOrEqual(0);
-
-  // The strip opens from the keyboard, then a phase, which lists what happens in it.
-  // The first disclosure is the strip; each phase's own starts with "Phase n".
-  const step = flow.phases[0]?.steps[0];
-  if (!step) throw new Error("the process-flow fixture has no phase with a step");
-  const strip = phases.locator("summary").first();
-  await strip.focus();
-  await page.keyboard.press("Enter");
-  const summaries = phases.locator("summary", { hasText: /^Phase \d/ });
-  await expect(summaries).toHaveCount(flow.phases.length);
-  const first = summaries.first();
-  await first.focus();
-  await page.keyboard.press("Enter");
-  await expect(phases.getByText(step.label)).toBeVisible();
 
   // An open run sits inside its card in the transcript, and the documents stay beside it.
   await page.getByRole("textbox", { name: "What would you like to do?" }).fill("hello world");
@@ -779,7 +763,6 @@ test("the workspace at 1280px: conversations, conversation and the project side 
   const conversation = page.getByRole("list", { name: "Conversation" });
   await expect(conversation.getByRole("heading", { name: /^Evidence/ })).toBeVisible();
   await expect(toggle).toBeFocused();
-  await expect(phases).toBeVisible();
   await expect(documents).toBeVisible();
   expect(await overflow(page), "horizontal overflow with a run open").toBeLessThanOrEqual(0);
   expect(await axeViolations(page)).toEqual([]);
@@ -817,11 +800,7 @@ test("a step of the journey starts a conversation with its prompt, sent only whe
   await expect(offered.getByRole("button").first()).toHaveAccessibleName(suggested.prompt);
   expect(await axeViolations(page)).toEqual([]);
 
-  const phases = page.getByRole("navigation", { name: "Your data journey" });
-  await phases
-    .getByRole("button", { name: `Start a conversation: ${suggested.label}` })
-    .first()
-    .click();
+  await offered.getByRole("button").first().click();
   const box = page.getByRole("textbox", { name: "What would you like to do?" });
   await expect(box).toHaveValue(suggested.prompt);
   await expect(box).toBeFocused();
@@ -830,6 +809,94 @@ test("a step of the journey starts a conversation with its prompt, sent only whe
   await page.getByRole("button", { name: "Send" }).click();
   await expect(page.getByRole("list", { name: "Conversation" })).toBeVisible();
   expect(JSON.stringify(sent)).toContain(suggested.prompt);
+});
+
+test("asking about a step on the journey map starts a new conversation with the step's prompt", async ({
+  page,
+}) => {
+  const [first] = projects;
+  const [step] = flow.phases.flatMap((p) => p.steps);
+  if (!first || !step) throw new Error("the fixtures list no project or no step");
+  // The project the conversation fixture is in, so the conversation stays open in it.
+  const active = { ...first, project_id: conversation.project_id };
+  await serveConversation(page);
+  await page.route("/api/projects", (route) => route.fulfill({ json: [active] }));
+  await page.route(`/api/projects/${active.project_id}/progress`, (route) =>
+    route.fulfill({ json: intakeComplete.progress }),
+  );
+  await page.route(`/api/projects/${active.project_id}/intake`, (route) =>
+    route.fulfill({ json: intakeComplete }),
+  );
+  await page.addInitScript((id) => localStorage.setItem("dd-project", id), active.project_id);
+  let turns = 0;
+  await page.route("/api/conversations/*/turns/stream", (route) => {
+    turns += 1;
+    return streamTurn(route);
+  });
+  await page.goto("/");
+  // A conversation is open before the journey map is visited.
+  await page.getByRole("textbox", { name: "What would you like to do?" }).fill("Hello");
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByRole("list", { name: "Conversation", exact: true })).toBeVisible();
+
+  await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Journey map" }).click();
+  await page.getByRole("button", { name: new RegExp(`^${step.label}: `) }).click();
+  await page.getByRole("button", { name: "Ask Data Director about this" }).click();
+
+  const box = page.getByRole("textbox", { name: "What would you like to do?" });
+  await expect(box).toHaveValue(step.prompt);
+  await expect(box).toBeFocused();
+  await expect(page.getByRole("list", { name: "Conversation", exact: true })).toHaveCount(0);
+  await expect(page).not.toHaveURL(/[?&](ask|conversation)=/);
+  // Only the first conversation's message was sent; the new one waits for the researcher.
+  expect(turns).toBe(1);
+});
+
+test("Talk this through on a draft's question starts a new conversation with the question", async ({
+  page,
+}) => {
+  const [first] = projects;
+  const [readme] = answeredProject.documents;
+  const question = readme?.versions[0]?.questions[0];
+  if (!first || !readme || !question) throw new Error("the fixtures list no project or no question");
+  // The project the conversation fixture is in, so the conversation stays open in it.
+  const active = { ...first, project_id: conversation.project_id };
+  await serveConversation(page);
+  await page.route("/api/projects", (route) => route.fulfill({ json: [active] }));
+  await page.route(`/api/projects/${active.project_id}/documents`, (route) =>
+    route.fulfill({
+      json: { ...answeredProject, project_id: active.project_id, documents: [{ ...readme, answers: [] }] },
+    }),
+  );
+  await page.addInitScript((id) => localStorage.setItem("dd-project", id), active.project_id);
+  let turns = 0;
+  await page.route("/api/conversations/*/turns/stream", (route) => {
+    turns += 1;
+    return streamTurn(route);
+  });
+  await page.goto("/");
+  // A conversation is open before the draft is visited.
+  await page.getByRole("textbox", { name: "What would you like to do?" }).fill("Hello");
+  await page.getByRole("button", { name: "Send" }).click();
+  await expect(page.getByRole("list", { name: "Conversation", exact: true })).toBeVisible();
+
+  // To the draft within the page, as a link does, so the open conversation is still held.
+  await page.evaluate((to) => {
+    history.pushState(null, "", to);
+    dispatchEvent(new Event("dd-navigate"));
+  }, `/projects/${active.project_id}?doc=${readme.document_id}`);
+  await page.getByRole("tab", { name: /^Questions/ }).click();
+  await page
+    .getByRole("link", { name: `Talk this through in a new conversation: ${question.question_prompt}` })
+    .click();
+
+  const box = page.getByRole("textbox", { name: "What would you like to do?" });
+  await expect(box).toHaveValue(new RegExp(question.question_prompt.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  await expect(box).toBeFocused();
+  await expect(page.getByRole("list", { name: "Conversation", exact: true })).toHaveCount(0);
+  await expect(page).not.toHaveURL(/[?&](question|conversation)=/);
+  // Only the first conversation's message was sent; the new one waits for the researcher.
+  expect(turns).toBe(1);
 });
 
 test("a pending intake takes the message box's place, which is a press away", async ({ page }) => {
@@ -895,16 +962,11 @@ test("the journey map is one press from the main navigation, and a tab away from
   await expect(page).toHaveURL(`/projects/${active.project_id}/journey`);
 });
 
-test("the workspace reflows at 320px with every phase open", async ({ page }) => {
+test("the workspace reflows at 320px", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
   await serveConversation(page);
   await page.goto("/");
-  const phases = page.getByRole("navigation", { name: "Your data journey" });
-  await phases.locator("summary").first().click();
-  const summaries = phases.locator("summary", { hasText: /^Phase \d/ });
-  await expect(summaries).toHaveCount(flow.phases.length);
-  for (const summary of await summaries.all()) await summary.click();
-  expect(await overflow(page), "horizontal overflow with the phases open").toBeLessThanOrEqual(0);
+  expect(await overflow(page), "horizontal overflow on the workspace").toBeLessThanOrEqual(0);
   expect(await axeViolations(page)).toEqual([]);
 });
 

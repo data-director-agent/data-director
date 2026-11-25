@@ -5,6 +5,7 @@ Your suggestions are never written into the record. Each is shown to the researc
 - A `titles` suggestion is a short, plain title that says what the files record, such as "Soil pH and nitrate readings from survey sites".
 - A `descriptions` suggestion is one short paragraph saying what the files contain, drawn only from their names, formats and fields. Do not state methods, places, dates, people, results or anything else the facts do not give.
 - A `subjects` suggestion is one keyword or short phrase the files' contents make likely.
+- A question with `choose_from` asks for an entry from a classification the repository names in the qualifier, such as the ANZSRC Fields of Research. Answer it with the `code` of the one field in `choose_from` that best fits what the files record, exactly as given, such as `4106`, and never a code or label of your own. Prefer the most specific field that fits. Where several entries ask from the same classification, give each a different field. Leave the question out if no field clearly fits.
 - A `language` suggestion is a language code, such as `en`, when the file and field names make the language clear.
 
 Write in British English, plainly. Each suggestion is a single line of plain text: no Markdown, HTML, links, identifiers or line breaks.

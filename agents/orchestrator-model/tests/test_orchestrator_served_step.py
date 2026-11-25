@@ -12,15 +12,15 @@ from dd_sdk.contract.models import Message
 
 pytestmark = pytest.mark.requirement("DD-CONVERSATION")
 
-STANDARDS = {"agent_id": "advisor.standards", "serves": ["setup.vocabularies"]}
+STANDARDS = {"agent_id": "advisor.standards", "serves": ["setup.formats"]}
 
 
 def test_the_note_suggests_the_phase_one_step_an_agent_serves() -> None:
     message = Message(message_text="Hello", project_entry=1, project_entry_by_researcher=True)
     served = progress_note(message, [STANDARDS])
     unserved = progress_note(message)
-    assert served is not None and "Suggested next: [setup.vocabularies]" in served
-    assert unserved is not None and "Suggested next: [setup.documentation]" in unserved
+    assert served is not None and "Suggested next: [setup.formats]" in served
+    assert unserved is not None and "Suggested next: [setup.project]" in unserved
 
 
 def test_the_prompt_ties_an_agent_to_the_steps_a_tool_names() -> None:

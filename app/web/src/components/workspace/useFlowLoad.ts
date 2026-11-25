@@ -2,7 +2,7 @@
 
 import { useFlowApi } from "../../flow/api";
 import { useResource } from "../../useResource";
-import type { FlowLoad } from "./PhaseTracker";
+import type { FlowLoad } from "./flowLoad";
 
 export function useFlowLoad(): FlowLoad {
   const flowApi = useFlowApi();

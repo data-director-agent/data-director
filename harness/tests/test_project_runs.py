@@ -29,6 +29,7 @@ from dd_harness.projects import (
     UnknownProjectError,
 )
 from dd_harness.requirements import load_requirements
+from dd_harness.storage import WITHHELD
 from dd_harness.testing import (
     HARNESS_URL,
     STUB_QUESTION,
@@ -568,6 +569,9 @@ def test_a_draft_that_revises_no_version_of_the_project_fails_the_run(
     assert env.problem is not None
     assert env.problem.type == PROBLEM_BASE + "revision-refused"
     assert env.payload is None
+    # What the agent drafted is kept for operators (docs/specs/storage.md, invariant 5).
+    withheld = json.loads(conductor.store.get_artifact(env.invocation_id, WITHHELD) or b"{}")
+    assert withheld["payload"]["document_text"] == "# Elsewhere\n"
     # The failed run is the record, and the project is unchanged.
     stored = conductor.store.get(env.invocation_id)
     assert stored is not None

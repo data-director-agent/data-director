@@ -62,9 +62,12 @@ classes:
     description: >-
       The policy advisor payload. The policies matched to each actor, what each asks, where they
       differ, and the actors with no policy record. Conflicts are flagged for human review; the
-      agent does not resolve them.
+      agent does not resolve them. Each funder identified in ROR is also proposed as a funder
+      project fact, with its ROR identifier and Crossref Funder ID, for the researcher to confirm
+      or reject (docs/specs/projects.md).
     mixins:
       - Grounded
+      - ProposesFacts
     slots:
       - schema_class
       - policies
@@ -436,6 +439,10 @@ enums:
         description: FAIRsharing's policy records.
       open_policy_finder:
         description: Jisc Open Policy Finder (formerly Sherpa Romeo and Juliet).
+      doaj:
+        description: >-
+          The Directory of Open Access Journals: an open access journal's licences, copyright,
+          deposit policy and charges.
 
   PolicyScope:
     permissible_values:

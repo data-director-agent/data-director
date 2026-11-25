@@ -212,7 +212,7 @@ class Facts(ProjectRules):
         """The proposals no decision on their kind and subject has followed, the latest for
         each, in the order proposed: each with its `proposal` identifier, the `agent_id` that
         proposed it, when, and the `fact` as proposed."""
-        return list(_open(self.events(project_id)).values())
+        return list(open_proposals(self.events(project_id)).values())
 
 
 def _given(
@@ -270,7 +270,7 @@ def _proposal(events: Sequence[Mapping[str, Any]], proposal: str) -> Mapping[str
     )
 
 
-def _open(events: Iterable[Mapping[str, Any]]) -> dict[tuple[str, str], dict[str, Any]]:
+def open_proposals(events: Iterable[Mapping[str, Any]]) -> dict[tuple[str, str], dict[str, Any]]:
     """The open proposals by kind and subject: the latest for each that no decision followed."""
     open_: dict[tuple[str, str], dict[str, Any]] = {}
     for event in events:
@@ -293,7 +293,7 @@ def _superseded(events: Sequence[Mapping[str, Any]], proposed: Mapping[str, Any]
     subject has followed it, so that a person deciding from what they saw earlier never
     overwrites what someone decided since."""
     key = fact_key(proposed["fact"])
-    if _open(events).get(key, {}).get("proposal") == proposed["event_id"]:
+    if open_proposals(events).get(key, {}).get("proposal") == proposed["event_id"]:
         return None
     kind, subject = key
     return Refused(

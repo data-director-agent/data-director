@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from dd_sdk.flow_phases import PHASES as PHASES
+from dd_sdk.flow_phases import RETIRED_STEPS as RETIRED_STEPS
 from dd_sdk.flow_phases import Phase as Phase
 from dd_sdk.flow_phases import Step as Step
 
@@ -59,6 +60,15 @@ OUT_OF_SCOPE: frozenset[str] = frozenset(s.id for p in PHASES for s in p.steps i
 PERSON_DECIDES: frozenset[str] = frozenset(
     s.id for p in PHASES for s in p.steps if s.person_decides
 )
+
+
+def current_step(step_id: str) -> str | None:
+    """The step a stored `step_id` names in this release: itself, the step that replaced it if it
+    is retired, or None if it is retired with no successor or unknown here (a log written by a
+    later release). Read every step id from a project log through this, never index by it."""
+    if step_id in STEPS:
+        return step_id
+    return RETIRED_STEPS.get(step_id)
 
 
 def requirements_of(step_ids: Iterable[str]) -> tuple[str, ...]:
@@ -163,3 +173,27 @@ def suggested_next(steps: Iterable[ProgressStep], start: Entry | None) -> Progre
     phase = candidates[0].phase.number if candidates else None
     served = [s for s in candidates if s.agent_ids and s.phase.number == phase]
     return next(iter(started or served or candidates), None)
+
+
+def passed_over(
+    steps: Iterable[ProgressStep], suggested: ProgressStep | None
+) -> list[ProgressStep]:
+    """The steps `suggested_next` passed over for one an agent serves: those before `suggested`
+    in its phase that are open, in scope, not optional and served by no agent. The app says why
+    the suggestion is not the first of them (#1377). Empty when nothing was passed over, as when
+    the suggestion is a step begun or the first open one."""
+    if suggested is None or suggested.state == "started":
+        return []
+    before: list[ProgressStep] = []
+    for s in steps:
+        if s.step.id == suggested.step.id:
+            return before
+        if (
+            s.phase.number == suggested.phase.number
+            and s.state == "open"
+            and not s.step.out_of_scope
+            and not s.step.optional
+            and not s.agent_ids
+        ):
+            before.append(s)
+    return []

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import person, run_table, cost as cost_of %}
+{% from "_macros.html" import person, run_table, case_download, cost as cost_of %}
 {% block title %}{{ summary.title or "Untitled project" }}{% endblock %}
 {% block heading %}{{ summary.title or "Untitled project" }}{% endblock %}
 {% block content %}
@@ -46,4 +46,5 @@
   {{ run_table(runs) }}
   {% if run_count > runs | length %}<p><a href="/runs?project={{ summary.project_id }}">All {{ run_count }} runs</a></p>{% endif %}
 </section>
+{{ case_download("project", summary.project_id, settings.systemd) }}
 {% endblock %}

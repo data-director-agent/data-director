@@ -10,17 +10,6 @@
     --journey-dot-size: 0.875rem;
   }
 
-  .journey-rail {
-    margin: 0 0 var(--space-3);
-    padding: var(--space-2) var(--space-3);
-    border-left: var(--focus-width) solid var(--color-danger-fg);
-    background: var(--color-danger-bg);
-    color: var(--color-text);
-    font-size: var(--font-size-small);
-    border-radius: var(--radius-small);
-    max-width: none;
-  }
-
   .journey-lines {
     display: grid;
     grid-template-columns: minmax(0, 1fr);

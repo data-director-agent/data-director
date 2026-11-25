@@ -29,12 +29,15 @@ Import everything from here; the modules are an internal arrangement:
   test can show that a listing's reads do not grow with the number of projects.
 - `turn_locks`: `check_conversation_locks` (`CONVERSATION_LOCK_CHECKS`), the conformance checks
   a backend of each conversation's turn lock must pass (docs/specs/storage.md, "Turn locks").
+- `casefile`: `open_case`, a case exported for debugging opened as its run and project stores
+  (docs/specs/casefile.md).
 - `replay`: `check_a_log_replays_as_it_folds`, which holds a backend's project log to folding the
   same whether its events are appended together or one at a time, for any sequence of changes.
 
 Nothing here needs the workbench (docs/specs/system.md) or knows about any real agent.
 """
 
+from dd_harness.testing.casefile import open_case
 from dd_harness.testing.classes import (
     ProbeCheck,
     ProbeClaim,
@@ -162,6 +165,7 @@ __all__ = [
     "input_ref",
     "make_conductor",
     "message",
+    "open_case",
     "profile",
     "record",
     "reply_over",

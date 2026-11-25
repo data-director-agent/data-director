@@ -1,0 +1,200 @@
+# The DataCite Metadata Schema 4 as a standard's definition (docs/specs/metadata-standards.md):
+# how its logical model is written in its JSON form, the form of the DataCite REST API's
+# attributes, and the term each property maps to in the pivot. It says nothing about what a
+# repository requires: that is a requirement set's.
+#
+# A property is named by its path in DataCite's logical model, which in the JSON form is its key
+# (`titles`), or keys joined by a full stop for a property of an object (`types.resourceTypeGeneral`).
+# `value` is the key that holds the value in each entry of a property whose value is a list of
+# objects. `term` is the pivot term, as a CURIE of schema.org, Dublin Core Terms, DCAT or PROV-O,
+# after DataCite's own mapping to schema.org (`mapping_source`) where it gives one. `qualified`
+# gives another term for the entries whose qualifier matches (`"*"` matches any value). `parts`
+# are the terms of an entry's other keys, so that a structured value becomes a node of the pivot;
+# a part whose own value is a list of objects says which key holds its value.
+#
+# A drafter writes an entry from a node of the pivot in the order the parts are listed here, so
+# the order is the order of the keys in a drafted record.
+#
+# A property whose entries have a `value` key holds a list of them; one with none holds a single
+# value unless it says `repeats: true`, as `formats` and `sizes` do.
+#
+# `drafting` is advice to a drafter and a ceiling, not a licence (docs/specs/drafting.md still
+# applies): `ask` is the question put for a gap, `publish` a question asked first for a value a
+# person must decide may be published at all, `suggest: true` the properties a model may suggest a
+# value for, beside the question and never in the record, and `filled` a value a drafter writes
+# by rule because it holds for whatever a project deposits.
+#
+# Raise `version` on every change: the project log names the definition by its version and the
+# SHA-256 of this file.
+standard_id: datacite-4
+version: 3
+title: DataCite Metadata Schema 4
+name: DataCite
+url: https://schema.datacite.org/meta/kernel-4/
+conforms_to:
+  - http://datacite.org/schema/kernel-4
+mapping_source: https://github.com/datacite/schema.org
+serialisations:
+  - media_type: application/json
+    name: JSON
+    codec: json-indent-2
+    # A record may be given as the DataCite REST API returns it, inside `data.attributes`, or as
+    # that response's `data`.
+    envelopes:
+      - [data, attributes]
+      - [attributes]
+    gap: null
+
+properties:
+  titles:
+    value: title
+    term: schema:name
+    parts:
+      titleType: dcterms:type
+  creators:
+    value: name
+    term: schema:creator
+    parts:
+      nameType: dcterms:type
+      givenName: schema:givenName
+      familyName: schema:familyName
+      nameIdentifiers:
+        value: nameIdentifier
+        term: schema:identifier
+        parts:
+          nameIdentifierScheme: schema:propertyID
+          schemeUri: schema:url
+      affiliation:
+        value: name
+        term: schema:affiliation
+        parts:
+          affiliationIdentifier: schema:identifier
+          affiliationIdentifierScheme: schema:propertyID
+          schemeUri: schema:url
+  contributors:
+    value: name
+    term: schema:contributor
+    parts:
+      contributorType: dcterms:type
+      givenName: schema:givenName
+      familyName: schema:familyName
+  subjects:
+    value: subject
+    term: schema:keywords
+    qualified:
+      - when: {subjectScheme: "*"}
+        term: schema:about
+    parts:
+      subjectScheme: schema:inDefinedTermSet
+      valueUri: schema:url
+      classificationCode: schema:termCode
+  descriptions:
+    value: description
+    term: schema:description
+    qualified:
+      - when: {descriptionType: Methods}
+        term: dcterms:provenance
+    parts:
+      descriptionType: dcterms:type
+  dates:
+    value: date
+    term: dcterms:date
+    qualified:
+      - when: {dateType: Created}
+        term: schema:dateCreated
+      - when: {dateType: Collected}
+        term: schema:temporalCoverage
+    parts:
+      dateType: dcterms:type
+  rightsList:
+    value: rights
+    term: schema:license
+    parts:
+      rightsIdentifier: schema:identifier
+      rightsUri: schema:url
+      rightsURI: schema:url
+  fundingReferences:
+    value: funderName
+    term: schema:funding
+    parts:
+      funderIdentifier: schema:identifier
+      funderIdentifierType: schema:propertyID
+      awardNumber: schema:termCode
+      awardTitle: schema:name
+  relatedIdentifiers:
+    value: relatedIdentifier
+    term: schema:citation
+    parts:
+      relatedIdentifierType: schema:propertyID
+      relationType: dcterms:type
+  geoLocations:
+    value: geoLocationPlace
+    term: schema:spatialCoverage
+  publisher:
+    term: schema:publisher
+  publicationYear:
+    term: schema:datePublished
+  language:
+    term: schema:inLanguage
+  version:
+    term: schema:version
+  types.resourceTypeGeneral:
+    term: schema:additionalType
+  formats:
+    term: schema:encodingFormat
+    repeats: true
+  sizes:
+    term: schema:contentSize
+    repeats: true
+  doi:
+    term: schema:identifier
+  identifiers:
+    value: identifier
+    term: schema:identifier
+    parts:
+      identifierType: schema:propertyID
+  url:
+    term: schema:url
+  schemaVersion:
+    term: schema:schemaVersion
+
+drafting:
+  titles:
+    ask: What is the dataset's title?
+    suggest: true
+  creators:
+    ask: Who created the dataset? Give one creator's name, family name first.
+  contributors:
+    ask: Who else contributed to the dataset? Give one contributor's name, family name first.
+  subjects:
+    ask: What is the dataset about? Give a keyword or subject.
+    suggest: true
+  descriptions:
+    ask: Describe the dataset.
+    suggest: true
+  dates:
+    ask: Give the date, as YYYY-MM-DD.
+  rightsList:
+    ask: Under what licence or rights statement is the dataset shared?
+  fundingReferences:
+    ask: Which organisation funded the work that produced the dataset?
+  relatedIdentifiers:
+    ask: Give the identifier, such as a DOI, of a related publication or dataset.
+  geoLocations:
+    publish: >-
+      Can the place where the data were collected be published, and at what precision (exact,
+      site, region or country)? Locations near protected species, on private land or linked to
+      people may need to be generalised or withheld: the landowner, the principal investigator or
+      an ecologist decides. Give the precision agreed, or answer "withhold".
+    ask: Where were the data collected? Name the place, at the precision agreed.
+  publisher:
+    ask: Who publishes the dataset? This is usually the repository.
+  publicationYear:
+    ask: In what year will the dataset be published?
+  language:
+    ask: What is the main language of the dataset, as a language code such as en?
+    suggest: true
+  version:
+    ask: What version of the dataset is this?
+  types.resourceTypeGeneral:
+    filled: Dataset

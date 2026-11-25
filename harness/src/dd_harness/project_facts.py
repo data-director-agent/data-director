@@ -55,6 +55,10 @@ repository by slot name, as one that mixes in `GivenProjectDocuments` is given a
 One that mixes in `GivenProjectMetadataRecord` is given the latest version of the project's
 metadata record, whatever its state, and the version a person approved last; both are
 documentation, as a `DraftRequest`'s `metadata_record` is, and neither is an attached document.
+One that mixes in `GivenProjectPlan` is given the version of the project's data management plan
+(a `dmp` document) a person approved last, which is documentation too. One that mixes in
+`GivenProjectInventory` is given the project's inventory as `project_file_inventory`, as a
+`DraftRequest`'s `inventory` is, and it is `inventory`.
 
 A `Message`'s project slots are the conductor's alone: outside a project they are removed. Any
 other input is left as it was sent. The conductor fills the input before hashing it, so the input
@@ -88,6 +92,17 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any, Protocol
 
+from dd_harness.agent_slots import (
+    AGENT_CONTENT_SLOTS,
+    DECISIONS,
+    DOCUMENTATION,
+    DRAFT_REQUEST,
+    FILE_INVENTORY,
+    INVENTORY,
+    MESSAGE,
+    agent_slots,
+    chosen,
+)
 from dd_harness.progress import ENTRY_BY_RESEARCHER
 from dd_harness.project_drafts import drafts, revision
 from dd_harness.projects import TITLE_BY_RESEARCHER
@@ -103,21 +118,6 @@ from dd_harness.storage import (
 from dd_sdk.agent import AgentSpec
 from dd_sdk.contract.models import DocumentKind
 
-# The core input classes whose slots the conductor fills from a project.
-DRAFT_REQUEST = "DraftRequest"
-FILE_INVENTORY = "FileInventory"
-MESSAGE = "Message"
-CORE_CLASSES = frozenset({DRAFT_REQUEST, FILE_INVENTORY, MESSAGE})
-# The core slots an agent's own input class may mix in, which the conductor fills by name
-# (`GivenProjectDocuments`, `GivenProjectDecisions`, `GivenProjectRepository`,
-# `GivenProjectMetadataRecord`) without the harness naming the class.
-AGENT_INPUT_SLOTS = (
-    "project_documents",
-    "project_decisions",
-    "project_repository",
-    "project_metadata_draft",
-    "project_metadata_approved",
-)
 # A `Message`'s slots that only the conductor fills.
 MESSAGE_PROJECT_SLOTS = (
     "project_inventory",
@@ -135,10 +135,7 @@ MESSAGE_PROJECT_SLOTS = (
 )
 
 # The classes of project content (docs/specs/projects.md, invariant 8).
-INVENTORY = "inventory"
-DOCUMENTATION = "documentation"
 RESEARCHER = "researcher"
-DECISIONS = "decisions"
 # The slots that hold researcher facts, of a `Message` and of a `DraftRequest`.
 RESEARCHER_SLOTS = ("project_researchers", "researchers")
 
@@ -180,13 +177,6 @@ CONTENT_SLOTS: dict[str, tuple[tuple[str, str], ...]] = {
         ("project_decisions", DECISIONS),
     ),
 }
-AGENT_CONTENT_SLOTS = (
-    ("project_documents", DOCUMENTATION),
-    ("project_decisions", DECISIONS),
-    ("project_repository", DECISIONS),
-    ("project_metadata_draft", DOCUMENTATION),
-    ("project_metadata_approved", DOCUMENTATION),
-)
 
 
 def give(
@@ -297,32 +287,11 @@ def _agent_facts(
         )
     if "project_metadata_approved" in slots:
         facts["project_metadata_approved"] = store.metadata_record(project_id)
+    if "project_plan_approved" in slots:
+        facts["project_plan_approved"] = store.approved_plan(project_id)
+    if "project_file_inventory" in slots:
+        facts["project_file_inventory"] = store.inventory(project_id)
     return facts
-
-
-def chosen(recorded: Mapping[str, Any] | None) -> dict[str, Any] | None:
-    """The repository a researcher chose, as a `ChosenRepository`, from what the project's
-    summary says of the repository chosen last; None while none is chosen. Only its name and
-    identifier: its warnings and when it was chosen are for the person, not an agent."""
-    if recorded is None:
-        return None
-    return {
-        "chosen_repository_name": recorded["repository_name"],
-        "chosen_repository_id": recorded["repository_id"],
-        **({"chosen_re3data_id": recorded["re3data_id"]} if recorded.get("re3data_id") else {}),
-    }
-
-
-def agent_slots(spec: AgentSpec | None, schema_class: Any) -> frozenset[str]:
-    """The core slots (`AGENT_INPUT_SLOTS`) the card's schema for an agent's own input class
-    declares, from the mixins `GivenProjectDocuments`, `GivenProjectDecisions`,
-    `GivenProjectRepository` and `GivenProjectMetadataRecord`; empty for a core class, which
-    `give` fills by name, or one the agent does not accept."""
-    if spec is None or schema_class in CORE_CLASSES:
-        return frozenset()
-    accepted = spec.accepted(str(schema_class))
-    declared = set(accepted.json_schema.get("properties", {})) if accepted else set()
-    return frozenset(declared & set(AGENT_INPUT_SLOTS))
 
 
 def refusal(

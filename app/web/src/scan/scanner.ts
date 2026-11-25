@@ -1,8 +1,10 @@
 /**
  * The browser scanner, as the app offers it (docs/specs/app.md, Make an inventory). The scanner
  * is `@data-director/inventory`'s: `dd-inventory` under Pyodide in a Web Worker with no network.
- * The app fetches the scanner's bundle from its own origin, at `inventory-bundle/`, and hands it
- * to a fresh worker for each scan, so that no byte of a chosen file is ever sent anywhere.
+ * The app fetches the scanner's bundle from its own origin, at `/inventory-bundle/`, and hands it
+ * to a fresh worker for each scan, so that no byte of a chosen file is ever sent anywhere. The path
+ * is from the site's root, not the page's: the dialog opens on project pages such as
+ * `/projects/{id}/facts` too, where a relative path would ask for a bundle that is not there.
  *
  * A deployment offers the scanner by serving the bundle there (`npm run bundle` in
  * inventory/browser builds it). Where it does not, `available()` is false and the dialog offers
@@ -21,22 +23,22 @@ import {
 } from "@data-director/inventory";
 import ScanWorker from "@data-director/inventory/scanner/worker?worker";
 
-/** Where the app serves the bundle, relative to the page. */
-export const BUNDLE_PATH = "inventory-bundle/";
+/** Where the app serves the bundle, from the site's root whatever page is open. */
+export const BUNDLE_PATH = "/inventory-bundle/";
 /** The bundle's licence notices (inventory/browser, `bundle/notices.ts`). */
 export const NOTICES_PATH = `${BUNDLE_PATH}NOTICES.md`;
 
 type Fetch = (url: string) => Promise<Response>;
 
 export interface Scanner {
-  /** Whether this deployment serves the scanner. Asked once; the answer is kept. */
+  /** Whether this deployment serves the scanner. A yes is kept; a no is asked again next time. */
   available(): Promise<boolean>;
   /** Describe `folder`. The bundle is fetched on the first scan and kept for the rest. */
   scan(folder: ChosenFolder, onEvent: (event: ScanEvent) => void): ScanHandle;
 }
 
 export interface ScannerOptions {
-  /** The bundle's folder, ending in `/`; by default `inventory-bundle/` beside the page. */
+  /** The bundle's folder, ending in `/`; by default `/inventory-bundle/` on the page's origin. */
   base?: string;
   fetcher?: Fetch;
   makeWorker?: () => WorkerLike;
@@ -68,7 +70,17 @@ export function makeScanner({
     return bundle;
   };
   return {
-    available: () => (available ??= servesBundle(base, fetcher)),
+    // Only a yes is kept: a failed fetch may be a hiccup, and keeping it would hide the browser
+    // route until the page was reloaded. A no is asked again the next time the dialog opens.
+    available() {
+      if (available) return available;
+      const asked = servesBundle(base, fetcher).then((yes) => {
+        if (!yes && available === asked) available = undefined;
+        return yes;
+      });
+      available = asked;
+      return asked;
+    },
     scan(folder, onEvent) {
       let handle: ScanHandle | undefined;
       let stopped = false;

@@ -37,8 +37,8 @@ categories from the ANZSRC Fields of Research. The cases cover:
 
 Each drafted case names the ANZSRC groups a curator would choose. Three cases must stop instead:
 
-- a repository that asks for Dublin Core (`capability_not_implemented`: the librarian drafts
-  DataCite only and maps nothing between schemas, TODO(#1363));
+- a repository that asks for a standard no registered definition covers
+  (`capability_not_implemented`: the librarian maps nothing between schemas, R6);
 - no repository chosen (`insufficient_input`);
 - a README asked of the librarian (`outside_agent_scope`).
 
@@ -68,9 +68,10 @@ retrieved record gives, and catch one that no record gives.
 ## The baseline
 
 `baseline.json` holds the per-case scores of the accepted run and what produced it: the git
-revision, the configuration, the librarian's version, and the hashes of `cases.yaml`,
-`datacite.yaml` and `suggest_prompt.md`. `tests/test_metadata_evals.py` reruns the evaluation and
-fails on any difference from it, better or worse. To accept a change in the librarian's behaviour:
+revision, the configuration, the librarian's version, and the hashes of `cases.yaml`, DataCite's
+definition in `dd_metadata_records`, `shares.yaml` and `suggest_prompt.md`.
+`tests/test_metadata_evals.py` reruns the evaluation and fails on any difference from it, better
+or worse. To accept a change in the librarian's behaviour:
 
 ```bash
 uv run inspect eval agents/advisor-metadata/src/dd_agent_advisor_metadata/evals/drafting.py --model none --log-dir /tmp/metadata
@@ -82,14 +83,21 @@ Commit the rewritten baseline on its own, saying which cases changed and why.
 
 ## Limits
 
-- **No vocabulary yet.** The librarian suggests no category from a controlled vocabulary, so the
-  baseline recalls none and `terms_cited` applies to no case. Which terminology services it is to
-  look terms up in is the spike #956; suggesting terms from them, each citing its record, is
-  TODO(#703).
+- **Categories need a model.** The evaluation's conductor serves `mcp-subjects` in process
+  behind the tool gateway and grants it to the librarian, as a deployment does, so a run with
+  `DD_METADATA_SUGGESTER=model` has the model choose each category from the fields it retrieves
+  there and scores it. The committed baseline is the template suggester's, which calls no model
+  and so recalls no category, and `terms_cited` applies to no case in it.
+  `tests/test_metadata_evals.py` runs the whole evaluation with a fake model, through the same
+  gateway: one that answers with a curator's category is recalled and cited for every case, and
+  one that answers with a code the classification does not hold is offered nowhere. Keywords from
+  terminology services are the spike #956.
+- **One category per record.** ORDA's requirements ask for one category entry, so a case whose
+  curator names two can recall at most half of them.
 - **The labels are provisional and hand-written.** The cases are written to look like ORDA
   deposits, but none is a real record, and no curator has reviewed the categories chosen. A
   labelled corpus of ORDA records is to replace them (TODO(#22)).
-- **The template path.** The baseline measures the rules. The model suggests no category, since a
-  model never suggests an entry from a named vocabulary (`datacite.yaml`).
+- **The template path.** The baseline measures the rules: the template suggester calls no model
+  and suggests nothing.
 - **One standard.** Every case drafts DataCite. Drafting in other standards is evaluated under
   TODO(#1364).

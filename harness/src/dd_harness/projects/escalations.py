@@ -9,6 +9,12 @@ escalation by `escalation_id`, the `event_id` of its `escalation_opened`, and mo
 the states of `MOVES`. Any other move is refused and nothing is recorded. A re-opened escalation
 keeps its history: no event is changed.
 
+Two steward moves name a target: `reassign` gives a taken escalation to a colleague in its team,
+and `transfer` sends it to another team, which must take it again. The rules check only that a
+target is given and is not where the escalation already is; whether the colleague is in the team
+and not a member of the project, and whether the team exists, needs the profile, so is the
+caller's check (`dd_harness.escalation_targets`).
+
 Each move belongs to a side, the researcher's or the steward's. The rules check that the side
 asking is the move's; who is on which side is the caller's check
 (`dd_harness.escalation_api.side_of`), as who may change membership is for `Membership`. A
@@ -23,17 +29,22 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Final, Literal
 
+from dd_harness.escalation_storage import MoveAsked as MoveAsked
 from dd_harness.escalation_storage import NewEscalation as NewEscalation
 from dd_harness.projects.rules import (
     ESCALATION_HANDED_BACK,
     ESCALATION_OPENED,
+    ESCALATION_REASSIGNED,
     ESCALATION_RELEASED,
     ESCALATION_REOPENED,
     ESCALATION_REPLIED,
+    ESCALATION_REROUTED,
     ESCALATION_RESOLVED,
     ESCALATION_TAKEN,
+    ESCALATION_TRANSFERRED,
     ESCALATION_WAITING,
     ESCALATION_WITHDRAWN,
     SUPPORT_TEAM_CHOSEN,
@@ -59,8 +70,19 @@ RESEARCHER: Final = "researcher"
 STEWARD: Final = "steward"
 type Side = Literal["researcher", "steward"]
 type Move = Literal[
-    "take", "release", "wait", "reply", "resolve", "hand_back", "withdraw", "reopen"
+    "take",
+    "release",
+    "wait",
+    "reply",
+    "resolve",
+    "hand_back",
+    "withdraw",
+    "reopen",
+    "reassign",
+    "transfer",
 ]
+# What a move that names a target names: a colleague's `principal_id`, or a steward team's id.
+type Target = Literal["colleague", "team"]
 
 # Where an escalation comes from (invariant 4). Each but the researcher's names the run.
 ORIGINS: Final = ("researcher", "policy_gate", "agent", "orchestrator")
@@ -72,17 +94,19 @@ SCOPE_LINE_MAX_LENGTH: Final = 500
 @dataclass(frozen=True)
 class Step:
     """One move of an escalation: the event it appends, the states it may be made from, the state
-    it leads to, whose it is, and whether it needs a note."""
+    it leads to, whose it is, whether it needs a note, and what target it names, if any."""
 
     event: str
     starts: frozenset[str]
     to: str
     side: Side
     note: Literal["required", "optional", "none"]
+    target: Target | None = None
 
 
 # The table in docs/ui/steward-escalation-flows.md, "Escalation states". Routing an escalation
-# again when no steward takes it (`open` to `open`) is TODO(#378).
+# again when no steward takes it (`open` to `open`) is no person's move, so it is not here: the
+# deployment's sweep records it (`Escalations.reroute_escalation`, invariant 13).
 MOVES: Final[Mapping[str, Step]] = {
     "take": Step(ESCALATION_TAKEN, frozenset({OPEN}), TAKEN, STEWARD, "none"),
     "release": Step(ESCALATION_RELEASED, frozenset({TAKEN}), OPEN, STEWARD, "optional"),
@@ -97,6 +121,13 @@ MOVES: Final[Mapping[str, Step]] = {
     "withdraw": Step(ESCALATION_WITHDRAWN, frozenset(LIVE_STATES), WITHDRAWN, RESEARCHER, "none"),
     "reopen": Step(
         ESCALATION_REOPENED, frozenset({RESOLVED, HANDED_BACK}), OPEN, RESEARCHER, "required"
+    ),
+    # Flow G: cover within a team, and moving a matter to the team it belongs with.
+    "reassign": Step(
+        ESCALATION_REASSIGNED, frozenset({TAKEN}), TAKEN, STEWARD, "optional", "colleague"
+    ),
+    "transfer": Step(
+        ESCALATION_TRANSFERRED, frozenset(LIVE_STATES), OPEN, STEWARD, "required", "team"
     ),
 }
 _MOVE_OF: Final = {step.event: move for move, step in MOVES.items()}
@@ -129,6 +160,8 @@ def escalations(events: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
                 "opened_by": event["acted_for"],
                 "opened_at": event["at"],
                 "updated_at": event["at"],
+                # When the team was last asked to take it: opened, released, re-opened or rerouted.
+                "routed_at": event["at"],
                 "taken_by": None,
                 "history": [_history("open", event)],
             }
@@ -137,21 +170,77 @@ def escalations(events: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
         ) is not None:
             escalation["state"] = MOVES[move].to
             escalation["updated_at"] = event["at"]
-            if move == "take":
-                escalation["taken_by"] = event["acted_for"]
-            elif move in ("release", "reopen"):
-                escalation["taken_by"] = None
+            _fold(escalation, move, event)
             escalation["history"].append(_history(move, event))
+        elif (
+            kind == ESCALATION_REROUTED
+            and (escalation := found.get(event["escalation_id"])) is not None
+        ):
+            escalation["updated_at"] = escalation["routed_at"] = event["at"]
+            escalation["history"].append(_history("reroute", event))
     return list(found.values())
 
 
+def _fold(escalation: dict[str, Any], move: str, event: Mapping[str, Any]) -> None:
+    """Who holds `escalation`, and when its team was last asked to take it, after `move`."""
+    if move == "take":
+        escalation["taken_by"] = event["acted_for"]
+    elif move == "reassign":
+        escalation["taken_by"] = event["to_steward"]
+    elif move in ("release", "reopen", "transfer"):
+        escalation["taken_by"] = None
+        escalation["routed_at"] = event["at"]
+    if move == "transfer":
+        escalation["team_id"] = event["team_id"]
+
+
+# What a move's history entry says about its target, by the event's own names.
+_TARGET_KEYS: Final = ("from_steward", "to_steward", "from_team", "team_id")
+
+
 def _history(move: str, event: Mapping[str, Any]) -> dict[str, Any]:
-    entry = {"move": move, "by": event["acted_for"], "at": event["at"]}
+    entry = {
+        "move": move,
+        "event_id": event["event_id"],
+        "by": event["acted_for"],
+        "at": event["at"],
+    }
     if event.get("note"):
         entry["note"] = event["note"]
     if event.get("acting_as"):
         entry["acting_as"] = event["acting_as"]
+    if (step := MOVES.get(move)) is not None and step.target is not None:
+        entry.update({key: event[key] for key in _TARGET_KEYS if event.get(key) is not None})
     return entry
+
+
+def _target_detail(
+    step: Step, escalation: Mapping[str, Any], to: str | Principal | None
+) -> dict[str, Any]:
+    """What a move that names a target records about it: where the escalation was, and where it
+    goes. Raises `EscalationRefusedError` for a target missing, or where it already is."""
+    if step.target is None:
+        return {}
+    if not to or isinstance(to, Principal) != (step.target == "colleague"):
+        raise EscalationRefusedError(
+            EscalationRefusal.TARGET_REQUIRED,
+            f"name the {step.target} to {'reassign' if step.target == 'colleague' else 'transfer'}"
+            " it to",
+        )
+    if isinstance(to, Principal):
+        if to.principal_id == (escalation["taken_by"] or {}).get("principal_id"):
+            raise EscalationRefusedError(
+                EscalationRefusal.SAME_TARGET, "that steward has already taken it"
+            )
+        return {
+            "from_steward": escalation["taken_by"],
+            "to_steward": to.model_dump(mode="json", exclude_none=True),
+        }
+    if to == escalation["team_id"]:
+        raise EscalationRefusedError(
+            EscalationRefusal.SAME_TARGET, "the escalation is already with that team"
+        )
+    return {"from_team": escalation["team_id"], "team_id": to}
 
 
 def _check_note(note: str | None, *, required: bool) -> str | None:
@@ -249,16 +338,21 @@ class Escalations(ProjectRules):
         self,
         project_id: str,
         escalation_id: str,
-        move: str,
+        move: str | MoveAsked,
         *,
         side: Side,
-        note: str | None = None,
         acted_for: Principal,
         caused_by: str,
     ) -> dict[str, Any]:
         """Make `move` on the escalation for `side`, and return the escalation as it then
-        stands. Raises `EscalationRefusedError` for an unknown escalation or move, a move its
-        state does not allow, one that is not `side`'s, or a note missing or too long."""
+        stands. `move` is a move's name alone, or a `MoveAsked` with its note and its target:
+        the colleague for `reassign`, a team's id for `transfer`; other moves ignore a target.
+        Raises
+        `EscalationRefusedError` for an unknown escalation or move, a move its state does not
+        allow, one that is not `side`'s, a note missing or too long, or a target missing or
+        where the escalation already is."""
+        asked = move if isinstance(move, MoveAsked) else MoveAsked(move)
+        move, note, to = asked.move, asked.note, asked.to
         step = MOVES.get(move)
         if step is None:
             raise EscalationRefusedError(
@@ -286,7 +380,10 @@ class Escalations(ProjectRules):
                     f"an escalation that is {found['state'].replace('_', ' ')} cannot be "
                     f"moved by {move.replace('_', ' ')}",
                 )
-            detail: dict[str, Any] = {"escalation_id": escalation_id}
+            detail: dict[str, Any] = {
+                "escalation_id": escalation_id,
+                **_target_detail(step, found, to),
+            }
             if checked_note is not None:
                 detail["note"] = checked_note
             if side == STEWARD:
@@ -294,3 +391,29 @@ class Escalations(ProjectRules):
             moved = self._event(project_id, step.event, acted_for, caused_by, detail)
             section.append([moved])
         return {e["escalation_id"]: e for e in escalations([*events, moved])}[escalation_id]
+
+    def reroute_escalation(
+        self,
+        project_id: str,
+        escalation_id: str,
+        *,
+        routed_before: datetime,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> dict[str, Any] | None:
+        """Send the escalation to its team again, if it is still `open` and was last routed
+        before `routed_before`, and return it; otherwise record nothing and
+        return None. Checked inside the section, so that a steward taking it meanwhile wins."""
+        with self._section(project_id) as section:
+            events = section.events()
+            found = {e["escalation_id"]: e for e in escalations(events)}.get(escalation_id)
+            if (
+                found is None
+                or found["state"] != OPEN
+                or datetime.fromisoformat(found["routed_at"]) >= routed_before
+            ):
+                return None
+            detail = {"escalation_id": escalation_id, "team_id": found["team_id"]}
+            rerouted = self._event(project_id, ESCALATION_REROUTED, acted_for, caused_by, detail)
+            section.append([rerouted])
+        return {e["escalation_id"]: e for e in escalations([*events, rerouted])}[escalation_id]

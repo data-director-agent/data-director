@@ -15,6 +15,7 @@ import {
   Bot,
   Bug,
   FolderOpen,
+  LifeBuoy,
   Map as MapIcon,
   MessagesSquare,
   Settings as SettingsIcon,
@@ -41,6 +42,10 @@ const PAGES: readonly { to: string; label: string; icon: LucideIcon }[] = [
   { to: "/policy", label: "Policy", icon: Shield },
 ];
 
+// A data steward's queue, in the main navigation of someone the profile names a steward
+// (docs/specs/stewardship.md, invariant 1). The server answers the queue whoever asks.
+const STEWARD_PAGE = { to: "/steward", label: "Requests", icon: LifeBuoy };
+
 /** A banner icon: decoration beside a label that says the same, so hidden from screen readers. */
 function BannerIcon({ icon: Icon }: { icon: LucideIcon }) {
   return <Icon className="app-icon" size="1.125em" aria-hidden="true" />;
@@ -66,19 +71,26 @@ const PROJECT_LINKS: readonly { href: string; label: string }[] = [
 
 /**
  * `from` is the page the reader is on, which the report form carries so a report says where it
- * was made. `account` is who is signed in (`session/Account`).
+ * was made. `account` is who is signed in (`session/Account`), and `notices` what data stewards
+ * did in their projects (`session/Notices`). `steward` adds the data steward's queue to the main
+ * navigation.
  */
 export function Frame({
   current,
   from = current,
   account,
+  notices,
+  steward = false,
   children,
 }: {
   current: string;
   from?: string;
   account?: ReactNode;
+  notices?: ReactNode;
+  steward?: boolean;
   children: ReactNode;
 }) {
+  const pages = steward ? [...PAGES, STEWARD_PAGE] : PAGES;
   const run = new URLSearchParams(from.split("?")[1]).get("run");
   const report = `/feedback?from=${encodeURIComponent(from)}${run ? `&run=${encodeURIComponent(run)}` : ""}`;
   return (
@@ -96,7 +108,7 @@ export function Frame({
           </p>
           <nav aria-label="Main" className="app-nav">
             <ul className="app-nav-list">
-              {PAGES.map(({ to, label, icon }) => (
+              {pages.map(({ to, label, icon }) => (
                 <li key={to}>
                   <Link
                     to={to}
@@ -113,6 +125,7 @@ export function Frame({
             </ul>
           </nav>
           <div className="app-tools">
+            {notices}
             <span className="app-account">{account}</span>
             <a
               className="app-tool-link"

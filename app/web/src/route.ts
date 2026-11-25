@@ -30,21 +30,31 @@ export function navigate(to: string, replace = false): void {
 }
 
 /** The conversation page's address: the open conversation (`?conversation=`), the run shown
- * (`?run=`), a step of the journey to ask about (`?ask=`) and a draft's question to talk through
+ * (`?run=`), a step of the journey to ask about in a new conversation (`?ask=`) and a draft's question to talk through
  * (`?question=`, as `{document_id}/{question_id}`) and FAIR feedback to ask for (`?fair=check`,
- * from the FAIR feedback tab's button), each left out when none. */
+ * from the FAIR feedback tab's button) and a review of the project's plan to ask for (`?dmp=review`,
+ * from the Documents tab's button) and help to identify the target data repository (`?repository=identify`,
+ * from the Repository tab's button), each left out when none. */
 export function homePath({
   conversation,
   run,
   ask,
   question,
   fair,
+  dmp,
+  repository,
+  fact,
 }: {
   conversation?: string | null;
   run?: string | null;
   ask?: string | null;
   question?: string | null;
   fair?: boolean;
+  dmp?: boolean;
+  /** Help to identify the project's target data repository, asked from the Repository tab. */
+  repository?: boolean;
+  /** A proposed fact to discuss, by its proposal's id. */
+  fact?: string | null;
 }): string {
   const query = new URLSearchParams();
   if (conversation) query.set("conversation", conversation);
@@ -52,6 +62,9 @@ export function homePath({
   if (ask) query.set("ask", ask);
   if (question) query.set("question", question);
   if (fair) query.set("fair", "check");
+  if (dmp) query.set("dmp", "review");
+  if (repository) query.set("repository", "identify");
+  if (fact) query.set("fact", fact);
   const text = query.toString();
   return text ? `/?${text}` : "/";
 }
@@ -106,6 +119,12 @@ export function factsPath(projectId: string, keys: readonly string[] = []): stri
   for (const key of new Set(keys)) query.append("fact", key);
   const text = query.toString();
   return text ? `${base}?${text}` : base;
+}
+
+/** A project's facts, showing the funder given (`?funder=`, a funder fact's subject): the fact
+ * with the organisation behind it. */
+export function funderPath(projectId: string, subject: string): string {
+  return `${projectTabPath(projectId, "facts")}?${new URLSearchParams({ funder: subject })}`;
 }
 
 export function Link({

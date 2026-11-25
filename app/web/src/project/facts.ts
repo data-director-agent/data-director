@@ -24,9 +24,14 @@ export type FactKind =
   | "licence"
   | "sharing_commitment"
   | "standard"
-  | "data_management_plan";
+  | "data_management_plan"
+  | "data_description"
+  | "project_summary"
+  | "field_of_study"
+  | "project_period";
 export type FileDecision = "include" | "exclude" | "undecided";
-export type SensitivityDecision = "publish" | "generalise" | "withhold" | "undecided";
+export type SensitivityDecision =
+  "publish" | "generalise" | "withhold" | "undecided";
 export type LocationPrecision = "exact" | "site" | "region" | "country";
 export type StandardKind =
   | "metadata_standard"
@@ -43,21 +48,34 @@ export type FactVerdict = "confirmed" | "changed" | "rejected";
  * Nor is the project's Data Management Plan: a person marks it on the Documents page (#1447).
  */
 export const FACT_KINDS: readonly FactKind[] = [
+  "project_summary",
+  "field_of_study",
+  "project_period",
   "file_inclusion",
   "sensitivity",
   "funder",
   "required_repository",
   "licence",
   "standard",
+  "data_description",
 ];
-export const FILE_DECISIONS: readonly FileDecision[] = ["include", "exclude", "undecided"];
+export const FILE_DECISIONS: readonly FileDecision[] = [
+  "include",
+  "exclude",
+  "undecided",
+];
 export const SENSITIVITY_DECISIONS: readonly SensitivityDecision[] = [
   "publish",
   "generalise",
   "withhold",
   "undecided",
 ];
-export const PRECISIONS: readonly LocationPrecision[] = ["exact", "site", "region", "country"];
+export const PRECISIONS: readonly LocationPrecision[] = [
+  "exact",
+  "site",
+  "region",
+  "country",
+];
 export const STANDARD_KINDS: readonly StandardKind[] = [
   "metadata_standard",
   "controlled_vocabulary",
@@ -99,6 +117,18 @@ export interface ProjectFact {
   standard_target?: string;
   /** Which attached document is the project's Data Management Plan, by its text's SHA-256. */
   plan_document?: string;
+  /** What data the project collects, how, in which formats and volume, and what it reuses, in the
+   * researcher's words. */
+  data_collected?: string;
+  data_collection_method?: string;
+  data_formats?: string;
+  data_volume?: string;
+  data_reused?: string;
+  /** What the project is for, its field of study, and when it starts and ends (YYYY[-MM[-DD]]). */
+  summary_text?: string;
+  field_name?: string;
+  period_start?: string;
+  period_end?: string;
   /** Why an agent proposed it, for the person deciding; never given to an agent. */
   proposed_because?: string;
 }
@@ -107,14 +137,18 @@ export type { FactProposal, ProjectFacts } from "../api/generated/responses";
 
 /** What a decision counts by: a fact's kind and subject, as `{kind}:{subject}`. A link to a fact
  * names it by this (`factsPath` in `route.ts`). */
-export function factKey(fact: Pick<ProjectFact, "fact_kind" | "fact_subject">): string {
+export function factKey(
+  fact: Pick<ProjectFact, "fact_kind" | "fact_subject">,
+): string {
   return `${fact.fact_kind}:${fact.fact_subject}`;
 }
 
 function isFact(value: unknown): value is ProjectFact {
   if (typeof value !== "object" || value === null) return false;
   const fact = value as Partial<ProjectFact>;
-  return typeof fact.fact_kind === "string" && typeof fact.fact_subject === "string";
+  return (
+    typeof fact.fact_kind === "string" && typeof fact.fact_subject === "string"
+  );
 }
 
 /** The facts a run's payload proposed for a person to decide (the contract's `ProposesFacts`,
@@ -153,6 +187,10 @@ export const FACT_NEEDS: Record<FactKind, readonly (keyof ProjectFact)[]> = {
   sharing_commitment: ["commitment_quote", "commitment_document"],
   standard: ["standard_name"],
   data_management_plan: ["plan_document"],
+  data_description: ["data_collected"],
+  project_summary: ["summary_text"],
+  field_of_study: ["field_name"],
+  project_period: ["period_start"],
 };
 
 /** The slot a fact's subject is copied from, so a person names the subject once. */
@@ -165,21 +203,41 @@ export const SUBJECT_OF: Record<FactKind, keyof ProjectFact | null> = {
   sharing_commitment: null,
   standard: "standard_name",
   data_management_plan: null,
+  data_description: null,
+  project_summary: null,
+  field_of_study: null,
+  project_period: null,
 };
 
-/** The one subject a Data Management Plan fact has, so a project has at most one current plan. */
+/** The one subject a Data Management Plan or data description fact has, so a project has at most
+ * one current plan and one description. */
+/** What the shell puts in the message box to ask for a review of the marked plan, unsent. */
+export const ASK_TO_REVIEW_PLAN =
+  "Please have the Data Management Planner review the plan I marked for this project against the core requirements of a plan.";
+
+/** What the shell puts in the message box to ask for help to identify the target data repository,
+ * unsent. */
+export const ASK_TO_IDENTIFY_REPOSITORY =
+  "Please help me identify the best data repository for this project's data.";
+
 export const PLAN_SUBJECT = "project";
 
 /** The fact that marks the attached document whose text has `digest` as the project's plan. */
 export function planFact(digest: string): ProjectFact {
-  return { fact_kind: "data_management_plan", fact_subject: PLAN_SUBJECT, plan_document: digest };
+  return {
+    fact_kind: "data_management_plan",
+    fact_subject: PLAN_SUBJECT,
+    plan_document: digest,
+  };
 }
 
 /** The slots `fact` is missing for its kind; empty when it may be sent. */
 export function missingSlots(fact: ProjectFact): (keyof ProjectFact)[] {
   return FACT_NEEDS[fact.fact_kind].filter((slot) => {
     const value = fact[slot];
-    return value === undefined || (typeof value === "string" && value.trim() === "");
+    return (
+      value === undefined || (typeof value === "string" && value.trim() === "")
+    );
   });
 }
 
@@ -208,8 +266,10 @@ function factsPath(projectId: string): string {
 /** A response's body, or its error: a stale or missing proposal, or a decision not the person's. */
 function parse<T>(response: Response): Promise<T> {
   return json<T>(response, (status, problem) => {
-    if (problem && (status === 409 || status === 404)) return new DecisionConflict(problem);
-    if (problem && status === 403 && problem.type.endsWith(FORBIDDEN)) return new FactForbidden(problem);
+    if (problem && (status === 409 || status === 404))
+      return new DecisionConflict(problem);
+    if (problem && status === 403 && problem.type.endsWith(FORBIDDEN))
+      return new FactForbidden(problem);
     return null;
   });
 }

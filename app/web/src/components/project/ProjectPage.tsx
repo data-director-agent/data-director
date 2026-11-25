@@ -25,6 +25,9 @@
  * The documents the project holds are read beside its drafts; if they cannot be read, the drafts
  * are still shown. Attaching one (`AttachDocumentOffer`) lists it and opens it.
  *
+ * A data steward who opens the project reads it under the steward's banner, without the controls
+ * the harness does not let them use (`permitted_actions`): renaming, deleting, adding to it.
+ *
  * A project the page could read becomes the one the app is working in (docs/specs/app.md), so a
  * link to it lands in that project. Its conversations are on the Conversations tab.
  */
@@ -46,18 +49,16 @@ import {
   type ProjectSummary,
   useProjectApi,
 } from "../../project/api";
-import { deletionName, documentName, projectName } from "../../project/name";
+import { documentName } from "../../project/name";
+import { Permitted } from "../../project/view";
 import { Link, navigate, projectTabPath } from "../../route";
-import { AddInventory } from "../inventory/AddInventory";
 import { PageHeader } from "../frame/PageHeader";
 import { PageLoading } from "../ui/PageLoading";
-import { AttachDocumentOffer } from "./AttachDocument";
 import { AttachedReader } from "./AttachedReader";
 import { DocumentList, FORMER_PANELS, stateOf } from "./DocumentList";
-import { DeleteProject } from "./DeleteProject";
 import { DocumentReader } from "./DocumentReader";
 import { ProjectNav } from "./ProjectNav";
-import { ProjectRename } from "./ProjectRename";
+import { MemberActions, useProjectTitle } from "./ProjectHeaderActions";
 
 type Load =
   | { state: "loading" }
@@ -216,7 +217,8 @@ export function ProjectPage({
     );
     return () => controller.abort();
   }, [api, projectId, renamed]);
-  const title = project ? projectName(project) : null;
+  // A steward's projects are not in their own list; the view names it.
+  const title = useProjectTitle(project);
 
   // After a refusal: the documents already shown stay if the project cannot be read again, so
   // that the person still sees why their decision was refused. Answers what went wrong, if
@@ -333,37 +335,22 @@ export function ProjectPage({
       <>
         <ProjectNav projectId={projectId} name={title} current="documents" />
         <PageHeader title={title ?? "Project documents"}>
-          {project && title && (
-            <p className="project-name-actions">
-              <ProjectRename
-                projectId={projectId}
-                name={project.title ?? title}
-                named={project.title_source ?? null}
-                onRenamed={() => setRenamed((n) => n + 1)}
-              />{" "}
-              <DeleteProject
-                projectId={projectId}
-                name={title}
-                typedName={deletionName(project)}
-                restoreDays={project.restore_days}
-              />
+          <MemberActions
+            projectId={projectId}
+            project={project}
+            title={title}
+            directory={directory}
+            onRenamed={() => setRenamed((n) => n + 1)}
+            onInventory={(saved) => setProject((p) => (p ? { ...p, inventory: saved } : p))}
+            onAttached={onAttached}
+          />
+          <Permitted action="decide">
+            <p className="hint">
+              Check each draft before it goes into the deposit package. Approve it as it is, edit it and
+              approve your version, or reject it. A decision cannot be changed once it is made; a newer
+              version can be.
             </p>
-          )}
-          <p className="project-inventory-actions">
-            <AddInventory
-              projectId={projectId}
-              replacing={project?.inventory != null}
-              onSaved={(saved) => {
-                setProject((p) => (p ? { ...p, inventory: saved } : p));
-              }}
-            />
-          </p>
-          <AttachDocumentOffer projectId={projectId} directory={directory} onAttached={onAttached} />
-          <p className="hint">
-            Check each draft before it goes into the deposit package. Approve it as it is, edit it and
-            approve your version, or reject it. A decision cannot be changed once it is made; a newer
-            version can be.
-          </p>
+          </Permitted>
         </PageHeader>
         <div role="status" className={announcement ? "callout status-ok" : undefined}>
           {announcement && (

@@ -39,22 +39,66 @@ disabled: []
 #     charges_deposit_fee: false
 #     guidance: [https://www.sheffield.ac.uk/library/research-data-management]
 
+# Your institution's storage for data while a project runs, recommended by the storage adviser,
+# offered to a Data Management Plan's storage question, and copied into the profile as written. No
+# registry lists it, so name each service by your own label and add only what you vouch for; a
+# service not marked approved_for_sensitive is never offered for personal data
+# (docs/guide/operations/configuration.md). These two are examples, at example.ac.uk: replace them
+# with your institution's own services before researchers use this instance, or delete the key.
+institution_storage:
+  - storage_id: research-filestore
+    storage_name: Research filestore
+    storage_kind: institutional_filestore
+    approved_for_sensitive: true
+    allows_external_collaborators: false
+    allowance_gb: 10000
+    charges_for_storage: false
+    storage_backup: Nightly snapshots replicated to a second site
+    guidance: [https://example.ac.uk/research-storage]
+  - storage_id: cloud-drive
+    storage_name: Cloud drive
+    storage_kind: institutional_cloud
+    approved_for_sensitive: false
+    allows_external_collaborators: true
+    allowance_gb: 1000
+    charges_for_storage: false
+    storage_backup: Deleted files kept for 30 days
+    guidance: [https://example.ac.uk/cloud-drive]
+
 # Who administers this instance, each by their ORCID iD as a URL, copied into the profile as written.
 # A deployed workbench admits them and no one else, and does not run without one. Being an
 # administrator gives no access to anyone's project (docs/guide/steward-guide/becoming-a-steward.md).
 # administrators:
 #   - https://orcid.org/0000-0002-1825-0097
 
+# Who may sign in, copied into the profile as written. Left out, only the people listed under allow,
+# the stewards and the administrators may: `apply` writes `admit: listed`. `admit: anyone` lets
+# in anyone with an ORCID iD. Block lists people who may not sign in whatever else lists them;
+# their sessions end at their next request (docs/guide/operations/configuration.md,
+# "Who may sign in").
+# access:
+#   admit: listed                 # listed (the default here) or anyone
+#   allow:
+#     - https://orcid.org/0000-0001-5000-0007
+#   block:
+#     - https://orcid.org/0000-0003-1415-9269
+
 # The instance's data steward teams, copied into the profile as written: who receives the matters
-# researchers raise (docs/guide/steward-guide/becoming-a-steward.md). Leave it out and the instance
-# has no stewards; a researcher who asks for one is told so.
+# researchers raise. Leave it out and the instance has no stewards; a researcher who asks for one
+# is told so. Every key is explained in docs/guide/operations/configuration.md, "Data steward teams".
 # stewardship:
+#   visibility: escalated         # escalated (the default) or scope: which projects a steward may open
+#   reroute_after: P3D            # send an escalation nobody has taken to its team again (P3D, PT48H)
 #   teams:
-#     - id: library-rdm
-#       name: Library Research Data Team
-#       members: [https://orcid.org/0000-0002-1825-0097]
-#       contact: https://example.ac.uk/research-data/contact
-#       response_time: 3 working days
+#     - id: library-rdm           # lower-case words joined by hyphens; unique
+#       name: Library Research Data Team       # what researchers are shown
+#       members:                  # at least one, by ORCID iD as a URL
+#         - https://orcid.org/0000-0002-1825-0097
+#       supports: [faculty-of-science]         # labels of the projects it supports
+#       contact: https://example.ac.uk/research-data/contact   # shown when no steward can help
+#       response_time: 3 working days          # what a researcher is told to expect
+#       notify: rdm-helpdesk@example.ac.uk     # emailed about each escalation; needs DD_SMTP_URL
+#       notify_on: [opened, rerouted, replied, withdrawn, reopened]   # the default: all five
 
 # Whether people may pay for model calls with their own AI provider account, copied into the
 # profile as written. Leave it out and the deployment pays. It needs the model broker and the

@@ -1,0 +1,13 @@
+{
+  "notices": [
+    {
+      "at": "2026-01-01T00:00:00+00:00",
+      "escalation_id": "019a0000-0000-7000-8000-0000000000e1",
+      "event_id": "019a0000-0000-7000-8000-0000000000b1",
+      "kind": "waiting",
+      "path": "/projects/019a0000-0000-7000-8000-0000000000a1",
+      "project_id": "019a0000-0000-7000-8000-0000000000a1",
+      "subject": "Library Research Data Team asked you something about your request"
+    }
+  ]
+}

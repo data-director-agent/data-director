@@ -8,6 +8,7 @@ import { expect, test } from "@playwright/test";
 
 import project from "../fixtures/project-documents.json" with { type: "json" };
 import answers from "../fixtures/project-answers.json" with { type: "json" };
+import drafted from "../fixtures/project-drafted.json" with { type: "json" };
 import development from "../fixtures/session-development.json" with { type: "json" };
 import { axeViolations, overflow, serveSession } from "./support";
 
@@ -90,5 +91,36 @@ for (const width of [1280, 320]) {
     expect(await axeViolations(page)).toEqual([]);
     expect(await overflow(page)).toBeLessThanOrEqual(0);
     await page.screenshot({ path: `test-results/questions-tab-${width}.png` });
+  });
+}
+
+for (const width of [1280, 320]) {
+  test(`with every question answered, the next draft is asked for from the page, at ${width}px`, async ({
+    page,
+  }) => {
+    const [document] = drafted.documents;
+    const [first] = document?.versions ?? [];
+    if (!document || !first) throw new Error("The fixture holds no draft.");
+    const before = { ...drafted, documents: [{ ...document, versions: [first] }] };
+    const base = `/api/projects/${drafted.project_id}`;
+    let asked: unknown = null;
+    await page.route(`${base}/documents`, (route) => route.fulfill({ json: before }));
+    await page.route(`${base}/documentation`, (route) => route.fulfill({ json: [] }));
+    await page.route(`${base}/documents/${document.document_id}/drafts`, (route) => {
+      asked = route.request().postDataJSON();
+      return route.fulfill({ status: 201, json: drafted });
+    });
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`/projects/${drafted.project_id}?doc=${document.document_id}`);
+
+    const drafting = page.getByRole("region", { name: "Continue drafting" });
+    await expect(drafting.getByText(/Every question on this version has an answer/)).toBeVisible();
+    expect(await axeViolations(page)).toEqual([]);
+    expect(await overflow(page)).toBeLessThanOrEqual(0);
+    await drafting.getByRole("button", { name: "Continue drafting" }).click();
+
+    await expect(drafting.getByRole("status")).toContainText("Version 2");
+    expect(asked).toEqual({ version: 1 });
+    await page.screenshot({ path: `test-results/continue-drafting-${width}.png`, fullPage: true });
   });
 }

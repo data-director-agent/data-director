@@ -323,7 +323,7 @@ async def choose_repository(request: Request, person: Principal, deps: Deps) -> 
     the requirements it resolved to."""
     project_id = request.path_params["project_id"]
     if not deps.projects.deposit.offers_repositories:
-        return _repositories_unavailable("This server has no repository requirement sets.")
+        return repositories_unavailable("This server has no repository requirement sets.")
     body = await parse_body(request, ChooseRepository, REPOSITORY_REFUSED)
     if isinstance(body, Response):
         return body
@@ -342,18 +342,18 @@ async def choose_repository(request: Request, person: Principal, deps: Deps) -> 
         ProjectError,
         RequirementsError,
     ) as exc:
-        return _choice_refused(exc, project_id)
+        return choice_refused(exc, project_id)
     return respond(contract.RepositoryRequirements, chosen, status_code=201)
 
 
-def _choice_refused(
+def choice_refused(
     exc: RepositoriesUnavailableError | SourceConfigError | ProjectError | RequirementsError,
     project_id: str,
 ) -> Response:
     """The problem that answers a refused choice of repository, by what refused it, tried in the
     order the choice's handler names them."""
     if isinstance(exc, RepositoriesUnavailableError):
-        return _repositories_unavailable(str(exc))
+        return repositories_unavailable(str(exc))
     if isinstance(exc, SourceConfigError):
         return problem(503, "re3data-unavailable", REPOSITORY_REFUSED, str(exc))
     if isinstance(exc, ProjectError):
@@ -361,7 +361,7 @@ def _choice_refused(
     return problem(400, "request-refused", REPOSITORY_REFUSED, str(exc))
 
 
-def _repositories_unavailable(detail: str) -> Response:
+def repositories_unavailable(detail: str) -> Response:
     return problem(503, "repositories-unavailable", REPOSITORY_REFUSED, detail)
 
 

@@ -8,7 +8,8 @@ the data management plan names is described beside the shortlist, as one the pla
 choice is not a mandate (#1233). The chosen repository is described only when nothing else is
 asked (no mandate, nothing asked about or named by the plan, nothing to search for), where the
 agent would otherwise abstain; a caller that asks for a shortlist still gets one, so a researcher
-can reconsider.
+can reconsider. When the needs give no kinds of data, they are taken from the project's inventory
+(`kinds.py`, #1560).
 Outside a project the caller's needs stand as sent.
 """
 
@@ -16,7 +17,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from dd_agent_advisor_repository import rank
+from dd_agent_advisor_repository import kinds, rank
 from dd_agent_advisor_repository.classes import CandidateBasis, RepositoryNeeds, RepositoryRef
 from dd_agent_advisor_repository.records import Re3dataRecord
 from dd_sdk.contract.facts import FactKind
@@ -26,16 +27,22 @@ from dd_sdk.contract.facts import FactKind
 class Given:
     """The needs with the project's decisions read in; the repositories the plan names, to
     describe beside the shortlist; and the re3data identifier of a repository described only
-    because it was chosen, or None."""
+    because it was chosen, or None; and the kinds of data taken from the inventory, if any."""
 
     needs: RepositoryNeeds
     in_plan: list[RepositoryRef] = field(default_factory=list)
     only_chosen: str | None = None
+    from_inventory: kinds.FromInventory | None = None
 
 
 def with_project(needs: RepositoryNeeds) -> Given:
     """The needs with each decided required repository mandated, the repositories confirmed
-    plan commitments name, and the chosen repository to describe when nothing else is asked."""
+    plan commitments name, the chosen repository to describe when nothing else is asked, and the
+    kinds of data from the inventory when the needs give none."""
+    from_inventory = None
+    if not needs.data_kinds and needs.project_file_inventory is not None:
+        from_inventory = kinds.from_inventory(needs.project_file_inventory)
+        needs = needs.model_copy(update={"data_kinds": from_inventory.kinds})
     mandated = list(needs.mandated)
     in_plan: list[RepositoryRef] = []
     for fact in needs.project_decisions:
@@ -61,7 +68,9 @@ def with_project(needs: RepositoryNeeds) -> Given:
             )
         )
         only_chosen = chosen.chosen_repository_id
-    return Given(needs.model_copy(update={"mandated": mandated}), in_plan, only_chosen)
+    return Given(
+        needs.model_copy(update={"mandated": mandated}), in_plan, only_chosen, from_inventory
+    )
 
 
 def basis(record: Re3dataRecord, only_chosen: str | None) -> CandidateBasis:

@@ -5,7 +5,7 @@ loads and merges for the repository a researcher chose. Not an input or a payloa
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Any, Final, Literal
 
 from pydantic import Field, model_validator
 
@@ -19,14 +19,50 @@ from dd_sdk.contract.base import (
 from dd_sdk.contract.deposit import DepositConnector, Obligation, SuppliedOn
 from dd_sdk.contract.facts import DocumentKind
 
+# The vocabularies a field's term may come from, by the prefix a CURIE names it with, as the
+# core schema's `prefixes` declares them (docs/specs/metadata-standards.md, invariant 7).
+TERM_NAMESPACES: Final = {
+    "schema": "http://schema.org/",
+    "dcterms": "http://purl.org/dc/terms/",
+    "dcat": "http://www.w3.org/ns/dcat#",
+    "prov": "http://www.w3.org/ns/prov#",
+}
+TERM_PATTERN: Final = (
+    r"^((schema|dcterms|dcat|prov):[A-Za-z][A-Za-z0-9_-]*"
+    r"|(http://schema\.org/|http://purl\.org/dc/terms/|http://www\.w3\.org/ns/dcat#"
+    r"|http://www\.w3\.org/ns/prov#)[A-Za-z][A-Za-z0-9_-]*)$"
+)
+
+
+def expand_term(term: str) -> str:
+    """A field's term as its full IRI: `dcterms:provenance` as
+    `http://purl.org/dc/terms/provenance`. An IRI is given back as it is."""
+    prefix, sep, name = term.partition(":")
+    namespace = TERM_NAMESPACES.get(prefix) if sep else None
+    return namespace + name if namespace and not name.startswith("//") else term
+
+
+def legacy_term(data: Any) -> Any:
+    """A field kept before terms were IRIs, with a schema.org local name in `schema_org`, read as
+    the `schema:` term it named (#1357), so old project logs and blobs still read."""
+    if isinstance(data, dict) and "schema_org" in data and "term" not in data:
+        rest = {key: value for key, value in data.items() if key != "schema_org"}
+        return {**rest, "term": f"schema:{data['schema_org']}"}
+    return data
+
 
 class RequirementField(Frozen):
     property: str
     qualifier: dict[str, Any] | None = None
-    schema_org: str
+    term: str = Field(pattern=TERM_PATTERN)
     obligation: Obligation
     form_label: str | None = None
     supplied_on: SuppliedOn | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _legacy_term(cls, data: Any) -> Any:
+        return legacy_term(data)
 
 
 class _Requirements(Frozen):

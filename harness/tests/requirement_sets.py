@@ -61,11 +61,11 @@ def standard(**changes: Any) -> dict[str, Any]:
         "conforms_to": DATACITE,
         "re3data_names": ["DataCite Metadata Schema"],
         "fields": [
-            {"property": "titles", "schema_org": "name", "obligation": "required"},
+            {"property": "titles", "term": "schema:name", "obligation": "required"},
             {
                 "property": "descriptions",
                 "qualifier": {"descriptionType": "Abstract"},
-                "schema_org": "description",
+                "term": "schema:description",
                 "obligation": "recommended",
             },
         ],
@@ -85,20 +85,20 @@ def override(**changes: Any) -> dict[str, Any]:
         "fields": [
             {
                 "property": "titles",
-                "schema_org": "name",
+                "term": "schema:name",
                 "obligation": "required",
                 "form_label": "Title",
             },
             {
                 "property": "descriptions",
                 "qualifier": {"descriptionType": "Abstract"},
-                "schema_org": "description",
+                "term": "schema:description",
                 "obligation": "required",
                 "form_label": "Description",
             },
             {
                 "property": "subjects",
-                "schema_org": "keywords",
+                "term": "schema:keywords",
                 "obligation": "required",
                 "form_label": "Keywords",
             },
@@ -116,16 +116,16 @@ def zenodo_standard() -> dict[str, Any]:
     researchers page, and the publisher and publication year filled in by the repository."""
     return standard(
         fields=[
-            {"property": "titles", "schema_org": "name", "obligation": "required"},
+            {"property": "titles", "term": "schema:name", "obligation": "required"},
             {
                 "property": "creators",
-                "schema_org": "creator",
+                "term": "schema:creator",
                 "obligation": "required",
                 "supplied_on": "researchers",
             },
             {
                 "property": "types.resourceTypeGeneral",
-                "schema_org": "additionalType",
+                "term": "schema:additionalType",
                 "obligation": "required",
             },
         ],
@@ -146,19 +146,19 @@ def zenodo() -> dict[str, Any]:
         "fields": [
             {
                 "property": "titles",
-                "schema_org": "name",
+                "term": "schema:name",
                 "obligation": "required",
                 "form_label": "Title",
             },
             {
                 "property": "creators",
-                "schema_org": "creator",
+                "term": "schema:creator",
                 "obligation": "required",
                 "form_label": "Creators",
             },
             {
                 "property": "rightsList",
-                "schema_org": "license",
+                "term": "schema:license",
                 "obligation": "required",
                 "form_label": "Licenses",
             },

@@ -19,9 +19,8 @@ from dd_agent_example_hello.agent import HelloWorld
 from dd_agent_orchestrator_model.agent import (
     ModelOrchestrator,
     conversation,
-    tool_schema,
-    tools_from_manifest,
 )
+from dd_agent_orchestrator_model.delegations import tool_schema, tools_from_manifest
 from dd_agent_orchestrator_model.prompt import SYSTEM_PROMPT
 from dd_harness.testing import TEST_PRINCIPAL, make_conductor, request
 from dd_sdk.agent import describe
@@ -176,7 +175,7 @@ def test_a_tool_says_which_steps_its_agent_serves(runs_dir: Path) -> None:
     invoke(conductor(runs_dir, model))
     tools = {t["name"]: t for t in model.sent[0]["tools"]}
     assert tools["advisor_standards"]["description"].endswith(
-        "Serves step(s) setup.vocabularies, preparation.formats."
+        "Serves step(s) setup.formats, preparation.formats, preparation.vocabularies."
     )
     assert "Serves" not in tools["example_hello"]["description"]
     # No requirement ID reaches the model, so it has none to repeat (invariant 14).

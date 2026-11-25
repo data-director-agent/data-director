@@ -380,7 +380,7 @@ def no_unsupported_claim() -> Scorer:
             return _not_applicable("no prose written by a model")
         asked = request_of(state)
         record, _ = _record(asked.metadata_record)
-        assert asked.inventory is not None  # a README was drafted, so there was an inventory
+        # Before the data are collected there is no inventory, and the model is given no files.
         # Once the researcher has answered, the model is also given the answers, the decisions
         # and the documents they attached, so what they name is supported too.
         known = json.dumps(

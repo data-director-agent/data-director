@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from dd_agent_advisor_policy import assess
+from dd_agent_advisor_policy import assess, propose
 from dd_agent_advisor_policy.classes import (
     Actor,
     ActorRole,
@@ -21,6 +21,7 @@ from dd_agent_advisor_policy.classes import (
     SearchedSummary,
     Strength,
 )
+from dd_agent_advisor_policy.doaj import DoajJournal
 from dd_agent_advisor_policy.explain import Explanation, Item, Rationale
 from dd_agent_advisor_policy.grounding import org_evidence, org_ref, record_evidence, record_ref
 from dd_agent_advisor_policy.reading import TextReadings
@@ -29,14 +30,22 @@ from dd_agent_advisor_policy.retrieve import SourceRecord
 from dd_agent_advisor_policy.search import FirstSearch
 from dd_mcp_pid.ror_records import Organisation
 from dd_sdk.agent import AgentResult, abstain
-from dd_sdk.contract.models import Derivation, EvidenceItem, Outcome, OutcomeStatus, ReasonCode
+from dd_sdk.contract.models import (
+    Derivation,
+    EvidenceItem,
+    Outcome,
+    OutcomeStatus,
+    ProjectFact,
+    ReasonCode,
+)
 
 Advised = list[tuple[Item, Rationale]]
 
 # What every payload says it does not do. Each line is true of the code: the sources it reads, what
 # a record is, and what a model's reading of policy text is worth.
 LIMITATIONS = (
-    "It reads FAIRsharing and Jisc Open Policy Finder for policies, Crossref for a journal's "
+    "It reads FAIRsharing and Jisc Open Policy Finder for policies, the Directory of Open "
+    "Access Journals (DOAJ) for an open access journal's terms, Crossref for a journal's "
     "publisher and ROR for a funder's identity. Where a model reads policy text, it also reads the "
     "pages those records or the researcher name. No other source is searched, so a policy that "
     "none of them holds is not found.",
@@ -48,6 +57,7 @@ LIMITATIONS = (
     "Where a model reads a policy's own text, each obligation kept quotes that text word for word, "
     "and the code has found the quote in it. The kind, strength and value are the model's reading "
     "of the quote, and a person confirms each against the policy.",
+    "DOAJ lists open access journals only, so a journal it does not list may still exist.",
     "Open Policy Finder is searched only when the server has an API key for it. A registry that "
     "is not configured or cannot be asked is named in the statement and in not_searched, and a "
     "run that found no policy because of it says that it could not search, not that there is "
@@ -84,11 +94,11 @@ def _journal_ambiguity(actor: Actor, candidates: Sequence[SourceRecord]) -> str:
 
 
 def _registry(record: SourceRecord) -> PolicyRegistry:
-    return (
-        PolicyRegistry.FAIRSHARING
-        if isinstance(record, PolicyRecord)
-        else PolicyRegistry.OPEN_POLICY_FINDER
-    )
+    if isinstance(record, PolicyRecord):
+        return PolicyRegistry.FAIRSHARING
+    if isinstance(record, DoajJournal):
+        return PolicyRegistry.DOAJ
+    return PolicyRegistry.OPEN_POLICY_FINDER
 
 
 # Why Open Policy Finder was not asked when the server has no key for it.
@@ -106,11 +116,23 @@ def opf_not_configured(found: FirstSearch) -> bool:
     )
 
 
+# Why DOAJ was not asked when the deployment has turned it off.
+DOAJ_OFF = (
+    "DOAJ is turned off on this server (DD_POLICY_DOAJ=off), so open access journals' terms "
+    "were not read from it"
+)
+
+
 def not_searched(found: FirstSearch) -> list[NotSearched]:
     """The registries this run could not ask because they are not configured."""
-    if not opf_not_configured(found):
-        return []
-    return [NotSearched(registry=PolicyRegistry.OPEN_POLICY_FINDER, reason=OPF_NOT_CONFIGURED)]
+    out: list[NotSearched] = []
+    if opf_not_configured(found):
+        out.append(
+            NotSearched(registry=PolicyRegistry.OPEN_POLICY_FINDER, reason=OPF_NOT_CONFIGURED)
+        )
+    if found.sources.doaj is None and any(a.role == ActorRole.JOURNAL for a in found.actors):
+        out.append(NotSearched(registry=PolicyRegistry.DOAJ, reason=DOAJ_OFF))
+    return out
 
 
 def unconfigured_note(found: FirstSearch) -> str:
@@ -246,6 +268,8 @@ class Report:
     explanation: Explanation
     advised: Advised
     use: dict[str, Any]
+    # The facts people in the project decided, so a funder already decided is not proposed.
+    decisions: Sequence[ProjectFact] = ()
 
     def __post_init__(self) -> None:
         self.labels = self.found.labels()
@@ -304,6 +328,9 @@ class Report:
                 readings=self.texts.readings,
                 ambiguous=self.unresolved,
                 limitations=list(LIMITATIONS),
+                proposed_facts=propose.proposals(
+                    found.resolved, self.decisions, found.ror.where or ""
+                ),
                 searched=SearchedSummary(
                     queries=found.queries(),
                     snapshot_ref="; ".join(self.labels),

@@ -77,7 +77,7 @@ describe("ProjectPanelPage", () => {
       "href",
       site,
     );
-    expect(within(panel).getByText("orda@v3")).toBeVisible();
+    expect(within(panel).getByText(REPOSITORY.requirement_sets.at(-1)?.ref ?? "")).toBeVisible();
     expect(
       within(panel).getByRole("heading", { name: "What it accepts" }),
     ).toBeVisible();
@@ -145,6 +145,17 @@ describe("ProjectPanelPage", () => {
     ).toBeVisible();
   });
 
+  it("starts a new chat to identify the repository, with or without one chosen", async () => {
+    const user = userEvent.setup();
+    renderPage(fakeApi({ repository: () => Promise.resolve(null) }), "repository");
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Start a new chat to identify the target data repository",
+      }),
+    );
+    expect(location.search).toBe("?repository=identify");
+  });
+
   it("chooses a suggested repository on the tab and shows what it asks for", async () => {
     const user = userEvent.setup();
     const choose = vi
@@ -178,7 +189,7 @@ describe("ProjectPanelPage", () => {
       at(SUGGESTED.repositories, 0).repository_id,
     );
     const panel = screen.getByRole("region", { name: "Repository" });
-    expect(await within(panel).findByText("orda@v3")).toBeVisible();
+    expect(await within(panel).findByText(REPOSITORY.requirement_sets.at(-1)?.ref ?? "")).toBeVisible();
     expect(
       within(panel).getByRole("button", { name: "Change repository" }),
     ).toBeVisible();

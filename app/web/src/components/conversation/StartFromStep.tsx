@@ -18,8 +18,9 @@ export function StartFromStep({
   /** The steps to offer as prompts, or null when none should show. */
   offered: FlowStep[] | null;
   /** The step whose prompt waits on leave to replace the message. */
-  replacing: FlowStep | null;
-  onChoose: (step: FlowStep) => void;
+  /** What would replace the message being written: a step, or a draft's question. */
+  replacing: Pick<FlowStep, "label" | "prompt"> | null;
+  onChoose: (step: Pick<FlowStep, "label" | "prompt">) => void;
   onCancel: () => void;
 }) {
   return (

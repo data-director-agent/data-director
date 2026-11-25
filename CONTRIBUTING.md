@@ -45,13 +45,18 @@ the default home for anything.
 | The deposit broker, which holds people's own repository tokens and makes draft deposits for them ([Deposit](docs/specs/deposit.md)) | `deposit-broker/` |
 | The development client for agent authors: the `workbench` CLI, viewer and its development configuration | `workbench/` |
 | `dd-inventory`, which a researcher runs where their data live to describe a dataset's files ([Projects](docs/specs/projects.md)) | `inventory/` |
-| The PID resolver, an MCP server that resolves DOIs, ORCID iDs and ROR identifiers for agents through the tool gateway | `mcp-pid/` |
+| The PID resolver, an MCP server that resolves DOIs, ORCID iDs, ROR identifiers and ISSNs for agents through the tool gateway | `mcp-pid/` |
 | `dd-units`, a library that turns a unit as a person writes it into a UCUM code | `units/` |
 | `dd-subjects`, subject classifications (OECD Fields of R&D, ANZSRC Fields of Research) to suggest a field of study from | `subjects/` |
 | `dd-formats`, file formats described from the records of a pinned PRONOM release | `formats/` |
+| `dd-duo`, data use conditions from a pinned release of the GA4GH Data Use Ontology (DUO) | `duo/` |
+| `dd-journals`, journals by ISSN and title, from a pinned OpenAlex snapshot built at install | `journals/` |
 | `dd-dmp-template`, the core requirements of a Data Management Plan (after Science Europe's) | `dmp-template/` |
+| `dd-metadata-records`, metadata records in any standard: codecs, standards' definitions and the pivot a record is checked and converted through | `metadata-records/` |
 | The FAIRsharing server, an MCP server that looks up FAIRsharing records for agents through the tool gateway | `mcp-fairsharing/` |
 | The SPDX server, an MCP server that looks up licences in a pinned release of the SPDX licence list for agents through the tool gateway | `mcp-spdx/` |
+| The subjects server, an MCP server that lists the fields of a subject classification (ANZSRC, OECD) for agents through the tool gateway | `mcp-subjects/` |
+| The DOAJ server, a client and MCP server that reads an open access journal's terms from the Directory of Open Access Journals | `mcp-doaj/` |
 | Repository tooling and tests of the repository as a whole (scripts, shipped configuration, cross-package checks) | `scripts/`, `scripts/tests/` |
 | What governs every package: the Blueprint, system overview, specifications, contract, glossary, requirements register, reviews | `docs/` |
 
@@ -158,7 +163,10 @@ uv run --group mutation mutmut results
 
 ### Keeping the code in shape
 
-The package boundaries are checked by Import Linter and `scripts/check_boundaries.py`. Import
+The package boundaries are checked by Import Linter and `scripts/check_boundaries.py`, and
+`uv run python scripts/check_standard_keys.py` checks that no module outside a metadata
+standard's definition names one of its properties
+([Metadata standards](docs/specs/metadata-standards.md), invariant 3). Import
 Linter also checks inside a package: no package's modules import one another in a cycle (the
 cycles that existed when the check was added are listed in its `ignore_imports`, and may only be
 removed), and `dd_harness` and `dd_app` keep their layers, from the way in down to the checks the

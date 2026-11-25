@@ -15,29 +15,30 @@ const LOADED: DocumentsRead = { state: "loaded", documents: DOCUMENTS };
 
 function ask(question: string, documents: DocumentsRead) {
   history.replaceState(null, "", homePath({ question }));
-  const setText = vi.fn();
+  const begin = vi.fn();
   const box = { current: document.createElement("textarea") };
   const view = renderHook((read: DocumentsRead) =>
-    useAskAboutQuestion(read, setText, box, { conversation: null, run: null }), {
+    useAskAboutQuestion(read, { setText: vi.fn(), box, keep: { conversation: null, run: null } }, begin), {
     initialProps: documents,
   });
-  return { setText, ...view };
+  return { begin, ...view };
 }
 
 describe("useAskAboutQuestion", () => {
-  it("puts the question in the message box once the documents are read, then drops it from the address", () => {
-    const { setText, rerender } = ask(`${README.document_id}/${QUESTION.question_id}`, { state: "loading" });
-    expect(setText).not.toHaveBeenCalled();
+  it("starts a new conversation with the question once the documents are read, then drops it from the address", () => {
+    const { begin, rerender } = ask(`${README.document_id}/${QUESTION.question_id}`, { state: "loading" });
+    expect(begin).not.toHaveBeenCalled();
     rerender(LOADED);
-    expect(setText).toHaveBeenCalledTimes(1);
-    expect(setText).toHaveBeenCalledWith(askAboutQuestion("README", QUESTION));
-    expect(setText.mock.calls[0]?.[0]).toContain(QUESTION.question_prompt);
+    expect(begin).toHaveBeenCalledTimes(1);
+    expect(begin).toHaveBeenCalledWith(
+      expect.objectContaining({ prompt: askAboutQuestion("README", QUESTION) }),
+    );
     expect(location.search).toBe("");
   });
 
   it("ignores a question the project's documents do not ask", () => {
-    const { setText } = ask(`${README.document_id}/q-nonesuch`, LOADED);
-    expect(setText).not.toHaveBeenCalled();
+    const { begin } = ask(`${README.document_id}/q-nonesuch`, LOADED);
+    expect(begin).not.toHaveBeenCalled();
     expect(location.search).toBe("");
   });
 });

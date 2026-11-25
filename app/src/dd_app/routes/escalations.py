@@ -10,8 +10,16 @@ support team (`PUT /api/projects/{id}/support-team`).
 A steward reads the escalations routed to their teams (`GET /api/steward/escalations`, by default
 those still open, taken or waiting, or `?state=` each state wanted) and takes, releases, asks
 about, resolves or hands back one (`POST /api/steward/escalations/{project_id}/{escalation_id}`).
-A steward reaches an escalation only: opening the project itself is TODO(#374). A project whose
+A steward opens the project through its own routes (`dd_app.routes.stewarding`), and reads its
+escalations through `GET /api/projects/{id}/escalations`, recorded as a read. A project whose
 escalation the steward may not move is answered `404`, as for anyone with no role in it.
+
+Each escalation carries `permitted_moves`: the moves the reader may make on it, as the harness
+decides (`dd_harness.escalation_api.permitted_moves`).
+
+A person reads what data stewards have done in their projects lately
+(`GET /api/notices`): each notice a kind, a subject, the page to look at and when, and never the
+note itself (`dd_harness.notifications`, invariant 13).
 
 A move or an escalation the rules refuse is `409` with the refusal's slug
 (`dd_harness.projects.EscalationRefusal`). The shell renders what these answer and decides
@@ -62,7 +70,30 @@ type EscalationState = Literal[
 ]
 type OriginKind = Literal["researcher", "policy_gate", "agent", "orchestrator"]
 type MoveName = Literal[
-    "open", "take", "release", "wait", "reply", "resolve", "hand_back", "withdraw", "reopen"
+    "open",
+    "take",
+    "release",
+    "wait",
+    "reply",
+    "resolve",
+    "hand_back",
+    "withdraw",
+    "reopen",
+    "reassign",
+    "transfer",
+    "reroute",
+]
+type PermittedMoveName = Literal[
+    "take",
+    "release",
+    "wait",
+    "reply",
+    "resolve",
+    "hand_back",
+    "withdraw",
+    "reopen",
+    "reassign",
+    "transfer",
 ]
 
 
@@ -77,14 +108,49 @@ class EscalationOrigin(ResponseBody):
 
 
 class EscalationMove(ResponseBody):
-    """One move in an escalation's history, the opening first."""
+    """One move in an escalation's history, the opening first. `reroute` is the deployment
+    sending it to its team again because nobody took it in time, which no person makes."""
 
     move: MoveName
+    event_id: str
+    """The project event that made the move."""
     by: contract.Principal
     at: str
     note: str | MISSING = MISSING
     acting_as: Literal["steward"] | MISSING = MISSING
     """Set for a move a steward made as a steward."""
+    from_steward: contract.Principal | MISSING | None = MISSING
+    """For `reassign`: the steward who had taken it."""
+    to_steward: contract.Principal | MISSING = MISSING
+    """For `reassign`: the colleague in the same team who takes it over."""
+    from_team: str | MISSING = MISSING
+    """For `transfer`: the team it was with."""
+    team_id: str | MISSING = MISSING
+    """For `transfer`: the team it was sent to."""
+    team_name: str | MISSING = MISSING
+    """For `transfer`: the name of the team it was sent to."""
+
+
+class MoveTarget(ResponseBody):
+    """A colleague or a team a move may pass the escalation to."""
+
+    id: str
+    """The colleague's principal identifier, or the team's id."""
+    name: str
+
+
+class PermittedMove(ResponseBody):
+    """A move the reader may make on an escalation, or one refused with why."""
+
+    move: PermittedMoveName
+    permitted: bool
+    note: Literal["required", "optional", "none"]
+    """Whether the move carries a note: required, optional, or none."""
+    targets: list[MoveTarget] | MISSING = MISSING
+    """For `reassign`, the colleagues in the team it may go to; for `transfer`, the other teams.
+    A move that names a target is listed only where there is one."""
+    refusal: Literal["member-of-project"] | MISSING = MISSING
+    """Why a move of the reader's side is refused."""
 
 
 class Escalation(ResponseBody):
@@ -102,8 +168,12 @@ class Escalation(ResponseBody):
     opened_by: contract.Principal
     opened_at: str
     updated_at: str
+    routed_at: str
+    """When its team was last asked to take it: opened, released, re-opened or sent again."""
     taken_by: contract.Principal | None
     history: list[EscalationMove]
+    permitted_moves: list[PermittedMove]
+    """The moves the reader may make on it now; empty for someone on neither side."""
 
 
 class SupportTeamOption(ResponseBody):
@@ -144,6 +214,27 @@ class StewardQueue(ResponseBody):
     escalations: list[QueuedEscalation]
 
 
+class Notice(ResponseBody):
+    """Something a data steward did in one of the person's projects (docs/specs/stewardship.md,
+    invariant 13): a subject and where to look, never research content."""
+
+    kind: Literal["waiting", "resolved", "handed_back", "rerouted", "message"]
+    project_id: str
+    event_id: str
+    """The project event it tells of, which the shell remembers as seen."""
+    at: str
+    subject: str
+    path: str
+    """The app's page to look at."""
+    escalation_id: str | MISSING = MISSING
+
+
+class Notices(ResponseBody):
+    """What data stewards did in the person's projects in the last 30 days, the newest first."""
+
+    notices: list[Notice]
+
+
 class OpenOrigin(RequestBody):
     refusal: ClassVar[str] = "`origin.kind` is one of researcher, policy_gate, agent, orchestrator."
 
@@ -165,10 +256,14 @@ class OpenEscalation(RequestBody):
 
 
 class MoveRequest(RequestBody):
-    refusal: ClassVar[str] = "`move` names a move, and `note` is the note it carries, if any."
+    refusal: ClassVar[str] = (
+        "`move` names a move, `note` is the note it carries, if any, and `to` the colleague's "
+        "principal identifier or the team's id that `reassign` or `transfer` names."
+    )
 
     move: str
     note: str | None = None
+    to: str | None = None
 
 
 class ChooseSupportTeam(RequestBody):
@@ -202,6 +297,7 @@ def routes(deps: Deps) -> list[Route]:
             methods=["PUT"],
         ),
         Route(steward, signed_in(deps, steward_queue), methods=["GET"]),
+        Route("/api/notices", signed_in(deps, notices), methods=["GET"]),
         Route(
             steward + "/{project_id}/{escalation_id}",
             signed_in(deps, steward_move),
@@ -212,7 +308,9 @@ def routes(deps: Deps) -> list[Route]:
 
 async def list_escalations(request: Request, person: Principal, deps: Deps) -> Response:
     project_id = request.path_params["project_id"]
-    found = await run_in_threadpool(lambda: deps.projects.escalations.of_project(project_id))
+    found = await run_in_threadpool(
+        lambda: deps.projects.escalations.of_project(project_id, person, deps.public_names.names)
+    )
     return respond(ProjectEscalations, found)
 
 
@@ -243,15 +341,17 @@ async def _move(request: Request, person: Principal, deps: Deps, *, as_steward: 
     body = await parse_body(request, MoveRequest, MOVE_REFUSED)
     if isinstance(body, Response):
         return body
-    requested = Requested(request.path_params["escalation_id"], body.move, body.note)
+    requested = Requested(
+        request.path_params["escalation_id"], body.move, body.note, body.to, as_steward
+    )
     try:
         moved: dict[str, Any] = await run_in_threadpool(
             lambda: deps.projects.escalations.move(
                 project_id,
                 requested,
-                as_steward=as_steward,
                 acted_for=person,
                 caused_by=caused_by(request),
+                names=deps.public_names.names,
             )
         )
     except UnknownProjectError:
@@ -287,5 +387,12 @@ async def choose_support_team(request: Request, person: Principal, deps: Deps) -
 
 async def steward_queue(request: Request, person: Principal, deps: Deps) -> Response:
     states = request.query_params.getlist("state")
-    found = await run_in_threadpool(lambda: deps.projects.escalations.queue(person, states))
+    found = await run_in_threadpool(
+        lambda: deps.projects.escalations.queue(person, states, deps.public_names.names)
+    )
     return respond(StewardQueue, {"escalations": found})
+
+
+async def notices(request: Request, person: Principal, deps: Deps) -> Response:
+    found = await run_in_threadpool(lambda: deps.projects.escalations.notices(person))
+    return respond(Notices, {"notices": found})

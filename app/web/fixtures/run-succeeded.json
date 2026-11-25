@@ -17,9 +17,9 @@
       "principal_kind": "person"
     },
     "agent_id": "advisor.standards",
-    "agent_version": "0.4.0",
+    "agent_version": "0.6.0",
     "completed_at": "2026-01-01T00:00:00Z",
-    "contract_version": "0.26.0",
+    "contract_version": "0.28.0",
     "evidence": [
       {
         "canonicalisation": "json-sorted-utf8-v1",
@@ -442,7 +442,7 @@
       }
     ],
     "grounding_mode": "retrieval",
-    "input_schema": "7e282eef80b13338e071bc055f041ee02e4534010c93363f6bde6b045f7fd5e0",
+    "input_schema": "e304f27ede70e69d176d0c0357ec41b7c8f63f80c5ad44ea354617cd352ae6dd",
     "invocation_id": "01900000-0000-7000-8000-000000000001",
     "outcome": {
       "statement": "16 recommendation(s) across controlled_vocabulary, data_format, field_format, ontology, terminology_unclassified, grounded in 14 FAIRsharing record(s) (snapshot:2026-09-04). Human review is required.",
@@ -927,6 +927,7 @@
       "searched": {
         "candidates_qualifying": 14.0,
         "candidates_retrieved": 27.0,
+        "from_project_record": [],
         "queries": [
           "terminologies: 'Soil science Environmental science Agriculture soil chemistry upland grassland organic carbon soil horizon Peak District Soil chemistry survey of upland grassland' [terminology_artefact]",
           "formats: 'Soil science Environmental science Agriculture soil chemistry upland grassland organic carbon soil horizon Peak District Soil chemistry survey of upland grassland' [model_and_format]",
@@ -936,9 +937,9 @@
         "snapshot_ref": "snapshot:2026-09-04"
       }
     },
-    "payload_schema": "5c4987221cc046057c33c3d1f19d28075f3193002f7169a3b7f6b990fdfca309",
+    "payload_schema": "4cfb41082fa1d371756bcf6edf7643f9295777825f2a0756a69ffb9ff94d7c33",
     "policy_bundle_ref": "profile:data-director-app@v10",
-    "policy_digest": "fdd639935b125fe88e0705ea629a3e7d521bb11aee877d2b6b0b1d19da1705de",
+    "policy_digest": "5693bc178414ae39ea19c9c1935c6f64daa787215d71d067241798e06db6c11c",
     "requires_human_review": true,
     "telemetry": {
       "energy_estimate_j": null,

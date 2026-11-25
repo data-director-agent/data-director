@@ -12,6 +12,7 @@ from typing import Literal
 from pydantic import Field
 
 from dd_sdk.contract.facts import ProjectFact
+from dd_sdk.contract.inventory import FileInventory
 from dd_sdk.contract.models import Derivation, Frozen, Grounded, TableField
 
 
@@ -31,6 +32,9 @@ class DatasetProfile(Frozen):
     themes: list[str] = Field(default_factory=list)
     media_types: list[str] = Field(default_factory=list)
     fields: list[TableField] = Field(default_factory=list)
+    # Filled by the conductor in a project (`GivenProjectDecisions`, `GivenProjectInventory`).
+    project_decisions: list[ProjectFact] = Field(default_factory=list)
+    project_file_inventory: FileInventory | None = None
 
 
 class Recommendation(Grounded):
@@ -53,6 +57,7 @@ class SearchedSummary(Frozen):
     snapshot_ref: str | None = None
     candidates_retrieved: int | None = None
     candidates_qualifying: int | None = None
+    from_project_record: list[str] = Field(default_factory=list)
 
 
 class Recommendations(Grounded):

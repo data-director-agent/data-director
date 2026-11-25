@@ -21,18 +21,29 @@ usually from `advisor.repository`'s shortlist. Nobody has to write a file for it
 from two kinds of set:
 
 - `standards/` holds one set per metadata standard: what any record in that standard needs.
-  DataCite is the only standard so far; others are #401.
+  DataCite and Dublin Core (OAI-DC) so far; others are #401. A set's standard must be one whose
+  definition `dd-metadata-records` registers ([Metadata standards](../../../docs/specs/metadata-standards.md)),
+  or the deployment does not start.
 - `overrides/` holds what one repository asks beyond its standard, such as the fields its deposit
   form requires and the licences it offers. Write one only for a repository the deployment knows
   well. A repository without one is checked against its standard alone, with a warning.
 
 An override names its standard in `conforms_to`, and that is the standard used: re3data lists
-only Dublin Core for ORDA, which registers its DOIs with DataCite. Without an override, the
-harness picks the standard whose `re3data_names` include one the repository's re3data record
-declares. When none does, it uses DataCite's and warns.
+only Dublin Core for ORDA, which registers its DOIs with DataCite. Without an override, a person
+on the project may choose the standard (`PUT /api/projects/{id}/repository/standard`); a choice
+of another standard than an override's is refused. Otherwise the harness picks the standard whose
+`re3data_names` include one the repository's re3data record declares. When several do, it takes
+the first in `standard_preference.yaml`, and warns which it took. When none does, it uses
+DataCite's and warns. The project log records which rule decided, as the standard's `reason`
+(docs/specs/deposit.md, invariant 5).
 
-The harness merges the two. A field is identified by its `property`, `qualifier` and
-`schema_org`. An override may add a field, or raise one from `recommended` to `required` and give
+`standard_preference.yaml` names every set under `standards/` once, by `requirement_set_id`, in
+the order the deployment prefers them; a set it leaves out, or one it names that does not exist,
+stops start-up. Without the file, DataCite's set comes first and the others follow by
+identifier.
+
+The harness merges the two. A field is identified by its `property`, `qualifier` and `term`,
+compared as the term's full IRI. An override may add a field, or raise one from `recommended` to `required` and give
 its `form_label` and `supplied_on`; it may not lower one. Documents, and the properties in
 `filled_by_repository`, are the union of both. Media types, sizes and
 licences come from the override alone.
@@ -77,10 +88,19 @@ Each entry of `fields` has:
 
 - `property`: the schema's property, such as DataCite's `titles`;
 - `qualifier` (optional): a value that narrows it, such as a subject scheme;
-- `schema_org`: the schema.org term it maps to, used to read the record for checking and to
-  describe the dataset in the package. A record's values are checked under this term, so two
-  fields may not share one, even across an override and its standard: a lineage mapped to
-  `description` would pass on the abstract alone. Such sets are refused on load;
+- `term` (optional): the term of an existing vocabulary it maps to, used to read the record for
+  checking and to describe the dataset in the package. Left out, it is the term the standard's
+  definition gives the property and qualifier; given, it must be that term, or the set is refused
+  on load, so a field names its own term only for a property its standard does not have. It is a
+  CURIE with one of the prefixes `schema:`
+  (schema.org), `dcterms:` (Dublin Core Terms), `dcat:` (DCAT) or `prov:` (PROV-O), such as
+  `schema:name` or `dcterms:provenance`, or the full IRI of a term in one of them. A term the
+  vocabulary does not define is refused on load: no term is invented. A record's values are checked
+  under this term, so two fields may not share one, even across an override and its standard and
+  even when one names it by CURIE and the other by IRI: a lineage mapped to `schema:description`
+  would pass on the abstract alone. Such sets are refused on load. A set written before terms were
+  IRIs names a schema.org term in `schema_org`, such as `schema_org: name`; it still loads, read as
+  `schema:name`, with a warning to rewrite it;
 - `obligation`: `required` (a missing value stops the package) or `recommended` (a warning);
 - `form_label` (overrides only): the label of the field in the repository's deposit form, where a
   person depositing by hand puts the value;
@@ -111,6 +131,7 @@ that cites an issue, never guessed, and listed under `unconfirmed` so a research
 | File | Set |
 |---|---|
 | `standards/datacite-4.yaml` | The DataCite Metadata Schema 4. |
+| `standards/dublin-core.yaml` | Dublin Core, as OAI-DC carries it: the 15 elements, none of which Dublin Core makes mandatory. The title and creator are required, as DataCite requires them, so that a record can be cited. |
 | `overrides/orda.yaml` | ORDA, the University of Sheffield's repository on Figshare. What its public pages leave open is TODO(#385). |
 | `overrides/zenodo.yaml` | Zenodo, from its developer documentation and help pages, with a `deposit` block that sends drafts to the Zenodo sandbox. Moving to Zenodo itself is TODO(#648). |
 | `overrides/eidc.yaml` | The NERC EDS Environmental Information Data Centre (EIDC), from its Service Agreement and its DataCite records. It builds on DataCite until a UK GEMINI / ISO 19115 set exists (#401). What its public pages leave open is TODO(#1250). |

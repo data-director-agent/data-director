@@ -9,7 +9,8 @@ name: dd_agent_advisor_dmp
 title: advisor.dmp classes
 description: >-
   What a data management plan committed to share and what the researcher now plans to share, a
-  request to review an attached plan, and the Data Management Plan Checker's findings in reply.
+  request to review an attached plan, what the researcher has said of their project before its
+  data are collected, and the Data Management Planner's findings and proposals in reply.
 version: 0.2.0
 license: MIT
 
@@ -42,15 +43,37 @@ classes:
 
   DmpReviewRequest:
     description: >-
-      A request to review the data management plan the researcher attached (setup.dmp-review):
-      how well it answers the core requirements of a plan and meets good practice, and whether it
-      reflects what people in the project decided. In a project the conductor gives the attached
-      documents and the decided facts; outside one, the caller sends them.
+      A request to review the project's data management plan (setup.dmp-review): how well it
+      answers the core requirements of a plan and meets good practice, and whether it reflects
+      what people in the project decided. The plan is the attached document a person marked as
+      the plan, else the plan written in the project as a person approved it last, else the latest
+      document attached. In a project the conductor gives the attached documents, the approved
+      plan and the decided facts; outside one, the caller sends them.
+    mixins:
+      - GivenProjectDocuments
+      - GivenProjectDecisions
+      - GivenProjectPlan
+    slots:
+      - schema_class
+
+  ProjectDescriptionRequest:
+    description: >-
+      A request to describe the project before its data are collected (setup.project): what it
+      is for, its field of study and when it runs, as the researcher said them. Each is optional;
+      what the researcher says of their data the orchestrator proposes itself, as a
+      data_description fact. In a project the conductor also gives the documents the researcher
+      attached, such as a proposal or an award letter, from which a model reads what the
+      researcher has not said, the data among it, and the facts people decided, which are not
+      proposed again.
     mixins:
       - GivenProjectDocuments
       - GivenProjectDecisions
     slots:
       - schema_class
+      - research_summary
+      - field_of_study
+      - period_start
+      - period_end
 
   SharingCommitment:
     description: One output to be shared, with where, how openly and under what licence.
@@ -67,7 +90,9 @@ classes:
       is a valid outcome. Where it has read an attached plan and nobody has confirmed its
       commitments yet, it proposes each commitment as a project fact for the researcher to
       confirm, quoting the passage it rests on, and compares nothing until they do. A review of
-      an attached plan (setup.dmp-review) fills section_findings instead.
+      an attached plan (setup.dmp-review) fills section_findings instead, and describing the
+      project (setup.project) proposes what it is and the data it will produce, as project facts,
+      and says in still_needed what is still to be asked.
     mixins:
       - Grounded
       - ProposesFacts
@@ -76,6 +101,7 @@ classes:
       - discrepancies
       - reconciled
       - section_findings
+      - still_needed
       - dropped
       - limitations
 
@@ -119,6 +145,23 @@ classes:
       - reason
 
 slots:
+
+  research_summary:
+    description: What the project is for, its aims and questions, in the researcher's words.
+  field_of_study:
+    description: The project's field of study, as the researcher names it.
+  period_start:
+    description: When the project starts, as a year, a month or a day.
+    pattern: "^\\d{4}(-\\d{2}(-\\d{2})?)?$"
+  period_end:
+    description: When the project ends, as a year, a month or a day.
+    pattern: "^\\d{4}(-\\d{2}(-\\d{2})?)?$"
+  still_needed:
+    description: >-
+      What describing the project still needs from the researcher, each in a few words, such as
+      what the project is for or the data it will produce: neither they nor an attached document
+      gave it, and no decided fact holds it.
+    multivalued: true
 
   section_findings:
     description: For each core requirement of a data management plan, how the plan meets it.

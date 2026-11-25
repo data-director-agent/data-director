@@ -6,9 +6,11 @@ from typing import Any
 
 from dd_app import deposit
 from dd_app.project_service._area import Area, RepositoriesUnavailableError
-from dd_harness import deposit_api, institution_repositories
+from dd_harness import conversion, deposit_api, institution_repositories
 from dd_harness.deposit import Package, Validation, build_package, check
 from dd_harness.disclosure import Disclosure, disclose
+from dd_harness.projects import ProjectError
+from dd_harness.projects.lifecycle import repository_summary
 from dd_harness.requirements import Requirements
 from dd_harness.storage import (
     DepositSource,
@@ -49,6 +51,47 @@ class Deposit(Area):
             caused_by=caused_by,
         )
         return store.requirements(project_id)
+
+    def choose_standard(
+        self, project_id: str, conforms_to: str, *, acted_for: Principal, caused_by: str
+    ) -> dict[str, Any] | None:
+        """A person's choice of metadata standard for the repository chosen last, by its
+        `conforms_to`, recorded as a new choice of that repository (docs/specs/deposit.md,
+        invariant 5)."""
+        store: ProjectRepository = self._store
+        chosen = store.requirements(project_id)
+        if chosen is None:
+            raise ProjectError("choose a repository before choosing its metadata standard")
+        store.choose_repository(
+            project_id,
+            str(chosen["repository_id"]),
+            registry=self.governance.conductor.sources,
+            requirements=self._requirements(),
+            acted_for=acted_for,
+            caused_by=caused_by,
+            standard=conforms_to,
+        )
+        return store.requirements(project_id)
+
+    def standard_choice(self, project_id: str) -> dict[str, Any] | None:
+        """The metadata standard of the repository chosen last and why, the standards the
+        deployment has a set for in its order of preference, and whether another may be chosen:
+        not when the repository's override names its standard. None while no repository has
+        been chosen."""
+        store: ProjectRepository = self._store
+        chosen = repository_summary(store.events(project_id))
+        if chosen is None:
+            return None
+        standard = chosen["standard"]
+        preferred = self.governance.requirements.preferred if self.governance.requirements else []
+        return {
+            "standard": standard,
+            "standards": [
+                {"conforms_to": s.requirement_set.conforms_to, "title": s.requirement_set.title}
+                for s in preferred
+            ],
+            "may_choose": bool(preferred) and (standard or {}).get("reason") != "override",
+        }
 
     def _requirements(self) -> Requirements:
         if self.governance.requirements is None:
@@ -103,6 +146,26 @@ class Deposit(Area):
         if not deposit.DIGEST.fullmatch(digest):
             return None
         return store.package(project_id, digest)
+
+    def convert_record(
+        self, project_id: str, conforms_to: str, *, acted_for: Principal, caused_by: str
+    ) -> conversion.Converted | conversion.Refused:
+        """The approved metadata record converted to the standard `conforms_to` names and kept
+        as a package derived from it, or refused for what the target requires that it lacks
+        (`dd_harness.conversion`). Raises `ConversionError` for a conversion that cannot be
+        asked for."""
+        return conversion.convert_record(
+            self._store,
+            project_id,
+            conforms_to,
+            requirements=self._requirements(),
+            acted_for=acted_for,
+            caused_by=caused_by,
+        )
+
+    def conversions(self, project_id: str) -> list[dict[str, Any]]:
+        """The project's converted records, newest first."""
+        return conversion.conversions(self._store, project_id)
 
     def disclosure(self, project_id: str) -> Disclosure:
         store: ProjectDocuments = self._store

@@ -1,7 +1,8 @@
 """The vocabularies the project chose for the dataset's subjects, as people decided them
 (`standard` project facts, docs/specs/projects.md, #1391).
 
-The librarian does not take terms from a vocabulary (TODO(#703)); it names the ones chosen in the
+The librarian takes terms only from the subject classification a repository names
+(`categories.py`), and none from these (TODO(#956)); it names the ones chosen in the
 question about the record's subjects, so the researcher answers from them. Only a vocabulary,
 ontology or terminology chosen for the whole dataset is named: a format, or a standard chosen for
 one field's values, is not a source of subjects.

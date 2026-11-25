@@ -51,7 +51,7 @@ servers:
 In development, `pid_resolver: true` in `deployment.yaml` sets this up for you: `apply` names
 `app/config/tools.yaml` here and grants the Linking Adviser its servers, and `dd.py start` (or
 Docker Compose, with `docker/tools.yaml`) runs the PID resolver, an MCP server that resolves
-DOIs, ORCID iDs and ROR identifiers ([`mcp-pid/README.md`](../../../mcp-pid/README.md)). A VM
+DOIs, ORCID iDs, ROR identifiers and grant numbers, and looks journals up by ISSN or title ([`mcp-pid/README.md`](../../../mcp-pid/README.md)). A VM
 refuses the setting until the server has a unit there.
 
 `DD_REGISTRY_CONTACT` gives Crossref and DataCite an address where they can reach your operators.
@@ -65,7 +65,14 @@ is an environment variable rather than a profile key: set it in the PID resolver
 (Docker Compose passes `DD_REGISTRY_CONTACT` from yours) and in the agents' settings file
 (`config/local/agents.env`, or `/etc/data-director/agents.env` on a VM; see
 [`config/examples/agents.env`](../../../config/examples/agents.env)). Unset, no address is sent; a value that is not one plain address
-stops the service at start-up.
+stops the service at start-up. The PID resolver also sends it to the OpenAIRE Graph as `mailto`.
+
+The PID resolver looks grant numbers up in the OpenAIRE Graph, which answers 60 anonymous
+requests an hour ([terms](https://graph.openaire.eu/docs/apis/terms/)). That is too few for a
+deployment in use. Register with OpenAIRE, get a refresh token from your personal access token
+page, and give it to the PID resolver as `DD_OPENAIRE_REFRESH_TOKEN` (Docker Compose passes it from
+yours). The limit is then 7,200 requests an hour. It is a secret: keep it out of committed files.
+A refresh token lasts a month, and once it has run out OpenAIRE is asked anonymously again.
 
 The harness needs its `gateway` extra (`data-director-harness[gateway]`) for this file, and an
 agent that calls tools needs the SDK's `tools` extra. A server whose tools have changed is
@@ -112,13 +119,69 @@ reference; the project page suggests them first. A repository that neither the p
 export nor the DataCite snapshot (`app/config/sources.yaml`) holds stops start-up, so a mistyped
 identifier is not offered silently ([Deposit](../../specs/deposit.md)).
 
+Your institution's storage for data while a project runs is the profile's `institution_storage`,
+which `apply` also copies from `deployment.yaml` as written. No registry lists an institution's
+storage, so name each service by a label of your own (`research-filestore`) and give its
+`storage_name`, and add what you vouch for: its `storage_kind`, whether it is
+`approved_for_sensitive` (left out, it is never taken as approved), whether it
+`allows_external_collaborators`, its free `allowance_gb`, whether it is `charges_for_storage`,
+what its `storage_backup` is, and the `guidance` pages you checked. The storage adviser recommends
+from these alone and cites them under the profile's reference; without them it declines and
+points the researcher to your research data staff. The Data Management Plan drafter also offers
+them, as a suggestion the researcher confirms, to the plan's question on storage and backup
+([Policy and identity](../../specs/policy-and-identity.md)). The example `deployment.yaml` names
+two example services at `example.ac.uk`, one approved for sensitive data and one not, so that a
+new instance shows the storage advice working: replace them with your institution's own before
+researchers use the instance, or delete the key.
+
 Raise the profile's `version` on every change. Each stored run records the profile and version it
 was held to, with the digest of its bytes, so a later reader can tell which rules applied. A
 request cannot name a profile; only the operator chooses it
 ([profiles](../../../workbench/profiles/README.md)). Who the data stewards are is a profile
 key too, `stewardship`, which the stewards' team owns and the operator applies, and who administers
 the instance is `administrators`; on a VM both are written in `deployment.yaml`
-([Becoming a steward](../steward-guide/becoming-a-steward.md)).
+([Data steward teams](#data-steward-teams)).
+
+## Data steward teams
+
+The data stewards who help researchers are the profile's `stewardship` key. A person is a steward
+only because a team lists them: signing in never makes anyone one, and no environment variable
+does ([Data stewards](../../specs/stewardship.md), invariant 1). The steward team owns the content
+of the key and you apply it: write it in `deployment.yaml` (on a VM, `/etc/data-director/deployment.yaml`),
+not in `profile.yaml`, which `apply` generates, and run `sudo data-director apply` (`dd.py start` in
+development), which copies `stewardship` into the profile as written. The
+[example](../../../config/examples/deployment.yaml) shows every key. Leave it out and the instance
+has no stewards: a researcher who asks for one is told so, and everything else works.
+
+| Key | What it is |
+|---|---|
+| `stewardship.visibility` | `escalated` (the default): a steward may open a project only while an escalation is routed to their team, or a pause their team holds. `scope`: also any project whose owners chose the team as their support team, read-only until something is escalated. No value lets a steward see every project. |
+| `stewardship.reroute_after` | Optional. An ISO 8601 duration in whole days or hours (`P3D`, `PT48H`, `P1DT12H`). An escalation left `open` that long is sent to its team again by the hourly sweep ([Notifications](#notifications)). Left out, never. |
+| `stewardship.deposit_co_approval` | Leave it `false`. It is not built yet ([#1306](https://github.com/data-director-agent/data-director/issues/1306)), and a profile that turns it on stops the app at start-up. |
+| `stewardship.teams` | The teams, each a mapping with the keys below. |
+
+Each team has:
+
+| Key | Required | What it is |
+|---|---|---|
+| `id` | Yes | Lower-case words joined by hyphens (`library-rdm`), unique. It appears in each project's log, so do not reuse or rename it. |
+| `name` | Yes | What researchers are shown. |
+| `members` | Yes, at least one | Principal identifiers, as the sign-in records them. For ORCID, the iD as a URL (`https://orcid.org/0000-0002-1825-0097`); a bare iD is refused at start-up, because it names nobody. |
+| `supports` | No | Labels of the projects the team supports, shown to owners who choose a support team. |
+| `contact` | No | An address or a page, shown as given when no steward can help. |
+| `response_time` | No | What a researcher is told to expect, as written (`3 working days`). |
+| `notify` | No | An email address, such as a shared mailbox or a helpdesk's intake, where the team is told about escalations. Needs `DD_SMTP_URL` ([Notifications](#notifications)). Left out, the team is told nothing by email. |
+| `notify_on` | No | Which of `opened`, `rerouted`, `replied`, `withdrawn` and `reopened` the address is told about. All five by default. |
+
+A key outside this list is refused when the instance starts, rather than ignored, so a typing
+mistake never leaves a rule you believe in unenforced. Where an escalation goes: to the team its
+project's owners chose as their support team; with none chosen, to the only team; where there are
+several, the researcher picks one.
+
+Administrators, who run the workbench, are the separate `administrators` key, written the same
+way. They are not stewards and see no one's project. The profile's `version` rises with each
+change, and each stored run records the version it was held to. What the
+people on a team do is in the [Data Steward's Guide](../steward-guide/becoming-a-steward.md).
 
 ## Who a run acts for
 
@@ -149,6 +212,36 @@ institution's policy.
 
 For a workshop or any group session, have each participant sign in with their own ORCID iD. People
 who share one sign-in act as one person, and each of them sees all the others' conversations.
+
+### Who may sign in
+
+The profile's `access` key says who may use an instance that signs people in
+([Policy and identity](../../specs/policy-and-identity.md), Admission). On a VM write it in
+`deployment.yaml`; `apply` copies it into the profile.
+
+```yaml
+access:
+  admit: listed         # or anyone
+  allow:                # read only with admit: listed
+    - https://orcid.org/0000-0001-5000-0007
+  block:                # refused whatever else lists them
+    - https://orcid.org/0000-0003-1415-9269
+```
+
+- **`admit: listed`** lets in the people `allow` lists, the steward teams' members and the
+  administrators. It is what `apply` writes when `deployment.yaml` has no `access`, so a new
+  instance is closed until you open it. **`admit: anyone`** lets in anyone with an ORCID iD.
+- **`block`** refuses a person even if they are an administrator or a steward.
+- Name each person by their ORCID iD as a URL, as for administrators. The name they sign in with
+  is never matched.
+
+The app checks this when a person signs in and on each request they make. After `apply` restarts
+the app, a person you have blocked or taken off `allow` loses their session at their next request,
+and the sign-in page tells them that their account cannot use this instance. A run they had
+already started finishes, and their projects and runs are kept. Removing someone's access fully is
+in [Deploying to a VM](../../../deploy/README.md#removing-access).
+
+An ORCID-only instance cannot require a second factor at sign-in (TODO(#293)).
 
 ### Trying sign-in against the ORCID sandbox
 
@@ -216,6 +309,37 @@ With no administrator in the profile it does not start. Anyone else who signs in
 workbench without `DD_OIDC_ISSUER`, as on a developer's machine, signs nobody in and acts for the
 operator, as before.
 
+## Notifications
+
+A steward team is emailed when an escalation is routed to it, sent to it again or moved by the
+researcher, at the address the profile names for it (`stewardship.teams[].notify`), and a
+researcher is told in the app ([Data stewards](../../specs/stewardship.md), invariant 13). The
+profile decides whom to tell and about what; where the mail server is goes in `app.env`:
+
+| Variable | What it is |
+|---|---|
+| `DD_SMTP_URL` | `smtp://host:port` (STARTTLS, port 587 by default) or `smtps://host:port` (TLS, 465). Unset, nobody is emailed, and a profile that names a team's address stops the app at start-up. |
+| `DD_MAIL_FROM` | The address messages come from. |
+| `DD_SMTP_USERNAME` | Optional: the user to sign in to the mail server as. |
+| `DD_SMTP_PASSWORD_FILE` | Optional: a file that holds its password, relative to `$CREDENTIALS_DIRECTORY` under systemd (`DD_SMTP_PASSWORD` in development). |
+| `DD_APP_PUBLIC_URL` | Where the app is reached, which each message links to; already set where people sign in. |
+
+A message holds a subject and a link, never the note or the project's title. It is sent after the
+move is recorded, and one that cannot be sent is logged (`journalctl -u data-director`) and
+changes nothing. Where the server asks for a password, give it to both the app and the sweep as a
+credential, in a drop-in for each unit, such as
+`/etc/systemd/system/data-director-app.service.d/smtp.conf`:
+
+```ini
+[Service]
+LoadCredential=smtp-password:/etc/data-director/credentials/app/smtp-password
+Environment=DD_SMTP_PASSWORD_FILE=smtp-password
+```
+
+With `stewardship.reroute_after` in the profile (`P3D`, `PT48H`), `data-director-escalations.timer`
+runs `dd-harness escalations sweep` every hour, which sends each escalation nobody has taken in
+that time to its team again; `journalctl -u data-director-escalations` shows what it sent.
+
 ## What is stored
 
 | What | Where | Notes |
@@ -223,6 +347,7 @@ operator, as before.
 | Each run: input, output, spans, evidence and, by default, a Process Run Crate | `/var/lib/data-director/runs/` (`DD_RUNS_DIR`) | It outlives releases, so back it up with the rest of the host. `DD_WRITE_CRATE=0` stops the crate being written. |
 | Each conversation's turn lock | `locks/` under `DD_RUNS_DIR`, or an advisory lock in its database | Lets several app processes share one store. On PostgreSQL each running turn holds one database connection of its own, beside the pool (`DD_POSTGRES_POOL_SIZE`). |
 | Each workbench run | `/var/lib/data-director/workbench-runs/` | Apart from the app's runs. |
+| Which updates from a data steward a person has seen, and which they want shown | That person's browser, in `localStorage` | Never sent to the server. The updates themselves are read from the project log. |
 | Who is signed in | `/var/lib/data-director/app-sessions/`, `workbench-sessions/` (`DD_SESSIONS_FILE`) | A hash of each session identifier, the person's iD and name, and the session's times; no token. Not backed up. |
 | Model calls | In the run, as `chat` spans with token counts | No key is ever stored. |
 | Records read from a live registry route (FAIRsharing) | Each agent's cache, `/var/cache/data-director-agent-<name>/` (`DD_REGISTRY_CACHE_DIR`; in memory if unset) | Public records only; no token or credential. A record is read again after its time to live (`DD_REGISTRY_CACHE_TTL_RECORD`, `_SEARCH`, `_MISSING`, in seconds; [example](../../../config/examples/agents.env)), and an expired copy answers, marked stale, while the registry is down. Not backed up: `systemctl clean --what=cache data-director-agent@<name>` or `dd-registry-cache clear <file>` empties it. |
@@ -232,10 +357,12 @@ operator, as before.
 
 1. Check that sign-in works (above): sign in with an ORCID iD, and confirm that a request with no
    session is answered 401 (`curl -i https://<your host>/api/agents`).
-2. Review the profile. List only the agents you intend to offer, and add to
+2. Decide who may sign in (`access`, above), and check that someone you have not listed is
+   refused.
+3. Review the profile. List only the agents you intend to offer, and add to
    `actions_requiring_approval` any action that must be referred to a person.
-3. Decide on [AI models](ai-models.md): whether either model-backed agent is on, which model, and
+4. Decide on [AI models](ai-models.md): whether either model-backed agent is on, which model, and
    whose key. Tell users when the answer is yes, since their conversation then goes to a
    provider.
-4. Confirm the app and agent ports are on loopback or a private network.
-5. Open the app and read each agent's page in the agent directory: it states what the instance is configured to do.
+5. Confirm the app and agent ports are on loopback or a private network.
+6. Open the app and read each agent's page in the agent directory: it states what the instance is configured to do.

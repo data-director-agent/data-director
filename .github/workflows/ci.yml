@@ -151,6 +151,9 @@ jobs:
       # Each workspace member imports only what it declares and reads only its own files
       # (docs/specs/system.md). Known exceptions only shrink: a stale one fails.
       - run: uv run --no-project --python 3.14 scripts/check_boundaries.py
+      # No module outside a metadata standard's definition names one of its properties
+      # (docs/specs/metadata-standards.md, invariant 3). Known exceptions only shrink.
+      - run: uv run python scripts/check_standard_keys.py
       # No function, method, class or import in a member's src/ that nothing calls (vulture).
       # Code reached dynamically, and the unused code recorded with the check, are listed in
       # scripts/unused_code.toml; a stale entry fails.

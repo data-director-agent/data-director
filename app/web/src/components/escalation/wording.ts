@@ -1,10 +1,11 @@
 /**
- * The words the researcher reads about an escalation to a data steward: one status line that
+ * The words the researcher and the steward read about an escalation to a data steward: one status line that
  * answers "what is happening with my request?" (docs/specs/stewardship.md, invariant 10), and what
  * a refusal means, by its slug, never by the server's wording.
  */
 
 import type { Escalation, EscalationState } from "../../project/escalations";
+import type { MoveName } from "../../project/steward";
 import { formatDate } from "../../format";
 
 const STATE: Record<EscalationState, string> = {
@@ -25,6 +26,9 @@ export function stateSaid(state: EscalationState): string {
 export function statusLine(escalation: Escalation): string {
   const parts = [`Sent to ${escalation.team_name} on ${formatDate(escalation.opened_at)}`];
   if (escalation.taken_by && escalation.state !== "withdrawn") parts.push(`Taken by ${escalation.taken_by.name}`);
+  if (escalation.state === "open" && escalation.history.at(-1)?.move === "reroute") {
+    parts.push(`Sent again on ${formatDate(escalation.routed_at)}`);
+  }
   parts.push(STATE[escalation.state]);
   return parts.join(" · ");
 }
@@ -40,7 +44,21 @@ export const MOVE_SAID: Record<string, string> = {
   hand_back: "handed this back to you",
   withdraw: "withdrew this request",
   reopen: "re-opened this request",
+  reroute: "sent this to the team again, as nobody had taken it",
+  reassign: "passed this request to a colleague",
+  transfer: "passed this request to another team",
 };
+
+/** What a move in an escalation's history says, naming the colleague or team it was passed to. */
+export function moveSaid(move: string, target?: string | null): string {
+  if (target && (move === "reassign" || move === "transfer")) return `passed this request to ${target}`;
+  return MOVE_SAID[move] ?? move;
+}
+
+/** Whom a history entry passed the request to: the colleague for a reassignment, the team for a transfer. */
+export function moveTarget(entry: { to_steward?: { name: string }; team_name?: string }): string | null {
+  return entry.to_steward?.name ?? entry.team_name ?? null;
+}
 
 const REFUSED: Record<string, string> = {
   "no-steward-team": "No data steward team is set up for this project.",
@@ -51,9 +69,69 @@ const REFUSED: Record<string, string> = {
   "note-too-long": "The note is too long. Shorten it and try again.",
   "move-not-allowed": "This request has moved on since you last saw it. It has been read again.",
   "unknown-escalation": "This request is no longer listed. It has been read again.",
+  "target-required": "Choose whom to pass it to.",
+  "same-target": "It is already there. Choose someone else.",
+  "not-in-team": "That steward is not in this team. Choose a colleague from the list.",
+  "target-member-of-project":
+    "That steward is a member of this project, so cannot act in it as its data steward. Choose another colleague.",
 };
 
 /** What a refusal means for the researcher, by its slug; the server's words for any other. */
 export function refusalSaid(slug: string, fallback: string): string {
   return REFUSED[slug] ?? fallback;
+}
+
+const STEWARD_STATE: Record<EscalationState, string> = {
+  open: "Not taken",
+  taken: "Taken",
+  waiting_for_researcher: "Waiting for the researcher",
+  resolved: "Resolved",
+  handed_back: "Handed back",
+  withdrawn: "Withdrawn",
+};
+
+/** The state as a steward reads it in the queue. */
+export function stewardStateSaid(state: EscalationState): string {
+  return STEWARD_STATE[state];
+}
+
+/** What each move's control says, what its note is for, and what is announced once it is made. */
+export const MOVE_CONTROL: Record<
+  MoveName,
+  { label: string; field: string; done: string }
+> = {
+  take: { label: "Take", field: "", done: "You took this request." },
+  release: { label: "Release", field: "Why you are releasing it (optional)", done: "Request released to the team." },
+  wait: { label: "Ask the researcher", field: "Your question to the researcher", done: "Question sent. The request is waiting for the researcher." },
+  reply: { label: "Reply", field: "Your reply to the data steward", done: "Reply sent." },
+  resolve: { label: "Resolve", field: "How it was resolved", done: "Request resolved." },
+  hand_back: { label: "Hand back", field: "Your note to the researcher", done: "Request handed back to the researcher." },
+  withdraw: { label: "Withdraw", field: "", done: "Request withdrawn." },
+  reopen: { label: "Re-open", field: "Why you are re-opening it", done: "Request re-opened." },
+  reassign: { label: "Reassign", field: "A note for your colleague (optional)", done: "Request passed to your colleague." },
+  transfer: { label: "Transfer", field: "Why it belongs with the other team", done: "Request passed to the other team." },
+};
+
+/** What the choice of target is called, for a move that names one. */
+export const MOVE_TARGET: Partial<Record<MoveName, string>> = {
+  reassign: "Colleague to pass it to",
+  transfer: "Team to pass it to",
+};
+
+const MOVE_REFUSED: Record<string, string> = {
+  "member-of-project":
+    "You are a member of this project, so you act in it as a member, not as its data steward. Another steward on the team can take it.",
+};
+
+/** Why a move is refused, by its code. */
+export function moveRefusalSaid(code: string): string {
+  return MOVE_REFUSED[code] ?? "This is not yours to do here.";
+}
+
+/** Where an escalation came from, as a short phrase. */
+export function originSaid(kind: string): string {
+  if (kind === "policy_gate") return "A step that needs approval";
+  if (kind === "agent") return "An agent referred it";
+  if (kind === "orchestrator") return "Offered in a conversation";
+  return "Asked by the researcher";
 }

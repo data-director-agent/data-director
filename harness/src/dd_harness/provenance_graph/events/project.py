@@ -119,7 +119,7 @@ def _repository(ctx: Context, activity: str, event: Event) -> None:
     )
     sets = [
         ctx.graph.content(s["sha256"], schema__name=s.get("ref"))
-        for s in event.get("requirement_sets") or []
+        for s in [*(event.get("requirement_sets") or []), event.get("standard") or {}]
         if is_digest(s.get("sha256"))
     ]
     uses(ctx, activity, record, *sets)

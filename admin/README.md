@@ -12,12 +12,28 @@ what an operator otherwise reads from several commands:
 - **Spend:** what the LLM gateway (`deploy/llm-gateway/`) says the month's and the last 30
   days' model calls cost, against an optional budget, and the tokens each run recorded, priced at
   the gateway's prices, by model, agent, person and project.
+- **LLM gateway:** whether the gateway is ready, the models it serves with their prices and
+  limits, and each key, team and user with its spend against its budget.
+- **Model broker:** whether the broker answers, people's own accounts counted by provider, tokens
+  by model and who paid, and which agents hold a broker credential; from the broker's aggregate
+  `/admin/summary`, never naming a person.
+- **Monitoring:** links to Grafana, Prometheus, Alertmanager, the LLM gateway's own page and
+  Langfuse, whether each answers, and the alerts Prometheus and Alertmanager hold.
+- **Policy:** the institutional profile as the harness parses it (agents and action classes,
+  approvals, hosted models, who pays, administrators, stewards and access), compared with the roster.
+- **Escalations:** each steward team's live escalations and how long each has waited, without any
+  note.
+- **Security:** the security events the services record in their journal, by event, outcome and
+  service.
 - **Configuration:** the settings files under `/etc/data-director`, with any value whose name says
   it is a secret hidden, and the command that changes each.
 - **Feedback:** where the app's feedback goes (GitHub issues).
+- **Cases:** a run, conversation or project downloaded as a case for debugging
+  ([Case files](../docs/specs/casefile.md)), with its content named by digest if it must leave the
+  institution, and the journal lines that name it.
 
-It changes nothing. Every change is still made on the VM's command line, and each page names the
-command.
+It changes nothing (a case download is recorded as a security event). Every change is still made
+on the VM's command line, and each page names the command.
 
 ## Who can reach it
 

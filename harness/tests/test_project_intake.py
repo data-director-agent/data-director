@@ -196,4 +196,6 @@ def test_the_intake_read_carries_the_notices_of_the_answers_that_say_something(
     assert by_id["intake.sensitive"]["notices"] == {
         YES: question("intake.sensitive").options[0].notice
     }
-    assert all("notices" not in q for i, q in by_id.items() if i != "intake.sensitive")
+    assert by_id["intake.dmp"]["notices"] == {NO: question("intake.dmp").options[1].notice}
+    noticed = ("intake.sensitive", "intake.dmp")
+    assert all("notices" not in q for i, q in by_id.items() if i not in noticed)

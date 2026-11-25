@@ -4,12 +4,14 @@
 ([Agents](../../docs/specs/agents.md)). It recommends vocabularies, ontologies and formats from
 FAIRsharing and chooses none of them for the researcher.
 
-The Standards Librarian serves two steps of the Blueprint's process flow (§8.2):
+The Standards Librarian serves three steps of the process flow (§8.2), one of them this
+repository's addition:
 
 | Step | What it does |
 |---|---|
-| `setup.vocabularies` | Recommends controlled vocabularies and ontologies for the dataset's subject. |
+| `setup.formats` | Before collection: recommends data formats for the media types the researcher plans to save the data in, so that they are collected in an open format from the start. Our addition to Figure 1. The profile may have no fields yet. |
 | `preparation.formats` | Recommends data formats for the declared media types, and a field-level standard such as ISO 8601 for date and time fields. |
+| `preparation.vocabularies` | Recommends controlled vocabularies and ontologies for the dataset's subject, once the repository and its metadata standard are known. |
 
 ## Input and output
 
@@ -20,11 +22,25 @@ The Standards Librarian serves two steps of the Blueprint's process flow (§8.2)
 file covers what is specific to this one. Its classes are in
 `src/dd_agent_advisor_standards/schema/standards.yaml`.
 
+In a project the conductor also gives the profile the facts people decided (`project_decisions`,
+#1529). What the profile leaves empty is filled from them (`decided.py`):
+
+- a decided field of study (`field_of_study`) becomes the subject it searches on (`themes`);
+- the decided description of the data (`data_description`), or else the summary of the project
+  (`project_summary`), becomes the `description` its model reads.
+
+It is also given the project's inventory (`project_file_inventory`, `GivenProjectInventory`,
+#1540). Empty `media_types` are filled with the distinct media types of the inventory's files, and
+empty `fields` with its tables' fields, each name once.
+
+A value the input gives always stands, and free-text formats are never turned into media types.
+`searched.from_project_record` and the statement say which values came from the record.
+
 It abstains, and does not return an empty list, in four cases:
 
 | Reason code | When |
 |---|---|
-| `insufficient_input` | The profile has no title, keywords, themes, media types or temporal fields to search on. |
+| `insufficient_input` | The profile has no title, keywords, themes, media types or temporal fields to search on, and the project has no decided field of study. |
 | `registry_unavailable` | The registry could not be searched (live search failed and the snapshot could not be used). |
 | `no_candidates_retrieved` | The search returned nothing. |
 | `no_qualifying_resource` | Records were retrieved but none scored at or above the confidence floor in `ranking.yaml`. |
@@ -128,6 +144,10 @@ and the Documentation Editor.
   record's name and description, recorded as `classification_derivation: lexical`, with
   `terminology_unclassified` when neither pattern fires. FAIRsharing's curated subtype is not
   exposed on the public record route. **TODO(#4):** read it from the authenticated API.
+- **It does not judge whether a format is open.** FAIRsharing's records do not say, and the
+  ranking does not weigh it; the model is asked to prefer open formats and say why. Whether a file
+  already saved is in an open format is the File Archivist's judgement (`advisor.files`,
+  `preparation.files`), once there are files.
 - **It does not choose.** A recommendation is advice; a person confirms or rejects each proposal. A model can add a record or note a doubt but never removes a rule's pick.
 - **Live search needs a FAIRsharing account** (`FAIRSHARING_LOGIN` / `FAIRSHARING_PASSWORD`);
   record fetch does not. No live-search cassette is committed, so that path is unsubstantiated in

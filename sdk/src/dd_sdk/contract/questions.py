@@ -26,6 +26,13 @@ class Derivation(StrEnum):
     ANSWER = "answer"
 
 
+class AnswerKind(StrEnum):
+    """How a drafter's question is answered, so that a front end shows the fitting input."""
+
+    TEXT = "text"
+    LIST = "list"
+
+
 class SharedField(StrEnum):
     """A value every kind of project document gives the same way (docs/specs/drafting.md)."""
 
@@ -40,6 +47,11 @@ class SharedField(StrEnum):
 
 # Where a suggestion copied from a person's own words came from: a document kind, or a decision.
 SUGGESTED_FROM_DECISION = "decision"
+# A suggestion made of the project's people, from what they kept of their own ORCID records.
+SUGGESTED_FROM_RESEARCHERS = "researchers"
+# A suggestion a drafter composed by rule from what the deployment's profile vouches for, such as
+# the institution's storage services (derived as `template`).
+SUGGESTED_FROM_INSTITUTION = "institution"
 
 
 class DocumentQuestion(Frozen):
@@ -48,6 +60,10 @@ class DocumentQuestion(Frozen):
 
     question_id: str = Field(pattern=QUESTION_ID_PATTERN)
     question_prompt: str
+    # A line of help shown under the question.
+    question_help: str | None = None
+    # How the question is answered; None means text.
+    answer_kind: AnswerKind | None = None
     gap_section: str | None = None
     # The part of the section, when the drafter asks a section part by part.
     gap_part: str | None = None
@@ -64,17 +80,26 @@ class DocumentQuestion(Frozen):
     suggestion_derivation: Derivation | None = None
     # The value the question asks for, when every kind of document gives it the same way.
     shared_field: SharedField | None = None
-    # A document kind's value, or "decision": where a suggestion derived as `answer` came from.
+    # Where a suggestion not made by a model came from: a document kind or "decision" for one
+    # derived as `answer`, "institution" for one derived as `template` from the profile.
     suggested_from: str | None = Field(
-        default=None, pattern=r"^(metadata_record|readme|data_dictionary|dmp|other|decision)$"
+        default=None,
+        pattern=r"^(metadata_record|readme|data_dictionary|dmp|other|decision|institution|researchers)$",
     )
 
     @model_validator(mode="after")
     def _one_target(self) -> DocumentQuestion:
         if (self.suggested_answer is None) != (self.suggestion_derivation is None):
             raise ValueError("a suggested answer says how it was derived, and only then")
-        if (self.suggestion_derivation == Derivation.ANSWER) != (self.suggested_from is not None):
-            raise ValueError("a suggestion copied from a person's words says where, and only then")
+        institution = self.suggested_from == SUGGESTED_FROM_INSTITUTION
+        if (self.suggestion_derivation == Derivation.TEMPLATE) != institution or (
+            (self.suggestion_derivation == Derivation.ANSWER)
+            != (self.suggested_from is not None and not institution)
+        ):
+            raise ValueError(
+                "a suggestion copied from a person's words, or composed from the profile, says "
+                "where, and only then"
+            )
         cell = (self.gap_file, self.gap_field, self.gap_column)
         if self.gap_part is not None and self.gap_section is None:
             raise ValueError("a question targets a part only within a README section")

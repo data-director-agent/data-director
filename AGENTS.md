@@ -22,14 +22,22 @@ Put code in the package whose job it is, not the one you have open; the full tab
   only; it reads the stores and runs nothing, and nothing depends on it. `broker/`: the model
   broker, its own service, which holds people's own model keys; depends only on `sdk/`.
 - `inventory/`: `dd-inventory`, depends on no other member. `mcp-pid/`: the PID resolver, an MCP
-  server behind the tool gateway; depends on no other member. `mcp-spdx/`: the SPDX server, an
-  MCP server for a pinned SPDX licence list; depends on no other member. `units/`: `dd-units`, a unit as
+  server behind the tool gateway; depends only on `dd-journals` and `dd-registry-cache`. `mcp-spdx/`: the SPDX server, an
+  MCP server for a pinned SPDX licence list; depends on no other member. `mcp-subjects/`: the
+  subjects server, an MCP server for the subject classifications of `dd-subjects`; depends only
+  on `dd-subjects`. `mcp-doaj/`: the DOAJ
+  server, a client and MCP server for open access journals' terms; depends on no other member. `units/`: `dd-units`, a unit as
   written into a UCUM code, by rule; depends on no other member. `subjects/`: `dd-subjects`,
   subject classifications to suggest a field of study from; depends on no other member.
   `formats/`: `dd-formats`, file formats described from a pinned PRONOM release's records;
-  depends on no other member.
+  depends on no other member. `duo/`: `dd-duo`, data use conditions from a pinned GA4GH Data Use
+  Ontology release; depends on no other member.
+  `journals/`: `dd-journals`, journals by ISSN and title, from a pinned OpenAlex snapshot built at
+  install; depends on no other member.
   `dmp-template/`: `dd-dmp-template`, the core requirements of a Data Management Plan;
-  depends on no other member. `registry-cache/`:
+  depends on no other member. `metadata-records/`: `dd-metadata-records`, metadata records in any
+  standard (codecs, standards' definitions and the pivot); depends on no other member, and the
+  harness and each agent that drafts or reads a record depend on it. `registry-cache/`:
   `dd-registry-cache`, the local cache in front of a slowly changing registry that the SDK's
   FAIRsharing client uses; depends on no other member. `scripts/`: repository tooling.
 - `sdk/browser/`: `@data-director/agent-view`, the TypeScript and React library every front end

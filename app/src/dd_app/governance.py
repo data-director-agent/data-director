@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import os
 import re
 import threading
 from collections.abc import Mapping
@@ -32,6 +33,8 @@ from dd_harness.conductor import Conductor
 from dd_harness.deposit_broker import DepositBroker
 from dd_harness.identity import Authenticator, IdentityError, OperatorAssertion
 from dd_harness.listing import Readable
+from dd_harness.mail import notifier_for
+from dd_harness.notifications import NULL_NOTIFIER, Notifier
 from dd_harness.observe import RunObserver
 from dd_harness.policy import check_attached_document
 from dd_harness.project_access import Action, Role
@@ -131,6 +134,9 @@ class Governance:
     # How often `GET /api/about` may retry the missing agents (`DeploymentView.deployment`): one
     # throttle for the process, whichever request asks.
     about_refresh: AboutRefresh = field(default_factory=AboutRefresh, repr=False)
+    # Where a steward team's notices are emailed (`dd_harness.mail`, docs/specs/stewardship.md,
+    # invariant 13); none where the deployment names no mail server.
+    notifier: Notifier = field(default=NULL_NOTIFIER, repr=False)
 
     @classmethod
     def create(
@@ -162,6 +168,7 @@ class Governance:
             deposit_broker=settings.deposit_broker,
             transports=discover(),
             turn_locks=locks,
+            notifier=notifier_for(conductor.profile, os.environ, base_url),
         )
 
     def __post_init__(self) -> None:

@@ -62,7 +62,13 @@ whom an invocation acts for, and how that is established, is in
     never OpenTelemetry SDK objects. Any other attribute on a span (such as `dd.tool_name`) is
     informational and nothing in Data Director depends on it.
 11. Every run's complete trace, the conductor's spans and the agent's, is written to the run store
-    as the run's `spans.jsonl` artifact, one JSON span per line ([Storage](storage.md)).
+    as the run's `spans.jsonl` artifact, one JSON span per line ([Storage](storage.md)). Before a
+    remote agent's spans join the trace, the harness drops every attribute of a span, its events,
+    links and resource that could hold a secret: a name with a segment such as `token`, `key` or
+    `authorization`, a bearer- or JSON Web Token-shaped value, or a value containing a grant the
+    harness sent for the invocation. Each drop is an `agent.span-secret-dropped` security event,
+    and the run goes on (`dd_harness.span_scrub`, [Security baseline](security.md), invariant 2;
+    `harness/tests/test_span_scrub.py`).
 12. An outcome the conductor decides, including a refusal by the input check or a grounding
     violation, is a completed task (or `RUN_FINISHED`) carrying an envelope. A failed task (or
     `RUN_ERROR`) means the harness could not make a run at all: a malformed request, an unknown
@@ -106,7 +112,9 @@ whom an invocation acts for, and how that is established, is in
   tracer and returns whatever the agent produced.
 - **The harness** holds the A2A client that calls agents and the A2A server that serves the
   conductor. The harness's own card advertises one skill per registered agent and, through a
-  second extension, the manifest a delegation agent routes from. Served without an
+  second extension, the manifest a delegation agent routes from; each agent's class schemas are
+  served beside the card at `/a2a/schemas/{agent_id}`, named on it by digest
+  ([Orchestration](orchestration.md), invariant 9). Served without an
   authenticator, as the app serves it, the endpoint accepts only a delegation agent's callback
   under a live grant.
 - **The agent card** is the machine-readable statement of what an instance serves. Its Data
@@ -122,8 +130,11 @@ whom an invocation acts for, and how that is established, is in
     AG-UI messages, so every transport gives an agent the same input.
   - `POST /agui/runs/{runId}/cancel` cancels the caller's run of that AG-UI `runId` while its
     stream is open, and answers 404 for any other.
-  - `GET /agui/runs/{invocationId}` replays a stored run as `RUN_STARTED` then `RUN_FINISHED`
-    with its envelope. A run's stages and reports are not stored as events, so a replay has none.
+  - `GET /agui/runs/{invocationId}` replays a stored run as it streamed: `RUN_STARTED`, the
+    events of its `stages.jsonl`, then `RUN_FINISHED` with its envelope. Live and replayed events
+    are made by one mapping from a stage record (`dd_harness.transport.agui.event_from_stage`), so
+    the two agree. A run stored before its stages were kept replays as `RUN_STARTED` then
+    `RUN_FINISHED`.
   - `dd_harness.transport.agui.stream_run` makes the events of any run started through
     `Conductor.ainvoke`, so a way in that wraps the conductor (the app's conversation turns)
     streams the same binding. Such a way in names the refusals of its own it makes once the

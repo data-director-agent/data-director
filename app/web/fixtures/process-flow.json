@@ -18,9 +18,49 @@
   ],
   "phases": [
     {
-      "name": "Plan ahead",
+      "name": "Plan your data management",
       "number": 1,
       "steps": [
+        {
+          "id": "setup.project",
+          "label": "Describe your project",
+          "optional": false,
+          "out_of_scope": false,
+          "person_decides": false,
+          "prompt": "Help me describe my project and the data I expect to collect, so that the rest of the plan can build on it.",
+          "requirements": [],
+          "text": "Describe the project and the data it will produce"
+        },
+        {
+          "id": "setup.requirements",
+          "label": "Find out what your funder and institution require",
+          "optional": false,
+          "out_of_scope": false,
+          "person_decides": false,
+          "prompt": "What do my funder and institution require me to plan for my data, and what must my Data Management Plan cover?",
+          "requirements": [],
+          "text": "Find out what the funder and institution require of the data plan"
+        },
+        {
+          "id": "setup.dmp-create",
+          "label": "Write a Data Management Plan",
+          "optional": true,
+          "out_of_scope": false,
+          "person_decides": false,
+          "prompt": "Help me write a Data Management Plan covering how my data will be collected, stored, shared and kept.",
+          "requirements": [],
+          "text": "Create a Data Management Plan where none exists"
+        },
+        {
+          "id": "setup.dmp-review",
+          "label": "Review and update your Data Management Plan",
+          "optional": false,
+          "out_of_scope": false,
+          "person_decides": false,
+          "prompt": "Help me review my Data Management Plan and keep it up to date.",
+          "requirements": [],
+          "text": "Review and update the Data Management Plan"
+        },
         {
           "id": "setup.documentation",
           "label": "Plan how your data will be documented",
@@ -34,39 +74,29 @@
           "text": "Draft the data documentation"
         },
         {
-          "id": "setup.vocabularies",
-          "label": "Start a list of standard terms to describe your data",
+          "id": "setup.storage",
+          "label": "Plan where your data will be stored and backed up",
           "optional": false,
           "out_of_scope": false,
           "person_decides": false,
-          "prompt": "Help me start a list of standard terms and vocabularies to describe my data as I collect it.",
+          "prompt": "Help me plan where to store and back up my data while I work on it.",
+          "requirements": [],
+          "text": "Plan storage, backup and security during the project"
+        },
+        {
+          "id": "setup.formats",
+          "label": "Plan which open file formats to collect your data in",
+          "optional": false,
+          "out_of_scope": false,
+          "person_decides": false,
+          "prompt": "Before I start collecting, help me choose open file formats to save my data in.",
           "requirements": [
             "R3"
           ],
-          "text": "Select controlled vocabularies and ontologies"
-        },
-        {
-          "id": "setup.dmp-create",
-          "label": "Write a Data Management Plan",
-          "optional": true,
-          "out_of_scope": false,
-          "person_decides": false,
-          "prompt": "Help me write a Data Management Plan for my project.",
-          "requirements": [],
-          "text": "Create a Data Management Plan where none exists"
-        },
-        {
-          "id": "setup.dmp-review",
-          "label": "Review your Data Management Plan",
-          "optional": false,
-          "out_of_scope": false,
-          "person_decides": false,
-          "prompt": "Help me review my Data Management Plan.",
-          "requirements": [],
-          "text": "Review and update the Data Management Plan"
+          "text": "Choose open formats to collect data in"
         }
       ],
-      "summary": "Before you collect any data: decide how it will be described.",
+      "summary": "Start from what your project is, the data it will produce and what your funder and institution require, then plan how your data will be collected, documented, stored, protected, shared and kept, who looks after them and at what cost, and keep the plan up to date.",
       "title": "Pre-collection setup"
     },
     {
@@ -217,7 +247,7 @@
         },
         {
           "id": "preparation.formats",
-          "label": "Save your data in open formats",
+          "label": "Check your files are in open formats",
           "optional": false,
           "out_of_scope": false,
           "person_decides": false,
@@ -251,12 +281,14 @@
         },
         {
           "id": "preparation.vocabularies",
-          "label": "Confirm the standard terms you will use",
+          "label": "Choose the standard terms to describe your data",
           "optional": false,
           "out_of_scope": false,
           "person_decides": false,
-          "prompt": "Help me confirm the standard terms to use, now that I know what my repository needs.",
-          "requirements": [],
+          "prompt": "Help me choose the standard terms and vocabularies to describe my data, to suit my repository and metadata standard.",
+          "requirements": [
+            "R3"
+          ],
           "text": "Finalise controlled vocabularies and ontologies"
         },
         {

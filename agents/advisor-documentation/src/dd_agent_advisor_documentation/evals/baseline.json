@@ -1,16 +1,16 @@
 {
   "identity": {
     "agent_id": "advisor.documentation",
-    "cases_sha256": "95e43ded4ef097d54f834fc24c2637c83c314fb04fd5d4c33c422ae34c071db5",
+    "cases_sha256": "63ee2577b508477515756d931e66f7c3057b282806bf981e5b4a31012bab024a",
     "configuration": {},
     "data_sha256": {
       "hallam-moor.inventory.json": "43ee4cb1b7b801092c4cfcd733fa84577ade88a98c4a9b394072aea40e49c6fd",
       "hallam-moor.metadata-record.json": "3f8c74624f9dce6f1450d7900e90e18b4526f0a6cbcc135c96cd878164c2b0f6",
-      "soil-survey.readme-with-record.draft.json": "c9ba7601f5bcbef5879972fcb1f2fbeb18f71a7d687b5eb71e9d1b2093d84874"
+      "soil-survey.readme-with-record.draft.json": "bb83f405088cc358d2f1543719f1c54c67f5cb748613ed33777dc8f7be7de16f"
     },
-    "git_revision": "a64dcf3aceffce5febfecccd85d4098e05b73e7c",
-    "readme_template_sha256": "0f1c7a4521a2d0280ca974b433c01349d7232a7486edf062495f9f1b1f920192",
-    "spec_version": "0.9.0a1"
+    "git_revision": "db546de56747ae9d2ea862a43bf66ab55b48439d",
+    "readme_template_sha256": "9e19b1c0aec72b2c45db592e62b82570b9d18d0bb47cea081aac103ec3591e45",
+    "spec_version": "0.10.0a1"
   },
   "scores": {
     "hallam-dictionary": {
@@ -58,6 +58,21 @@
       "suggestions_match_gold": null,
       "unknown_cells_asked": null
     },
+    "hallam-dictionary-no-inventory": {
+      "answers_placed_supplied": null,
+      "every_cell_sourced": null,
+      "every_gap_marked_and_asked": null,
+      "expected_content_present": null,
+      "grounding_passed": 1.0,
+      "inferred_types_match_gold": null,
+      "no_model_value_in_cell": null,
+      "no_unsupported_claim": null,
+      "outcome_matches": 1.0,
+      "required_sections_present": null,
+      "stopped_correctly": 1.0,
+      "suggestions_match_gold": null,
+      "unknown_cells_asked": null
+    },
     "hallam-dictionary-no-record": {
       "answers_placed_supplied": null,
       "every_cell_sourced": 1.0,
@@ -91,8 +106,23 @@
     "hallam-no-inventory": {
       "answers_placed_supplied": null,
       "every_cell_sourced": null,
-      "every_gap_marked_and_asked": null,
-      "expected_content_present": null,
+      "every_gap_marked_and_asked": 1.0,
+      "expected_content_present": 1.0,
+      "grounding_passed": 1.0,
+      "inferred_types_match_gold": null,
+      "no_model_value_in_cell": null,
+      "no_unsupported_claim": null,
+      "outcome_matches": 1.0,
+      "required_sections_present": 1.0,
+      "stopped_correctly": 1.0,
+      "suggestions_match_gold": null,
+      "unknown_cells_asked": null
+    },
+    "hallam-no-inventory-first": {
+      "answers_placed_supplied": null,
+      "every_cell_sourced": null,
+      "every_gap_marked_and_asked": 1.0,
+      "expected_content_present": 1.0,
       "grounding_passed": 1.0,
       "inferred_types_match_gold": null,
       "no_model_value_in_cell": null,

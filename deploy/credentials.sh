@@ -25,6 +25,12 @@
 # data-director-app.service.d/model-grants.conf, written by sync_app_model_grants for those of them
 # that exist, so an app without them still starts.
 # credentials/deposit-broker/ is the deposit broker's, which its unit loads itself.
+# credentials/admin/ is the admin service's: model-broker-admin, the operators' credential for
+# the model broker's summary, goes in data-director-admin.service.d/model-broker.conf and its
+# digest, credentials/model-broker/admin-credential, in
+# data-director-model-broker.service.d/admin-credential.conf, both written by sync_broker_admin
+# when both files exist (deploy/broker-admin-credential.sh). litellm-key, the gateway's
+# read-only key, is loaded by a drop-in the operator writes (deploy/llm-gateway/README.md).
 # credentials/llm-gateway/ is the LiteLLM gateway's, which deploy/llm-gateway/scripts/systemd.sh
 # reads itself; it has no drop-in.
 
@@ -139,16 +145,58 @@ sync_app_model_grants() {
   return "$status"
 }
 
+# The model broker's URL for the admin service, as data-director-model-broker.service listens.
+BROKER_ADMIN_URL=http://127.0.0.1:8300
+
+# Write the admin service's and the broker's drop-ins for the operators' credential, or remove
+# both unless both files exist: the admin service holds the credential, the broker its digest.
+sync_broker_admin() {
+  local held="$CREDENTIALS/admin/model-broker-admin" digest="$CREDENTIALS/model-broker/admin-credential"
+  local admin="$UNIT_DIR/data-director-admin.service.d/model-broker.conf"
+  local broker="$UNIT_DIR/data-director-model-broker.service.d/admin-credential.conf"
+  local file problem
+  for file in "$held" "$digest"; do
+    if [[ ! -e "$file" && ! -L "$file" ]]; then
+      rm -f "$admin" "$broker"
+      return 0
+    fi
+    problem="$(secret_problem "$file")"
+    if [[ -n "$problem" ]]; then
+      echo "admin: $problem; the broker's summary is not set up" >&2
+      rm -f "$admin" "$broker"
+      return 1
+    fi
+  done
+  install -d -m 0755 "$(dirname "$admin")" "$(dirname "$broker")"
+  {
+    echo "# Written by deploy/install.sh from $held (deploy/credentials.sh). Do not edit."
+    echo "[Service]"
+    echo "LoadCredential=model-broker-admin:$held"
+    echo "Environment=DD_ADMIN_BROKER_URL=$BROKER_ADMIN_URL"
+  } >"$admin.tmp"
+  {
+    echo "# Written by deploy/install.sh from $digest (deploy/credentials.sh). Do not edit."
+    echo "[Service]"
+    echo "LoadCredential=admin-credential:$digest"
+    echo "Environment=DD_BROKER_ADMIN_CREDENTIAL_FILE=admin-credential"
+  } >"$broker.tmp"
+  chmod 0644 "$admin.tmp" "$broker.tmp"
+  mv -f "$admin.tmp" "$admin"
+  mv -f "$broker.tmp" "$broker"
+  echo "admin: the model broker's summary in place (DD_ADMIN_BROKER_URL)"
+}
+
 # The app's model-grant drop-in, then every agent's: those with a credentials directory, and those with a drop-in left from
 # a secret since removed. Returns 1 if anything was reported as a problem.
 sync_all_credentials() {
   local dir dropin agent status=0
   local -A seen=()
   sync_app_model_grants || status=1
+  sync_broker_admin || status=1
   for dir in "$CREDENTIALS"/*/; do
     [[ -d "$dir" ]] || continue
     agent="$(basename "$dir")"
-    [[ "$agent" == app || "$agent" == model-broker || "$agent" == deposit-broker || "$agent" == llm-gateway ]] && continue
+    [[ "$agent" == app || "$agent" == admin || "$agent" == model-broker || "$agent" == deposit-broker || "$agent" == llm-gateway ]] && continue
     seen[$agent]=1
     if ! is_agent "$agent"; then
       echo "$CREDENTIALS/$agent: no deployed agent of that name (deploy/agents/$agent.env); its secrets are not loaded" >&2

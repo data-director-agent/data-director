@@ -204,8 +204,13 @@ def test_regenerating_keeps_what_the_researcher_supplied(runs_dir: Path) -> None
     rows[1] |= {"type": "string"}  # the researcher corrects an inferred type
     again = regenerate(runs_dir, write_csv(rows, DICTIONARY_COLUMNS))
     assert [(r["file"], r["field"]) for r in again] == [(r["file"], r["field"]) for r in rows]
-    for column in ("unit", "description", "missing_values"):
+    for column in ("unit", "description"):
         assert (again[0][column], again[0][f"{column}_source"]) == (rows[0][column], "supplied")
+    # A list column is kept in its standard form: the researcher's `-99` is `["-99"]`.
+    assert (again[0]["missing_values"], again[0]["missing_values_source"]) == (
+        '["-99"]',
+        "supplied",
+    )
     assert (again[1]["type"], again[1]["type_source"]) == ("string", "supplied")
     assert again[2:] == rows[2:]
     assert again[0]["type_source"] == rows[0]["type_source"]
@@ -245,7 +250,7 @@ def test_regenerating_names_the_version_it_replaces(runs_dir: Path) -> None:
 @pytest.mark.parametrize(
     ("asked", "reason"),
     [
-        (DraftRequest(document_kind=DocumentKind.README), ReasonCode.INSUFFICIENT_INPUT),
+        (DraftRequest(document_kind=DocumentKind.DATA_DICTIONARY), ReasonCode.INSUFFICIENT_INPUT),
         (
             DraftRequest(document_kind=DocumentKind.METADATA_RECORD),
             ReasonCode.OUTSIDE_AGENT_SCOPE,
@@ -258,6 +263,48 @@ def test_abstains_without_an_inventory_or_for_another_kind(
     env, _ = draft(runs_dir, asked)
     assert env.outcome.status == OutcomeStatus.ABSTAINED
     assert env.outcome.reason_code == reason
+
+
+def _before_collection(asked: DraftRequest) -> DraftRequest:
+    return asked.model_copy(update={"inventory": None})
+
+
+@pytest.mark.requirement("DD-GROUNDED-PAYLOAD")
+def test_before_collection_a_readme_plans_the_documentation(runs_dir: Path) -> None:
+    """With no inventory, the first README asks first, saying it is a plan, and asks the
+    sections that plan what to record in their before-collection wording (#1017)."""
+    asked = _before_collection(first_sample("soil-survey.readme.draft.json"))
+    env, grounded = draft(runs_dir, asked)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert grounded
+    document = env.payload_as(Document)
+    assert document.document_stage == "questions"
+    assert "plan for the README" in document.document_text
+    plans = {s.heading: s.plan_ask for s in load_sections() if s.plan_ask}
+    assert plans, "readme.yaml plans some sections before collection"
+    asked_by = {q.gap_section: q.question_prompt for q in document.document_questions}
+    for heading, plan_ask in plans.items():
+        assert plan_ask in asked_by[heading]
+
+
+def test_answers_given_before_collection_are_placed_once_the_data_exist(runs_dir: Path) -> None:
+    """A planning answer is asked under the same question as the later README's, so the README
+    drafted from the inventory places it and does not ask it again (#1017)."""
+    planned = _before_collection(sample("soil-survey.readme.draft.json"))
+    env, _ = draft(runs_dir, planned)
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    document = env.payload_as(Document)
+    assert document.document_stage == "draft"
+    assert "| File |" not in document.document_text  # no table of files without an inventory
+    methods = next(q for q in document.document_questions if q.gap_section == "Methods")
+    answer = DraftAnswer(answered_question=methods.question_id, answer_text="Soil cores, 0-10 cm.")
+    collected = sample("soil-survey.readme.draft.json").model_copy(
+        update={"draft_answers": [answer]}
+    )
+    env, _ = draft(runs_dir, collected)
+    later = env.payload_as(Document)
+    assert "Soil cores, 0-10 cm." in later.document_text
+    assert all(q.question_id != methods.question_id for q in later.document_questions)
 
 
 def test_no_table_no_data_dictionary(runs_dir: Path) -> None:
@@ -279,9 +326,13 @@ def test_the_card_names_the_persona_and_its_steps() -> None:
         "how": "model",
         "recorded_in": "document_derivation",
     }
-    # Not `setup.documentation`: before collection there is no inventory to draft from (#1017).
-    # A Data Management Plan needs none: it is drafted from decisions and answers.
-    assert entry["serves"] == ["preparation.documentation", "setup.dmp-create"]
+    # Before collection a README plans the documentation (#1017). A Data Management Plan needs no
+    # inventory either: it is drafted from decisions and answers.
+    assert set(entry["serves"]) == {
+        "setup.documentation",
+        "preparation.documentation",
+        "setup.dmp-create",
+    }
     json.dumps(entry)
 
 
@@ -498,7 +549,11 @@ def test_a_record_of_placeholders_drafts_as_no_record_does(runs_dir: Path) -> No
 @pytest.mark.parametrize(
     ("conforms_to", "text", "why"),
     [
-        ("http://example.org/other-schema", "{}", "reads only DataCite records"),
+        (
+            "http://example.org/other-schema",
+            "{}",
+            "reads only records in a standard it has a definition for",
+        ),
         ("http://datacite.org/schema/kernel-4", "not json", "not JSON"),
         ("http://datacite.org/schema/kernel-4", "[]", "not a JSON object"),
     ],
@@ -634,3 +689,28 @@ def test_a_malformed_readme_template_is_refused(
     path.write_text(json.dumps([section]), encoding="utf-8")
     with pytest.raises(ValueError, match=why):
         load_sections(path)
+
+
+def test_a_record_in_dublin_core_is_read_through_its_definition(runs_dir: Path) -> None:
+    """The editor reads a record in any standard a registered definition covers
+    (docs/specs/metadata-standards.md; #1360): an OAI-DC record's title, creator and description."""
+    asked = sample(WITH_RECORD)
+    assert asked.metadata_record is not None
+    text = (
+        '<oai_dc:dc xmlns:oai_dc="http://www.openarchives.org/OAI/2.0/oai_dc/" '
+        'xmlns:dc="http://purl.org/dc/elements/1.1/">'
+        "<dc:title>Hope Valley soil cores</dc:title><dc:creator>Carberry, Josiah</dc:creator>"
+        "<dc:description>Cores taken in 2026.</dc:description></oai_dc:dc>"
+    )
+    record = asked.metadata_record.model_copy(
+        update={
+            "conforms_to": "http://www.openarchives.org/OAI/2.0/oai_dc/",
+            "media_type": "application/xml",
+            "document_text": text,
+        }
+    )
+    env, _ = draft(runs_dir, asked.model_copy(update={"metadata_record": record}))
+    assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
+    assert "was not used" not in env.outcome.statement
+    readme = env.payload_as(Document).document_text
+    assert "Hope Valley soil cores" in readme and "Cores taken in 2026." in readme

@@ -55,7 +55,7 @@ def test_a_writer_is_told_a_range_is_not_the_extremes() -> None:
     assert values["missing_value_codes"] == {"-99": 30}
     assert values["rows_read"] == 200
     assert values["left_out"]
-    assert missing_codes(field) == "-99"
+    assert missing_codes(field) == '["-99"]'
 
 
 def test_categories_are_given_with_their_counts() -> None:
@@ -89,6 +89,6 @@ def test_the_dictionary_infers_missing_value_codes(runs_dir: Path) -> None:
     assert env.outcome.status == OutcomeStatus.SUCCEEDED, env.outcome.statement
     rows = list(csv.DictReader(io.StringIO(env.payload_as(Document).document_text)))
     row = next(r for r in rows if (r["file"], r["field"]) == (files[table].file_path, first.name))
-    assert (row["missing_values"], row["missing_values_source"]) == ("-99", Source.INFERRED)
+    assert (row["missing_values"], row["missing_values_source"]) == ('["-99"]', Source.INFERRED)
     others = [r for r in rows if r is not row]
     assert all(r["missing_values_source"] == Source.UNKNOWN for r in others)

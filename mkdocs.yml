@@ -109,6 +109,7 @@ nav:
       - Deciding project facts: user-guide/project-facts.md
       - Working with others: user-guide/members.md
       - Understanding outcomes: user-guide/outcomes.md
+      - Asking a data steward: user-guide/ask-a-data-steward.md
       - What is recorded: user-guide/records.md
       - Depositing your data: user-guide/depositing.md
       - Giving feedback: user-guide/feedback.md
@@ -131,6 +132,7 @@ nav:
       - Privacy notice: operations/privacy.md
       - The data-director command: operations/commands.md
       - The admin service: operations/admin.md
+      - Admin interfaces over SSH: operations/tunnels.md
       - The model broker: operations/model-broker.md
       - The deposit broker: operations/deposit-broker.md
       - Deploying to a VM: /deploy/README.md
@@ -199,12 +201,22 @@ nav:
           - /subjects/README.md
       - Formats library:
           - /formats/README.md
+      - Data use ontology library:
+          - /duo/README.md
+      - Journals library:
+          - /journals/README.md
       - DMP template library:
           - /dmp-template/README.md
+      - Metadata records library:
+          - /metadata-records/README.md
       - FAIRsharing server:
           - /mcp-fairsharing/README.md
       - SPDX licence list server:
           - /mcp-spdx/README.md
+      - Subject classifications server:
+          - /mcp-subjects/README.md
+      - DOAJ server:
+          - /mcp-doaj/README.md
       - Agents:
           - Working on an agent: /agents/AGENTS.md
           - /agents/README.md
@@ -228,6 +240,7 @@ nav:
           - Metadata advisor: /agents/advisor-metadata/README.md
           - Metadata evaluation: /agents/advisor-metadata/src/dd_agent_advisor_metadata/evals/README.md
           - Rights advisor: /agents/advisor-rights/README.md
+          - Advisor Storage: /agents/advisor-storage/README.md
           - Rights evaluation: /agents/advisor-rights/src/dd_agent_advisor_rights/evals/README.md
   - Conformance:
       - Approach: /docs/conformance.md

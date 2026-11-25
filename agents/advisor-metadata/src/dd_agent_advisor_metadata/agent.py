@@ -2,13 +2,15 @@
 and the drafter of the project's metadata record (#200, #698).
 
 Serves `preparation.metadata-standard` and `preparation.metadata` (R2). Given a `DraftRequest` for
-a `metadata_record`, it drafts a project document (docs/specs/projects.md): a DataCite record in
-DataCite's JSON form, with `conforms_to` set to the chosen repository's (docs/specs/deposit.md).
-Every property the repository's requirements list is written, with its qualifier, and its value
-left null for the researcher. The librarian fills only what holds for any deposit, that the
-resource is a dataset, what the inventory states, the files' formats and sizes, and what the
-project's researchers kept from their public ORCID records (docs/specs/projects.md): each
-researcher as a creator, with their iD and current employers, their keywords as subjects, and
+a `metadata_record`, it drafts a project document (docs/specs/projects.md): a record in the
+standard the chosen repository's requirements follow, as that standard's registered definition
+writes it (docs/specs/metadata-standards.md), with `conforms_to` set to the repository's
+(docs/specs/deposit.md). Every property the repository's requirements list is written, with its
+qualifier, and its value left as a gap for the researcher. The librarian fills only what holds
+for any deposit, that the resource is a dataset, what the inventory states, the files' formats
+and sizes, and what the project's researchers kept from their public ORCID records
+(docs/specs/projects.md): each researcher as a creator, with their iD and current employers,
+their keywords as subjects, and
 their grants as funding references, wherever the repository asks for those properties.
 
 Each value it leaves null is a gap with a question (`questions.py`), and an answer the researcher
@@ -20,26 +22,29 @@ is asked in two steps: whether the location may be published, and at what precis
 then the place (`location.py`, #1073). The question about the subjects names the vocabularies the
 project chose for the dataset (`chosen.py`, #1391).
 
-It reads the DataCite JSON form from `datacite.yaml`. It consults no source, uses no controlled
-vocabulary and maps nothing between schemas (R6), so its grounding mode is `input_only` and it
-cites only its input. Regenerating a record drafts it afresh, and names the version it replaces
-in `revises`. Controlled vocabularies are TODO(#703). It does not convert a record to another
-standard (R6): it abstains with `capability_not_implemented` for requirements in any standard but
-DataCite. Conversion through a shared pivot is TODO(#1363).
+It reads how each property is written and what is asked about it from DataCite's definition in
+`dd_metadata_records` (docs/specs/metadata-standards.md), which shared field a property gives from
+`shares.yaml`, and writes the record through the definition's JSON codec. An entry the repository
+asks for from a named subject classification, such as ORDA's categories from the ANZSRC Fields of
+Research, is suggested only from that classification's fields, retrieved through the tool gateway,
+and each suggestion cites the field's record (`categories.py`, #703). So its grounding mode is
+`retrieval`: it records reading its input as a retrieval, and cites its input and each field's
+record.
+Keywords from other vocabularies are TODO(#956). Regenerating a record drafts it afresh, and names
+the version it replaces in `revises`. It does not convert a record to another standard (R6): it
+abstains with `capability_not_implemented` for requirements in a standard no registered definition
+covers. Converting an approved record through the pivot is the harness's work, not the
+librarian's (docs/specs/metadata-standards.md, invariant 9).
 """
 
 from __future__ import annotations
 
-import json
-import re
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Any
+from dataclasses import dataclass, replace
+from typing import Any, Final
 
-import yaml
-
-from dd_agent_advisor_metadata import chosen, location
+from dd_agent_advisor_metadata import categories, chosen, location, researchers, scope
+from dd_agent_advisor_metadata.form import Drafting, drafting
 from dd_agent_advisor_metadata.questions import (
     Gap,
     answers_by_question,
@@ -48,20 +53,18 @@ from dd_agent_advisor_metadata.questions import (
     place,
 )
 from dd_agent_advisor_metadata.suggest import Ask, Suggester, Suggestions, TemplateSuggester
+from dd_metadata_records import RecordError, Standards, set_path
 from dd_sdk import shared_answers
 from dd_sdk.agent import (
     AgentResult,
     AgentSpec,
     Derived,
     RunContext,
-    abstain,
     input_evidence,
     input_ref,
 )
 from dd_sdk.contract.classes import ClassSchema
 from dd_sdk.contract.models import (
-    Affiliation,
-    AffiliationKind,
     Derivation,
     Document,
     DocumentKind,
@@ -73,96 +76,60 @@ from dd_sdk.contract.models import (
     Obligation,
     Outcome,
     OutcomeStatus,
-    ReasonCode,
     RepositoryRequirements,
-    ResearcherFunding,
-    ResearcherRecord,
 )
-from dd_sdk.contract.questions import SharedField
+from dd_sdk.tools import ToolRecord
+from dd_sdk.tracing import retrieval_span
 
-DATACITE_FORM = Path(__file__).with_name("datacite.yaml")
-# The schema every record follows in the MVP (docs/specs/deposit.md).
-DATACITE = "http://datacite.org/schema/kernel-4"
-MEDIA_TYPE = "application/json"
-# The DataCite property that holds the licence; its question names the licences the repository
-# accepts.
-LICENCE_PROPERTY = "rightsList"
+SCHEMA: Final = "http://schema.org/"
+# The pivot terms whose properties the librarian treats specially, whatever the standard calls
+# them: the licence, whose question names the licences the repository accepts; the keywords,
+# whose question names the vocabularies the project chose; and what it fills from the inventory
+# and the requirements.
+LICENCE: Final = SCHEMA + "license"
+KEYWORDS: Final = SCHEMA + "keywords"
+FORMATS: Final = SCHEMA + "encodingFormat"
+SIZES: Final = SCHEMA + "contentSize"
+SCHEMA_VERSION: Final = "http://schema.org/schemaVersion"
 
 # What the librarian does not do, said in every outcome: its payload is the core Document, which
 # has no room for a list of limitations (docs/specs/agents.md).
 LIMITATIONS = (
     "It is an alpha: it fills no value that only you can give, beyond what you kept from your "
-    "ORCID record and the answers you recorded; it uses no controlled vocabularies, maps nothing "
-    "between schemas, does not check that a value is correct, and reads neither an earlier "
-    "version nor the reason given for a decision on it."
+    "ORCID record and the answers you recorded; it suggests terms only from the subject "
+    "classifications a repository names, and no keywords from other vocabularies; it maps "
+    "nothing between schemas, does not check that a value is correct, and reads neither an "
+    "earlier version nor the reason given for a decision on it."
 )
-# DataCite's names for the identifier schemes ORCID gives funders in.
-FUNDER_SCHEMES = {"FUNDREF": "Crossref Funder ID", "ROR": "ROR", "GRID": "GRID", "ISNI": "ISNI"}
-SCHEME_URIS = {"ROR": "https://ror.org", "GRID": "https://www.grid.ac", "ISNI": "https://isni.org"}
 
 
 @dataclass(frozen=True, slots=True)
-class Form:
-    """How one DataCite property is written: the key of its value in a list entry, or a value
-    the librarian fills itself; the question asked about a value left null, the question asked
-    first about whether it may be published at all, and whether a model may suggest one."""
+class _Categories:
+    """The records the categories suggested cite, and what the outcome says about them."""
 
-    value: str | None = None
-    filled: str | None = None
-    ask: str | None = None
-    publish: str | None = None
-    suggest: bool = False
-    # The shared field its first entry gives, or one for each qualifier value (`datacite.yaml`).
-    shares: str | Mapping[str, str] | None = None
-
-    def shared_field(self, gap: Gap) -> SharedField | None:
-        """The shared field `gap` asks for: only in the property's first entry, since the
-        researcher gave one answer for the dataset as a whole."""
-        if self.shares is None or "[0]" not in gap.path or _LATER_ENTRY.search(gap.path):
-            return None
-        if isinstance(self.shares, str):
-            return SharedField(self.shares)
-        named = [self.shares[v] for v in gap.qualifier.values() if v in self.shares]
-        return SharedField(named[0]) if named else None
-
-
-# A list entry after the first, anywhere in a gap's path.
-_LATER_ENTRY = re.compile(r"\[[1-9][0-9]*\]")
-
-
-def load_form(path: Path = DATACITE_FORM) -> dict[str, Form]:
-    with path.open(encoding="utf-8") as fh:
-        table = yaml.safe_load(fh)
-    form = {}
-    for prop, entry in table.items():
-        unknown = set(entry) - {"value", "filled", "ask", "publish", "suggest", "shares"}
-        if unknown:
-            raise ValueError(f"{path}: {prop} has unknown keys {sorted(unknown)}")
-        if "value" in entry and "filled" in entry:
-            raise ValueError(f"{path}: {prop} has a value key or a filled value, not both")
-        if "filled" in entry and {"ask", "publish", "suggest", "shares"} & set(entry):
-            raise ValueError(f"{path}: {prop} is filled, so nothing is asked or suggested")
-        form[str(prop)] = Form(**entry)
-    return form
+    records: tuple[ToolRecord, ...] = ()
+    sentence: str = ""
 
 
 class MetadataLibrarian:
     spec = AgentSpec(
         agent_id="advisor.metadata",
-        version="0.2.0a2",
+        version="0.3.0a0",
         title="Metadata Librarian",
         icon="🏷️",
         description=(
-            "Alpha. Drafts a project's metadata record in DataCite's JSON form, with every "
-            "property the chosen repository requires or recommends, filling only the resource "
+            "Alpha. Drafts a project's metadata record in the standard the chosen repository's "
+            "requirements follow, as its registered definition writes it, with every "
+            "property the repository requires or recommends, filling only the resource "
             "type, the formats and sizes the file inventory gives, the creators, subjects and "
             "funding the researchers kept from their ORCID records, and the answers they "
             "recorded. It asks about every value it leaves empty, and where a model is "
-            "configured suggests some, beside the question and never in the record."
+            "configured suggests some, beside the question and never in the record: a category "
+            "only from the classification the repository names, citing the field's record."
         ),
         action_class="advise",
         accepts=(ClassSchema.of(DraftRequest),),
-        grounding_mode=GroundingMode.INPUT_ONLY,
+        grounding_mode=GroundingMode.RETRIEVAL,
         payload=ClassSchema.of(Document),
         derivations={
             "document_title": Derived(Derivation.TEMPLATE),
@@ -173,57 +140,55 @@ class MetadataLibrarian:
             ),
         },
         serves=("preparation.metadata-standard", "preparation.metadata"),
+        tools=categories.USES,
     )
 
     def __init__(
-        self, form: dict[str, Form] | None = None, suggester: Suggester | None = None
+        self, suggester: Suggester | None = None, standards: Standards | None = None
     ) -> None:
-        self.form = form if form is not None else load_form()
         self.suggester = suggester if suggester is not None else TemplateSuggester()
+        # The standards it drafts in: the registered ones unless a test gives others.
+        self.standards = standards
 
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
         asked = request.input
         assert isinstance(asked, DraftRequest)  # the conductor checked spec.accepts
-        if asked.document_kind != DocumentKind.METADATA_RECORD:
-            return abstain(
-                ReasonCode.OUTSIDE_AGENT_SCOPE,
-                "The Metadata Librarian drafts a metadata record, not a "
-                f"{asked.document_kind.value}.",
-            )
-        requirements = asked.requirements
-        if requirements is None:
-            return abstain(
-                ReasonCode.INSUFFICIENT_INPUT,
-                "Choose a repository first: the record has the properties it asks for.",
-            )
-        if requirements.conforms_to != DATACITE:
-            return abstain(
-                ReasonCode.CAPABILITY_NOT_IMPLEMENTED,
-                f"The librarian drafts DataCite records only, not {requirements.conforms_to}, "
-                "and does not convert a record to another standard.",
-            )
+        found_scope = scope.drafted(asked, self.standards)
+        if isinstance(found_scope, AgentResult):
+            return found_scope
+        requirements, standard = found_scope
+        draft = drafting(standard)
 
-        record, filled = self._record(requirements, asked.inventory)
-        filled += _from_researchers(record, asked.researchers)
-        found = gaps(record)
+        # What the record is drafted from is the input: reading it is this run's first retrieval.
+        with retrieval_span(ctx.tracer, ctx.input_ref, ctx.input_hash):
+            record, filled = _record(draft, requirements, asked.inventory)
+        filled += researchers.fill(record, asked.researchers, draft.definition)
+        found = gaps(record, draft.definition.vocabulary_keys)
         open_gaps = place(record, found, answers_by_question(asked.draft_answers))
-        pairs, withheld = self._ask(open_gaps, asked)
+        pairs, withheld = _ask(draft, open_gaps, asked)
         pairs = _offer(pairs, asked)
-        questions, suggested = self._questions(pairs, _facts(requirements, asked.inventory), ctx)
+        questions, suggested, cited = self._questions(
+            draft, pairs, _facts(requirements, asked.inventory), ctx
+        )
         required = sum(f.obligation == Obligation.REQUIRED for f in requirements.fields)
         statement = (
-            f"A DataCite record for {requirements.repository_name} with the "
+            f"A {draft.definition.name} record for {requirements.repository_name} with the "
             f"{len(requirements.fields)} properties it asks for ({required} required), drafted "
             f"by rule. Filled: {', '.join(filled) or 'nothing'}"
             f"{_placed(len(found) - len(open_gaps))}. It asks "
             f"{_count(len(questions), 'question')} about the values left null. "
             f"{''.join(s + ' ' for s in withheld)}{_how_suggested(suggested)}"
+            f"{_spaced(cited.sentence)}"
             f"{shared_answers.how_offered(questions)}"
         )
         current = asked.current_version
         if current is not None:
             statement += f" It replaces version {current.version_ref.version} of the document."
 
+        try:
+            text = standard.write(record, draft.media_type)
+        except RecordError as exc:
+            return scope.unwritable(draft.definition.name, requirements, exc)
         ref = input_ref(ctx)
         return AgentResult(
             outcome=Outcome(status=OutcomeStatus.SUCCEEDED, statement=f"{statement} {LIMITATIONS}"),
@@ -231,15 +196,15 @@ class MetadataLibrarian:
                 document_kind=DocumentKind.METADATA_RECORD,
                 document_title=(current.document_title if current else None)
                 or f"Metadata record for {requirements.repository_name}",
-                media_type=MEDIA_TYPE,
+                media_type=draft.media_type,
                 conforms_to=requirements.conforms_to,
-                document_text=json.dumps(record, ensure_ascii=False, indent=2) + "\n",
+                document_text=text,
                 document_derivation=Derivation.TEMPLATE,
                 revises=current.version_ref if current else None,
                 document_questions=questions,
-                grounded_on=[ref],
+                grounded_on=[ref, *(r.ref() for r in cited.records)],
             ),
-            evidence=[input_evidence(ctx)],
+            evidence=[input_evidence(ctx), *(r.evidence() for r in cited.records)],
             model_id=suggested.model_id,
             input_tokens=suggested.usage.input_tokens,
             output_tokens=suggested.usage.output_tokens,
@@ -247,180 +212,154 @@ class MetadataLibrarian:
             prompts=dict(suggested.calls.prompts) if suggested.calls else {},
         )
 
-    def _ask(
-        self, open_gaps: Sequence[Gap], asked: DraftRequest
-    ) -> tuple[list[tuple[Gap, DocumentQuestion]], list[str]]:
-        """The question asked about each open gap, and a sentence for each value left null and
-        not asked about because a person decided it is withheld. A value the rule table asks
-        `publish` about is asked for only once a person decided it may be published
-        (`location.py`)."""
-        prompts = {prop: form.ask for prop, form in self.form.items()}
-        requirements = asked.requirements
-        if requirements is not None and requirements.licences:
-            # The researcher chooses among the licences the repository accepts, and learns of a
-            # clash with a journal's or funder's licence before validation refuses the record.
-            prompts[LICENCE_PROPERTY] = (
-                f"{prompts.get(LICENCE_PROPERTY) or 'Under what licence is the dataset shared?'} "
-                f"{requirements.repository_name} accepts: {', '.join(requirements.licences)}."
-            )
-        prompts[chosen.SUBJECTS] = chosen.subjects_prompt(
-            prompts.get(chosen.SUBJECTS), asked.project_decisions
-        )
-        answers = answers_by_question(asked.draft_answers)
-        located = location.located_fields(asked.inventory)
-        by_project = location.decided(asked.project_decisions, located)
-        pairs: list[tuple[Gap, DocumentQuestion]] = []
-        withheld: dict[str, None] = {}
-        for gap in open_gaps:
-            form = self.form.get(gap.prop, Form())
-            publish = form.publish
-            question = ask(gap, prompts).model_copy(update={"shared_field": form.shared_field(gap)})
-            if publish is None:
-                pairs.append((gap, question))
-                continue
-            decision = by_project or location.answered(answers.get(location.asks_first(gap)))
-            if decision is None:
-                first = DocumentQuestion(
-                    question_id=location.asks_first(gap),
-                    question_prompt=location.first_question(located, publish),
-                    gap_property=location.entry_path(gap),
-                )
-                pairs.append((gap, first))
-            elif decision.withheld:
-                withheld[location.withheld_sentence(decision)] = None
-            else:
-                prompt = location.second_question(decision, question.question_prompt)
-                pairs.append((gap, question.model_copy(update={"question_prompt": prompt})))
-        return pairs, list(withheld)
-
     def _questions(
         self,
+        draft: Drafting,
         pairs: Sequence[tuple[Gap, DocumentQuestion]],
         facts: Mapping[str, Any],
         ctx: RunContext,
-    ) -> tuple[list[DocumentQuestion], Suggestions]:
+    ) -> tuple[list[DocumentQuestion], Suggestions, _Categories]:
         """The questions, with the suggester's value where it offered one. The suggester is
         given the facts the record is drafted from and the questions on properties the rule
         table lets it suggest, never an answer or an earlier version (docs/specs/drafting.md,
-        invariant 7)."""
+        invariant 7). An entry from a named classification is suggested only from the fields the
+        gateway returned, and offered as the label of the field's own record, which it cites
+        (`categories.py`)."""
         questions = [q for _, q in pairs]
-        asks = [
-            Ask(q.question_id, gap.path, gap.prop, q.question_prompt, gap.qualifier)
+        suggestable = [
+            (gap, q)
             for gap, q in pairs
-            if self.form.get(gap.prop, Form()).suggest
-            and not gap.names_a_vocabulary
-            and q.suggested_answer is None
+            if draft.form_of(gap.prop).suggest and q.suggested_answer is None
+        ]
+        named = [gap.vocabulary for gap, _ in suggestable if gap.vocabulary]
+        offered = (
+            categories.offer(ctx, named)
+            if named and self.suggester.model_id is not None
+            else categories.Offered()
+        )
+        asks = [
+            Ask(
+                q.question_id,
+                gap.path,
+                gap.prop,
+                q.question_prompt,
+                gap.qualifier,
+                offered.choices.get(gap.vocabulary or "", ()),
+            )
+            for gap, q in suggestable
+            if not gap.names_a_vocabulary or gap.vocabulary in offered.choices
         ]
         suggested = self.suggester.suggest(facts, asks, ctx) if asks else Suggestions()
-        return [
-            q.model_copy(
-                update={"suggested_answer": value, "suggestion_derivation": Derivation.MODEL}
+        vocabulary = {q.question_id: gap.vocabulary for gap, q in suggestable}
+        chosen = {
+            a.question_id: (str(vocabulary[a.question_id]), suggested.answers[a.question_id])
+            for a in asks
+            if a.choices and a.question_id in suggested.answers
+        }
+        cited = categories.cite(ctx, chosen)
+        answers = {
+            **{q: v for q, v in suggested.answers.items() if q not in chosen},
+            **cited.labels,
+        }
+        suggested = replace(
+            suggested, answers=answers, dropped=(*suggested.dropped, *cited.dropped)
+        )
+        return (
+            [
+                q.model_copy(
+                    update={"suggested_answer": value, "suggestion_derivation": Derivation.MODEL}
+                )
+                if (value := answers.get(q.question_id))
+                else q
+                for q in questions
+            ],
+            suggested,
+            _Categories(cited.records, categories.sentence(offered, cited)),
+        )
+
+
+def _ask(
+    draft: Drafting, open_gaps: Sequence[Gap], asked: DraftRequest
+) -> tuple[list[tuple[Gap, DocumentQuestion]], list[str]]:
+    """The question asked about each open gap, and a sentence for each value left null and
+    not asked about because a person decided it is withheld. A value the rule table asks
+    `publish` about is asked for only once a person decided it may be published
+    (`location.py`)."""
+    prompts = {prop: form.ask for prop, form in draft.form.items()}
+    requirements = asked.requirements
+    licence = draft.path_for(LICENCE)
+    if licence is not None and requirements is not None and requirements.licences:
+        # The researcher chooses among the licences the repository accepts, and learns of a
+        # clash with a journal's or funder's licence before validation refuses the record.
+        prompts[licence] = (
+            f"{prompts.get(licence) or 'Under what licence is the dataset shared?'} "
+            f"{requirements.repository_name} accepts: {', '.join(requirements.licences)}."
+        )
+    keywords = draft.path_for(KEYWORDS)
+    if keywords is not None:
+        prompts[keywords] = chosen.subjects_prompt(prompts.get(keywords), asked.project_decisions)
+    answers = answers_by_question(asked.draft_answers)
+    located = location.located_fields(asked.inventory)
+    by_project = location.decided(asked.project_decisions, located)
+    pairs: list[tuple[Gap, DocumentQuestion]] = []
+    withheld: dict[str, None] = {}
+    for gap in open_gaps:
+        publish = draft.form_of(gap.prop).publish
+        question = ask(gap, prompts).model_copy(update={"shared_field": draft.shared_field(gap)})
+        if publish is None:
+            pairs.append((gap, question))
+            continue
+        decision = by_project or location.answered(answers.get(location.asks_first(gap)))
+        if decision is None:
+            first = DocumentQuestion(
+                question_id=location.asks_first(gap),
+                question_prompt=location.first_question(located, publish),
+                gap_property=location.entry_path(gap),
             )
-            if (value := suggested.answers.get(q.question_id))
-            else q
-            for q in questions
-        ], suggested
-
-    def _record(
-        self, requirements: RepositoryRequirements, inventory: FileInventory | None
-    ) -> tuple[dict[str, Any], list[str]]:
-        """The record, and the properties the mock filled."""
-        record: dict[str, Any] = {}
-        filled: list[str] = []
-        for field in requirements.fields:
-            form = self.form.get(field.property, Form())
-            *parents, last = field.property.split(".")
-            node = record
-            for part in parents:
-                node = node.setdefault(part, {})
-            if form.filled is not None:
-                node[last] = form.filled
-                filled.append(field.property)
-            elif form.value is not None:
-                entry = {form.value: None, **(field.qualifier or {})}
-                node.setdefault(last, []).append(entry)
-            else:
-                node.setdefault(last, None)
-        if inventory is not None and inventory.inventory_files:
-            files = inventory.inventory_files
-            record["formats"] = sorted({f.file_media_type for f in files if f.file_media_type})
-            total = sum(f.file_size for f in files)
-            record["sizes"] = [f"{len(files)} files", f"{total} bytes"]
-            filled += ["formats", "sizes"] if record["formats"] else ["sizes"]
-            if not record["formats"]:
-                del record["formats"]
-        record["schemaVersion"] = requirements.conforms_to
-        return record, filled
+            pairs.append((gap, first))
+        elif decision.withheld:
+            withheld[location.withheld_sentence(decision)] = None
+        else:
+            prompt = location.second_question(decision, question.question_prompt)
+            pairs.append((gap, question.model_copy(update={"question_prompt": prompt})))
+    return pairs, list(withheld)
 
 
-def _from_researchers(record: dict[str, Any], researchers: list[ResearcherRecord]) -> list[str]:
-    """Fill the creators, subjects and funding references the repository asks for from what the
-    project's researchers kept of their ORCID records; returns the properties filled. A property
-    the record does not have, because the repository does not ask for it, is left out."""
+def _record(
+    draft: Drafting, requirements: RepositoryRequirements, inventory: FileInventory | None
+) -> tuple[dict[str, Any], list[str]]:
+    """The record's logical tree, with a gap (None) for every value left to give, and the
+    properties filled by rule."""
+    record: dict[str, Any] = {}
     filled: list[str] = []
-    if not researchers:
-        return filled
-    if "creators" in record:
-        record["creators"] = [_creator(r) for r in researchers]
-        filled.append("creators")
-    keywords = list(dict.fromkeys(k for r in researchers for k in r.keywords))
-    if "subjects" in record and keywords:
-        # The researchers' own words, after the entries the repository's vocabularies ask for.
-        asked = [s for s in record["subjects"] if s.get("subjectScheme")]
-        record["subjects"] = [*asked, *({"subject": k} for k in keywords)]
-        filled.append("subjects")
-    fundings = [f for r in researchers for f in r.fundings]
-    if "fundingReferences" in record and fundings:
-        record["fundingReferences"] = [_funding(f) for f in fundings]
-        filled.append("fundingReferences")
-    return filled
-
-
-def _creator(researcher: ResearcherRecord) -> dict[str, Any]:
-    """One researcher as a DataCite creator: their name, if they kept it (else null, for them to
-    write), their ORCID iD, and the employers they kept that they still work for."""
-    creator: dict[str, Any] = {
-        "name": researcher.researcher_name,
-        "nameType": "Personal",
-        "nameIdentifiers": [
-            {
-                "nameIdentifier": researcher.orcid_id,
-                "nameIdentifierScheme": "ORCID",
-                "schemeUri": "https://orcid.org",
-            }
-        ],
-    }
-    current = [
-        a
-        for a in researcher.affiliations
-        if a.affiliation_kind == AffiliationKind.EMPLOYMENT and a.end_year is None
-    ]
-    if current:
-        creator["affiliation"] = [_affiliation(a) for a in current]
-    return creator
-
-
-def _affiliation(affiliation: Affiliation) -> dict[str, Any]:
-    entry: dict[str, Any] = {"name": affiliation.organisation_name}
-    scheme = (affiliation.organisation_identifier_scheme or "").upper()
-    if affiliation.organisation_identifier:
-        entry["affiliationIdentifier"] = affiliation.organisation_identifier
-        entry["affiliationIdentifierScheme"] = affiliation.organisation_identifier_scheme
-        if scheme in SCHEME_URIS:
-            entry["schemeUri"] = SCHEME_URIS[scheme]
-    return entry
-
-
-def _funding(funding: ResearcherFunding) -> dict[str, Any]:
-    entry: dict[str, Any] = {"funderName": funding.funder_name}
-    if funding.funder_identifier:
-        entry["funderIdentifier"] = funding.funder_identifier
-        scheme = (funding.funder_identifier_scheme or "").upper()
-        entry["funderIdentifierType"] = FUNDER_SCHEMES.get(scheme, "Other")
-    if funding.award_identifier:
-        entry["awardNumber"] = funding.award_identifier
-    entry["awardTitle"] = funding.funding_title
-    return entry
+    for field in requirements.fields:
+        form = draft.form_of(field.property)
+        *parents, last = field.property.split(".")
+        node = record
+        for part in parents:
+            node = node.setdefault(part, {})
+        if form.filled is not None:
+            node[last] = form.filled
+            filled.append(field.property)
+        elif form.value is not None:
+            entry = {form.value: None, **(field.qualifier or {})}
+            node.setdefault(last, []).append(entry)
+        else:
+            node.setdefault(last, None)
+    formats, sizes = draft.path_for(FORMATS), draft.path_for(SIZES)
+    if inventory is not None and inventory.inventory_files:
+        files = inventory.inventory_files
+        types = sorted({f.file_media_type for f in files if f.file_media_type})
+        total = sum(f.file_size for f in files)
+        if formats is not None and types:
+            set_path(record, formats, types)
+            filled.append(formats)
+        if sizes is not None:
+            set_path(record, sizes, [f"{len(files)} files", f"{total} bytes"])
+            filled.append(sizes)
+    if (version := draft.path_for(SCHEMA_VERSION)) is not None:
+        set_path(record, version, requirements.conforms_to)
+    return record, filled
 
 
 def _offer(
@@ -467,6 +406,10 @@ def _facts(requirements: RepositoryRequirements, inventory: FileInventory | None
 
 def _count(n: int, noun: str) -> str:
     return f"{n} {noun}" if n == 1 else f"{n} {noun}s"
+
+
+def _spaced(sentence: str) -> str:
+    return f" {sentence}" if sentence else ""
 
 
 def _placed(n: int) -> str:

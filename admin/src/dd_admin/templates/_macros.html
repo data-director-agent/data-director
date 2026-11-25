@@ -67,3 +67,28 @@
   <td class="num">{{ line.input_tokens | number }}</td><td class="num">{{ line.output_tokens | number }}</td>
   {% if priced %}<td class="num">{% if line.unpriced_tokens and not line.cost %}<span class="muted">unpriced</span>{% else %}{{ line.cost | money }}{% if line.unpriced_tokens %}<span class="muted">*</span>{% endif %}{% endif %}</td>{% endif %}
 {%- endmacro %}
+
+{% macro case_download(scope, ident, journal) -%}
+<section class="panel" aria-labelledby="case-heading">
+  <h2 id="case-heading">Case for debugging</h2>
+  <p>Everything recorded about this {{ scope }}, as a zip a developer can check with <code>dd-harness case verify</code> and open with any reader of the stores (<code>docs/specs/casefile.md</code>). It holds research content and personal data: hand it over privately, and name only its scope, identifier and <code>case.json</code> digest in a public issue. Downloading it is recorded as a security event.</p>
+  <form class="filters case-form" method="get" action="/case/{{ scope }}/{{ ident }}">
+    <label><input type="checkbox" name="content" value="named"> Name content by digest, for a case that must leave the institution</label>
+    {% if journal %}<label><input type="checkbox" name="journal" value="1"> Include the journal lines that name it</label>{% endif %}
+    <button type="submit">Download case</button>
+  </form>
+</section>
+{%- endmacro %}
+
+{% macro budget_cell(a) -%}
+  {% set b = a.budget %}
+  {{ a.spend | money }}{% if a.max_budget is not none %} of {{ a.max_budget | money }} <span class="pill {{ {'good': 's-succeeded', 'warn': 's-abstained', 'over': 's-failed'}[b.state] or '' }}">{{ b.share | percent }}</span>{% else %} <span class="muted">no budget</span>{% endif %}{% if a.period %}<br><span class="muted">per {{ a.period }}{% if a.resets %}, resets {{ a.resets | when }}{% endif %}</span>{% endif %}
+{%- endmacro %}
+
+{% macro limits_cell(a) -%}
+  {% if a.rpm or a.tpm %}{% if a.rpm %}{{ a.rpm | number }} requests/min{% endif %}{% if a.rpm and a.tpm %}<br>{% endif %}{% if a.tpm %}{{ a.tpm | number }} tokens/min{% endif %}{% else %}<span class="muted">none</span>{% endif %}
+{%- endmacro %}
+
+{% macro models_cell(models) -%}
+  {% if models %}<span class="mono">{{ models | join(", ") }}</span>{% else %}<span class="muted">all</span>{% endif %}
+{%- endmacro %}

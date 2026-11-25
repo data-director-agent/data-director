@@ -1,6 +1,59 @@
 {
    "$comment": "Generated from dmp.yaml by `uv run dd-gen-schema <path to dmp.yaml>`. Do not edit.",
    "$defs": {
+      "ApprovedPlan": {
+         "additionalProperties": false,
+         "description": "The data management plan written in the project as a person approved it: the version named by the last approval of a dmp document in the project (docs/specs/projects.md). It is the project's own document, not one a researcher attached, so no data_management_plan fact names it.",
+         "properties": {
+            "version_ref": {
+               "$ref": "#/$defs/DocumentVersionRef",
+               "description": "The version, by its document and number."
+            },
+            "document_title": {
+               "description": "A short name a person can tell documents apart by, such as README for raw/.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "media_type": {
+               "description": "The media type of document_text, such as text/markdown or application/json.",
+               "type": "string"
+            },
+            "document_text": {
+               "description": "The content of the document, as text; a structured record is serialised.",
+               "type": "string"
+            }
+         },
+         "required": [
+            "version_ref",
+            "media_type",
+            "document_text"
+         ],
+         "title": "ApprovedPlan",
+         "type": "object"
+      },
+      "DocumentVersionRef": {
+         "additionalProperties": false,
+         "description": "One version of a project document: the document the conductor minted an identifier for, and the version's number within it, counted from 1.",
+         "properties": {
+            "document_id": {
+               "description": "The identifier the conductor minted for the document, a UUIDv7.",
+               "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+               "type": "string"
+            },
+            "version": {
+               "description": "The number of a version within its document, counted from 1.",
+               "type": "integer"
+            }
+         },
+         "required": [
+            "document_id",
+            "version"
+         ],
+         "title": "DocumentVersionRef",
+         "type": "object"
+      },
       "FactKind": {
          "description": "What a project fact is about (docs/specs/projects.md).",
          "enum": [
@@ -11,7 +64,11 @@
             "licence",
             "sharing_commitment",
             "standard",
-            "data_management_plan"
+            "data_management_plan",
+            "data_description",
+            "project_summary",
+            "field_of_study",
+            "project_period"
          ],
          "title": "FactKind",
          "type": "string"
@@ -265,9 +322,105 @@
                      "fact_subject"
                   ]
                }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "data_description"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "data_collected": {},
+                     "fact_subject": {
+                        "const": "project"
+                     }
+                  },
+                  "required": [
+                     "data_collected",
+                     "fact_subject"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "project_summary"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "fact_subject": {
+                        "const": "project"
+                     },
+                     "summary_text": {}
+                  },
+                  "required": [
+                     "summary_text",
+                     "fact_subject"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "field_of_study"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "fact_subject": {
+                        "const": "project"
+                     },
+                     "field_name": {}
+                  },
+                  "required": [
+                     "field_name",
+                     "fact_subject"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "project_period"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "fact_subject": {
+                        "const": "project"
+                     },
+                     "period_start": {}
+                  },
+                  "required": [
+                     "period_start",
+                     "fact_subject"
+                  ]
+               }
             }
          ],
-         "description": "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, an output a data management plan committed to share, a standard, vocabulary or format the researcher chose for the dataset, or which attached document is the project's data management plan (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because.",
+         "description": "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, an output a data management plan committed to share, a standard, vocabulary or format the researcher chose for the dataset, which attached document is the project's data management plan, or what data the project collects and how, or what the project is for, its field of study and when it runs (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because.",
          "properties": {
             "fact_kind": {
                "$ref": "#/$defs/FactKind",
@@ -466,6 +619,73 @@
                   "null"
                ]
             },
+            "data_collected": {
+               "description": "For a data description fact, what data the project collects, produces or reuses, and of which types, in the researcher's words.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "data_collection_method": {
+               "description": "For a data description fact, how the data are collected or produced, in the researcher's words.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "data_formats": {
+               "description": "For a data description fact, the file formats the data are kept in, in the researcher's words.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "data_volume": {
+               "description": "For a data description fact, how much data the project expects, in the researcher's words.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "data_reused": {
+               "description": "For a data description fact, which existing data the project reuses, and how, in the researcher's words.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "summary_text": {
+               "description": "For a project summary fact, what the project is for, in a few sentences: its aims and the questions it asks.",
+               "pattern": "\\S",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "field_name": {
+               "description": "For a field of study fact, the project's field, as the researcher names it or a subject classification gives it.",
+               "pattern": "\\S",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "period_start": {
+               "description": "When the project starts, as a year, a month or a day.",
+               "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "period_end": {
+               "description": "When the project ends, as a year, a month or a day.",
+               "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
             "proposed_because": {
                "description": "Why the agent proposes the fact, in a sentence for the person deciding. Kept with the proposal and shown to the person, never given to an agent.",
                "type": [
@@ -509,7 +729,7 @@
    "$id": "https://w3id.org/data-director/agents/dmp/DmpReviewRequest",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "A request to review the data management plan the researcher attached (setup.dmp-review): how well it answers the core requirements of a plan and meets good practice, and whether it reflects what people in the project decided. In a project the conductor gives the attached documents and the decided facts; outside one, the caller sends them.",
+   "description": "A request to review the project's data management plan (setup.dmp-review): how well it answers the core requirements of a plan and meets good practice, and whether it reflects what people in the project decided. The plan is the attached document a person marked as the plan, else the plan written in the project as a person approved it last, else the latest document attached. In a project the conductor gives the attached documents, the approved plan and the decided facts; outside one, the caller sends them.",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -537,6 +757,17 @@
             "array",
             "null"
          ]
+      },
+      "project_plan_approved": {
+         "anyOf": [
+            {
+               "$ref": "#/$defs/ApprovedPlan"
+            },
+            {
+               "type": "null"
+            }
+         ],
+         "description": "The version of the project's data management plan (a dmp document) a person approved last. In a project the conductor fills it and a caller leaves it out. Absent when no version has been approved."
       }
    },
    "required": [

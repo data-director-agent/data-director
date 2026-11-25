@@ -106,16 +106,34 @@ TODO(#394, #200).
    `recommended` to `required` and label it; lowering one is refused on load. Documents are the
    union of both sets, and a kind either requires is required. Media types, sizes and licences
    come from the override alone (`harness/tests/test_requirements.py`). Two fields of a set, or of
-   an override merged on its standard, never share a schema.org term, since a record's values are
-   checked under their field's term and one field's value would pass for the other's; such sets
-   are refused on load.
-5. **A choice resolves deterministically.** The override is the one for the repository's
-   identifier. The standard is the one the override names, because a steward who wrote the
-   override knows the repository better than its registry record (re3data lists only Dublin Core
-   for ORDA, which registers DataCite DOIs); without an override, a set matching a standard the
-   repository declares; else DataCite's, with a warning. A repository without an override gets a
-   warning that its own form, formats, sizes and licences are not checked
-   (`harness/tests/test_requirements.py`, `app/tests/test_repositories.py`).
+   an override merged on its standard, never share a term, compared as its full IRI, since a
+   record's values are checked under their field's term and one field's value would pass for the
+   other's; such sets are refused on load.
+5. **A choice resolves deterministically, and says why.** The override is the one for the
+   repository's identifier. The standard is, in order (`dd_harness.standard_choice`):
+   - the one the override names, because a steward who wrote the override knows the repository
+     better than its registry record (re3data lists only Dublin Core for ORDA, which registers
+     DataCite DOIs): reason `override`. A person's choice of another standard is refused, since
+     the override's fields, labels and licences are written for its own;
+   - the one a person on the project chose (`PUT /api/projects/{id}/repository/standard`), which
+     is recorded as a new choice of the repository, so the last choice still counts and choosing
+     the repository again goes back to this rule: reason `chosen`;
+   - the one standard the repository declares that the deployment has a set for: `declared`;
+   - of several it declares, the first in the deployment's order of preference,
+     `standard_preference.yaml` beside the sets, which names every standard's set once (DataCite's
+     first, then the others by identifier, without it), with a warning naming the others:
+     `declared_several`;
+   - else DataCite's, with a warning that it was assumed: `fallback`.
+
+   A repository without an override gets a warning that its own form, formats, sizes and
+   licences are not checked. The Repository tab shows the standard and its reason, marks a
+   fallback as assumed, and offers a person on the project the deployment's other standards
+   unless an override names it (`harness/tests/test_standard_choice.py`,
+   `harness/tests/test_requirements.py`, `app/tests/test_repositories.py`,
+   `app/tests/test_standard_route.py`). One project has one chosen repository at a time; drafting
+   the approved record converted to another standard is a package derived from it, kept and
+   downloaded but not deposited ([Metadata standards](metadata-standards.md), *Converting a
+   record*).
 6. **A choice records exactly what it resolved to.** The project log names the repository by its
    `repository_id`, and its `re3data_id` where it has one (a choice recorded before there was a
    `repository_id` gives it from its `re3data_id`, as does a merged set kept then), and the
@@ -124,7 +142,9 @@ TODO(#394, #200).
    pinned) and its content hash under `dd-json-document-v1`, the hash
    evidence citing that record carries ([Grounding](grounding.md)). It names each set used by
    `<requirement_set_id>@v<version>` and the SHA-256 of its file, keeps the merged set by its
-   digest, and records the warnings. The last choice counts (`harness/tests/test_projects.py`).
+   digest, and records the warnings. It names the standard's definition, its set's title and the
+   reason the choice resolved to it; for a person's choice, the event's actor is who chose it, and
+   its time when. The last choice counts (`harness/tests/test_projects.py`).
    A set's version is raised on every change; nothing checks this.
 7. **The drafter and validation read the same merged set**, the one recorded for the choice.
    Validation reads it (`dd_harness.deposit`); giving it to the drafter is TODO(#394).
@@ -215,8 +235,8 @@ test the rest.
 
 **The class.** `RequirementSet` is a core contract class ([Contract](contract.md)) so that the
 harness, a drafter and `advisor.repository` read one description without knowing one another. Each
-field names a property of the standard's schema, optionally qualified, the schema.org term it maps
-to, its obligation and, in `supplied_on`, the page of the project where a researcher supplies its
+field names a property of the standard's schema, optionally qualified, the `term` it maps to, its
+obligation and, in `supplied_on`, the page of the project where a researcher supplies its
 value: `documents` (the metadata record's questions, the default), `researchers`, `facts` or
 `repository`. Properties the repository fills itself, such as the identifier, the publisher and the
 publication year, are not fields; those the schema makes mandatory and the researcher might look
@@ -230,12 +250,12 @@ carries both sets' items. What ORDA's public pages leave open is TODO(#385).
 **The metadata record follows the merged set's standard.** The drafter writes a `Document` of kind
 `metadata_record` in the standard the merged set's `conforms_to` names, in a serialisation that
 standard defines, with `media_type` set to it ([Metadata standards](metadata-standards.md)). DataCite
-in its JSON form is the only standard built, and it is the default: it is the schema ORDA's DOIs are
+in its JSON form and Dublin Core as OAI-DC XML are built, and DataCite is the default: it is the schema ORDA's DOIs are
 registered in, and a DataCite record serves any repository that mints DataCite DOIs. An override's
 form labels tell a person depositing by hand where each value goes, and its `url`, carried in the
 merged set as `repository_url`, where to deposit; a standard's `url` describes the standard and is
-not carried. A set for another standard, such as Dublin Core, ISO 19115 or DDI, needs a set and a
-definition of the standard, not a drafter of its own, TODO(#1360, #1361, #401).
+not carried. A set for another standard, such as ISO 19115 or DDI, needs a set and a definition of
+the standard, not a drafter of its own, TODO(#1361, #401).
 
 **Validation** checks, against the merged set:
 
@@ -266,10 +286,17 @@ are not checked, and the one violation for the record names `documents`. The app
 to that page.
 
 The record is read as RDF, the same reading the package uses, through the pivot of
-[Metadata standards](metadata-standards.md): the standard's definition maps each of its properties
-to a term. Today the set's own field table does this, for DataCite alone, TODO(#1357, #1358). A
-field's property, and its qualifier when it has one, select the record's entries; each entry's value
-becomes a value of the field's term. SHACL shapes
+[Metadata standards](metadata-standards.md): the record is first refused unless a registered
+standard's definition covers its `conforms_to` and `media_type`, and is then read with that
+definition, which maps each of the standard's properties to a term. A field may leave out its
+`term`, and is read under the one the definition gives its property and qualifier; a field that
+names its term does so as a CURIE of a registered prefix (`schema:`, `dcterms:`, `dcat:` or
+`prov:`), such as `dcterms:provenance` for a lineage, or as the full IRI, and a set whose field
+names a term other than the definition's is refused on load. A set kept before terms were IRIs,
+which names a schema.org local name in `schema_org`, is read as `schema:` with a warning. A
+field's property, and its qualifier when it has one, select the record's entries, the definition
+saying which key holds each entry's value; each entry's value becomes a value of the field's
+term. SHACL shapes
 are generated from the fields, one `sh:minCount 1` property shape per field, with the severity
 its obligation gives and a message naming the field by its form label. pySHACL runs them. The
 other checks write their results in the same `sh:` vocabulary, which is the fixed validation
@@ -286,7 +313,8 @@ holds the approved metadata record, the other approved documents (each document'
 version), the inventory, the merged set it was validated against, the validation report, the
 project log, and the Process Run Crate of each run behind an approved version
 ([Contract](contract.md)). The root dataset's properties come from the approved metadata record
-through the DataCite to schema.org mapping. Each approved document is under `documents/`, an
+read through its standard's definition: each field's values under its term, and the pivot's name,
+description, keywords, creation date, type and creators where the set has no field for them. Each approved document is under `documents/`, an
 entity that names its version and conforms to the document's standard. The run that drafted it
 or the person who edited it is a `CreateAction` with the version as its result. The decision that
 approved it is an `AssessAction`, with the person who made it, when, and their reason. Each run
@@ -401,7 +429,7 @@ as `derived_from`. What stays fixed across formats, and how each format carries 
 | a platform's item (`figshare-item`, `zenodo-deposit`, `dataverse-dataset`) | `application/json` | the platform's API, as far as its mapping's tests show | travels with the RO-Crate package, sent as one file of the draft | `zenodo-deposit` built; others TODO(#383, #857) |
 | `deposit-sheet` | decided with TODO(#644) | no machine format; it is read by a person | names the RO-Crate package and the report by digest; the person uploads the package with it | TODO(#644) |
 
-A rendered platform item is a package like any other: derived from the approved DataCite record,
+A rendered platform item is a package like any other: derived from the approved metadata record,
 never edited and never a document, and kept by its digest, so that an approval names exactly the
 bytes that are sent.
 
@@ -459,17 +487,18 @@ and in the kind's mapping, never in code for that installation, TODO(#854, #856)
 above does not allow, or a `deposit` block in a standard's set, stops start-up (invariant 2). The
 deployment's Zenodo override deposits to the sandbox; moving to Zenodo itself is TODO(#648).
 
-**Each API kind renders the approved DataCite record.** The kind's mapping turns the record into
-the item metadata its API takes, through the same field table validation reads: one mapping for
-Figshare items, one for Zenodo deposits, one for Dataverse's citation block. The DataCite record
-stays the record of truth. The mapping is the platform item's packager: a rendered item is
+**Each API kind renders the approved metadata record.** The kind's mapping turns the record, read
+as the pivot of its standard's definition ([Metadata standards](metadata-standards.md)), into the
+item metadata its API takes: one mapping for Figshare items, one for Zenodo deposits, one for
+Dataverse's citation block. The record stays the record of truth. The mapping is the platform item's packager: a rendered item is
 derived from the record, never edited and never stored as a document, and is kept by its digest
 as a package `derived_from` the RO-Crate package (*Packagers and transports*), so the approval
-names exactly what is sent. A value the API requires that DataCite cannot supply, such as
+names exactly what is sent. A value the API requires that the record's standard cannot supply, such as
 Dataverse's
 contact email or subject, is a field of the repository's requirements, so validation asks for it
-before the package is built (TODO(#855)). A record value the mapping cannot place is reported on
-the outcome, not dropped silently. What a mapping does with an unmapped field, and with a licence
+before the package is built (TODO(#855)). A record value the mapping cannot place, under a term or
+under none, is reported on the outcome by its property's path in the record's standard, not
+dropped silently. What a mapping does with an unmapped field, and with a licence
 the API does not list, is decided once for every kind, TODO(#648, #855).
 
 **What is sent.** The rendered metadata, and the package's zip as one file of the draft, so the

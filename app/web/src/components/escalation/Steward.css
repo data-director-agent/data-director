@@ -1,0 +1,86 @@
+/* A data steward's queue (StewardQueuePage.tsx), their projects (StewardProjectsPage.tsx) and the steward's view of a project
+   (StewardView.tsx): the banner that says whose project it is, the requests from it, and the
+   steward's steps. */
+
+@layer components {
+  .steward-view {
+    margin-bottom: var(--space-4);
+  }
+
+  .steward-banner h2 {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin: 0 0 var(--space-1);
+    font-size: var(--font-size-body);
+  }
+
+  .steward-banner p {
+    margin: 0;
+  }
+
+  .steward-requests,
+  .steward-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+
+  .steward-requests > li {
+    flex: 1 1 20rem;
+  }
+
+  .steward-history {
+    margin: var(--space-1) 0;
+    padding-inline-start: var(--space-4);
+    font-size: var(--font-size-small);
+  }
+
+  .escalation-move-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    margin: var(--space-1) 0 0;
+  }
+
+  .steward-queue-filter {
+    max-width: 20rem;
+    margin-bottom: var(--space-3);
+  }
+
+  .steward-nav ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin: 0 0 var(--space-3);
+  }
+
+  .steward-nav a[aria-current="page"] {
+    font-weight: var(--font-weight-strong);
+    text-decoration: none;
+  }
+
+  .steward-runs > li + li {
+    margin-top: var(--space-1);
+  }
+
+  .steward-queue th,
+  .steward-queue td {
+    vertical-align: top;
+    text-align: start;
+  }
+
+  /* Six columns of short text: below this the table scrolls in its region (ui/TableScroll). */
+  .steward-projects {
+    min-width: 48rem;
+  }
+
+  .steward-projects thead th {
+    white-space: nowrap;
+  }
+
+  .steward-projects p {
+    margin: 0;
+  }
+}

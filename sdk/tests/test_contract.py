@@ -70,6 +70,7 @@ from dd_sdk.contract.models import (
     to_document,
     tool_source_id,
 )
+from dd_sdk.contract.requirements import expand_term
 from dd_sdk.contract.version import CONTRACT_VERSION
 from dd_sdk.evidence import (
     CANONICALISATIONS,
@@ -113,9 +114,15 @@ def test_a_class_schema_is_closed_self_contained_and_says_it_is_generated() -> N
     assert set(schema["$defs"]) == {
         "ChoiceOption",
         "Derivation",
+        "FactKind",
+        "FileDecision",
         "GroundingRef",
+        "LocationPrecision",
+        "ProjectFact",
         "Question",
         "QuestionKind",
+        "SensitivityDecision",
+        "StandardKind",
     }
     assert schema["properties"]["schema_class"]["enum"] == ["Reply"]
     assert {"schema_class", "grounded_on"} <= set(schema["required"])
@@ -135,7 +142,7 @@ def test_generated_properties_keep_the_linkml_slot_order() -> None:
     assert list(schema["properties"]) == slot_order("Envelope")
     reply = json.loads((SCHEMA / "generated" / "Reply.schema.json").read_text(encoding="utf-8"))
     assert list(reply["properties"]) == slot_order("Reply")
-    assert classes["Reply"]["mixins"] and list(reply["properties"])[-1] == "grounded_on"
+    assert classes["Reply"]["mixins"] and list(reply["properties"])[-1] == "proposed_facts"
 
 
 def test_the_core_input_and_payload_are_open_but_name_their_class() -> None:
@@ -1061,7 +1068,7 @@ def test_a_requirement_set_is_a_standard_or_one_repositorys_override() -> None:
             RequirementField(
                 property="subjects",
                 qualifier={"subjectScheme": "ANZSRC Fields of Research"},
-                schema_org="about",
+                term="schema:about",
                 obligation=Obligation.REQUIRED,
                 form_label="Categories",
             )
@@ -1077,6 +1084,50 @@ def test_a_requirement_set_is_a_standard_or_one_repositorys_override() -> None:
         RequirementSet(
             requirement_set_id="orda", version=1, title="x", conforms_to="x", re3data_id="orda"
         )
+
+
+@pytest.mark.parametrize(
+    ("term", "iri"),
+    [
+        ("schema:name", "http://schema.org/name"),
+        ("dcterms:provenance", "http://purl.org/dc/terms/provenance"),
+        ("dcat:keyword", "http://www.w3.org/ns/dcat#keyword"),
+        ("prov:wasDerivedFrom", "http://www.w3.org/ns/prov#wasDerivedFrom"),
+        ("http://purl.org/dc/terms/provenance", "http://purl.org/dc/terms/provenance"),
+    ],
+)
+def test_a_requirement_fields_term_is_a_curie_or_iri_of_a_registered_vocabulary(
+    term: str, iri: str
+) -> None:
+    """A field names its term by CURIE or IRI, and the term the contract's schema and its mirror
+    accept is the one `expand_term` reads (docs/specs/metadata-standards.md, invariant 7)."""
+    field = RequirementField(property="titles", term=term, obligation=Obligation.REQUIRED)
+    assert expand_term(field.term) == iri
+    document = {"fields": [field.model_dump(mode="json", exclude_none=True)]}
+    schema = ClassSchema.of(RequirementSet)
+    base = {
+        "schema_class": "RequirementSet",
+        "requirement_set_id": "datacite-4",
+        "version": 1,
+        "title": "DataCite",
+        "conforms_to": "http://datacite.org/schema/kernel-4",
+    }
+    assert schema.errors({**base, **document}) == []
+
+
+@pytest.mark.parametrize("term", ["name", "foaf:name", "dd:lineage", "https://example.org/x"])
+def test_a_term_of_no_registered_vocabulary_is_refused(term: str) -> None:
+    with pytest.raises(ValueError):
+        RequirementField(property="titles", term=term, obligation=Obligation.REQUIRED)
+
+
+def test_a_field_kept_with_a_schema_org_name_reads_as_its_schema_term() -> None:
+    """A field recorded before terms were IRIs, in a project log, a blob or a request (#1357)."""
+    field = RequirementField.model_validate(
+        {"property": "titles", "schema_org": "name", "obligation": "required"}
+    )
+    assert field.term == "schema:name"
+    assert "schema_org" not in field.model_dump()
 
 
 def test_a_draft_request_is_the_core_input_of_every_drafter() -> None:
@@ -1104,7 +1155,7 @@ def test_a_draft_request_is_the_core_input_of_every_drafter() -> None:
             requirement_sets=[RequirementSetUse(ref="datacite-4@v1", sha256="0" * 64)],
             fields=[
                 RequirementField(
-                    property="titles", schema_org="name", obligation=Obligation.REQUIRED
+                    property="titles", term="schema:name", obligation=Obligation.REQUIRED
                 )
             ],
             required_documents=[DocumentKind.METADATA_RECORD],

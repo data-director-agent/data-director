@@ -204,7 +204,7 @@ class Lifecycle(ProjectRules):
             "created_at": created["at"],
             "created_by": created["acted_for"],
             "inventory": _inventory_summary(events),
-            "repository": _repository_summary(events),
+            "repository": repository_summary(events),
             "conversation_count": _conversation_count(events),
             "documents": states,
             "progress": flow.describe(events, self.serving()),
@@ -229,7 +229,7 @@ def _inventory_summary(events: list[dict[str, Any]]) -> dict[str, Any] | None:
     }
 
 
-def _repository_summary(events: list[dict[str, Any]]) -> dict[str, Any] | None:
+def repository_summary(events: list[dict[str, Any]]) -> dict[str, Any] | None:
     """What a summary shows of the repository chosen last, or None."""
     repository = next((e for e in reversed(events) if e["event"] == REPOSITORY_CHOSEN), None)
     if repository is None:
@@ -242,4 +242,15 @@ def _repository_summary(events: list[dict[str, Any]]) -> dict[str, Any] | None:
         "repository_name": repository["repository_name"],
         "warnings": repository["warnings"],
         "chosen_at": repository["at"],
+        "standard": standard_summary(repository),
     }
+
+
+def standard_summary(repository: dict[str, Any]) -> dict[str, Any] | None:
+    """The metadata standard of a choice, why it is that one, and, for one a person chose, who
+    chose it; None for a choice recorded before the reason was."""
+    standard = repository.get("standard") or {}
+    if "reason" not in standard:
+        return None
+    chosen_by = repository["acted_for"].get("name") if standard["reason"] == "chosen" else None
+    return {"title": standard["title"], "reason": standard["reason"], "chosen_by": chosen_by}

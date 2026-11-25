@@ -50,6 +50,10 @@ GROUNDING = "grounding.txt"  # the grounding linter's summary
 SOURCES = "sources.txt"  # the source check's summary
 VALIDATION = "validation-report.jsonld"  # the payload's SHACL Validation Report, if it has shapes
 CRATE = "crate"  # the Process Run Crate, one artifact per file under this prefix
+STAGES = "stages.jsonl"  # what the run's watchers were told, in order (dd_harness.observe)
+# The envelope as the agent's result made it, before a check or the project withheld it. Read only
+# by operator surfaces, never served to a researcher (docs/specs/storage.md, invariant 5).
+WITHHELD = "withheld.json"
 
 
 class RunStorage(Protocol):
@@ -271,9 +275,11 @@ class ProjectRepository(ProjectRecord, Protocol):
         requirements: Requirements,
         acted_for: Principal,
         caused_by: str,
+        standard: str | None = None,
     ) -> str:
-        """Record the repository chosen by its re3data or DataCite identifier; returns the
-        merged requirement set's digest."""
+        """Record the repository chosen by its re3data or DataCite identifier, and the
+        `conforms_to` of the standard a person chose for it, if any; returns the merged
+        requirement set's digest."""
         ...
 
     def requirements(self, project_id: str) -> dict[str, Any] | None:
@@ -370,6 +376,10 @@ class ProjectDocuments(ProjectRecord, Protocol):
     def metadata_record(self, project_id: str) -> dict[str, Any] | None:
         """The `metadata_record` version a person approved last, as an `ApprovedMetadataRecord`, or
         None."""
+        ...
+
+    def approved_plan(self, project_id: str) -> dict[str, Any] | None:
+        """The `dmp` version a person approved last, as an `ApprovedPlan`, or None."""
         ...
 
 

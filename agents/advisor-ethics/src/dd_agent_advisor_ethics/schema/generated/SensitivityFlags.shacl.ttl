@@ -21,13 +21,8 @@ ethics:SensitivityFlags a sh:NodeShape ;
             sh:description "The retrieved things this object rests on. For grounding mode retrieval, each entry names a retrieval span; for input_only and none, the single entry is the input itself (source_id input:<invocation_id>, content_hash the dd-input-json-v1 hash)." ;
             sh:minCount 1 ;
             sh:nodeKind sh:BlankNodeOrIRI ;
-            sh:order 5 ;
+            sh:order 6 ;
             sh:path <https://w3id.org/data-director/grounded_on> ],
-        [ sh:datatype xsd:string ;
-            sh:description "What a model returned that was not used, and why: a flag naming a field not in the input or a category not in the table, or a question too long to be one." ;
-            sh:nodeKind sh:Literal ;
-            sh:order 4 ;
-            sh:path ethics:dropped ],
         [ sh:datatype xsd:string ;
             sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
             sh:maxCount 1 ;
@@ -36,10 +31,20 @@ ethics:SensitivityFlags a sh:NodeShape ;
             sh:order 0 ;
             sh:path <https://w3id.org/data-director/schema_class> ],
         [ sh:datatype xsd:string ;
+            sh:description "What a model returned that was not used, and why: a flag naming a field not in the input or a category not in the table, or a question too long to be one." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path ethics:dropped ],
+        [ sh:datatype xsd:string ;
             sh:description "What this alpha does not yet do." ;
             sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path ethics:limitations ],
+        [ sh:class <https://w3id.org/data-director/PersonalDataFinding> ;
+            sh:description "Where the inventory command's personal data detector found what may be personal data, copied from the project's inventory as it is: never a value. Absent when no inventory was given or its detector did not run; empty when it ran and found nothing, which does not mean there is nothing." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 3 ;
-            sh:path ethics:limitations ] ;
+            sh:path ethics:inventory_findings ] ;
     sh:targetClass ethics:SensitivityFlags .
 
 <https://w3id.org/data-director/GroundingRef> a sh:NodeShape ;
@@ -61,29 +66,129 @@ ethics:SensitivityFlags a sh:NodeShape ;
             sh:path <https://w3id.org/data-director/source_id> ] ;
     sh:targetClass <https://w3id.org/data-director/GroundingRef> .
 
+<https://w3id.org/data-director/PersonalDataFinding> a sh:NodeShape ;
+    rdfs:comment "Where the inventory command found what may be personal data, and how sure it is (docs/specs/personal-data.md). It never holds a matched value, any part of one, an offset into a file, a row number or an example: a kind, a place, bands and the detector only. A finding is a prompt for a person, never a decision." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:description "How much was examined: the sampled, non-empty values of a column, or the characters of a text file. Absent for a name." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path <https://w3id.org/data-director/finding_examined> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The detector, its version and its configuration, such as the recognisers that ran, so that a reader knows what was looked for." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path <https://w3id.org/data-director/finding_detector> ],
+        [ sh:description "What the detector took the data to be." ;
+            sh:in ( "email address" "phone number" "NHS number" "National Insurance number" "postcode" "passport number" "driving licence number" "bank account number" "payment card number" "IP address" "person name" "direct identifier" "indirect identifier" "special category" "location" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/finding_kind> ],
+        [ sh:description "The share of a column's sampled, non-empty values that matched, as a band so that it cannot be turned back into a count. Present for a column only." ;
+            sh:in ( "under 1%" "1 to 10%" "10 to 50%" "over 50%" ) ;
+            sh:maxCount 1 ;
+            sh:order 4 ;
+            sh:path <https://w3id.org/data-director/finding_proportion> ],
+        [ sh:description "What part of the file was examined." ;
+            sh:in ( "column" "field name" "file name" "text" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 2 ;
+            sh:path <https://w3id.org/data-director/finding_target> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The path of the file the finding concerns, as file_path; or, for a folder's name, the folder's path followed by a slash." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/finding_file> ;
+            sh:pattern "^[^/]" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The table column the finding concerns, for a column or a field name." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <https://w3id.org/data-director/finding_column> ],
+        [ sh:description "How sure the detector is, as a band of its highest score." ;
+            sh:in ( "low" "medium" "high" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 5 ;
+            sh:path <https://w3id.org/data-director/finding_confidence> ] ;
+    sh:targetClass <https://w3id.org/data-director/PersonalDataFinding> .
+
+ethics:DataUseTerm a sh:NodeShape ;
+    rdfs:comment "A data use condition from the GA4GH Data Use Ontology (DUO), as a pinned DUO release defines it: a permission, such as general research use, or a modifier, such as ethics approval required. Named for the researcher to check consent against, never chosen for them." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "DUO's short code for the term, e.g. IRB, where it gives one." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path ethics:shorthand ],
+        [ sh:datatype xsd:string ;
+            sh:description "The DUO identifier, e.g. DUO:0000021." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path ethics:term_id ;
+            sh:pattern "^DUO:[0-9]{7}$" ],
+        [ sh:description "Whether the term is a data use permission or a modifier." ;
+            sh:in ( "permission" "modifier" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 3 ;
+            sh:path ethics:term_kind ],
+        [ sh:datatype xsd:string ;
+            sh:description "The term's label in the pinned DUO release." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path ethics:term_label ],
+        [ sh:description "The term's persistent IRI." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:IRI ;
+            sh:order 4 ;
+            sh:path ethics:term_iri ] ;
+    sh:targetClass ethics:DataUseTerm .
+
 ethics:SensitivityFlag a sh:NodeShape ;
     rdfs:comment "One field that may hold sensitive data, flagged by keyword (lexical) or by a model. A model may add a flag but never remove one the keywords raised." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
-            sh:description "The field name, as given." ;
+            sh:description "The field, file or folder name, as given." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path ethics:field ],
+        [ sh:description "How the value came about, lexical (the keyword table), template or model." ;
+            sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 5 ;
+            sh:path ethics:derivation ],
         [ sh:datatype xsd:string ;
             sh:description "The keyword in keywords.yaml that the field name matched. Present exactly when the flag is lexical." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
-            sh:order 2 ;
+            sh:order 3 ;
             sh:path ethics:matched ],
         [ sh:datatype xsd:string ;
-            sh:description "Why the model flagged the field, in a short phrase. Present exactly when the flag is from a model." ;
-            sh:maxCount 1 ;
+            sh:description "The inventory's files in which the name appears, as a table's field, a file's name or a folder in its path. Empty for a name only the caller gave." ;
             sh:nodeKind sh:Literal ;
-            sh:order 3 ;
-            sh:path ethics:reason ],
+            sh:order 2 ;
+            sh:path ethics:files ],
         [ sh:datatype xsd:string ;
             sh:description "The kind of sensitive data the name suggests, e.g. direct identifier." ;
             sh:maxCount 1 ;
@@ -91,16 +196,16 @@ ethics:SensitivityFlag a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 1 ;
             sh:path ethics:category ],
-        [ sh:description "How the value came about, lexical (the keyword table), template or model." ;
-            sh:in ( "template" "model" "lexical" "registry" "answer" ) ;
+        [ sh:datatype xsd:string ;
+            sh:description "Why the model flagged the field, in a short phrase. Present exactly when the flag is from a model." ;
             sh:maxCount 1 ;
-            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
             sh:order 4 ;
-            sh:path ethics:derivation ] ;
+            sh:path ethics:reason ] ;
     sh:targetClass ethics:SensitivityFlag .
 
 ethics:SensitivityQuestion a sh:NodeShape ;
-    rdfs:comment "One thing the researcher must answer or confirm before sharing, from the adviser's template or added by a model." ;
+    rdfs:comment "One thing the researcher must answer or confirm before sharing, from the adviser's template or added by a model. A question about consent names the data use conditions it asks about." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:description "How the value came about, lexical (the keyword table), template or model." ;
@@ -109,6 +214,11 @@ ethics:SensitivityQuestion a sh:NodeShape ;
             sh:minCount 1 ;
             sh:order 1 ;
             sh:path ethics:derivation ],
+        [ sh:class ethics:DataUseTerm ;
+            sh:description "The DUO conditions the question asks the researcher to check consent against, from the adviser's own list. Empty for a question that is not about consent." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 2 ;
+            sh:path ethics:data_use_terms ],
         [ sh:datatype xsd:string ;
             sh:description "The question, as put to the researcher." ;
             sh:maxCount 1 ;

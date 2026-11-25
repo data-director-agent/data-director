@@ -20,7 +20,7 @@ import type { DocumentsRead } from "../../project/drafted";
 import { Link, navigate } from "../../route";
 import type { Conversation } from "../../conversation/types";
 import { ContextPanel } from "../workspace/ContextPanel";
-import type { FlowLoad, TrackedProgress } from "../workspace/PhaseTracker";
+import type { FlowLoad, TrackedProgress } from "../workspace/flowLoad";
 import { Workspace } from "../workspace/Workspace";
 import { Button } from "../ui/Button";
 import { AttachDocumentButton } from "../project/AttachDocument";
@@ -203,7 +203,7 @@ export function NoConversation({
   projectId,
   project,
 }: {
-  frame: Pick<ComponentProps<typeof Workspace>, "project" | "phases">;
+  frame: Pick<ComponentProps<typeof Workspace>, "project">;
   why: string | null;
   projectId: string | null;
   project: ProjectSummary | null;

@@ -160,6 +160,8 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     an output. Its `fact_kind`
     (`FactKind`) says which value slots it must hold, and its `fact_subject` is the key the last
     decision counts by; `proposed_because` says, for the person deciding, why it was proposed.
+    The harness and the app never give it to an agent; a person may quote it in a message of
+    their own.
     An agent's payload class proposes facts by mixing in `ProposesFacts` (`proposed_facts`), so
     the harness reads them without knowing the class. A `DraftRequest` and a `Message` may carry
     `project_decisions`, the facts a person decided, which only the conductor fills in a project
@@ -255,6 +257,20 @@ that carries an agent's schemas is in [Transport and tracing](transport.md) and
     agent is not run ([Data stewards](stewardship.md), invariant 8;
     `harness/tests/test_steward_interventions.py`). Adding it raised the contract version to
     0.26.0.
+38. A `ProjectFact` may be a `data_description`: what data the project collects, produces or
+    reuses (`data_collected`, required), how (`data_collection_method`), which existing data
+    (`data_reused`), in which formats (`data_formats`) and in what volume (`data_volume`), each in
+    the researcher's own words. Its subject is always `project`, so a project has one current
+    description. A `Reply` mixes in `ProposesFacts`, so that an orchestrator may propose one from
+    what the researcher said, for a person to confirm ([Projects](projects.md), invariant 28;
+    [Orchestration](orchestration.md), invariant 8; #160; `sdk/tests/test_fact_kinds.py`). Adding
+    them raised the contract version to 0.27.0.
+39. A `RequirementField` names the term it is read under in `term`, a CURIE of a registered
+    prefix (`schema:`, `dcterms:`, `dcat:` or `prov:`) or the full IRI of a term in one of those
+    vocabularies, in place of a schema.org local name in `schema_org`. A field kept with
+    `schema_org: X`, in a project log, a blob or a request, reads as `schema:X`
+    ([Metadata standards](metadata-standards.md), invariant 7; [Deposit](deposit.md), invariant
+    4; #1357; `sdk/tests/test_contract.py`). Replacing it raised the contract version to 0.28.0.
 
 ## Boundaries and contracts
 

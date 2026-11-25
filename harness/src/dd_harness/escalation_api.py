@@ -14,20 +14,33 @@ escalation. What they cannot know is here, because it needs the profile or the r
 - **sides** (`side_of`): a member of the project acts on the researcher's side; a steward of the
   team the escalation is routed to who is not a member acts on the steward's. A member who is
   also a steward of that team acts as a member (invariant 2), so may not take the escalation;
+- **what each person may do** (`permitted_moves`): the moves of their side that the
+  escalation's state allows, or, for a member reaching it as a steward, each steward move refused
+  with why, so that the shell renders the moves and decides none. A move that names a target,
+  `reassign` or `transfer`, carries the colleagues or teams it may name, and is left out where
+  there are none (`dd_harness.escalation_targets`, re-exported here);
 - **the queue** (`queue`): the escalations routed to a steward's teams, found through the team
-  index (`dd_harness.role_events.team_key`) in one read per team.
+  index (`dd_harness.role_events.team_key`) in one read per team;
+- **telling the team** (`tell_team`): each escalation opened, or moved by the researcher, is
+  emailed to the team's address, where the profile names one (invariant 13);
+- **the sweep** (`sweep`): an escalation nobody has taken within the profile's `reroute_after` is
+  sent to its team again, for the deployment, and the team and the researchers are told.
 
-A steward reaches only an escalation's record and moves here. Opening the project itself as a
-steward is TODO(#374).
+A steward reaches only an escalation's record and moves here; opening the project as a steward
+is `dd_harness.steward_api`.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
-from dd_harness import project_access
+from dd_harness import escalation_targets, project_access
+from dd_harness.escalation_targets import NamesOf
+from dd_harness.escalation_targets import permitted_moves as permitted_moves
+from dd_harness.notifications import Notifier, dispatch
 from dd_harness.policy import Profile
 from dd_harness.project_access import Action, Role
 from dd_harness.projects import (
@@ -42,6 +55,7 @@ from dd_harness.projects.escalations import (
     ORIGINS,
     RESEARCHER,
     STEWARD,
+    MoveAsked,
     NewEscalation,
     Side,
     escalations,
@@ -50,12 +64,37 @@ from dd_harness.projects.escalations import (
 from dd_harness.role_events import team_key
 from dd_harness.stewardship import StewardTeam
 from dd_harness.storage import ProjectStorage
-from dd_sdk.contract.models import Principal
+from dd_sdk.contract.models import Principal, PrincipalKind
 
 type EnvelopeOf = Callable[[str], Mapping[str, Any] | None]
 
 # What each origin that names a run asks of the run's outcome.
 _POLICY_REASON = "policy_requires_approval"
+
+# Whom the sweep acts for when it sends an escalation to its team again: the deployment, an
+# accountable role that no person signs in as (invariant 13).
+SWEEP = Principal(
+    principal_id="urn:dd:deployment:escalation-sweep",
+    name="Data Director",
+    principal_kind=PrincipalKind.ACCOUNTABLE_ROLE,
+)
+SWEEP_CAUSED_BY = "dd-harness escalations sweep"
+
+
+def tell_team(
+    notifier: Notifier,
+    store: ProjectStorage,
+    profile: Profile,
+    project_id: str,
+    escalation: Mapping[str, Any],
+) -> None:
+    """Tell the escalation's team about its latest move, as `open_escalation`, `move` or `sweep`
+    returned it, if that move is one the team hears of (`dd_harness.notifications.dispatch`).
+    Every way in calls it after a move it made, outside the move, so that a mail server that is
+    slow or down never holds a project's log."""
+    event_id = escalation["history"][-1]["event_id"]
+    events = store.events(project_id)
+    dispatch(notifier, profile, events, [e for e in events if e["event_id"] == event_id])
 
 
 def route(
@@ -158,14 +197,33 @@ def _teams(profile: Profile) -> list[dict[str, Any]]:
     ]
 
 
+def _team_name(profile: Profile, team_id: str) -> str:
+    team = profile.stewardship.team(team_id)
+    return team.name if team else team_id
+
+
 def _named(profile: Profile, escalation: dict[str, Any]) -> dict[str, Any]:
-    team = profile.stewardship.team(escalation["team_id"])
-    return {**escalation, "team_name": team.name if team else escalation["team_id"]}
+    """`escalation` with its team's name, and the name of the team each transfer sent it to."""
+    return {
+        **escalation,
+        "team_name": _team_name(profile, escalation["team_id"]),
+        "history": [
+            {**h, "team_name": _team_name(profile, h["team_id"])} if "team_id" in h else h
+            for h in escalation["history"]
+        ],
+    }
 
 
-def for_project(store: ProjectStorage, profile: Profile, project_id: str) -> dict[str, Any]:
-    """The project's escalations, the steward teams it may send to and its support team, and
-    where a new escalation would go: a team, or none with why (invariant 11)."""
+def for_project(
+    store: ProjectStorage,
+    profile: Profile,
+    project_id: str,
+    reader: Principal,
+    names: NamesOf | None = None,
+) -> dict[str, Any]:
+    """The project's escalations, each with the moves `reader` may make on it, the steward teams
+    it may send to and its support team, and where a new escalation would go: a team, or none
+    with why (invariant 11). `names` names the colleagues a steward may reassign to."""
     events = store.events(project_id)
     try:
         routes_to: str | None = route(profile, events, None).team_id
@@ -173,7 +231,17 @@ def for_project(store: ProjectStorage, profile: Profile, project_id: str) -> dic
     except EscalationRefusedError as exc:
         routes_to, unrouted = None, exc.refusal.value
     return {
-        "escalations": [_named(profile, e) for e in escalations(events)],
+        "escalations": [
+            {
+                **_named(profile, e),
+                "permitted_moves": permitted_moves(
+                    side_of(profile, events, reader, e),
+                    e,
+                    targets=escalation_targets.targets_of(profile, events, e, names),
+                ),
+            }
+            for e in escalations(events)
+        ],
         "teams": _teams(profile),
         "support_team": support_team(events),
         "routes_to": routes_to,
@@ -194,11 +262,16 @@ class Confirmed:
 
 @dataclass(frozen=True)
 class Requested:
-    """A move a person asked to make on an escalation, with their note."""
+    """A move a person asked to make on an escalation, with their note, and the colleague's
+    `principal_id` or the team's id a move that names a target names. `as_steward` for a move
+    asked on a steward's route, which is made on the steward's side; otherwise the
+    researcher's."""
 
     escalation_id: str
     move: str
     note: str | None = None
+    to: str | None = None
+    as_steward: bool = False
 
 
 def open_escalation(
@@ -232,7 +305,7 @@ def open_escalation(
         acted_for=acted_for,
         caused_by=caused_by,
     )
-    return _named(profile, opened)
+    return {**_named(profile, opened), "permitted_moves": permitted_moves(RESEARCHER, opened)}
 
 
 def choose_support_team(
@@ -259,16 +332,19 @@ def move(
     project_id: str,
     requested: Requested,
     *,
-    as_steward: bool,
     acted_for: Principal,
     caused_by: str,
+    names: NamesOf | None = None,
 ) -> dict[str, Any]:
-    """Make the move `requested` asks for, on the steward's side when `as_steward` (a steward's
-    route) and the researcher's otherwise. Raises `UnknownProjectError` for someone on neither
-    side, so that a refusal does not reveal the project, and `EscalationRefusedError` for a move
-    the rules refuse, or a steward who is a member of the project."""
+    """Make the move `requested` asks for, on the steward's side when `requested.as_steward` (a
+    steward's route) and the researcher's otherwise. Raises `UnknownProjectError` for someone on
+    neither side, so that a refusal does not reveal the project, and `EscalationRefusedError` for
+    a move the rules refuse, a steward who is a member of the project, or a target the profile
+    does not allow (`dd_harness.escalation_targets.checked`). `names` names a colleague
+    reassigned to."""
     if not store.exists(project_id):
         raise UnknownProjectError(f"no project {project_id!r}")
+    as_steward = requested.as_steward
     events = store.events(project_id)
     found = next(
         (e for e in escalations(events) if e["escalation_id"] == requested.escalation_id), None
@@ -285,16 +361,63 @@ def move(
             )
     elif acted_for.principal_id not in member_roles(events):
         raise UnknownProjectError(f"no project {project_id!r}")
+    to: str | Principal | None = requested.to
+    if as_steward and found is not None:
+        to = escalation_targets.checked(profile, events, found, requested.move, requested.to, names)
     moved = store.move_escalation(
         project_id,
         requested.escalation_id,
-        requested.move,
+        MoveAsked(requested.move, requested.note, to),
         side=STEWARD if as_steward else RESEARCHER,
-        note=requested.note,
         acted_for=acted_for,
         caused_by=caused_by,
     )
-    return _named(profile, moved)
+    after = store.events(project_id)
+    # A steward whose team an escalation was transferred from is on neither side of it now.
+    now_side = side_of(profile, after, acted_for, moved) if as_steward else RESEARCHER
+    return {
+        **_named(profile, moved),
+        "permitted_moves": permitted_moves(
+            now_side, moved, targets=escalation_targets.targets_of(profile, after, moved, names)
+        ),
+    }
+
+
+def sweep(
+    store: ProjectStorage, profile: Profile, notifier: Notifier, *, now: datetime
+) -> list[dict[str, Any]]:
+    """Send each `open` escalation that its team was last asked to take more than the profile's
+    `reroute_after` before `now` to that team again, and tell the team; the researchers read it
+    in the app. Returns each escalation sent again, with its project. Nothing, where the profile
+    sets no `reroute_after` (invariant 13)."""
+    after = profile.stewardship.reroute_after
+    if after is None:
+        return []
+    due = now - after
+    sent = []
+    for team in profile.stewardship.teams:
+        for project_id, events in store.logs_naming(team_key(team.team_id)).items():
+            if deletion(events) is not None:
+                continue
+            for escalation in escalations(events):
+                if (
+                    escalation["team_id"] != team.team_id
+                    or escalation["state"] != "open"
+                    or datetime.fromisoformat(escalation["routed_at"]) >= due
+                ):
+                    continue
+                rerouted = store.reroute_escalation(
+                    project_id,
+                    escalation["escalation_id"],
+                    routed_before=due,
+                    acted_for=SWEEP,
+                    caused_by=SWEEP_CAUSED_BY,
+                )
+                if rerouted is not None:
+                    found = {**_named(profile, rerouted), "project_id": project_id}
+                    tell_team(notifier, store, profile, project_id, rerouted)
+                    sent.append(found)
+    return sent
 
 
 def queue(
@@ -302,10 +425,13 @@ def queue(
     profile: Profile,
     steward: Principal,
     states: Sequence[str] | None = None,
+    names: NamesOf | None = None,
 ) -> list[dict[str, Any]]:
     """The escalations routed to the steward's teams, in live projects, the oldest first: each
-    with its project's title and whether the steward may take it (not as a member of the
-    project). `states` narrows them; by default the live ones, `open`, `taken` and `waiting`."""
+    with its project's title, whether the steward is a member of the project (and so may not act
+    in it as its steward), and the moves they may make. `states` narrows them; by default the
+    live ones, `open`, `taken` and `waiting`. `names` names the colleagues a steward may
+    reassign to."""
     wanted = frozenset(states) if states else LIVE_STATES
     rows = []
     for team in profile.stewardship.teams_of(steward.principal_id):
@@ -322,6 +448,14 @@ def queue(
                             "project_id": project_id,
                             "project_title": title,
                             "member_of_project": member,
+                            "permitted_moves": permitted_moves(
+                                STEWARD,
+                                escalation,
+                                member=member,
+                                targets=escalation_targets.targets_of(
+                                    profile, events, escalation, names
+                                ),
+                            ),
                         }
                     )
     return sorted(rows, key=lambda row: row["opened_at"])

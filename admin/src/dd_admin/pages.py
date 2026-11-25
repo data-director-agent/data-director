@@ -1,12 +1,14 @@
 """The admin service's route handlers, one method per page (docs/guide/operations/admin.md).
 
-Every handler is a GET and changes nothing. `dd_admin.app.build_app` mounts them behind
-`LoopbackHosts`.
+Every handler is a GET and changes nothing; downloading a case (`dd_admin.case`) is recorded as a
+security event. `dd_admin.app.build_app` mounts them behind `LoopbackHosts`.
 """
 
 from __future__ import annotations
 
+import functools
 import math
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -19,7 +21,7 @@ from starlette.routing import BaseRoute, Mount, Route
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 
-from dd_admin import config_files, operations, spend, usage
+from dd_admin import case, config_files, operations, panels, spend, usage
 from dd_harness.projects import ProjectError
 from dd_harness.settings import redact_location
 
@@ -47,7 +49,7 @@ class Pages:
 
     def routes(self, static: Path) -> list[BaseRoute]:
         """Every page's route, and the static files from `static`."""
-        pages = {
+        pages: dict[str, Callable[[Request], Response]] = {
             "/": self.overview,
             "/operations": self.operations_page,
             "/operations/journal/{unit}": self.journal_page,
@@ -58,8 +60,15 @@ class Pages:
             "/runs": self.runs_page,
             "/runs/{invocation_id}": self.run_page,
             "/spend": self.spend_page,
+            "/gateway": functools.partial(panels.gateway_page, self),
+            "/broker": functools.partial(panels.broker_page, self),
+            "/monitoring": functools.partial(panels.monitoring_page, self),
+            "/policy": functools.partial(panels.policy_page, self),
+            "/escalations": functools.partial(panels.escalations_page, self),
+            "/security": functools.partial(panels.security_page, self),
             "/projects": self.projects_page,
             "/projects/{project_id}": self.project_page,
+            "/case/{scope}/{ident}": functools.partial(case.download, self.admin),
             "/config": self.config_page,
             "/feedback": self.feedback_page,
             "/healthz": self.healthz,
@@ -106,6 +115,10 @@ class Pages:
             gateway=spent,
             budget=admin.budget(spent),
             tokens_30=found.tokens_since(30),
+            gateway_state=admin.gateway_state.get(fresh=_fresh(request)),
+            broker=admin.broker.get(fresh=_fresh(request)),
+            monitoring=admin.monitoring.get(fresh=_fresh(request)),
+            queue=admin.escalations.get(fresh=_fresh(request)),
         )
 
     def spend_page(self, request: Request) -> Response:

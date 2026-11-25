@@ -1,0 +1,115 @@
+# Dublin Core as OAI-PMH carries it (OAI-DC): the 15 elements of the Dublin Core Metadata Element
+# Set, version 1.1, as a standard's definition (docs/specs/metadata-standards.md). A record is one
+# `oai_dc:dc` element whose children are `dc:` elements, each repeatable, in any order, holding
+# text. OAI-DC carries the 15 elements only, no DCMI Terms refinement.
+#
+# A property is named by the element's local name (`title`), its values a list. Its term is the one
+# DataCite's definition gives the property of the same meaning, so that a record read from either
+# standard is described in the same terms (DataCite's mapping to Dublin Core, `mapping_source`).
+# An element whose meaning is wider than any DataCite property's has a Dublin Core term of its
+# own: `relation`, `source` and `coverage`.
+#
+# A gap is written as `:unav`, the ERC code for a value not yet available, which the OAI-DC schema
+# accepts, since every element holds a string and takes no other attribute than xml:lang.
+#
+# `drafting` is advice to a drafter and a ceiling, as in DataCite's definition.
+#
+# Raise `version` on every change.
+standard_id: dublin-core-oai
+version: 2
+title: Dublin Core Metadata Element Set 1.1, as OAI-DC
+name: Dublin Core
+url: https://www.dublincore.org/specifications/dublin-core/dces/
+conforms_to:
+  - http://www.openarchives.org/OAI/2.0/oai_dc/
+  - http://purl.org/dc/elements/1.1/
+mapping_source: https://datacite-metadata-schema.readthedocs.io/en/4.5/mappings/dublincore/
+serialisations:
+  - media_type: application/xml
+    name: OAI-DC XML
+    codec: xml-indent-2
+    gap: ":unav"
+    xml:
+      root: oai_dc:dc
+      namespaces:
+        oai_dc: http://www.openarchives.org/OAI/2.0/oai_dc/
+        dc: http://purl.org/dc/elements/1.1/
+        xsi: http://www.w3.org/2001/XMLSchema-instance
+      schema_location: >-
+        http://www.openarchives.org/OAI/2.0/oai_dc/ http://www.openarchives.org/OAI/2.0/oai_dc.xsd
+      elements:
+        title: dc:title
+        creator: dc:creator
+        subject: dc:subject
+        description: dc:description
+        publisher: dc:publisher
+        contributor: dc:contributor
+        date: dc:date
+        type: dc:type
+        format: dc:format
+        identifier: dc:identifier
+        source: dc:source
+        language: dc:language
+        relation: dc:relation
+        coverage: dc:coverage
+        rights: dc:rights
+
+# Every element repeats: a property holds a list of values.
+properties_repeat: true
+properties:
+  title: schema:name
+  creator: schema:creator
+  subject: schema:keywords
+  description: schema:description
+  publisher: schema:publisher
+  contributor: schema:contributor
+  date: dcterms:date
+  type: schema:additionalType
+  format: schema:encodingFormat
+  identifier: schema:identifier
+  source: dcterms:source
+  language: schema:inLanguage
+  relation: dcterms:relation
+  coverage: dcterms:coverage
+  rights: schema:license
+
+drafting:
+  title:
+    ask: What is the dataset's title?
+    suggest: true
+  creator:
+    ask: Who created the dataset? Give one creator's name, family name first.
+  subject:
+    ask: What is the dataset about? Give a keyword or subject.
+    suggest: true
+  description:
+    ask: Describe the dataset.
+    suggest: true
+  publisher:
+    ask: Who publishes the dataset? This is usually the repository.
+  contributor:
+    ask: Who else contributed to the dataset? Give one contributor's name, family name first.
+  date:
+    ask: Give the date the dataset was created, as YYYY-MM-DD.
+  type:
+    filled: Dataset
+  format:
+    ask: In what file format are the data?
+  identifier:
+    ask: What identifier, such as a DOI, does the dataset have?
+  source:
+    ask: From what resource, if any, is the dataset derived?
+  language:
+    ask: What is the main language of the dataset, as a language code such as en?
+    suggest: true
+  relation:
+    ask: Give the identifier, such as a DOI, of a related publication or dataset.
+  coverage:
+    publish: >-
+      Can the place where the data were collected be published, and at what precision (exact,
+      site, region or country)? Locations near protected species, on private land or linked to
+      people may need to be generalised or withheld: the landowner, the principal investigator or
+      an ecologist decides. Give the precision agreed, or answer "withhold".
+    ask: Where or when were the data collected? Name the place, at the precision agreed, or the period.
+  rights:
+    ask: Under what licence or rights statement is the dataset shared?

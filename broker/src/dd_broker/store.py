@@ -10,7 +10,8 @@ One SQLite file holds three tables:
   expires, so that a ticket is accepted once.
 
 No prompt and no reply is ever written here. Removing an account deletes its row at once.
-Enrolment (`dd_broker.enrolment`) calls `put`, `label` and `remove`.
+Enrolment (`dd_broker.enrolment`) calls `put`, `label` and `remove`; the operators' summary
+(`dd_broker.admin`) calls `summary`, which sums across people.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from pathlib import Path
+from typing import Any
 
 from dd_broker.seal import Sealed, seal, unseal
 from dd_sdk.model_grant import Payer
@@ -67,6 +69,17 @@ class AccountLabel:
     provider: str
     label: str
     created: datetime
+
+
+@dataclass(frozen=True)
+class Summary:
+    """What the store holds, in aggregate, for the operators' admin view (`dd_broker.admin`):
+    accounts counted by provider, and tokens summed over everyone by day, payer, provider and
+    model. It names no pseudonym and carries no label or key."""
+
+    accounts_by_provider: dict[str, int]
+    usage: list[Usage]
+    people_with_usage: int
 
 
 @dataclass(frozen=True)
@@ -195,14 +208,40 @@ class Store:
                 " WHERE pseudonym = ? AND day >= ? ORDER BY day, payer, provider, model",
                 (pseudonym, (since or date.min).isoformat()),
             ).fetchall()
-        return [
-            Usage(
-                day=date.fromisoformat(day),
-                payer=Payer(payer),
-                provider=provider,
-                model=model,
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
-            )
-            for day, payer, provider, model, input_tokens, output_tokens in rows
-        ]
+        return _usages(rows)
+
+    def summary(self, *, since: date) -> Summary:
+        """Accounts by provider, and everyone's tokens from `since` on, summed across people."""
+        with self._connect() as db:
+            accounts = db.execute(
+                "SELECT provider, COUNT(*) FROM accounts GROUP BY provider ORDER BY provider"
+            ).fetchall()
+            rows = db.execute(
+                "SELECT day, payer, provider, model, SUM(input_tokens), SUM(output_tokens)"
+                " FROM usage WHERE day >= ? GROUP BY day, payer, provider, model"
+                " ORDER BY day, payer, provider, model",
+                (since.isoformat(),),
+            ).fetchall()
+            (people,) = db.execute(
+                "SELECT COUNT(DISTINCT pseudonym) FROM usage WHERE day >= ?", (since.isoformat(),)
+            ).fetchone()
+        return Summary(
+            accounts_by_provider=dict(accounts),
+            usage=_usages(rows),
+            people_with_usage=people,
+        )
+
+
+def _usages(rows: list[Any]) -> list[Usage]:
+    """Rows of `(day, payer, provider, model, input_tokens, output_tokens)` as `Usage`."""
+    return [
+        Usage(
+            day=date.fromisoformat(day),
+            payer=Payer(payer),
+            provider=provider,
+            model=model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+        )
+        for day, payer, provider, model, input_tokens, output_tokens in rows
+    ]

@@ -2,7 +2,8 @@
 commitment read from a plan names the passage it rests on and the document that holds it (#962),
 and a standard chosen names the standard, and what it is chosen for only as the dataset or one
 field (#1391); a project's data management plan names the attached document, under the one
-subject a plan has (#1447)."""
+subject a plan has (#1447); and a data description says what data the project collects, under
+the same one subject (#160)."""
 
 from __future__ import annotations
 
@@ -112,3 +113,69 @@ def test_a_project_has_one_plan_subject() -> None:
     """Every plan fact has the same subject, so the last decision on it is the current plan."""
     with pytest.raises(ValidationError):
         ProjectFact.model_validate({**PLAN, "fact_subject": "grant/dmp.docx"})
+
+
+DESCRIPTION: dict[str, Any] = {
+    "fact_kind": "data_description",
+    "fact_subject": PLAN_SUBJECT,
+    "data_collected": "Interview transcripts and survey responses.",
+    "data_collection_method": "Semi-structured interviews, recorded and transcribed.",
+}
+
+
+def test_a_data_description_says_what_data_are_collected() -> None:
+    fact = ProjectFact.model_validate(DESCRIPTION)
+    assert fact.fact_kind == FactKind.DATA_DESCRIPTION
+    assert set(FACT_NEEDS[FactKind.DATA_DESCRIPTION]) <= fact.model_fields_set
+
+
+def test_a_data_description_without_what_is_collected_is_refused() -> None:
+    with pytest.raises(ValidationError):
+        ProjectFact.model_validate({**DESCRIPTION, "data_collected": None})
+
+
+def test_how_formats_volume_and_reuse_are_optional() -> None:
+    """A researcher may say what they collect before they know how much, or in what formats."""
+    bare = {k: v for k, v in DESCRIPTION.items() if k != "data_collection_method"}
+    assert ProjectFact.model_validate(bare).data_volume is None
+
+
+def test_a_project_has_one_data_description_subject() -> None:
+    """Every description has the same subject, so the last decision on it is the current one."""
+    with pytest.raises(ValidationError):
+        ProjectFact.model_validate({**DESCRIPTION, "fact_subject": "interviews"})
+
+
+PROJECT_FACTS: list[dict[str, Any]] = [
+    {"fact_kind": "project_summary", "fact_subject": "project", "summary_text": "Drought."},
+    {"fact_kind": "field_of_study", "fact_subject": "project", "field_name": "Ecohydrology"},
+    {"fact_kind": "project_period", "fact_subject": "project", "period_start": "2027-01"},
+]
+
+
+@pytest.mark.parametrize("fact", PROJECT_FACTS, ids=lambda f: f["fact_kind"])
+def test_a_fact_about_the_whole_project_has_the_one_subject(fact: dict[str, Any]) -> None:
+    assert ProjectFact.model_validate(fact).fact_subject == PLAN_SUBJECT
+    with pytest.raises(ValidationError):
+        ProjectFact.model_validate({**fact, "fact_subject": "another"})
+
+
+@pytest.mark.parametrize("fact", PROJECT_FACTS, ids=lambda f: f["fact_kind"])
+def test_a_fact_about_the_project_needs_its_value(fact: dict[str, Any]) -> None:
+    (slot,) = FACT_NEEDS[FactKind(fact["fact_kind"])]
+    with pytest.raises(ValidationError):
+        ProjectFact.model_validate({**fact, slot: None})
+
+
+@pytest.mark.parametrize("date", ["2027", "2027-03", "2027-03-01"])
+def test_a_period_is_as_precise_as_is_known(date: str) -> None:
+    fact = {"fact_kind": "project_period", "fact_subject": "project", "period_start": date}
+    assert ProjectFact.model_validate({**fact, "period_end": date}).period_end == date
+
+
+@pytest.mark.parametrize("date", ["March 2027", "27-03", "2027/03"])
+def test_a_period_is_not_any_text(date: str) -> None:
+    with pytest.raises(ValidationError):
+        ProjectFact.model_validate(
+            {"fact_kind": "project_period", "fact_subject": "project", "period_start": date}
+        )

@@ -132,31 +132,31 @@
     "fields": [
       {
         "property": "titles",
-        "schema_org": "name",
+        "term": "schema:name",
         "obligation": "required",
         "form_label": "Title"
       },
       {
         "property": "creators",
-        "schema_org": "creator",
+        "term": "schema:creator",
         "obligation": "required",
         "form_label": "Authors"
       },
       {
         "property": "types.resourceTypeGeneral",
-        "schema_org": "additionalType",
+        "term": "schema:additionalType",
         "obligation": "required",
         "form_label": "Item type"
       },
       {
         "property": "subjects",
-        "schema_org": "keywords",
+        "term": "schema:keywords",
         "obligation": "required",
         "form_label": "Keywords"
       },
       {
         "property": "contributors",
-        "schema_org": "contributor",
+        "term": "schema:contributor",
         "obligation": "recommended"
       },
       {
@@ -164,12 +164,12 @@
         "qualifier": {
           "dateType": "Created"
         },
-        "schema_org": "dateCreated",
+        "term": "schema:dateCreated",
         "obligation": "recommended"
       },
       {
         "property": "relatedIdentifiers",
-        "schema_org": "citation",
+        "term": "schema:citation",
         "obligation": "recommended",
         "form_label": "Related materials"
       },
@@ -178,13 +178,13 @@
         "qualifier": {
           "descriptionType": "Abstract"
         },
-        "schema_org": "description",
+        "term": "schema:description",
         "obligation": "required",
         "form_label": "Description"
       },
       {
         "property": "geoLocations",
-        "schema_org": "spatialCoverage",
+        "term": "schema:spatialCoverage",
         "obligation": "recommended"
       },
       {
@@ -192,19 +192,19 @@
         "qualifier": {
           "subjectScheme": "ANZSRC Fields of Research"
         },
-        "schema_org": "about",
+        "term": "schema:about",
         "obligation": "required",
         "form_label": "Categories"
       },
       {
         "property": "rightsList",
-        "schema_org": "license",
+        "term": "schema:license",
         "obligation": "required",
         "form_label": "License"
       },
       {
         "property": "fundingReferences",
-        "schema_org": "funding",
+        "term": "schema:funding",
         "obligation": "recommended",
         "form_label": "Funding"
       }

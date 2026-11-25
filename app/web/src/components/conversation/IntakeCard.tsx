@@ -7,7 +7,9 @@
  * Next records the answer and moves on; Skip passes one question by for this visit only, so it is
  * asked again next time; **Skip these questions** dismisses the intake. Once nothing is left to
  * ask, the card says which phase the project starts at and which step is suggested first, both
- * from the progress the server answered with, named from the server's process flow.
+ * from the progress the server answered with, named from the server's process flow. Where the
+ * suggestion passed over earlier steps of its phase that no agent here serves (`passed_over`), the
+ * card names them and says why, so that a suggestion out of the process's order is explained.
  *
  * Asked again from the phase tracker, the card walks every question with its current answer
  * chosen, and records only what changed. Each new question, and the summary, is announced in the
@@ -39,19 +41,39 @@ import { Button } from "../ui/Button";
 import { type Draft, QuestionField, answerOf } from "./ChoiceQuestion";
 import type { QuestionFocus } from "./QuestionSeries";
 
-/** The phase a project at `entry` starts at and the step suggested first, by their names. */
-function summaryOf(
-  flow: ProcessFlow | null,
-  intake: ProjectIntake,
-): { phase: string | null; step: string | null } {
-  const { entry, suggested } = intake.progress;
+interface Summary {
+  phase: string | null;
+  step: string | null;
+  /** Why the suggestion is not the phase's first step, or null when it is. */
+  passedOver: string | null;
+}
+
+/** The phase a project at `entry` starts at and the step suggested first, by their names, with
+ * why any earlier step of that phase was passed over. */
+function summaryOf(flow: ProcessFlow | null, intake: ProjectIntake): Summary {
+  const { entry, suggested, passed_over } = intake.progress;
   const startsAt = flow?.entries.find((e) => e.number === entry)?.starts_at;
   const phase = flow?.phases.find((p) => p.number === startsAt) ?? null;
-  const step = flow?.phases.flatMap((p) => p.steps).find((s) => s.id === suggested) ?? null;
+  const steps = flow?.phases.flatMap((p) => p.steps) ?? [];
+  const step = steps.find((s) => s.id === suggested) ?? null;
+  const passed = passed_over.flatMap((id) => steps.find((s) => s.id === id)?.label ?? []);
   return {
     phase: phase ? `Phase ${phase.number}, ${phase.name}` : null,
     step: step ? step.label : null,
+    passedOver: step && passed.length > 0 ? passedOverText(passed) : null,
   };
+}
+
+/** Why the steps named were passed over for the one suggested (#1377). */
+function passedOverText(labels: readonly string[]): string {
+  const named = labels.map((l) => `“${l}”`).join(labels.length > 2 ? ", " : " and ");
+  const one = labels.length === 1;
+  const it = one ? "it" : "them";
+  return (
+    `${named} ${one ? "comes" : "come"} first in the process, but Data Director cannot help ` +
+    `with ${it} yet, so this is the first step it can guide you through. You can still work ` +
+    `on ${it} yourself at any time.`
+  );
 }
 
 /** What the answers chosen say at once: the notices of the answers recorded, and of the one
@@ -140,6 +162,7 @@ export function IntakeCard({
       ? [
           summary.phase && `Your project starts at ${summary.phase}.`,
           summary.step && `Suggested first step: ${summary.step}.`,
+          summary.passedOver,
         ]
           .filter(Boolean)
           .join(" ") || "Thank you: your answers are recorded."
@@ -267,7 +290,7 @@ function IntakeEnding({
   ref,
 }: {
   complete: boolean;
-  summary: { phase: string | null; step: string | null };
+  summary: Summary;
   /** The step the researcher may start the conversation with, if they may. */
   startWith: string | null;
   onStart?: ((message: string) => void) | undefined;
@@ -291,6 +314,7 @@ function IntakeEnding({
               Suggested first step: <strong>{summary.step}</strong>.
             </p>
           )}
+          {summary.passedOver && <p>{summary.passedOver}</p>}
           {!summary.phase && !summary.step && <p>Thank you: your answers are recorded.</p>}
           {startWith && (
             <p>Data Director can guide you through it now, or you can ask your own question.</p>

@@ -17,11 +17,15 @@ FIXED_UNITS = (
     "data-director-app.service",
     "data-director-workbench.service",
     "data-director-admin.service",
+    # Installed by every deployment, started only once an operator turns it on.
+    "data-director-model-broker.service",
     "data-director-deploy.timer",
     "data-director-deploy.service",
     "data-director-restart.path",
     "data-director-backup.timer",
     "data-director-backup.service",
+    "data-director-escalations.timer",
+    "data-director-escalations.service",
 )
 UNIT_PROPERTIES = (
     "Id",

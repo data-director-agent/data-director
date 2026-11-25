@@ -1,7 +1,9 @@
 """advisor.ethics: the Research Ethics Adviser persona (docs/specs/agents.md). A model-backed alpha.
 
 Serves `governance.sensitive-data-identify` and `governance.embargo`. It flags fields whose names
-suggest sensitive data and asks the questions a person must answer before sharing. It never
+suggest sensitive data and asks the questions a person must answer before sharing. In a project
+it is given the project's inventory too, and checks its field, file and folder names and carries
+over what the inventory's personal data detector found (`names.py`, #1540). It never
 decides how sensitive data is treated and never suggests anonymisation (C2):
 `governance.sensitive-data-handle` is left to people.
 
@@ -11,8 +13,10 @@ with `DD_ETHICS_READER=template` it adds none (`factory.py`). The merge is union
 keyword flag is kept, and a model may add a flag but never remove or re-categorise one, because a
 missed field is the costlier mistake. Each flag and question records how it came about
 (`derivation`). The adviser reads no data values and cites only its input, so its grounding mode
-is `input_only`. The full persona, with policy records as a source and an evaluation set, is
-TODO(#700).
+is `input_only`. A question about consent names the data use conditions of the GA4GH Data Use
+Ontology (DUO) to check consent against, from `dd_duo`'s pinned release: packaged vocabulary,
+like the keyword table, not a record retrieved for this run. It lists them and chooses none. The
+full persona, with policy records as a source and an evaluation set, is TODO(#700).
 """
 
 from __future__ import annotations
@@ -22,12 +26,15 @@ from pathlib import Path
 
 import yaml
 
+import dd_duo
 from dd_agent_advisor_ethics.classes import (
+    DataUseTerm,
     SensitivityContext,
     SensitivityFlag,
     SensitivityFlags,
     SensitivityQuestion,
 )
+from dd_agent_advisor_ethics.names import Names, findings, free_text, names_of
 from dd_agent_advisor_ethics.reader import Reader, Reading, TemplateReader
 from dd_sdk.agent import (
     AgentResult,
@@ -39,6 +46,7 @@ from dd_sdk.agent import (
     input_ref,
 )
 from dd_sdk.contract.classes import ClassSchema
+from dd_sdk.contract.inventory import FileInventory, PersonalDataFinding
 from dd_sdk.contract.models import (
     Derivation,
     GroundingMode,
@@ -57,20 +65,47 @@ LIMITATIONS = (
     "It does not check free text, images, audio or combinations of fields that identify people.",
     "It is an alpha with no evaluation set yet: how many sensitive fields it misses is not "
     "measured.",
+    "It names data use conditions from the GA4GH Data Use Ontology for consent to be checked "
+    "against; it does not know what participants agreed to, and chooses none of them.",
 )
 KEYWORD_LIMITATION = (
     "No model is configured, so it matches field names against a short keyword list and misses "
     "abbreviations and names it does not list."
 )
 MODEL_LIMITATION = (
-    "A model reads the field names as well as the keyword list; it may add flags but never removes "
-    "one. The field names are sent to that model, and a hosted model is outside the institution. "
-    "The profile's rule on what may go to a hosted model does not cover this input (TODO(#40)); a "
-    "local model is the alternative (TODO(#39))."
+    "A model reads the names as well as the keyword list; it may add flags but never removes one. "
+    "The names are sent to that model, and a hosted model is outside the institution. The "
+    "profile's rule on what may go to a hosted model covers names from the project's inventory, "
+    "not names typed in (TODO(#40)); a local model is the alternative (TODO(#39))."
 )
+NO_INVENTORY_LIMITATION = (
+    "It was given no inventory of the dataset's files, so it checked only the names it was "
+    "given. An inventory made with dd-inventory, or Make inventory in the project, gives every "
+    "table's field names and checks sampled values and small text files for personal data."
+)
+NO_DETECTOR_LIMITATION = (
+    "The inventory was made without its personal data detector, so no data values or text files "
+    "were checked."
+)
+DETECTOR_LIMITATION = (
+    "The inventory's personal data detector checked sampled values, names and small text files "
+    "on the researcher's computer. It finds patterns such as email addresses and NHS numbers, "
+    "not every kind of personal data: a file it found nothing in may still hold some."
+)
+FINDINGS_QUESTION = (
+    "The inventory's personal data detector found what may be personal data ({kinds}). Review "
+    "each finding with your institution's ethics and data protection staff before sharing."
+)
+FREE_TEXT_QUESTION = (
+    "These files' names suggest free text, which often names people: {paths}. Read them before "
+    "they are shared."
+)
+# How many paths a question names before it says how many more there are.
+MAX_PATHS = 5
 PEOPLE_QUESTION = (
     "The data involve people. Confirm that ethics approval and participants' consent cover "
-    "sharing them, with your institution's ethics and data protection staff."
+    "sharing them, and which of the data use conditions listed consent allows, with your "
+    "institution's ethics and data protection staff."
 )
 EMBARGO_QUESTION = (
     "You intend an embargo. Confirm its length and reason against your funder's and journal's "
@@ -79,8 +114,18 @@ EMBARGO_QUESTION = (
 UNKNOWN_EMBARGO_QUESTION = "Say whether the data need an embargo before they are shared."
 NOT_PEOPLE_QUESTION = (
     "You said the data do not involve people, but some field names suggest personal data. "
-    "Confirm with your institution's ethics and data protection staff whether they do, before "
-    "sharing them."
+    "Confirm with your institution's ethics and data protection staff whether they do and, if "
+    "so, which of the data use conditions listed consent allows, before sharing them."
+)
+# The DUO conditions a consent question lists (dd_duo): every permission, and the modifiers that
+# consent forms most often state. Each must be a current term of the pinned release.
+CONSENT_MODIFIERS = (
+    "DUO:0000021",  # IRB, ethics approval required
+    "DUO:0000046",  # NCU, non-commercial use only
+    "DUO:0000019",  # PUB, publication required
+    "DUO:0000026",  # US, user specific restriction
+    "DUO:0000022",  # GS, geographical restriction
+    "DUO:0000025",  # TS, time limit on use
 )
 LOCATION_QUESTION = (
     "Some fields hold locations. Confirm whether publishing them could expose people, private "
@@ -99,12 +144,14 @@ def load_keywords(path: Path = KEYWORDS) -> dict[str, list[str]]:
 class EthicsAdviser:
     spec = AgentSpec(
         agent_id="advisor.ethics",
-        version="0.1.0a1",
+        version="0.1.0a3",
         title="Research Ethics Adviser",
         icon="🧭",
         description=(
             "Flags fields whose names suggest personal or otherwise sensitive data, by keyword "
             "and, where one is configured, with a model that may add flags but never remove one. "
+            "In a project it reads the inventory's field, file and folder names and its personal "
+            "data findings. "
             "Asks what must be confirmed about consent, ethics approval and embargo before "
             "sharing. Never decides how sensitive data is treated."
         ),
@@ -117,6 +164,7 @@ class EthicsAdviser:
             "flags.matched": Derived(Derivation.LEXICAL),
             "flags.reason": Derived(Derivation.MODEL, recorded_in="derivation"),
             "questions.text": Derived(Derivation.MODEL, recorded_in="derivation"),
+            "questions.data_use_terms": Derived(Derivation.TEMPLATE),
             "limitations": Derived(Derivation.TEMPLATE),
             "dropped": Derived(Derivation.TEMPLATE),
         },
@@ -132,29 +180,37 @@ class EthicsAdviser:
     def run(self, request: InvocationRequest, ctx: RunContext) -> AgentResult:
         context = request.input
         assert isinstance(context, SensitivityContext)  # the conductor checked spec.accepts
-        if not context.fields and context.involves_people is None:
+        inventory = context.project_file_inventory
+        if not context.fields and context.involves_people is None and inventory is None:
             return abstain(
                 ReasonCode.INSUFFICIENT_INPUT,
-                "Give the dataset's field names, or say whether it involves people.",
+                "Add an inventory of the dataset's files to the project, give the dataset's "
+                "field names, or say whether it involves people.",
             )
 
-        lexical = [flag for name in context.fields if (flag := self._flag(name)) is not None]
+        checked = names_of(context)
+        found = findings(inventory)
+        lexical = [
+            flag for name in checked.names if (flag := self._flag(name, checked)) is not None
+        ]
         reading = self.reader.read(
-            context, list(self.keywords), [flag.field for flag in lexical], ctx
+            context, checked.names, list(self.keywords), [flag.field for flag in lexical], ctx
         )
         # Union only: the keyword flags are kept as they are, and the reader's are added after.
         flags = lexical + [
             SensitivityFlag(
                 field=added.field,
                 category=added.category,
+                files=list(checked.where.get(added.field, ())),
                 reason=added.reason,
                 derivation=Derivation.MODEL,
             )
             for added in reading.flags
         ]
         questions = [
-            SensitivityQuestion(text=text, derivation=Derivation.TEMPLATE)
+            _template_question(text)
             for text in _questions(context, {flag.category for flag in flags})
+            + _inventory_questions(context, found)
         ] + [
             SensitivityQuestion(text=text, derivation=Derivation.MODEL)
             for text in reading.questions
@@ -162,6 +218,7 @@ class EthicsAdviser:
         limitations = [
             *LIMITATIONS,
             KEYWORD_LIMITATION if self.reader.model_id is None else MODEL_LIMITATION,
+            _inventory_limitation(context, found),
         ]
 
         ref = input_ref(ctx)
@@ -170,14 +227,16 @@ class EthicsAdviser:
             outcome=Outcome(
                 status=OutcomeStatus.SUCCEEDED,
                 statement=(
-                    f"{len(flags)} of {len(context.fields)} field names suggest sensitive data: "
-                    f"{len(lexical)} by keyword. {_how_read(reading)} A person must review every "
-                    "field before sharing."
+                    f"{len(flags)} of {_count(len(checked.names), 'name')}{_from(checked)} "
+                    f"suggest sensitive data: {len(lexical)} by keyword. {_how_read(reading)}"
+                    f"{_detected(inventory, found)} A person must review every field before "
+                    "sharing."
                 ),
             ),
             payload=SensitivityFlags(
                 flags=flags,
                 questions=questions,
+                inventory_findings=found,
                 limitations=limitations,
                 dropped=list(reading.dropped),
                 grounded_on=[ref],
@@ -190,7 +249,7 @@ class EthicsAdviser:
             prompts=calls.prompts if calls is not None else {},
         )
 
-    def _flag(self, name: str) -> SensitivityFlag | None:
+    def _flag(self, name: str, checked: Names | None = None) -> SensitivityFlag | None:
         words = set(WORD.findall(name.lower()))
         for category, keywords in self.keywords.items():
             for keyword in keywords:
@@ -198,6 +257,7 @@ class EthicsAdviser:
                     return SensitivityFlag(
                         field=name,
                         category=category,
+                        files=list(checked.where.get(name, ())) if checked else [],
                         matched=keyword,
                         derivation=Derivation.LEXICAL,
                     )
@@ -223,6 +283,81 @@ def _questions(context: SensitivityContext, categories: set[str]) -> list[str]:
     elif context.embargo_intended is None:
         questions.append(UNKNOWN_EMBARGO_QUESTION)
     return questions
+
+
+def consent_terms() -> list[DataUseTerm]:
+    """The DUO conditions a consent question lists, from the pinned release."""
+    chosen = [*dd_duo.terms("permission"), *map(dd_duo.lookup, CONSENT_MODIFIERS)]
+    return [
+        DataUseTerm(
+            term_id=term.id,
+            shorthand=term.shorthand,
+            term_label=term.label,
+            term_kind=term.kind,
+            term_iri=term.url,
+        )
+        for term in chosen
+        if term is not None
+    ]
+
+
+def _template_question(text: str) -> SensitivityQuestion:
+    """A question from the template; one about consent lists the DUO conditions."""
+    about_consent = text in (PEOPLE_QUESTION, NOT_PEOPLE_QUESTION)
+    return SensitivityQuestion(
+        text=text,
+        derivation=Derivation.TEMPLATE,
+        data_use_terms=consent_terms() if about_consent else [],
+    )
+
+
+def _inventory_questions(
+    context: SensitivityContext, found: list[PersonalDataFinding] | None
+) -> list[str]:
+    """The questions the inventory raises: what its detector found, and the files whose names
+    suggest free text, which the adviser cannot read."""
+    questions = []
+    if found:
+        kinds = ", ".join(sorted({str(f.finding_kind) for f in found}))
+        questions.append(FINDINGS_QUESTION.format(kinds=kinds))
+    if texts := free_text(context.project_file_inventory):
+        named = ", ".join(texts[:MAX_PATHS])
+        if len(texts) > MAX_PATHS:
+            named += f" and {len(texts) - MAX_PATHS} more"
+        questions.append(FREE_TEXT_QUESTION.format(paths=named))
+    return questions
+
+
+def _inventory_limitation(
+    context: SensitivityContext, found: list[PersonalDataFinding] | None
+) -> str:
+    if context.project_file_inventory is None:
+        return NO_INVENTORY_LIMITATION
+    return NO_DETECTOR_LIMITATION if found is None else DETECTOR_LIMITATION
+
+
+def _from(checked: Names) -> str:
+    """Where the names came from, when the inventory gave any."""
+    if not checked.from_inventory:
+        return ""
+    return f" ({checked.from_inventory} from the project's inventory)"
+
+
+def _detected(inventory: FileInventory | None, found: list[PersonalDataFinding] | None) -> str:
+    """What the statement says of the inventory's personal data detector."""
+    if inventory is None:
+        return ""
+    if found is None:
+        return " The inventory was made without its personal data detector."
+    if not found:
+        return (
+            " The inventory's personal data detector found nothing, which does not mean the "
+            "data hold none."
+        )
+    return (
+        f" The inventory's personal data detector made {_count(len(found), 'finding')}, "
+        "carried over as they are."
+    )
 
 
 def _how_read(reading: Reading) -> str:

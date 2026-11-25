@@ -15,6 +15,10 @@ dependencies = [
     # ROR's records and the readers of its registry and API (dd_mcp_pid.ror), shared with the PID
     # resolver server.
     "data-director-mcp-pid",
+    # DOAJ's client (dd_mcp_doaj.journals): an open access journal's terms, with no key (#1517).
+    "data-director-mcp-doaj",
+    # ISSNs written as ISO 3297 writes them (dd_journals.issn), shared with the journal registry.
+    "data-director-journals",
     "httpx>=0.28",
     "pydantic>=2.14.1,<3",
     "pypdf>=6.21.4,<8",
@@ -30,9 +34,11 @@ model = ["data-director-sdk[anthropic,openai]"]
 dd-advisor-policy = "dd_agent_advisor_policy.factory:main"
 dd-ror = "dd_agent_advisor_policy.ror:main"
 
-# The ROR registry is built from its pinned dump, not committed; `dd-sources prepare` builds it.
+# The ROR registry and the journal registry are built from their pinned dumps, not committed;
+# `dd-sources prepare` builds them.
 [project.entry-points."dd.sources"]
 ror = "dd_agent_advisor_policy.ror_source:SOURCE"
+journals = "dd_agent_advisor_policy.journals_source:SOURCE"
 
 # What this package's tests import from the workspace (docs/specs/system.md, scripts/check_boundaries.py).
 [dependency-groups]

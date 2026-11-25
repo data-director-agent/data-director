@@ -6,9 +6,10 @@ requirement set recorded for the repository chosen last:
 
 - that every document kind the set requires has an approved version, and, as warnings, every
   kind it recommends and a data dictionary for tabular data (`dd_harness.deposit_checks`);
-- that the approved metadata record, read as RDF through the set's own DataCite to schema.org
-  field table, has every required field and, as warnings, every recommended one. These checks are
-  SHACL shapes generated from the fields and run by pySHACL;
+- that the approved metadata record is in a pair of standard and serialisation a registered
+  definition covers, and, read with that definition, has every required field and, as warnings,
+  every recommended one, each under its field's term. These checks are SHACL shapes generated from
+  the fields and run by pySHACL (docs/specs/metadata-standards.md);
 - that the record's licence is one the set lists, when it lists any;
 - that every inventory entry has an accepted media type and is within the size limits, and the
   inventory as a whole within the item size, when the set states them;
@@ -41,15 +42,13 @@ from __future__ import annotations
 import json
 import tempfile
 from collections.abc import Iterator, Mapping
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Final
+from typing import Any
 from urllib.parse import quote
 
-from rdflib import BNode, Graph, Namespace, URIRef
+from rdflib import BNode, Graph, URIRef
 from rdflib import Literal as RdfLiteral
 from rdflib.namespace import RDF
-from rocrate.model import Person
 from rocrate.rocrate import ROCrate
 
 from dd_harness import deposit_review
@@ -63,9 +62,11 @@ from dd_harness.deposit_checks import (
     no_repository,
     resolver_warnings,
 )
+from dd_harness.deposit_record import SCHEMA, describe_root, licences
 from dd_harness.deposit_report import Package, PackageRefusedError, Validation
 from dd_harness.deposit_report import project_iri as _project_iri
 from dd_harness.disclosure import disclose, version_chain, version_id
+from dd_harness.metadata_standards import UnreadRecordError, read_record, readable
 from dd_harness.package_crate import (
     INCLUDED,
     INCLUDED_IRI,
@@ -83,9 +84,10 @@ from dd_harness.projects import APPROVED
 from dd_harness.shacl import DD, INFO, SH, VIOLATION, WARNING, Result, Severity
 from dd_harness.shacl import run as run_shacl
 from dd_harness.storage import DepositSource, RunStorage
+from dd_metadata_records import Record
 from dd_sdk.contract.models import Principal, now
+from dd_sdk.contract.requirements import expand_term
 
-SCHEMA = Namespace("http://schema.org/")
 # Kept here for deposit's callers.
 __all__ = [
     "DOCUMENT_CHECK",
@@ -108,22 +110,6 @@ MEDIA_TYPE_CHECK = DD + "MediaTypeConstraintComponent"
 FILE_SIZE_CHECK = DD + "FileSizeConstraintComponent"
 ITEM_SIZE_CHECK = DD + "ItemSizeConstraintComponent"
 
-# How each DataCite property holds its value, in DataCite's JSON form: the key of the value in
-# each entry of a property whose value is a list of objects. It mirrors advisor.metadata's rule
-# table; the harness keeps its own, since it imports no agent (docs/specs/system.md).
-VALUE_KEYS: Final = {
-    "titles": "title",
-    "creators": "name",
-    "contributors": "name",
-    "subjects": "subject",
-    "descriptions": "description",
-    "dates": "date",
-    "rightsList": "rights",
-    "fundingReferences": "funderName",
-    "relatedIdentifiers": "relatedIdentifier",
-    "geoLocations": "geoLocationPlace",
-}
-
 # The files of the package beside its documents and runs (docs/specs/deposit.md).
 INVENTORY_NAME = "inventory.json"
 REQUIREMENTS_NAME = "requirements.json"
@@ -134,6 +120,7 @@ PROVENANCE_NAME = "provenance.jsonld"
 EXTENSIONS = {
     "application/json": "json",
     "application/ld+json": "jsonld",
+    "application/xml": "xml",
     "text/markdown": "md",
     "text/plain": "txt",
     "text/csv": "csv",
@@ -238,63 +225,15 @@ def _check_record(record: Mapping[str, Any], requirements: Mapping[str, Any]) ->
     ref = record["version_ref"]
     focus = version_id(ref["document_id"], ref["version"])
     try:
-        attributes = datacite_attributes(record["document_text"])
-    except ValueError as exc:
-        yield Result(
-            VIOLATION,
-            f"The approved metadata record is not a DataCite record in JSON: {exc}.",
-            focus,
-            RECORD_CHECK,
-        )
+        read = read_record(record)
+    except UnreadRecordError as exc:
+        yield Result(VIOLATION, f"The approved metadata record {exc}.", focus, RECORD_CHECK)
         return
-    yield from _check_fields(focus, attributes, requirements)
-    yield from _check_licence(focus, attributes, requirements)
+    yield from _check_fields(focus, read, requirements)
+    yield from _check_licence(focus, read, requirements)
 
 
-def datacite_attributes(text: str) -> dict[str, Any]:
-    """The attributes of a DataCite record in its JSON form, as `advisor.metadata` writes it or
-    as the DataCite REST API returns it (`{"data": {"attributes": ...}}`). Raises `ValueError` if
-    the text is not one."""
-    try:
-        document = json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"it is not JSON ({exc.msg} at line {exc.lineno})") from None
-    if not isinstance(document, dict):
-        raise ValueError("it is not a JSON object")
-    data = document.get("data")
-    if isinstance(data, dict) and isinstance(data.get("attributes"), dict):
-        attributes: dict[str, Any] = data["attributes"]
-        return attributes
-    return document
-
-
-def field_values(attributes: Mapping[str, Any], field: Mapping[str, Any]) -> list[str]:
-    """The values of one requirement field in a DataCite record: each entry of the property that
-    matches the field's qualifier, as text. An absent, empty or null value is no value."""
-    head, _, rest = field["property"].partition(".")
-    value = attributes.get(head)
-    if rest:
-        value = value.get(rest) if isinstance(value, dict) else None
-        entries = [value]
-    else:
-        entries = value if isinstance(value, list) else [value]
-    qualifier = field.get("qualifier") or {}
-    found = []
-    for entry in entries:
-        if isinstance(entry, dict):
-            if any(entry.get(key) != wanted for key, wanted in qualifier.items()):
-                continue
-            entry = entry.get(VALUE_KEYS.get(head, ""))
-        elif qualifier:
-            continue
-        if isinstance(entry, str | int | float) and str(entry).strip():
-            found.append(str(entry).strip())
-    return found
-
-
-def _check_fields(
-    focus: str, attributes: Mapping[str, Any], requirements: Mapping[str, Any]
-) -> Iterator[Result]:
+def _check_fields(focus: str, record: Record, requirements: Mapping[str, Any]) -> Iterator[Result]:
     """The record's fields against SHACL shapes generated from the merged set, run by pySHACL."""
     subject = URIRef(focus)
     data = Graph()
@@ -305,8 +244,8 @@ def _check_fields(
     shapes.add((shape, SH.targetClass, SCHEMA.Dataset))
     repository = requirements["repository_name"]
     for field in requirements.get("fields", []):
-        term = SCHEMA[field["schema_org"]]
-        for value in field_values(attributes, field):
+        term = URIRef(expand_term(field["term"]))
+        for value in record.values(field["property"], field.get("qualifier")):
             data.add((subject, term, RdfLiteral(value)))
         required = field["obligation"] == "required"
         prop = BNode()
@@ -325,32 +264,22 @@ def _check_fields(
             )
         )
     found = run_shacl(data, shapes)
-    order = [SCHEMA[f["schema_org"]] for f in requirements.get("fields", [])]
+    order = [URIRef(expand_term(f["term"])) for f in requirements.get("fields", [])]
     yield from sorted(
         found, key=lambda r: (r.severity != VIOLATION, order.index(URIRef(r.path or "")))
     )
 
 
-def _check_licence(
-    focus: str, attributes: Mapping[str, Any], requirements: Mapping[str, Any]
-) -> Iterator[Result]:
+def _check_licence(focus: str, record: Record, requirements: Mapping[str, Any]) -> Iterator[Result]:
     accepted = requirements.get("licences")
-    rights = [r for r in attributes.get("rightsList") or [] if isinstance(r, dict)]
-    if not accepted or not rights:
+    given = licences(record)
+    if not accepted or not given:
         return
     wanted = {_licence_key(licence) for licence in accepted}
-    for entry in rights:
-        names = {
-            _licence_key(str(entry[key]))
-            for key in ("rightsIdentifier", "rightsUri", "rights")
-            if entry.get(key)
-        }
-        if names & wanted:
+    for entry in given:
+        if {_licence_key(name) for name in entry if name} & wanted:
             return
-    named = ", ".join(
-        str(entry.get("rightsIdentifier") or entry.get("rightsUri") or entry.get("rights"))
-        for entry in rights
-    )
+    named = ", ".join(str(next((name for name in entry if name), None)) for entry in given)
     yield Result(
         VIOLATION,
         f"The metadata record's licence ({named}) is not one {requirements['repository_name']} "
@@ -413,12 +342,12 @@ def _requirements_digest(projects: DepositSource, project_id: str) -> str | None
 
 
 def _field_name(field: Mapping[str, Any]) -> str:
-    """How a message names a field: its form label, if the repository gives one, and the DataCite
-    property it is."""
+    """How a message names a field: its form label, if the repository gives one, and the property
+    of the standard it is."""
     qualifier = ", ".join(f"{k} {v}" for k, v in (field.get("qualifier") or {}).items())
-    datacite = f"{field['property']}{f', {qualifier}' if qualifier else ''}"
+    prop = f"{field['property']}{f', {qualifier}' if qualifier else ''}"
     label = field.get("form_label")
-    return f"{label} ({datacite})" if label else datacite
+    return f"{label} ({prop})" if label else prop
 
 
 def _file_iri(project_id: str, path: str) -> str:
@@ -434,7 +363,7 @@ def _package(
     """The package's bytes, and what the project log says of it."""
     requirements = projects.requirements(project_id) or {}
     inventory = projects.inventory(project_id) or {}
-    record = projects.metadata_record(project_id) or {}
+    record = readable(projects.metadata_record(project_id))
     approved = _approved(projects.documents(project_id))
     disclosure = disclose(projects, runs, project_id)
     with tempfile.TemporaryDirectory(prefix="dd-package-") as tmp:
@@ -443,7 +372,7 @@ def _package(
         crate = ROCrate()
         crate.metadata.extra_terms[INCLUDED] = INCLUDED_IRI
         root = crate.root_dataset
-        _describe_root(crate, record, validation.made_at)
+        describe_root(crate, record, requirements, validation.made_at)
         files = CrateFiles(crate, work)
         put, person = files.put, files.person
 
@@ -562,44 +491,3 @@ def _package(
         "decided_items": [i["item_id"] for i in review["items"] if i.get("decision")],
     }
     return content, about
-
-
-def _describe_root(crate: ROCrate, record: Mapping[str, Any], made_at: datetime) -> None:
-    """The root dataset's properties, from the approved metadata record through the same
-    DataCite to schema.org mapping the validation reads."""
-    root = crate.root_dataset
-    root["datePublished"] = made_at.date().isoformat()
-    attributes: Mapping[str, Any] = {}
-    if record.get("document_text"):
-        try:
-            attributes = datacite_attributes(record["document_text"])
-        except ValueError:
-            attributes = {}
-
-    def values(prop: str, **qualifier: str) -> list[str]:
-        return field_values(attributes, {"property": prop, "qualifier": qualifier or None})
-
-    for term, found in (
-        ("name", values("titles")),
-        ("description", values("descriptions", descriptionType="Abstract")),
-        ("keywords", values("subjects")),
-        ("dateCreated", values("dates", dateType="Created")),
-        ("additionalType", values("types.resourceTypeGeneral")),
-    ):
-        if found:
-            root[term] = ", ".join(found) if term == "keywords" else found[0]
-    creators = []
-    for n, name in enumerate(values("creators")):
-        creators.append(crate.add(Person(crate, f"#creator-{n + 1}", properties={"name": name})))
-    if creators:
-        root["creator"] = creators if len(creators) > 1 else creators[0]
-    licences = [
-        str(r.get("rightsUri") or r.get("rightsIdentifier") or r.get("rights"))
-        for r in attributes.get("rightsList") or []
-        if isinstance(r, dict) and (r.get("rightsUri") or r.get("rightsIdentifier"))
-    ]
-    if licences:
-        licence = licences[0]
-        if not licence.startswith(("http://", "https://")):
-            licence = f"https://spdx.org/licenses/{licence}"
-        root["license"] = creative_work(crate, licence, licence)

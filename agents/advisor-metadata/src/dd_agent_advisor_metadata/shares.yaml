@@ -1,0 +1,11 @@
+# The shared field the first entry under each pivot term gives (`SharedField`,
+# docs/specs/drafting.md, invariant 11): an answer the researcher gave to the same field of a README
+# is offered as a suggestion for it, never placed. Keyed by pivot term, so that it holds for any
+# standard whose definition reads a property under the term (docs/specs/metadata-standards.md).
+schema:name: title
+schema:creator: creators
+schema:description: description
+schema:temporalCoverage: dates_collected
+schema:license: licence
+schema:funding: funder
+schema:spatialCoverage: place

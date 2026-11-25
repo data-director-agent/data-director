@@ -16,9 +16,13 @@ disclosed ([Disclosure](disclosure.md)).
 
 The Documentation Editor (`advisor.documentation`) is the first drafter. It serves
 `preparation.documentation` and drafts a README or a data dictionary from a `DraftRequest`. It
-does not serve `setup.documentation`, planning the documentation before data are collected,
-because a drafter infers only from a file inventory (invariant 1), which a project has only once
-its data exist; that step has no agent yet (#1017). Where a model is configured, as it is by
+also serves `setup.documentation`, planning the documentation before data are collected (#1017).
+A drafter infers only from a file inventory (invariant 1), which a project has only once its data
+exist, so before then it infers nothing: a README is drafted from the approved metadata record and
+the decisions, if any, with the sections that plan what to record (`plan_ask`) asking what the
+researcher expects to produce, under the same questions as the README drafted later, which places
+their answers. A data dictionary needs the inventory's tables, and the drafter abstains without
+them. Where a model is configured, as it is by
 default, a model writes the README's prose
 ([`agents/advisor-documentation/README.md`](../../agents/advisor-documentation/README.md)). The
 researcher answers its questions in the conversation, and the next draft places their answers.
@@ -33,8 +37,9 @@ as the researcher asks in their own words, such as "shorten the Files paragraph"
 The Metadata Librarian (`advisor.metadata`) drafts the metadata record by the same rules. It
 serves `preparation.metadata` and drafts the record from a `DraftRequest` with the chosen
 repository's requirements, asks about every value it leaves null, and places the answers recorded to
-them. It drafts in the standard those requirements follow ([Metadata standards](metadata-standards.md));
-today that is DataCite in its JSON form alone, TODO(#1359). Its model, on unless the operator turns it off,
+them. It drafts in the standard those requirements follow, from the standard's registered definition
+([Metadata standards](metadata-standards.md)): DataCite in its JSON form, or Dublin Core as OAI-DC
+XML. Its model, on unless the operator turns it off,
 suggests some of those values beside their questions
 ([`agents/advisor-metadata/README.md`](../../agents/advisor-metadata/README.md)).
 
@@ -43,13 +48,24 @@ The Documentation Editor also drafts a Data Management Plan (`dmp`), an alpha th
 [`dd-dmp-template`](../../dmp-template/README.md), after Science Europe's, under a section of
 project details. A plan is drafted before data exist, so it needs no inventory: it infers nothing,
 and places only what is supplied (invariant 2): the funders, the required repository, the licence,
-the sensitive data and their handling, and the standards people in the project decided, as project
-facts give them, the inventory's files if the data already exist, and the researcher's answers. It
-asks first, as a README does, and every other gap is asked. No model writes a plan's text, so
+the sensitive data and their handling, the standards, the description of the data, and what the
+project is for, its field and period (placed in Project details), that people in the project
+decided, as project facts give them, the inventory's files if the data already exist, and
+the researcher's answers. A confirmed data description (`data_description`) fills the plan's data
+section, in the researcher's words, and completes it when it says how the data are collected or
+which existing data are reused; one that says only what is collected is placed and the section is
+still asked. It asks first, as a README does, and every other gap is asked. Its sharing and
+preservation question asks for what is intended, since the repository and the licence are chosen
+later (Phases 3 and 5) and the plan is updated once they are (`setup.dmp-review`,
+`post.dmp-update`). In Phase 1 the plan is written after the requirements are found out
+(`setup.requirements`) and before the documentation, storage and formats steps, so it asks those
+sections itself; sharing an answer given in one place with the other is TODO(#1537). No model writes a plan's text, so
 `document_derivation` is always `template`; where a model is configured, it suggests answers only
 from the documents the researcher attached and the project's decisions, beside the questions
-(invariant 7). The Data Management Plan Checker (`advisor.dmp`) reviews an attached plan against
-the same requirements (`setup.dmp-review`).
+(invariant 7). The Data Management Planner (`advisor.dmp`) reviews a plan against the same
+requirements (`setup.dmp-review`): an attached plan, or, once a version is approved, the plan
+written here, which reopens the review after a "No" to having a plan ([Projects](projects.md),
+rule 20 and invariant 32).
 
 ## Invariants
 
@@ -58,7 +74,9 @@ the same requirements (`setup.dmp-review`).
    tables, and each field's name, type and format, and the summary values the command wrote
    after disclosure control (a range that leaves out the extremes, a mean, categories and
    missing-value codes with rounded counts). It opens no file. A data dictionary's missing-value
-   codes are inferred from them; a writer may describe a field with them but never says what a
+   codes are inferred from them, and a `missing_values` cell, inferred or supplied, is a JSON
+   array of strings, the form of a Frictionless Table Schema field's `missingValues`, which the
+   question asks for as a list (`answer_kind`); a writer may describe a field with them but never says what a
    code means, nor calls a range's bounds the minimum and maximum
    ([Personal data and disclosure control](personal-data.md), #571, #611). A data dictionary's
    `unit_code` is also inferred: it is worked out by rule (`dd-units`) from the unit the field
@@ -169,18 +187,30 @@ the same requirements (`setup.dmp-review`).
    off at the model's length limit, or one malformed item, never discards the rest. The outcome's
    statement says how many questions got no suggestion and why, in plain words
    (`agents/advisor-documentation/tests/test_suggestion_batches.py`, #1318). The Metadata Librarian suggests only the values its rule
-   table marks `suggest` (`agents/advisor-metadata/src/dd_agent_advisor_metadata/datacite.yaml`):
+   table marks `suggest` (the drafting block of DataCite's definition,
+   `metadata-records/src/dd_metadata_records/standards/datacite-4.yaml`):
    a title, a description, a free keyword and a language; never a creator, contributor, date,
-   rights statement, funder, related identifier or place, which only the researcher can give,
-   and never an entry the repository asks for from a named vocabulary, TODO(#703). Its model is
+   rights statement, funder, related identifier or place, which only the researcher can give.
+   An entry the repository asks for from a named subject classification, such as ORDA's
+   categories from the ANZSRC Fields of Research, is suggested only from that classification's
+   fields, retrieved through the tool gateway before the model is called: the model gives the
+   code of one of them, a code the set does not hold is dropped, and the suggestion offered is
+   the label of the field's own record, which the payload cites
+   (`agents/advisor-metadata/tests/test_metadata_categories.py`, #703). With no tools grant, it
+   suggests no such entry and says so. Keywords from other vocabularies wait for the choice of
+   terminology services, TODO(#956). Its model is
    given the repository's requirements and the inventory's structure, never an answer, a
    description a person wrote, the researchers' records or an earlier version, and a suggestion
    is offered only if it is one line of plain text that names no link, DOI, email address or
    ORCID iD its input does not give (`agents/advisor-metadata/tests/test_suggestions.py`).
    A suggestion may instead copy the person's own words: see invariant 11.
-8. **A drafter rests on its input alone.** The grounding mode of the Documentation Editor and of
-   the Metadata Librarian is `input_only`, whichever way a particular version was drafted. The metadata record and the answers reach it in its input, never by retrieval, so it
-   cites only its input. `document_derivation` records how each version came about: `model`, or
+8. **A drafter rests on its input.** The grounding mode of the Documentation Editor is
+   `input_only`, whichever way a particular version was drafted: the document and the answers
+   reach it in its input, never by retrieval, so it cites only its input. The Metadata
+   Librarian's is `retrieval`, because a category it suggests rests on a classification's record
+   it retrieved through the tool gateway (invariant 7). It records reading its input as its first
+   retrieval and cites its input, and each such record beside it; the record and the answers
+   still reach it only in its input. `document_derivation` records how each version came about: `model`, or
    `template` when no model is configured or none of the model's draft was used. The manifest names it
    as the recorder of `document_text` (`recorded_in`, [Agents](agents.md)).
 
@@ -210,10 +240,11 @@ the same requirements (`setup.dmp-review`).
     every kind of document gives the same way: the dataset's title, its creators, its abstract,
     when and where the data were collected, its funder and its licence (`SharedField`, #1284). A
     drafter names the one a question asks for in its `shared_field`, from its own template: the
-    Metadata Librarian's rule table marks the first entry of `titles`, `creators`,
-    `descriptions` (Abstract), `dates` (Collected), `geoLocations`, `fundingReferences` and
-    `rightsList` with `shares`
-    (`agents/advisor-metadata/src/dd_agent_advisor_metadata/datacite.yaml`), and the Documentation
+    Metadata Librarian names, by pivot term, the first entry of a record's name, creator,
+    description, temporal coverage, spatial coverage, funding and licence
+    (`agents/advisor-metadata/src/dd_agent_advisor_metadata/shares.yaml`; in DataCite the first
+    of `titles`, `creators`, `descriptions` (Abstract), `dates` (Collected), `geoLocations`,
+    `fundingReferences` and `rightsList`), and the Documentation
     Editor's README template marks the parts of General information and the Description and
     Access and licence sections (`readme.yaml`). In a project the conductor gives a drafter
     `shared_answers`: for each shared field, the latest answer a person recorded to a question on
@@ -221,8 +252,10 @@ the same requirements (`setup.dmp-review`).
     (`harness/tests/test_shared_answers_in_a_project.py`). The drafter offers it as the open
     question's `suggested_answer`, with `suggestion_derivation` `answer` and `suggested_from`
     naming the kind; where nobody answered, it offers a decided funder or licence
-    (`project_decisions`, invariant 9) with `suggested_from` `decision`
-    (`dd_sdk.shared_answers`). Such a suggestion copies the person's own words, so it may fill a
+    (`project_decisions`, invariant 9) with `suggested_from` `decision`; and for the creators,
+    the project's people who kept a name in their ORCID record (`researchers`), one per line,
+    with `suggested_from` `researchers` (`dd_sdk.shared_answers`). Who answers questions about the
+    data is not known, so the person says it. Such a suggestion copies the person's own words, so it may fill a
     field no model may suggest, a creator, date, place, funder or licence; but it is still only
     offered, kept out of the document's text, and recorded for that document only when the person
     accepts or saves it there, as any suggestion is (invariant 7). A person's words come before a
@@ -251,6 +284,16 @@ the same requirements (`setup.dmp-review`).
     `model`. If no model is configured, the document is not a README, or nothing usable changed,
     the editor abstains and drafts no version, saying why. A later redraft from the facts drafts
     the README afresh and does not keep a revision's wording, TODO(#1468).
+13. **A person asks for the next draft when they choose.** Nothing redrafts a document on its own
+    when answers are saved. A person may ask the agent that drafted a document to draft it again
+    from the project's recorded answers at any time: at either stage, and whether or not any
+    question is left open. The request names the latest version the person was shown and nothing
+    else; the app answers `409` and runs nothing if it is no longer the latest, or if no agent
+    drafted the document. The drafter is given `redraft_document` and not `revise`, so the
+    conductor fills `current_version`, `draft_answers` and `shared_answers` as for any redraft in a
+    project, and the drafter writes the document afresh, placing every answer recorded and asking
+    the gaps still open (invariants 6 and 10). The run is the request: no other event is recorded
+    (`app/tests/test_document_drafts.py`).
 
 ## Boundaries and contracts
 
@@ -265,14 +308,25 @@ question and its answer. It also has the text put to the person and its target: 
 README section (`gap_section`), with the part of it (`gap_part`) when the section is asked part by
 part, a data dictionary cell named by `gap_file`, `gap_field` and `gap_column`, with every file
 whose cell the answer fills in `gap_files` when the column is shared (invariant 5), or a metadata
-record value named by its path in the record's JSON form (`gap_property`, such as
-`titles[0].title`). A metadata record marks a gap by leaving its value `null`, since JSON has no
-comments. An answer (`DraftAnswer`) names the question it answers and gives the text. The
+record value named by its path in the standard's logical model (`gap_property`, such as
+DataCite's `titles[0].title`), the same whatever serialisation the record is written in. A
+metadata record marks a gap as its serialisation's definition says: in JSON, by leaving the value
+`null`, since JSON has no comments ([Metadata standards](metadata-standards.md), invariant 6). An answer (`DraftAnswer`) names the question it answers and gives the text. The
 classes are in the core contract because the conductor, the app and an orchestrator all read them
 without knowing the drafter. A question may carry a suggested answer (`suggested_answer`) with
 how it was derived (`suggestion_derivation`); the one is present exactly when the other is. A
 question may name the shared value it asks for (`shared_field`), and a suggestion derived as
-`answer` names where it came from (`suggested_from`, invariant 11). A set
+`answer` names where it came from (`suggested_from`, invariant 11). A question may say how it is
+answered (`answer_kind`: `text`, the default, or `list`, one string holding a JSON array of
+values, such as the values that mean a value is missing) and add a line of help
+(`question_help`), so that a front end shows the fitting input without naming a column. A suggestion a drafter composed
+by rule from what the deployment's profile vouches for is derived as `template` with
+`suggested_from` `institution`: the Documentation Editor offers the institution's storage
+services (`institution_storage`, which the conductor fills into every `DraftRequest`) to a Data
+Management Plan's question on storage and backup. They say what is available, not what the
+project will use, so they are only offered, as any suggestion is (invariant 7), and the app says
+they come from the institution's own list, not a model
+(`agents/advisor-documentation/tests/test_dmp_storage.py`). A set
 of choices, as a reply's choice `Question` has, is added with the first drafter that
 sets one, TODO(#529).
 
@@ -386,7 +440,10 @@ as any other answer is.
   published as the researcher's, marked only by a column a reader may never look at.
 - **The orchestrator passing answers to the drafter.** A `DraftRequest` slot filled by the
   orchestrator would be simpler and would work with plain chat. But a model's interpretation of the
-  researcher's words would then become `supplied`, with only the approval to catch a mistake.
+  researcher's words would then become `supplied`, with only the approval to catch a mistake. What
+  the researcher says of their data in a conversation reaches a drafter instead as a
+  `data_description` fact the orchestrator proposes and a person confirms
+  ([Projects](projects.md), invariant 28): a person decides it before any drafter is given it.
 - **Answers only by editing the draft.** Editing still works, and its values become `supplied` on
   regeneration. As the only way, it leaves the researcher to find each gap themselves.
 - **A source marker on every README section.** It is more precise than marking only the gaps, but a

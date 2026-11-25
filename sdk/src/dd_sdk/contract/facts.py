@@ -3,8 +3,9 @@
 ORCID records (`ResearcherRecord`), the facts people decided about the project (`ProjectFact`),
 the repository a researcher chose (`ChosenRepository`), what its inventory is
 (`InventorySummary`), the documents a researcher attached (`DocumentationSummary`, and
-`ProjectDocument` with its text), and the repositories the profile names as its institution's
-(`InstitutionRepository`). `dd_sdk.contract.models` re-exports the classes its own classes use."""
+`ProjectDocument` with its text), and the repositories and storage services the profile names as
+its institution's (`InstitutionRepository`, `InstitutionStorage`). `dd_sdk.contract.models`
+re-exports the classes its own classes use."""
 
 from __future__ import annotations
 
@@ -107,6 +108,10 @@ class FactKind(StrEnum):
     SHARING_COMMITMENT = "sharing_commitment"
     STANDARD = "standard"
     DATA_MANAGEMENT_PLAN = "data_management_plan"
+    DATA_DESCRIPTION = "data_description"
+    PROJECT_SUMMARY = "project_summary"
+    FIELD_OF_STUDY = "field_of_study"
+    PROJECT_PERIOD = "project_period"
 
 
 class FileDecision(StrEnum):
@@ -144,9 +149,24 @@ class LocationPrecision(StrEnum):
 STANDARD_TARGET_PATTERN = r"^(dataset|field:\S.*)$"
 DATASET_TARGET = "dataset"
 
-# The one subject a `data_management_plan` fact has, so that a project has at most one current
-# plan: the last decision on it stands (docs/specs/projects.md, invariant 32).
+# The one subject a fact about the project as a whole has, so that a project has at most one
+# current plan, one description of its data, one summary, field and period: the last decision on
+# each stands (docs/specs/projects.md, invariant 32). The summary, field and period are decided at
+# "Describe your project" (`setup.project`).
 PLAN_SUBJECT = "project"
+# The kinds of fact whose subject is always `PLAN_SUBJECT`.
+PROJECT_WIDE = frozenset(
+    {
+        FactKind.DATA_MANAGEMENT_PLAN,
+        FactKind.DATA_DESCRIPTION,
+        FactKind.PROJECT_SUMMARY,
+        FactKind.FIELD_OF_STUDY,
+        FactKind.PROJECT_PERIOD,
+    }
+)
+
+# A date as precise as is known: a year, a month or a day.
+PARTIAL_DATE_PATTERN = r"^\d{4}(-\d{2}(-\d{2})?)?$"
 
 # The value slots each kind of project fact needs (the schema's rules on ProjectFact).
 FACT_NEEDS: dict[FactKind, tuple[str, ...]] = {
@@ -158,6 +178,10 @@ FACT_NEEDS: dict[FactKind, tuple[str, ...]] = {
     FactKind.SHARING_COMMITMENT: ("commitment_quote", "commitment_document"),
     FactKind.STANDARD: ("standard_name",),
     FactKind.DATA_MANAGEMENT_PLAN: ("plan_document",),
+    FactKind.DATA_DESCRIPTION: ("data_collected",),
+    FactKind.PROJECT_SUMMARY: ("summary_text",),
+    FactKind.FIELD_OF_STUDY: ("field_name",),
+    FactKind.PROJECT_PERIOD: ("period_start",),
 }
 
 
@@ -194,6 +218,17 @@ class ProjectFact(Frozen):
     standard_target: str | None = Field(default=None, pattern=STANDARD_TARGET_PATTERN)
     # Which attached document is the project's data management plan, by its text's digest.
     plan_document: str | None = Field(default=None, pattern=SHA256_PATTERN)
+    # What data the project collects and how, in the researcher's words (`data_description`).
+    data_collected: str | None = None
+    data_collection_method: str | None = None
+    data_formats: str | None = None
+    data_volume: str | None = None
+    data_reused: str | None = None
+    # What the project is: its aims and questions, its field of study, and when it runs.
+    summary_text: str | None = Field(default=None, pattern=r"\S")
+    field_name: str | None = Field(default=None, pattern=r"\S")
+    period_start: str | None = Field(default=None, pattern=PARTIAL_DATE_PATTERN)
+    period_end: str | None = Field(default=None, pattern=PARTIAL_DATE_PATTERN)
     # Shown to the person deciding; never given to an agent.
     proposed_because: str | None = None
 
@@ -202,8 +237,8 @@ class ProjectFact(Frozen):
         missing = [slot for slot in FACT_NEEDS[self.fact_kind] if getattr(self, slot) is None]
         if missing:
             raise ValueError(f"a {self.fact_kind} fact needs {', '.join(missing)}")
-        if self.fact_kind == FactKind.DATA_MANAGEMENT_PLAN and self.fact_subject != PLAN_SUBJECT:
-            raise ValueError(f"a data management plan fact's subject is {PLAN_SUBJECT!r}")
+        if self.fact_kind in PROJECT_WIDE and self.fact_subject != PLAN_SUBJECT:
+            raise ValueError(f"a {self.fact_kind} fact's subject is {PLAN_SUBJECT!r}")
         return self
 
 
@@ -309,4 +344,36 @@ class InstitutionRepository(Frozen):
     data_access_types: list[str] = Field(default_factory=list)
     data_licences: list[str] = Field(default_factory=list)
     charges_deposit_fee: bool | None = None
+    guidance: list[str] = Field(default_factory=list)
+
+
+class StorageKind(StrEnum):
+    INSTITUTIONAL_FILESTORE = "institutional_filestore"
+    INSTITUTIONAL_CLOUD = "institutional_cloud"
+    MANAGED_CLOUD = "managed_cloud"
+    SECURE_ENVIRONMENT = "secure_environment"
+
+
+# A deployment's own label for a storage service.
+STORAGE_ID_PATTERN = r"^[a-z0-9][a-z0-9-]*$"
+
+
+class InstitutionStorage(Frozen):
+    """One storage service the deployment's profile names as its institution's, for keeping data
+    while a project runs (`institution_storage`, docs/specs/policy-and-identity.md), as the
+    conductor gives it to an agent whose input mixes in `GivenInstitutionStorage`. It holds only
+    what the deployment vouches for; `profile_ref` is the reference of the profile, under which
+    an agent cites it. An unknown `approved_for_sensitive` is never taken as approval."""
+
+    storage_id: str = Field(pattern=STORAGE_ID_PATTERN)
+    profile_ref: str = Field(pattern=r"^profile:\S+@v[0-9]+$")
+    storage_name: str
+    storage_description: str | None = None
+    storage_kind: StorageKind | None = None
+    approved_for_sensitive: bool | None = None
+    allows_external_collaborators: bool | None = None
+    # A float so that it hashes the same after A2A's Struct, which has no integers.
+    allowance_gb: float | None = Field(default=None, ge=0)
+    charges_for_storage: bool | None = None
+    storage_backup: str | None = None
     guidance: list[str] = Field(default_factory=list)

@@ -22,8 +22,46 @@ metadata record is given only what a person has decided, never a proposal. So yo
 4. Add a reason if a colleague should know why. It is kept in the project's record, and no
    agent is given it.
 
+## Talking a proposal through
+
+If you are not sure about a proposal, choose **Discuss this with Data Director** on its card. A
+new conversation opens with a question about the proposal in the message box: what it would
+decide, which agent proposed it and why. Nothing is sent until you send it, so you can change
+the question or remove the agent's reason first. Data Director can explain and advise, but it
+cannot decide the fact: come back to **Project facts** to confirm, change or reject it.
+
+## Describing your data
+
+When you tell Data Director what data your project collects or produces, how, in which formats
+or in what volume, it proposes a **description of the project's data** in your own words. Check
+it under **Proposed by agents** and confirm or correct it. Once it is decided, every agent in the
+project is given it, in this conversation and in any you start later. For example, the
+Documentation Editor writes it into your Data Management Plan's **Data description and
+collection** section, so you do not have to say it again. You can also add a description
+yourself with **Add a fact**.
+
+## Changing what was decided
+
 Under **Decided**, you can change or remove a fact that stands. **Add a fact**
 records one of your own, such as a funder no agent found.
+
+## Funders and their identifiers
+
+When the Policy Adviser checks a funder's policy, it looks the funder up in ROR, the Research
+Organization Registry. If the name means exactly one organisation there, it proposes the funder
+as a fact with its ROR identifier and its Crossref Funder ID, both from ROR's record, so you do
+not need to type them. ROR now holds the Crossref Funder Registry's identifiers. If a name could
+mean more than one organisation, such as "NERC", the adviser asks which you mean instead of
+proposing one. If you added a funder by name only, its proposal fills in the identifiers for that
+same fact when you confirm it.
+
+Each funder fact has a **View funder** link, whether it is proposed or decided. It opens a page
+that shows the fact and the organisation ROR records behind its identifier: its names, type,
+country, parent organisations and Crossref Funder IDs, with links to its ROR record and to each
+Crossref Funder ID. Use it to check that the identifier is the organisation you mean before you
+confirm it. The page reads a pinned copy of ROR, not the live registry, and says which copy, so a
+very recent change at ROR may not appear. If the copy holds no organisation at the identifier, the
+page says so; check the identifier. The page only shows: you still decide the fact on the facts page.
 
 ## Who decides
 

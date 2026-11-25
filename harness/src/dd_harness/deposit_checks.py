@@ -20,6 +20,7 @@ from dd_harness.deposit_report import project_iri
 from dd_harness.shacl import DD, INFO, VIOLATION, WARNING, Result, Severity
 from dd_sdk.contract.deposit import SuppliedOn
 from dd_sdk.contract.models import DocumentKind
+from dd_sdk.contract.requirements import expand_term
 
 DOCUMENT_CHECK = DD + "RequiredDocumentConstraintComponent"
 REPOSITORY_CHECK = DD + "RepositoryChoiceConstraintComponent"
@@ -115,11 +116,8 @@ def filled_by_repository(project_id: str, requirements: Mapping[str, Any]) -> It
 
 def located(results: Iterable[Result], requirements: Mapping[str, Any]) -> Iterator[Result]:
     """`results` about the record's fields, each with its field's label and the page where its
-    value is supplied, found by the schema.org term the result's path names."""
-    fields = {
-        f"http://schema.org/{field['schema_org']}": field
-        for field in requirements.get("fields", [])
-    }
+    value is supplied, found by the term the result's path names."""
+    fields = {expand_term(field["term"]): field for field in requirements.get("fields", [])}
     for result in results:
         field = fields.get(result.path or "")
         if field is None:

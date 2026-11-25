@@ -4,6 +4,8 @@ out under tmp_path, a stand-in for systemd and the doctor, and agents served in 
 from __future__ import annotations
 
 import json
+import logging
+import zipfile
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -13,20 +15,23 @@ import httpx
 import pytest
 from starlette.testclient import TestClient
 
-from dd_admin import config_files, operations, spend, usage
+from dd_admin import case, config_files, operations, spend, usage
 from dd_admin.app import Admin, build_app, is_loopback_host
 from dd_admin.cache import Cached
 from dd_admin.cli import loopback, main
 from dd_admin.settings import AdminSettings
 from dd_admin.system import Done, System
+from dd_harness import casefile
 from dd_harness.projects import ProjectStore
 from dd_harness.settings import SettingsError
 from dd_harness.store import RunStore
 from dd_harness.testing.doubles import AbstainingStub
 from dd_harness.testing.serving import asgi_client_factory
 from dd_harness.testing.storage import stored_envelope
-from dd_sdk import serve
+from dd_sdk import security_log, serve
 from dd_sdk.contract.models import Principal, new_invocation_id
+from dd_sdk.security_log import SecurityEvent
+from dd_sdk.testing import security_events
 
 ADA = "https://orcid.org/0000-0001-0000-0001"
 BEN = "https://orcid.org/0000-0001-0000-0002"
@@ -125,6 +130,16 @@ class FakeSystem(System):
                     for u in units
                 )
                 + "\n",
+            )
+        if cmd[:3] == ("journalctl", "--output", "json"):
+            # A case's journal: one line naming the conversation `c1`, one naming nothing.
+            at = str(int(datetime.now(UTC).timestamp() * 1_000_000))
+            return Done(
+                0,
+                "\n".join(
+                    json.dumps({"MESSAGE": m, "__REALTIME_TIMESTAMP": at, "_SYSTEMD_UNIT": u})
+                    for m, u in (("turn c1 failed", "data-director-app.service"), ("idle", "x"))
+                ),
             )
         if cmd[0] == "journalctl":
             return Done(0, f"2026-11-12T10:00:00+0000 vm {cmd[2]}[1]: started\n")
@@ -310,6 +325,10 @@ def test_every_page_carries_headers_that_keep_it_private(client: TestClient) -> 
         "/people",
         "/runs",
         "/spend",
+        "/monitoring",
+        "/policy",
+        "/escalations",
+        "/security",
         "/projects",
         "/config",
         "/feedback",
@@ -672,6 +691,10 @@ def test_with_nothing_configured_every_page_still_answers() -> None:
         "/people",
         "/runs",
         "/spend",
+        "/monitoring",
+        "/policy",
+        "/escalations",
+        "/security",
         "/projects",
         "/config",
     ):
@@ -704,3 +727,100 @@ def test_a_call_a_persons_own_account_paid_for_is_not_the_deployments_spend() ->
     # A run paid for wholly by the person's own account does not fall back to its totals.
     telemetry = {"model_id": SONNET, "input_tokens": 3, "output_tokens": 1, "model_calls": [own]}
     assert usage.model_calls(telemetry) == []
+
+
+# --- Downloading a case (docs/specs/casefile.md) -------------------------------------------------
+
+
+def _download(client: TestClient, path: str, tmp_path: Path) -> tuple[Path, Any]:
+    response = client.get(path)
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"] == "application/zip"
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    target = tmp_path / "downloaded.zip"
+    target.write_bytes(response.content)
+    return target, response
+
+
+def test_a_run_conversation_and_project_download_as_cases(
+    client: TestClient,
+    stores: tuple[Path, Path, dict[str, str]],
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, logger=security_log.LOGGER)
+    ids = stores[2]
+    cases = (("run", ids["first"]), ("conversation", "c1"), ("project", ids["project"]))
+    for scope, ident in cases:
+        case_zip, response = _download(client, f"/case/{scope}/{ident}", tmp_path / scope)
+        report = casefile.verify(case_zip)
+        # The fixture's envelopes are not whole envelopes, so only the files are checked here.
+        assert [c.passed for c in report.checks if c.about == "files"] == [True]
+        assert response.headers["x-case-digest"] == f"sha256:{report.digest}"
+        with zipfile.ZipFile(case_zip) as archive:
+            manifest = json.loads(archive.read("case.json"))
+        assert (manifest["scope"], manifest["id"]) == (scope, ident)
+        assert manifest["exported_by"] == case.EXPORTER.principal_id
+    exported = [
+        e for e in security_events(caplog.records) if e["event"] == SecurityEvent.CASE_EXPORTED
+    ]
+    assert [e["action"] for e in exported] == ["run", "conversation", "project"]
+
+
+def test_a_downloaded_case_can_name_its_content_and_keep_journal_lines(
+    client: TestClient, system: FakeSystem, tmp_path: Path
+) -> None:
+    case_zip, _ = _download(client, "/case/conversation/c1?content=named&journal=1", tmp_path)
+    with zipfile.ZipFile(case_zip) as archive:
+        manifest = json.loads(archive.read("case.json"))
+        lines = archive.read("journal.jsonl").decode().splitlines()
+    assert manifest["content"] == "named"
+    assert [json.loads(line)["unit"] for line in lines] == ["data-director-app.service"]
+    assert any(cmd[:3] == ("journalctl", "--output", "json") for cmd in system.commands)
+
+
+def test_without_systemd_a_case_has_no_journal_and_the_form_offers_none(
+    stores: tuple[Path, Path, dict[str, str]], system: FakeSystem, tmp_path: Path
+) -> None:
+    settings = AdminSettings(runs=stores[0], projects=stores[1])
+    client = TestClient(build_app(Admin.open(settings, system)), base_url="http://localhost")
+    page = client.get(f"/runs/{stores[2]['first']}").text
+    assert 'action="/case/run/' in page
+    assert 'name="journal"' not in page
+    case_zip, _ = _download(client, f"/case/run/{stores[2]['first']}?journal=1", tmp_path)
+    with zipfile.ZipFile(case_zip) as archive:
+        assert "journal.jsonl" not in archive.namelist()
+    assert not system.commands
+
+
+@pytest.mark.parametrize(
+    "path", ["/case/run/0190a000-0000-7000-8000-000000000000", "/case/everything/c1"]
+)
+def test_a_case_the_stores_do_not_hold_is_not_found(client: TestClient, path: str) -> None:
+    assert client.get(path).status_code == 404
+
+
+def test_the_pages_that_name_a_case_offer_its_download(
+    client: TestClient, stores: tuple[Path, Path, dict[str, str]]
+) -> None:
+    ids = stores[2]
+    pages = {
+        f"/runs/{ids['first']}": f"/case/run/{ids['first']}",
+        f"/projects/{ids['project']}": f"/case/project/{ids['project']}",
+        "/runs?conversation=c1": "/case/conversation/c1",
+    }
+    for page, action in pages.items():
+        assert f'action="{action}"' in client.get(page).text
+    assert "/case/" not in client.get("/runs").text
+
+
+def test_a_journal_that_cannot_be_read_stops_the_download(
+    client: TestClient, system: FakeSystem, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def broken(*cmd: str, timeout_s: float = 60.0) -> Done:
+        return Done(1, "", "No journal files were found.")
+
+    monkeypatch.setattr(system, "run", broken)
+    response = client.get("/case/conversation/c1?journal=1")
+    assert response.status_code == 502
+    assert "No journal files" in response.text

@@ -1,8 +1,10 @@
 """The security event log: one JSON record per event on the `dd.security` logger.
 
-Security events record who signed in, who was refused, which model grants were minted and which
-accounts were enrolled with the model broker (docs/specs/security.md, Security events). They are
-kept apart from run provenance, which records what an agent did (invariant 5).
+Security events record who signed in and in which deployment roles, who was refused, which
+profile a service loaded, what a data steward read or did in another person's project, which model
+grants were minted and which accounts were enrolled with the model broker (docs/specs/security.md,
+Security events). They are kept apart from run provenance, which records what an agent did
+(invariant 5).
 
 A record carries only the fields `emit` builds: a time, the event, its outcome, a principal, a
 reason code, the service and a few named identifiers. A caller cannot add another field, so a
@@ -30,20 +32,40 @@ class SecurityEvent(StrEnum):
     SIGN_IN_SUCCEEDED = "sign-in.succeeded"
     SIGN_IN_FAILED = "sign-in.failed"
     SIGN_OUT = "sign-out"
+    SESSION_ENDED = "session.ended"
+    ACCESS_LOADED = "access.loaded"
     CALLER_REFUSED = "caller.refused"
+    PROFILE_LOADED = "profile.loaded"
+    STEWARD_VIEWED = "steward.viewed"
+    STEWARD_ACTED = "steward.acted"
     GRANT_MINTED = "grant.minted"
     BROKER_BYPASS_REFUSED = "agent.broker-bypass-refused"
     BROKER_ENROLLED = "broker.enrolled"
     BROKER_ENROLMENT_REFUSED = "broker.enrolment-refused"
     BROKER_ACCOUNT_REMOVED = "broker.account-removed"
     BROKER_CALL_REFUSED = "broker.call-refused"
+    SPAN_SECRET_DROPPED = "agent.span-secret-dropped"
+    CASE_EXPORTED = "case.exported"
 
 
 type Outcome = Literal["success", "failure"]
 
 # The identifiers a record may carry beside its fixed fields. None of them is a secret.
 CONTEXT_KEYS = frozenset(
-    {"agent_id", "invocation_id", "profile_id", "provider", "models", "account", "transport"}
+    {
+        "agent_id",
+        "invocation_id",
+        "conversation_id",
+        "profile_id",
+        "profile_version",
+        "project_id",
+        "action",
+        "roles",
+        "provider",
+        "models",
+        "account",
+        "transport",
+    }
 )
 
 # The attribute of a `LogRecord` that holds the event's fields.

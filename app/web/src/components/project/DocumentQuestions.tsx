@@ -43,7 +43,8 @@ import {
   type DocumentVersion,
   useProjectApi,
 } from "../../project/api";
-import { fromAPerson } from "../../project/suggestion";
+import { isList, listAnswer } from "../../project/listAnswer";
+import { byAModel } from "../../project/suggestion";
 import { errorMessage } from "../../run/api";
 import { Button } from "../ui/Button";
 import { DocumentQuestionField, overLimit } from "./DocumentQuestionField";
@@ -146,7 +147,10 @@ export function DocumentQuestions({
 
   const given = (questions: DocumentQuestion[]): GivenAnswer[] =>
     questions
-      .map((q) => ({ answered_question: q.question_id, answer_text: drafts.value(q).trim() }))
+      .map((q) => {
+        const text = drafts.value(q).trim();
+        return { answered_question: q.question_id, answer_text: isList(q) ? listAnswer(text) : text };
+      })
       .filter((a) => a.answer_text !== "");
 
   const isChanging = (q: DocumentQuestion) => changing.has(q.question_id);
@@ -188,7 +192,7 @@ export function DocumentQuestions({
       setSaid(
         onWrite
           ? `${recorded} Answer more, or write the ${name} now.`
-          : `${recorded} Ask for a new draft to put ${n === 1 ? "it" : "them"} into the ${name}.`,
+          : `${recorded} Continue drafting the ${name} to put ${n === 1 ? "it" : "them"} in.`,
       );
       drafts.saved(answers.map((a) => a.answered_question));
       setStart(0);
@@ -230,8 +234,8 @@ export function DocumentQuestions({
           <fieldset className="field" disabled={saving}>
             <legend>Suggested answers to check ({suggested.length})</legend>
             <p className="hint">
-              {suggested.some(fromAPerson)
-                ? "Some of these are what you gave for another document, or what was decided in the project; the rest a model suggested from the project's files and documents."
+              {!suggested.every(byAModel)
+                ? "Some of these are what you gave for another document, what was decided in the project, or your institution's own list; the rest a model suggested from the project's files and documents."
                 : "A model suggested these from the project's files and documents."}{" "}
               Check each one; change it, or clear the box if it is wrong. Nothing is recorded until
               you accept.

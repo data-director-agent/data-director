@@ -1,6 +1,6 @@
 /**
  * Adding an inventory to a project from outside a conversation (docs/specs/projects.md): the
- * project page and the workspace's project panel offer **Add an inventory**, beside **Make an
+ * project page and the workspace's project panel offer **Make an inventory**, beside **Add an
  * inventory**, which says how to make one. A file chosen is read, then opened in the same check
  * as one attached to a message (`InventoryReviewDialog`, #472), and only when the researcher
  * confirms is it saved, as the project's latest inventory (`POST /api/projects/{id}/inventory`),
@@ -72,6 +72,7 @@ export function AddInventory({
   return (
     <>
       <span className="add-inventory">
+        <MakeInventoryDialog onAttach={(file) => void choose(file)} />{" "}
         <FileTrigger
           acceptedFileTypes={["application/json", ".json"]}
           onSelect={(files) => void choose(files?.[0])}
@@ -79,8 +80,7 @@ export function AddInventory({
           <Button icon={Upload} isPending={saving}>
             {replacing ? "Replace the inventory" : "Add an inventory"}
           </Button>
-        </FileTrigger>{" "}
-        <MakeInventoryDialog onAttach={(file) => void choose(file)} />
+        </FileTrigger>
       </span>
       {/* Not a `status` role, which the page around it already has; it only needs to be announced. */}
       <span aria-live="polite">{said?.ok !== false && said?.text}</span>

@@ -342,7 +342,11 @@
             "licence",
             "sharing_commitment",
             "standard",
-            "data_management_plan"
+            "data_management_plan",
+            "data_description",
+            "project_summary",
+            "field_of_study",
+            "project_period"
          ],
          "title": "FactKind",
          "type": "string"
@@ -534,6 +538,97 @@
          ],
          "title": "IdentificationMethod",
          "type": "string"
+      },
+      "InstitutionStorage": {
+         "additionalProperties": false,
+         "description": "One storage service the deployment's profile names as its institution's, for keeping data while a project runs (the profile's institution_storage, docs/specs/policy-and-identity.md). It holds only what the deployment vouches for: the conductor fills it into the input of an agent that mixes in GivenInstitutionStorage.",
+         "properties": {
+            "storage_id": {
+               "description": "The deployment's own label for a storage service, such as research-filestore: lower case letters, digits and hyphens.",
+               "pattern": "^[a-z0-9][a-z0-9-]*$",
+               "type": "string"
+            },
+            "profile_ref": {
+               "description": "The reference of the profile that vouches for the facts, as profile:<id>@v<version>; an agent cites them under it.",
+               "pattern": "^profile:\\S+@v[0-9]+$",
+               "type": "string"
+            },
+            "storage_name": {
+               "description": "The storage service's name, as the institution gives it to researchers.",
+               "type": "string"
+            },
+            "storage_description": {
+               "description": "What the service is for, in a sentence or two a researcher can read.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "storage_kind": {
+               "anyOf": [
+                  {
+                     "$ref": "#/$defs/StorageKind"
+                  },
+                  {
+                     "type": "null"
+                  }
+               ],
+               "description": "What kind of storage service it is."
+            },
+            "approved_for_sensitive": {
+               "description": "Whether the institution approves the service for personal or otherwise sensitive data. Unknown when not given, which is never taken as approval.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
+            },
+            "allows_external_collaborators": {
+               "description": "Whether people outside the institution can be given access to data held there.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
+            },
+            "allowance_gb": {
+               "description": "How many gigabytes a project may hold there without charge, where there is a limit.",
+               "type": [
+                  "number",
+                  "null"
+               ]
+            },
+            "charges_for_storage": {
+               "description": "Whether the institution charges a project for storage there.",
+               "type": [
+                  "boolean",
+                  "null"
+               ]
+            },
+            "storage_backup": {
+               "description": "What the service does to keep copies, as the institution states it, such as nightly snapshots replicated to a second site.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "guidance": {
+               "description": "The pages the deployment checked the facts it vouches for against.",
+               "items": {
+                  "format": "uri",
+                  "type": "string"
+               },
+               "type": [
+                  "array",
+                  "null"
+               ]
+            }
+         },
+         "required": [
+            "storage_id",
+            "profile_ref",
+            "storage_name"
+         ],
+         "title": "InstitutionStorage",
+         "type": "object"
       },
       "InventoryFile": {
          "additionalProperties": false,
@@ -1020,9 +1115,105 @@
                      "fact_subject"
                   ]
                }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "data_description"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "data_collected": {},
+                     "fact_subject": {
+                        "const": "project"
+                     }
+                  },
+                  "required": [
+                     "data_collected",
+                     "fact_subject"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "project_summary"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "fact_subject": {
+                        "const": "project"
+                     },
+                     "summary_text": {}
+                  },
+                  "required": [
+                     "summary_text",
+                     "fact_subject"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "field_of_study"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "fact_subject": {
+                        "const": "project"
+                     },
+                     "field_name": {}
+                  },
+                  "required": [
+                     "field_name",
+                     "fact_subject"
+                  ]
+               }
+            },
+            {
+               "if": {
+                  "properties": {
+                     "fact_kind": {
+                        "const": "project_period"
+                     }
+                  },
+                  "required": [
+                     "fact_kind"
+                  ]
+               },
+               "then": {
+                  "properties": {
+                     "fact_subject": {
+                        "const": "project"
+                     },
+                     "period_start": {}
+                  },
+                  "required": [
+                     "period_start",
+                     "fact_subject"
+                  ]
+               }
             }
          ],
-         "description": "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, an output a data management plan committed to share, a standard, vocabulary or format the researcher chose for the dataset, or which attached document is the project's data management plan (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because.",
+         "description": "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, an output a data management plan committed to share, a standard, vocabulary or format the researcher chose for the dataset, which attached document is the project's data management plan, or what data the project collects and how, or what the project is for, its field of study and when it runs (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because.",
          "properties": {
             "fact_kind": {
                "$ref": "#/$defs/FactKind",
@@ -1216,6 +1407,73 @@
             "plan_document": {
                "description": "For a data management plan fact, the digest of the attached document's text (its documentation_digest) that is the project's plan.",
                "pattern": "^[0-9a-f]{64}$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "data_collected": {
+               "description": "For a data description fact, what data the project collects, produces or reuses, and of which types, in the researcher's words.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "data_collection_method": {
+               "description": "For a data description fact, how the data are collected or produced, in the researcher's words.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "data_formats": {
+               "description": "For a data description fact, the file formats the data are kept in, in the researcher's words.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "data_volume": {
+               "description": "For a data description fact, how much data the project expects, in the researcher's words.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "data_reused": {
+               "description": "For a data description fact, which existing data the project reuses, and how, in the researcher's words.",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "summary_text": {
+               "description": "For a project summary fact, what the project is for, in a few sentences: its aims and the questions it asks.",
+               "pattern": "\\S",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "field_name": {
+               "description": "For a field of study fact, the project's field, as the researcher names it or a subject classification gives it.",
+               "pattern": "\\S",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "period_start": {
+               "description": "For a project period fact, when the project starts, as a year, a month or a day.",
+               "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
+               "type": [
+                  "string",
+                  "null"
+               ]
+            },
+            "period_end": {
+               "description": "For a project period fact, when the project ends, as a year, a month or a day; absent where it is not known.",
+               "pattern": "^\\d{4}(-\\d{2}(-\\d{2})?)?$",
                "type": [
                   "string",
                   "null"
@@ -1424,8 +1682,9 @@
                ],
                "description": "Values that narrow the property, such as a subjectScheme. Part of what identifies a field when an override is merged with its standard's set."
             },
-            "schema_org": {
-               "description": "The schema.org term the property maps to, by which the record is read as RDF.",
+            "term": {
+               "description": "The term of an existing vocabulary the property maps to, by which the record is read as RDF: a CURIE with a registered prefix (schema, dcterms, dcat or prov), such as dcterms:provenance, or the full IRI of a term in one of those vocabularies (docs/specs/metadata-standards.md, invariant 7). A set kept before terms were IRIs names a schema.org local name in schema_org, which reads as schema:<name>.",
+               "pattern": "^((schema|dcterms|dcat|prov):[A-Za-z][A-Za-z0-9_-]*|(http://schema\\.org/|http://purl\\.org/dc/terms/|http://www\\.w3\\.org/ns/dcat#|http://www\\.w3\\.org/ns/prov#)[A-Za-z][A-Za-z0-9_-]*)$",
                "type": "string"
             },
             "obligation": {
@@ -1452,7 +1711,7 @@
          },
          "required": [
             "property",
-            "schema_org",
+            "term",
             "obligation"
          ],
          "title": "RequirementField",
@@ -1819,6 +2078,17 @@
          "title": "StandardKind",
          "type": "string"
       },
+      "StorageKind": {
+         "description": "The kinds of storage a deployment may name as its institution's.",
+         "enum": [
+            "institutional_filestore",
+            "institutional_cloud",
+            "managed_cloud",
+            "secure_environment"
+         ],
+         "title": "StorageKind",
+         "type": "string"
+      },
       "SuppliedOn": {
          "description": "The page of a project where a researcher supplies a value a deposit needs (docs/specs/deposit.md, Validation).",
          "enum": [
@@ -1899,7 +2169,7 @@
    "$id": "https://w3id.org/data-director/schema/core/DraftRequest",
    "$schema": "http://json-schema.org/draft-07/schema#",
    "additionalProperties": false,
-   "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md), and so are the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md), and the text of the documents a researcher attached to the project, from which a drafter's model may suggest answers but never fill a gap. The conductor also fills shared_answers: the latest answer a person recorded, for a document of another kind, to a question that asks for the same thing as one of this draft's (shared_field), which a drafter may offer as a suggestion but never place. With revise, the drafter is asked to revise the current version as a person asked, in their words, and the conductor gives the current version the change they asked for (revision_request).",
+   "description": "What a drafter is asked for: a project document of one kind, drafted from the project's facts (docs/specs/projects.md). Every agent that returns a Document accepts it, so an agent that drafts a document can replace another without its caller changing. The project's facts are the inventory, the requirements of the repository chosen, the metadata record a person approved last and, to regenerate a document, its current version with any decision on it. In a project, the conductor puts the inventory, the requirements and the metadata record in from the project, replacing whatever the caller sent, so a caller leaves them out; outside a project, the caller sends them. In a project the conductor also fills current_version, the latest version of the project's document of that kind, or of the document redraft_document names, so a redraft is that document's next version. The answers a person recorded to the current version's questions are filled in by the conductor in the same way (docs/specs/drafting.md), and so are the researcher facts people in the project chose to keep from their public ORCID records (docs/specs/projects.md), and the text of the documents a researcher attached to the project, from which a drafter's model may suggest answers but never fill a gap. The conductor also fills shared_answers: the latest answer a person recorded, for a document of another kind, to a question that asks for the same thing as one of this draft's (shared_field), which a drafter may offer as a suggestion but never place. With revise, the drafter is asked to revise the current version as a person asked, in their words, and the conductor gives the current version the change they asked for (revision_request). The conductor fills institution_storage from the deployment's profile (GivenInstitutionStorage), in a project or not: a Data Management Plan's storage question may offer those services as a suggestion, never place them.",
    "properties": {
       "schema_class": {
          "description": "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise.",
@@ -2015,6 +2285,16 @@
          "description": "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied.",
          "items": {
             "$ref": "#/$defs/ProjectFact"
+         },
+         "type": [
+            "array",
+            "null"
+         ]
+      },
+      "institution_storage": {
+         "description": "The storage services the deployment's profile names as its institution's, filled by the conductor from the profile and never by the caller. Absent when the profile names none.",
+         "items": {
+            "$ref": "#/$defs/InstitutionStorage"
          },
          "type": [
             "array",

@@ -51,6 +51,18 @@ describe("makeScanner", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
+  it("asks the site's root for the bundle, whatever page is open", async () => {
+    const before = location.pathname + location.search;
+    history.pushState(null, "", "/projects/p1/facts");
+    try {
+      const { fetcher } = bundleServer();
+      await makeScanner({ fetcher }).available();
+      expect(fetcher).toHaveBeenCalledWith(new URL("/inventory-bundle/manifest.json", location.origin).href);
+    } finally {
+      history.replaceState(null, "", before);
+    }
+  });
+
   it.each([
     ["not served", async () => new Response(null, { status: 404 })],
     ["the shell's page, not a manifest", async () => new Response("<!doctype html>")],
@@ -58,6 +70,21 @@ describe("makeScanner", () => {
     ["unreachable", async () => Promise.reject(new TypeError("Failed to fetch"))],
   ])("is not available when the manifest is %s", async (_, fetcher) => {
     expect(await makeScanner({ base: BASE, fetcher }).available()).toBe(false);
+  });
+
+  it("asks again after a no, so one failed fetch does not hide the browser route for good", async () => {
+    const { fetcher: served } = bundleServer();
+    let up = false;
+    const fetcher = vi.fn(async (url: string) => {
+      if (!up) throw new TypeError("Failed to fetch");
+      return served(url);
+    });
+    const scanner = makeScanner({ base: BASE, fetcher });
+    expect(await scanner.available()).toBe(false);
+    up = true;
+    expect(await scanner.available()).toBe(true);
+    expect(await scanner.available()).toBe(true);
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
   it("fetches the bundle once and gives each scan a fresh worker", async () => {

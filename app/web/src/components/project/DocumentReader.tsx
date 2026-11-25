@@ -18,8 +18,9 @@
  * shows their version, so that they can see it laid out before they approve it.
  *
  * An earlier version opens read-only, with a line saying it is not the latest and a link to the
- * latest. Beneath a README's latest draft, the person may ask for changes in their own words
- * (`RevisionRequest`). After a decision, focus moves to the document's heading, since the form it was in has
+ * latest. Beneath the latest version of a document an agent drafted, the person may ask that agent
+ * to continue drafting it from the answers recorded (`ContinueDrafting`), and beneath a README's
+ * latest draft, ask for changes in their own words (`RevisionRequest`). After a decision, focus moves to the document's heading, since the form it was in has
  * gone. A decision the server refused because the document has moved on is said in an alert,
  * which takes the focus, above the latest version, which the page has read again.
  */
@@ -37,13 +38,16 @@ import type {
 import { dataUrl, fileName } from "../../project/media";
 import { type VersionGaps, versionGaps } from "../../project/gaps";
 import { documentName } from "../../project/name";
+import { Permitted, StewardPermitted } from "../../project/view";
 import { Link } from "../../route";
 import { Button } from "../ui/Button";
+import { ContinueDrafting } from "./ContinueDrafting";
 import { DecisionForm } from "./DecisionForm";
 import { Provenance, State } from "./DocumentFacts";
 import { DocumentHistory } from "./DocumentHistory";
 import { DocumentPreview } from "./DocumentPreview";
 import { DocumentQuestions } from "./DocumentQuestions";
+import { ProposeEdit } from "./ProposeEdit";
 import { QuestionList } from "./QuestionList";
 import { RevisionRequest } from "./RevisionRequest";
 import { OpenCount, useReaderTabs } from "./useReaderTabs";
@@ -213,7 +217,7 @@ export function DocumentReader({
         <TabPanel id="preview" className="document-tab-panel">
           {editing !== null && (
             <p className="callout status-warn">
-              The preview shows your edited version. It is not saved until you approve it.
+              The preview shows your edited version. Nothing is saved until you send it.
             </p>
           )}
           <DocumentPreview
@@ -255,40 +259,68 @@ export function DocumentReader({
           </TabPanel>
         )}
       </Tabs>
+      {/* A data steward reads the document; deciding on it and asking for changes are the
+          researchers' (docs/specs/stewardship.md, invariant 2). */}
       {isLatest && version.state === "proposed" && (
-        <Deciding name={name} version={version}>
-          <DecisionBar
-            version={version.version}
-            gaps={versionGaps(document, version)}
-            onQuestions={tabs.openQuestions}
-            onGo={() => deciding.current?.querySelector("input")?.focus()}
-          />
-          <div ref={deciding}>
-            <DecisionForm
-              key={`${version.document_id}:${version.version}`}
-              projectId={projectId}
-              name={name}
-              version={version}
+        <Permitted action="decide">
+          <Deciding name={name} version={version}>
+            <DecisionBar
+              version={version.version}
               gaps={versionGaps(document, version)}
-              rules={rules}
-              onDecided={decided}
-              onStale={refused}
-              onEditing={onEditing}
+              onQuestions={tabs.openQuestions}
+              onGo={() => deciding.current?.querySelector("input")?.focus()}
             />
-          </div>
-        </Deciding>
+            <div ref={deciding}>
+              <DecisionForm
+                key={`${version.document_id}:${version.version}`}
+                projectId={projectId}
+                name={name}
+                version={version}
+                gaps={versionGaps(document, version)}
+                rules={rules}
+                onDecided={decided}
+                onStale={refused}
+                onEditing={onEditing}
+              />
+            </div>
+          </Deciding>
+        </Permitted>
       )}
-      <RevisionRequest
-        key={document.document_id}
-        projectId={projectId}
-        name={name}
-        kind={document.document_kind}
-        version={version}
-        isLatest={isLatest}
-        maxLength={requestMaxLength}
-        onRevised={onAnswered}
-        onStale={refused}
-      />
+      <Permitted action="contribute">
+        <ContinueDrafting
+          key={`${document.document_id}:draft`}
+          projectId={projectId}
+          document={document}
+          version={version}
+          name={name}
+          isLatest={isLatest}
+          onDrafted={onAnswered}
+          onStale={refused}
+        />
+        <RevisionRequest
+          key={document.document_id}
+          projectId={projectId}
+          name={name}
+          kind={document.document_kind}
+          version={version}
+          isLatest={isLatest}
+          maxLength={requestMaxLength}
+          onRevised={onAnswered}
+          onStale={refused}
+        />
+      </Permitted>
+      <StewardPermitted action="propose_edit">
+        <ProposeEdit
+          key={`${version.document_id}:${String(version.version)}`}
+          projectId={projectId}
+          name={name}
+          version={version}
+          isLatest={isLatest}
+          onEditing={onEditing}
+          onProposed={() => void onStale()}
+          onStale={refused}
+        />
+      </StewardPermitted>
     </article>
   );
 }
@@ -307,7 +339,7 @@ function Deciding({
   return (
     <p className="callout">
       This version is not the {name} yet: it asks what the drafter needs before writing it. Answer
-      its questions on its card in the conversation, then ask for the {name} to be written.
+      its questions, then choose “Continue drafting” below to have the {name} written.
     </p>
   );
 }

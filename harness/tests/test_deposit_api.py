@@ -21,6 +21,7 @@ from dd_harness.deposit_api import (
     deposits,
     summary,
 )
+from dd_harness.metadata_standards import registered
 from dd_harness.projects import (
     DEPOSIT_APPROVED,
     DEPOSIT_FAILED,
@@ -340,7 +341,10 @@ def test_the_zenodo_item_maps_the_record_and_names_what_it_could_not_place() -> 
         "geoLocations": [{"geoLocationPlace": "Hope Valley"}],
         "publisher": {"name": "Zenodo"},
     }
-    item = ZENODO.render(attributes, "data-director-practice")
+    datacite = registered().get("datacite-4")
+    assert datacite is not None
+    pivot = datacite.read(json.dumps(attributes), "application/json").pivot()
+    item = ZENODO.render(pivot, "data-director-practice")
     metadata = json.loads(item.content)["metadata"]
     assert metadata == {
         "access_right": "open",
@@ -361,7 +365,7 @@ def test_the_zenodo_item_maps_the_record_and_names_what_it_could_not_place() -> 
     }
     assert item.unplaced == ("fundingReferences", "geoLocations")
     # The same record always renders to the same bytes, so an approval names exactly what is sent.
-    assert ZENODO.render(attributes, "data-director-practice") == item
+    assert ZENODO.render(pivot, "data-director-practice") == item
     assert "publish" not in item.content.decode()
 
 

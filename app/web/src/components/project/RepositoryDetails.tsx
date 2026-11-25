@@ -31,7 +31,7 @@ function Fields({ choice, obligation }: { choice: RepositoryRequirements; obliga
   return (
     <ul>
       {fields.map((f) => (
-        <li key={`${f.property}-${f.schema_org}-${JSON.stringify(f.qualifier ?? {})}`}>
+        <li key={`${f.property}-${f.term}-${JSON.stringify(f.qualifier ?? {})}`}>
           {f.form_label ?? f.property}{" "}
           <span className="muted">
             (<code>{f.property}</code>)

@@ -17,20 +17,20 @@
       "principal_kind": "person"
     },
     "agent_id": "advisor.standards",
-    "agent_version": "0.4.0",
+    "agent_version": "0.6.0",
     "completed_at": "2026-01-01T00:00:00Z",
-    "contract_version": "0.26.0",
+    "contract_version": "0.28.0",
     "evidence": [],
     "grounding_mode": "retrieval",
-    "input_schema": "7e282eef80b13338e071bc055f041ee02e4534010c93363f6bde6b045f7fd5e0",
+    "input_schema": "e304f27ede70e69d176d0c0357ec41b7c8f63f80c5ad44ea354617cd352ae6dd",
     "invocation_id": "01900000-0000-7000-8000-000000000001",
     "outcome": {
       "reason_code": "insufficient_input",
-      "statement": "The dataset profile has no title, keywords, themes, media types or temporal fields to search on, so no registry query was possible.",
+      "statement": "The dataset profile has no title, keywords, themes, media types or temporal fields to search on, and the project has no decided field of study, so no registry query was possible.",
       "status": "abstained"
     },
     "policy_bundle_ref": "profile:data-director-app@v10",
-    "policy_digest": "fdd639935b125fe88e0705ea629a3e7d521bb11aee877d2b6b0b1d19da1705de",
+    "policy_digest": "5693bc178414ae39ea19c9c1935c6f64daa787215d71d067241798e06db6c11c",
     "requires_human_review": true,
     "telemetry": {
       "energy_estimate_j": null,

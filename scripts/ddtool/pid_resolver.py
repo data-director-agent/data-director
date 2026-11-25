@@ -59,7 +59,8 @@ def settings(*, on: bool, disabled: frozenset[str], source: Path, on_vm: bool) -
 
 def server_env() -> dict[str, str]:
     """The server's settings: the ROR registry the policy advisor builds (`dd-sources prepare`),
-    and which dump it was built from."""
+    which dump it was built from, the journal registry's index (built the same way), and where
+    the server keeps its cache of the registries' answers (under config/local/, never committed)."""
     ror = paths.ROOT / "agents" / "advisor-policy" / "data" / "ror"
     try:
         version = json.loads((ror / "manifest.json").read_text(encoding="utf-8"))["version"]
@@ -68,4 +69,8 @@ def server_env() -> dict[str, str]:
     return {
         "DD_PID_ROR_REGISTRY": str(ror / "registry.jsonl"),
         "DD_PID_ROR_SNAPSHOT": f"ROR dump {version}" if version else "ROR dump",
+        "DD_PID_JOURNALS_REGISTRY": str(
+            paths.ROOT / "journals" / "src" / "dd_journals" / "data" / "journals.sqlite"
+        ),
+        "DD_PID_CACHE_DIR": str(paths.LOCAL_DIR / "cache" / "mcp-pid"),
     }

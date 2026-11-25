@@ -5,7 +5,9 @@
 Nothing an agent presents as a result may rest on something the run cannot account for. Every
 payload names what it rests on, every cited thing is identified by a content hash that a reader
 can reproduce, and the harness checks both after every run, before a result is stored or shown.
-A result that fails is withheld, not annotated.
+A result that fails is withheld, not annotated. What the agent answered is kept beside the run
+for the deployment's operators to diagnose, and is never returned or shown to the person the run
+acted for ([Storage](storage.md), invariant 5).
 
 Two checks do this, and they answer different questions:
 

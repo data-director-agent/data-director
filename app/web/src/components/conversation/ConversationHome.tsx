@@ -1,7 +1,7 @@
 /**
  * The home page: a conversation with the orchestrator (docs/specs/app.md), in the centre of the
  * workspace (§18), in the project the shell is working in. The project's conversations are on the
- * left, an overview of it on the right, and the Blueprint's phases in a strip above. New
+ * left and an overview of it on the right. New
  * conversation starts another thread in the same project; with no project active, the first
  * message starts one, which becomes the active project. The open conversation is named in the
  * address (`?conversation=`), so a reload or a link reopens it and a message sent after it
@@ -38,9 +38,13 @@
  * and goes to the project, never into the text (docs/specs/app.md). A message may carry one
  * inventory and one document.
  *
- * A step of the data journey, or one of the prompts an empty conversation offers, starts a new
+ * One of the prompts an empty conversation offers, starts a new
  * conversation with the step's prompt in the message box, unsent. A message already being written
  * is replaced only when the researcher confirms.
+ *
+ * The message being written is kept with the open conversation, so leaving the page and coming
+ * back finds it in the box, shown even where the latest reply asks questions or the intake is
+ * open.
  *
  * The page puts together hooks that each hold one part: the open conversation and its turns
  * (`useConversationTurns`), what a message carries (`useAttachments`), and the project's
@@ -52,21 +56,29 @@
 
 import { useMemo, useRef, useState } from "react";
 
+import { useSessionState } from "../../conversation/session";
 import { documentReaders } from "../../conversation/documentation";
 import { type ReplyAnswers, replyQuestions } from "../../conversation/question";
 import type { Conversation } from "../../conversation/types";
 import type { FlowStep } from "../../flow/types";
 import type { Directory } from "../../manifest/normalise";
 import { useActiveProject } from "../../project/active";
+import { useResearcherProject } from "../../project/view";
 import { useProjectApi } from "../../project/api";
 import { homePath, navigate, useLocation } from "../../route";
 import type { Envelope } from "../../run/types";
 import { ContextPanel } from "../workspace/ContextPanel";
+import { StewardConversationBanner } from "../escalation/StewardConversationBanner";
 import { StewardProvider } from "../escalation/StewardContext";
 import { FAIRNESS_CLASS } from "../../project/fairness";
-import { PhaseTracker } from "../workspace/PhaseTracker";
 import { useFlowLoad } from "../workspace/useFlowLoad";
-import { useAskAbout, useAskAboutQuestion, useAskForFairFeedback } from "./useAskAbout";
+import {
+  asksNewConversation,
+  useAskAbout,
+  useAskAboutQuestion,
+  useAskForFairFeedback,
+} from "./useAskAbout";
+import { useAskAboutFact } from "./useAskAboutFact";
 import { Workspace } from "../workspace/Workspace";
 import { ProjectSwitcher } from "../project/ProjectSwitcher";
 import { useAnnounce } from "../ui/Announcer";
@@ -88,7 +100,7 @@ import {
   workspaceReady,
 } from "./ConversationHomeParts";
 import { whyUnusable } from "./orchestrator";
-import { type Asking, type ReplyFocus, ReplyArea, useReplyMode } from "./ReplyArea";
+import { type Asking, type ReplyFocus, ReplyArea, useReplyMode, useShowDraft } from "./ReplyArea";
 import { nameOf } from "./Speaker";
 import { StartFromStep } from "./StartFromStep";
 import { Transcript } from "./Transcript";
@@ -104,10 +116,12 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   const orchestrator = directory.agents.find((a) => a.id === named);
   const unusable = whyUnusable(named, orchestrator);
   const { projectId, projects, reloadProjects } = useActiveProject();
-  const [text, setText] = useState("");
+  // The message being written outlives the page, as the open conversation does, so leaving for
+  // another page and coming back loses nothing (conversation/session.tsx).
+  const [text, setText] = useSessionState("draft", "");
   const announce = useAnnounce();
   // A step whose prompt waits on the researcher's leave to replace the message being written.
-  const [replacing, setReplacing] = useState<FlowStep | null>(null);
+  const [replacing, setReplacing] = useState<Pick<FlowStep, "label" | "prompt"> | null>(null);
   const params = new URLSearchParams(useLocation().split("?")[1]);
   const runId = params.get("run");
   // The open conversation is kept in the address, so a reload or a link reopens it.
@@ -125,6 +139,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
     orchestratorId: orchestrator?.id,
     runId,
     urlConversation,
+    fresh: asksNewConversation(params),
     box: reply,
     announce: announce,
     setText: putText,
@@ -149,35 +164,31 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   });
   const { intake } = intakeRead;
   const mode = useReplyMode(asking, intakeOpen(projectId, intakeRead));
+  useShowDraft(text, intakeRead.settled, mode.setMode);
 
+  // A new conversation is not started while a reply is awaited.
+  const startConversation = busy ? undefined : (step: FlowStep) => startStep(step);
   const tracked = trackedProgress(projectId, progress, {
     projectApi,
     documents,
-    // A new conversation is not started while a reply is awaited.
-    startConversation: busy ? undefined : (step: FlowStep) => startStep(step),
+    startConversation,
     answerIntakeAgain: intakeRead.intake ? intakeRead.openAgain : undefined,
   });
 
   const flow = useFlowLoad();
 
-  useAskAbout(flow, putText, reply, {
-    conversation: urlConversation,
-    run: runId,
-  });
-  useAskAboutQuestion(documents, putText, reply, {
-    conversation: urlConversation,
-    run: runId,
-  });
-  useAskForFairFeedback(putText, reply, {
-    conversation: urlConversation,
-    run: runId,
-  });
+  const askInto = { setText: putText, box: reply, keep: { conversation: urlConversation, run: runId } };
+  useAskAbout(flow, askInto, startStep);
+  useAskAboutQuestion(documents, askInto, startStep);
+  useAskForFairFeedback(askInto);
+  useAskAboutFact(projectId, askInto);
 
   const frame = {
     project: <ProjectSwitcher />,
-    phases: <PhaseTracker load={flow} tracked={tracked} />,
   };
   const project = projectNamed(projects, projectId);
+  // A data steward working here is not offered to ask a data steward (`StewardConversationBanner`).
+  const asksSteward = useResearcherProject(projectId);
 
   // Drawn whole once what it reads on load has landed (#1328).
   const ready = workspaceReady({
@@ -228,13 +239,13 @@ export function ConversationHome({ directory }: { directory: Directory }) {
   }
 
   /** Starts a new conversation about `step`, asking first if a message is being written. */
-  function startStep(step: FlowStep) {
+  function startStep(step: Pick<FlowStep, "label" | "prompt">) {
     if (writing) setReplacing(step);
     else beginWith(step);
   }
 
-  /** A new conversation, with the step's prompt in the box to edit and send. */
-  function beginWith(step: FlowStep) {
+  /** A new conversation, with the step's (or question's) prompt in the box to edit and send. */
+  function beginWith(step: Pick<FlowStep, "label" | "prompt">) {
     setReplacing(null);
     turns.reset();
     putText(step.prompt);
@@ -261,7 +272,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
 
   return (
     <PageLoading ready={ready} said="Opening the project…">
-      <StewardProvider projectId={projectId} project={project} refresh={turnCount}>
+      <StewardProvider projectId={asksSteward} project={project} refresh={turnCount}>
       <Workspace
         {...frame}
         title="Talk to Data Director"
@@ -274,6 +285,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             <h2 id="conversation-heading" className="visually-hidden">
               Conversation
             </h2>
+            <StewardConversationBanner />
             {(turnCount > 0 || sent !== null) && (
               <Transcript
                 conversation={conversation}
@@ -366,6 +378,7 @@ export function ConversationHome({ directory }: { directory: Directory }) {
             fairFeedback={directory.agents.some((a) => a.payload === FAIRNESS_CLASS)}
             refresh={turnCount}
             onAsk={(question) => askInBox(question, text, putText, reply)}
+            onStartStep={startConversation}
             onInventorySaved={() => void reloadProjects()}
           />
         }

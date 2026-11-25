@@ -17,15 +17,18 @@ fixes what the word "harness" names.
 | `broker/` | `data-director-model-broker` | The model broker: holds people's own model keys, sealed, and makes model calls for an agent that presents a model grant ([A person's own model account](model-accounts.md)). A separate service that runs as its own user. Not a way in. |
 | `agents/<name>/` | `data-director-agent-<name>` | One package and one A2A service per agent ([Agents](agents.md)). |
 | `inventory/` | `data-director-inventory` | The command a researcher runs where their data live to describe a dataset's files ([Projects](projects.md)). |
-| `mcp-pid/` | `data-director-mcp-pid` | The PID resolver: a framework-neutral MCP server that resolves DOIs (DataCite, Crossref), ORCID iDs and ROR identifiers to records an agent cites through the tool gateway ([Agents](agents.md#tools-mcp-servers-and-agent-skills)). Imports no other member. |
+| `mcp-pid/` | `data-director-mcp-pid` | The PID resolver: a framework-neutral MCP server that resolves DOIs (DataCite, Crossref), ORCID iDs, ROR identifiers, ISSNs and grant numbers (Crossref, OpenAIRE) to records an agent cites through the tool gateway ([Agents](agents.md#tools-mcp-servers-and-agent-skills)). Imports only `dd-journals`. |
 | `units/` | `data-director-units` | Turns a unit as a person writes it into a UCUM code, by rule; the Documentation Editor fills a data dictionary's unit codes with it ([Drafting documents](drafting.md)). Imports no other member. |
 | `subjects/` | `data-director-subjects` | Subject classifications held as data with their sources and licences (OECD Fields of R&D, ANZSRC 2020 Fields of Research); the model orchestrator suggests fields of study from them when it asks for a researcher's discipline ([Orchestration](orchestration.md)). Imports no other member. |
 | `formats/` | `data-director-formats` | File formats described from the records of a pinned PRONOM release, held as data with their source and licence; the File Archivist names each file's format from the PRONOM identifiers the inventory gives, and cites the record ([Grounding](grounding.md)). Standard library only; imports no other member. |
-| `dmp-template/` | `data-director-dmp-template` | The core requirements of a Data Management Plan, after Science Europe's; the Documentation Editor drafts a plan to them and the Data Management Plan Checker has a model review one against them ([Drafting documents](drafting.md)). |
+| `journals/` | `data-director-journals` | Journals by ISSN and title, from a pinned OpenAlex snapshot built at install with a SQLite index; the PID resolver serves it to agents, and each journal links to its ISSN Portal record (#1514). Standard library only; imports no other member. |
+| `dmp-template/` | `data-director-dmp-template` | The core requirements of a Data Management Plan, after Science Europe's; the Documentation Editor drafts a plan to them and the Data Management Planner has a model review one against them ([Drafting documents](drafting.md)). |
 | `registry-cache/` | `data-director-registry-cache` | A local cache in front of a registry that changes slowly: its own time to live, `ETag` revalidation, and an expired copy when the registry cannot be asked. The SDK's FAIRsharing client is built on it ([Grounding](grounding.md)). Standard library only; imports no other member. |
 | `mcp-fairsharing/` | `data-director-mcp-fairsharing` | The FAIRsharing server: a framework-neutral MCP server that looks up a FAIRsharing record, and searches the registry with an account, answering records an agent cites through the tool gateway. Imports no other member. The advisers do not use it yet (TODO(#280)). |
 | `mcp-spdx/` | `data-director-mcp-spdx` | The SPDX server: a framework-neutral MCP server that looks up a licence in a pinned release of the SPDX licence list, packaged with its source and licence, answering records the Rights and Licensing Adviser cites through the tool gateway ([Grounding](grounding.md)). Reaches no network; imports no other member. |
-| `metadata-records/` | `data-director-metadata-records` | Not built yet, TODO(#1358). The codecs and the definitions of metadata standards that write, read and check a metadata record in any standard ([Metadata standards](metadata-standards.md)). Speaks no Data Director contract and imports no other member. |
+| `mcp-subjects/` | `data-director-mcp-subjects` | The subjects server: a framework-neutral MCP server that lists the fields of a subject classification held by `dd-subjects` (ANZSRC Fields of Research, OECD Fields of R&D) and gives one by its code, answering records the Metadata Librarian cites for a category it suggests through the tool gateway ([Grounding](grounding.md)). Reaches no network; imports only `dd-subjects`. |
+| `mcp-doaj/` | `data-director-mcp-doaj` | The DOAJ server: a framework-neutral client and MCP server that reads an open access journal's terms (licences, copyright, deposit policy, preservation, charges) from the Directory of Open Access Journals by ISSN or title. The Policy Adviser reads it as a library. Imports no other member. |
+| `metadata-records/` | `data-director-metadata-records` | The codecs and the definitions of metadata standards that write, read and check a metadata record in any standard ([Metadata standards](metadata-standards.md)). Speaks no Data Director contract and imports no other member. |
 
 Beside the Python members, `inventory/browser/` is `@data-director/inventory`, a TypeScript
 library that reads a `FileInventory`: it parses, summarises, arranges the files as folders,
@@ -58,7 +61,7 @@ The contract, transport, grounding and the app's own process boundary are specif
 
 1. The dependency graph between members at run time is:
    - `sdk` depends on `registry-cache` only;
-   - `harness` depends on `sdk` only;
+   - `harness` depends on `sdk` and `metadata-records` only;
    - `workbench` depends on `harness` and `sdk`, and on nothing else in the workspace;
    - `app` depends on `harness`, `sdk` and `inventory`, the last to describe a folder on a local
      install ([Projects](projects.md)), and on nothing else in the workspace;
@@ -66,11 +69,10 @@ The contract, transport, grounding and the app's own process boundary are specif
      depends on it;
    - `broker` depends on `sdk` only; no member depends on it;
    - each agent depends on `sdk` only, and an agent that drafts or reads a metadata record also on
-     `metadata-records` once it exists, TODO(#1358);
+     `metadata-records`;
    - `inventory` depends on no other member;
    - `registry-cache` depends on no other member;
-   - `metadata-records` depends on no other member, and the harness depends on it as well as on
-     `sdk`, once it exists, TODO(#1358).
+   - `metadata-records` depends on no other member.
 
    The graph is what each member declares in `[project].dependencies`; no check compares the
    declarations with this list, so a new first-party dependency is a change to this spec.

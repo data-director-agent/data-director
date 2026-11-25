@@ -61,7 +61,7 @@ library modules are not dependencies here.
 | `psycopg[binary]` | Harness (`postgres` extra) | `dd_harness.postgres`: the PostgreSQL backend of the run and project storage, in plain SQL ([Storage](storage.md)) | Another PostgreSQL driver behind the same module; the file backends for a single host. |
 | `psycopg-pool` | Harness (`postgres` extra) | `dd_harness.postgres`: a pool of connections per store, sized by `DD_POSTGRES_POOL_SIZE` ([Storage](storage.md)) | A connection per call, as before the pool; another pool behind the same module. |
 | `watchfiles` | SDK | uvicorn's `--reload`, for development only | uvicorn's polling reloader, which it uses when `watchfiles` is absent. |
-| `httpx` | SDK, harness, app, agents | `dd_sdk.delegate`, `dd_sdk.registry` (FAIRsharing's API and pinned archive downloads), `dd_harness.remote`, `dd_harness.identity`, the app's sign-in and feedback modules, each agent's `live` module, the repository advisor's `registry` (the re3data export), the policy advisor's `ror` (the ROR dump and API), `opf` (Jisc Open Policy Finder), `crossref` (Crossref's journals) and `policy_text` (policy pages); `dd_mcp_pid.http`, the PID resolver's client of DataCite, Crossref, ORCID and ROR | `urllib.request`. |
+| `httpx` | SDK, harness, app, agents | `dd_sdk.delegate`, `dd_sdk.registry` (FAIRsharing's API and pinned archive downloads), `dd_harness.remote`, `dd_harness.identity`, the app's sign-in and feedback modules, each agent's `live` module, the repository advisor's `registry` (the re3data export), the policy advisor's `ror` (the ROR dump and API), `opf` (Jisc Open Policy Finder), `crossref` (Crossref's journals) and `policy_text` (policy pages); `dd_mcp_pid.http`, the PID resolver's client of DataCite, Crossref, ORCID, ROR and the OpenAIRE Graph; `dd_mcp_doaj.journals`, the DOAJ client | `urllib.request`. |
 | `rocrate` | Harness | `dd_harness.provenance`; the deposit package in `dd_harness.deposit` | Write `ro-crate-metadata.json` directly. |
 | `pyshacl` (with `rdflib`) | Harness | `dd_harness.shacl`, which runs the shapes `dd_harness.deposit` generates from a repository's requirements and the shapes an agent's payload class carries on its card | Checks written in Python that emit the same `sh:` vocabulary. |
 | `pyyaml` | Harness, agents | Profile, registry, source and requirement loaders; agents' packaged data | `ruamel.yaml`, or the same documents as JSON. |
@@ -100,11 +100,15 @@ no runtime dependency.
 | FAIRsharing | Standards, repository and policy advisers; `mcp-fairsharing` | Committed snapshots; the live REST API, behind a local cache in each adviser (`dd_registry_cache`, [Grounding](grounding.md) invariant 16) | A search term or a record identifier | CC BY-SA 4.0, kept with each snapshot (`LICENCE.md`); the cache keeps records for the adviser's own runs | An expired cached copy, then the snapshot |
 | re3data | Repository adviser (`registry`) | The monthly export, pinned and built locally | Nothing at run time | CC0 | — |
 | DataCite repositories | Repository adviser | Committed snapshot | Nothing at run time | CC0 | — |
+| OpenAlex Sources (journals) | `dd-journals` (#1514); `mcp-pid`'s `journals` server | One quarterly snapshot's Sources parts, pinned by SHA-256 and built locally, with a SQLite index (`dd-journals fetch`, or `dd-sources prepare` through the policy adviser) | Nothing at run time | CC0 | — |
 | ROR | Policy adviser (`ror`); `mcp-pid` | The pinned dump; the live API if chosen | An identifier or an organisation name | CC0 | The dump answers |
 | DataCite and Crossref REST (works) | `mcp-pid` | Live, through the tool gateway | A DOI | CC0; facts | The run says the resolver is unavailable |
 | ORCID public API | `dd_harness.orcid`; `mcp-pid` | Live, anonymous | An iD | Nothing kept; ORCID's API licence is for non-commercial use | As above |
+| Crossref grants and the OpenAIRE Graph API v4 (projects) | `mcp-pid`'s `grants` server | Live, through the tool gateway; OpenAIRE anonymously (60 requests an hour) or with a refresh token (7,200) | An award number or a grant DOI; never the funder's name, which narrows the answers locally | Crossref: facts; OpenAIRE: CC BY 4.0, with OpenAIRE credited | The other source answers, and the run says which failed |
 | Jisc Open Policy Finder, Crossref journals | Policy adviser (`opf`, `crossref`) | Live only | An ISSN, a journal title, a publisher or funder name | No copy kept. Open Policy Finder: CC BY-NC-ND 4.0, API for non-commercial use, credited where shown (`agents/advisor-policy/data/open-policy-finder/SOURCE.md`); a run's evidence holds the record it cites | FAIRsharing answers |
+| Directory of Open Access Journals (DOAJ) | Policy adviser (`doaj`), through `mcp-doaj`'s client | Live only | An ISSN or a journal title | CC0 (metadata); nothing kept | The run says DOAJ could not be asked; the other registries answer |
 | PRONOM | `dd_inventory.identify`, through `opf-fido`; the files adviser, through `dd-formats` | For identification, a committed signature file built from a recent release by `inventory/scripts/pin_pronom.py`; for describing a format, the same release's records, committed as JSON Lines by `formats/scripts/pin_pronom_records.py`; each checked against its hash. A live record lookup is TODO(#1475) | Nothing: identification and lookup are local | Open Government Licence v3.0, kept with each copy (`LICENCE.md`) | Media types from extensions; a file with no PUID is described by extension only |
+| GA4GH Data Use Ontology (DUO) | Ethics adviser, through `dd-duo` | A committed copy of the current permissions and modifiers of one tagged release (`v2021-02-23`), reduced from its `duo.owl` by `duo/scripts/pin_duo.py` and checked against its hash | Nothing: lookup is local | CC BY 4.0, kept with the copy (`LICENCE.md`) | — |
 | SPDX licence list | The gateway's `spdx` server; rights adviser | A pinned copy served by the gateway | A licence identifier | Pinned with the gateway | The adviser's packaged `licences.yaml` |
 
 A query never carries a researcher's unpublished text, file contents or names taken from their
@@ -113,13 +117,12 @@ researcher has confirmed that term first; where that matters, a local copy or a 
 service is preferred (Blueprint P10, C2, C4). A key a source needs goes in the credential file of
 the agent or server that uses it ([Policy and identity](policy-and-identity.md)).
 
-Adopted for later, each with its implementing issue: the OpenAIRE Graph API v3 as a tool beside
-grant resolution (#953); related-data discovery through DataCite's REST search, with OpenAlex
+Adopted for later, each with its implementing issue: related-data discovery through DataCite's REST search, with OpenAlex
 and ScholeXplorer v3 if the spike shows they add links (#954); terminology services, chosen by
 #956; the Library of Congress format descriptions, as links only (#955); the Open Definition
-list, as a pinned copy (#877); a self-hosted F-UJI, given published identifiers only (#704); the
-RDA DMP Common Standard as a format, and DMPonline and DMPTool through the person's own
-authorisation (#701, #284); and the GA4GH Data Use Ontology as a committed copy (#787).
+list, as a pinned copy (#877); a self-hosted F-UJI, given published identifiers only (#704); and
+the RDA DMP Common Standard as a format, and DMPonline and DMPTool through the person's own
+authorisation (#701, #284).
 
 ### Evaluation and CI
 
@@ -170,6 +173,12 @@ Which licences are acceptable is not yet decided or enforced: TODO(#82).
   still answers. Crossref is asked only for the publisher a journal belongs to. Their evidence is
   cited as `open-policy-finder:live:<date>` and `crossref-journals:live:<date>`, which the source
   check reports unresolved.
+  The Directory of Open Access Journals is read live too, by the policy advisor through
+  `dd_mcp_doaj`, so that an open access journal's terms are read without an Open Policy Finder
+  key (#1517). DOAJ waives its rights in the metadata under CC0, but its records change as journals
+  are reviewed and the advisor asks for one journal at a time, so no copy is pinned. Its evidence
+  is cited as `doaj-journals:live:<date>`. DOAJ lists open access journals only, and allows two
+  requests a second.
 - **External sources reviewed and not adopted** (#952, one comment per source):
   - DataCite's GraphQL API, which DataCite deprecates on 1 July 2027; its REST API is used.
   - The full dumps of the OpenAIRE Graph, Scholix, Crossref and OpenAlex: hundreds of gigabytes

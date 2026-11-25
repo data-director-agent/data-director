@@ -92,6 +92,9 @@ def test_any_other_repository_is_checked_against_its_standard_with_a_warning() -
     resolved = load_requirements(REPOSITORIES).resolve(
         "r3d100000001", "Elsewhere", ["DataCite Metadata Schema", "Dublin Core"]
     )
+    # Of the two standards it declares, the first in standard_preference.yaml.
     assert [s.ref.split("@")[0] for s in resolved.sets] == ["datacite-4"]
-    (warning,) = resolved.warnings
-    assert "no override for Elsewhere" in warning
+    assert resolved.standard_reason == "declared_several"
+    several, no_override = resolved.warnings
+    assert "Dublin Core" in several
+    assert "no override for Elsewhere" in no_override

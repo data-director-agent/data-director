@@ -15,8 +15,9 @@ import {
   factKey,
 } from "../../project/facts";
 import type { Problem } from "../../run/types";
-import { factsPath } from "../../route";
+import { factsPath, funderPath, homePath, navigate } from "../../route";
 import { FactsPanel } from "./FactsPanel";
+import { KIND_LABELS } from "./factWording";
 
 // What the server says (app/tests/test_project_facts.py): two proposals from the files check, the
 // read-back once the duplicate's exclusion is confirmed, and a sensitivity decision refused to a
@@ -160,7 +161,7 @@ describe("FactsPanel", () => {
     ).toBeVisible();
   });
 
-  it("records a fact nobody proposed, named by the value that names it", async () => {
+  it("records a new fact, named by the value that names it", async () => {
     const decideFact = vi.fn<FactsApi["decideFact"]>(() =>
       Promise.resolve(DECIDED),
     );
@@ -168,7 +169,7 @@ describe("FactsPanel", () => {
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole("button", { name: /Add a fact/ }));
-    const form = screen.getByRole("form", { name: "A fact nobody proposed" });
+    const form = screen.getByRole("form", { name: "New fact" });
     await user.selectOptions(
       within(form).getByLabelText("What the fact is about"),
       "funder",
@@ -187,6 +188,73 @@ describe("FactsPanel", () => {
         fact_kind: "funder",
         fact_subject: "Natural Environment Research Council",
         fact_funder_name: "Natural Environment Research Council",
+      },
+    });
+  });
+
+  it("records a description of the project's data, under the one subject a project has", async () => {
+    const decideFact = vi.fn<FactsApi["decideFact"]>(() =>
+      Promise.resolve(DECIDED),
+    );
+    renderPanel({ decideFact });
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: /Add a fact/ }));
+    const form = screen.getByRole("form", { name: "New fact" });
+    await user.selectOptions(
+      within(form).getByLabelText("What the fact is about"),
+      "data_description",
+    );
+    await user.type(
+      within(form).getByLabelText(/What data the project collects/),
+      "Interview recordings",
+    );
+    await user.type(
+      within(form).getByLabelText(/How they are collected/),
+      "Recorded interviews",
+    );
+    await user.click(
+      within(form).getByRole("button", { name: "Record this fact" }),
+    );
+
+    expect(decideFact).toHaveBeenCalledWith(PROJECT, {
+      verdict: "changed",
+      fact: {
+        fact_kind: "data_description",
+        fact_subject: "project",
+        data_collected: "Interview recordings",
+        data_collection_method: "Recorded interviews",
+      },
+    });
+  });
+
+  it("records what the project is for, about the project as a whole", async () => {
+    const decideFact = vi.fn<FactsApi["decideFact"]>(() =>
+      Promise.resolve(DECIDED),
+    );
+    renderPanel({ decideFact });
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole("button", { name: /Add a fact/ }));
+    const form = screen.getByRole("form", { name: "New fact" });
+    await user.selectOptions(
+      within(form).getByLabelText("What the fact is about"),
+      "project_summary",
+    );
+    await user.type(
+      within(form).getByLabelText(/What the project is for/),
+      "How moorland vegetation responds to drought.",
+    );
+    await user.click(
+      within(form).getByRole("button", { name: "Record this fact" }),
+    );
+
+    expect(decideFact).toHaveBeenCalledWith(PROJECT, {
+      verdict: "changed",
+      fact: {
+        fact_kind: "project_summary",
+        fact_subject: "project",
+        summary_text: "How moorland vegetation responds to drought.",
       },
     });
   });
@@ -312,6 +380,25 @@ describe("FactsPanel", () => {
     });
   });
 
+  it("offers to discuss each proposal in a new conversation, and nothing decided", async () => {
+    renderPanel({ facts: () => Promise.resolve(DECIDED) });
+    const [proposal] = DECIDED.proposals;
+    if (!proposal) throw new Error("the fixture has no proposal left");
+    const card = await screen.findByRole("article", {
+      name: new RegExp(KIND_LABELS[proposal.fact.fact_kind]),
+    });
+    expect(
+      within(card).getByRole("link", {
+        name: /Discuss this with Data Director/,
+      }),
+    ).toHaveAttribute("href", homePath({ fact: proposal.proposal }));
+    const decided = screen.getByRole("heading", { name: "Decided" })
+      .nextElementSibling as HTMLElement;
+    expect(
+      within(decided).queryByRole("link", { name: /Discuss this/ }),
+    ).toBeNull();
+  });
+
   describe("reached by a link to some of its facts", () => {
     afterEach(() => history.replaceState(null, "", "/"));
 
@@ -340,5 +427,37 @@ describe("FactsPanel", () => {
       expect(screen.getByText(/no longer here/)).toBeVisible();
       expect(document.querySelector(".fact-target")).toBeNull();
     });
+  });
+
+  it("links a funder fact to its page, and no other kind", async () => {
+    const funder = {
+      fact_kind: "funder",
+      fact_subject: "UKRI",
+      fact_funder_name: "UK Research and Innovation",
+    } as ProjectFact;
+    renderPanel({
+      facts: () => Promise.resolve({ ...DECIDED, decisions: [...DECIDED.decisions, funder] }),
+    });
+    const links = await screen.findAllByRole("link", { name: /View funder/ });
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAttribute("href", funderPath(PROJECT, "UKRI"));
+  });
+
+  it("shows a funder's page, not the lists, when a link names one", async () => {
+    const funder = {
+      fact_kind: "funder",
+      fact_subject: "UKRI",
+      fact_funder_name: "UK Research and Innovation",
+    } as ProjectFact;
+    navigate(funderPath(PROJECT, "UKRI"));
+    try {
+      renderPanel({
+        facts: () => Promise.resolve({ ...DECIDED, decisions: [funder] }),
+      });
+      expect(await screen.findByRole("heading", { name: /Funder: UK Research and Innovation/ })).toBeVisible();
+      expect(screen.queryByRole("heading", { name: "Decided" })).not.toBeInTheDocument();
+    } finally {
+      navigate("/");
+    }
   });
 });

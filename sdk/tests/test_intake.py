@@ -85,10 +85,12 @@ def test_each_answer_skips_the_steps_the_blueprint_branch_bypasses(question_id: 
         assert q.skips([value]) == EXPECTED_SKIPS[question_id].get(value, set())
 
 
-def test_only_yes_to_sensitive_data_carries_a_notice_and_it_marks_no_step() -> None:
+def test_only_yes_to_sensitive_data_and_no_to_a_plan_carry_a_notice() -> None:
     noticed = {(q.id, o.value) for q in INTAKE for o in q.options if o.notice}
-    assert noticed == {("intake.sensitive", YES)}
+    assert noticed == {("intake.sensitive", YES), ("intake.dmp", NO)}
     assert not question("intake.sensitive").skips([YES])
+    # The notice on "No" says writing a plan is still there; it skips only the review.
+    assert question("intake.dmp").skips([NO]) == {"setup.dmp-review"}
 
 
 def test_each_question_is_asked_only_from_the_entry_points_that_reach_its_step() -> None:

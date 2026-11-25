@@ -49,6 +49,10 @@ class AgentCredentials:
     def __len__(self) -> int:
         return len(self._digests)
 
+    def names(self) -> list[str]:
+        """The agents that hold a credential, by identifier, sorted. Never a digest."""
+        return sorted(self._digests)
+
     def authenticate(self, credential: str | None) -> str | None:
         """The agent whose credential this is, or `None`."""
         if not credential:
@@ -60,3 +64,25 @@ class AgentCredentials:
             if hmac.compare_digest(presented, held):
                 found = agent
         return found
+
+
+class OperatorCredential:
+    """The operators' credential for the admin summary (`dd_broker.admin`), held as its SHA-256
+    digest like an agent's, so a copy of the setting does not reveal it."""
+
+    def __init__(self, held: bytes) -> None:
+        self._held = held
+
+    @classmethod
+    def from_digest(cls, value: str) -> OperatorCredential:
+        """Parse the digest. Raises `ValueError` naming the problem, never the value."""
+        value = value.strip().lower()
+        if not _HEX_DIGEST.fullmatch(value):
+            raise ValueError("the operators' credential is not a SHA-256 hex digest")
+        return cls(bytes.fromhex(value))
+
+    def authenticate(self, credential: str | None) -> bool:
+        if not credential:
+            return False
+        presented = hashlib.sha256(credential.encode("utf-8")).digest()
+        return hmac.compare_digest(presented, self._held)

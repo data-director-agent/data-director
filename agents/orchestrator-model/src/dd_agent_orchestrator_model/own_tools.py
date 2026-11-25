@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 
-from dd_agent_orchestrator_model.provisional import fixed
+from dd_agent_orchestrator_model.provisional import RESERVED_KEYS, reserved
 from dd_agent_orchestrator_model.title import clean
 from dd_sdk.contract.models import (
     CHOICE_OPTIONS_MAX,
@@ -49,7 +49,11 @@ QUESTIONS_TOOL_DEFINITION = ToolSpec(
                         "question_key": {
                             "type": "string",
                             "pattern": QUESTION_KEY_PATTERN,
-                            "description": "A short identifier, unique among these questions.",
+                            "description": (
+                                "A short identifier, unique among these questions. For "
+                                + " or ".join(RESERVED_KEYS)
+                                + " the harness supplies the wording and options."
+                            ),
                         },
                         "question_prompt": {
                             "type": "string",
@@ -195,7 +199,7 @@ def questions_of(calls: Sequence[ToolCall]) -> tuple[list[Question] | None, str 
             raise ValueError("questions must be a list")
         if not 1 <= len(given) <= QUESTIONS_MAX:
             raise ValueError(f"ask between 1 and {QUESTIONS_MAX} questions")
-        questions = [fixed(Question.model_validate(q)) for q in given]
+        questions = [reserved(q) or Question.model_validate(q) for q in given]
         if len({q.question_key for q in questions}) != len(questions):
             raise ValueError("each question has a key of its own")
         return questions, None
@@ -206,6 +210,19 @@ def questions_of(calls: Sequence[ToolCall]) -> tuple[list[Question] | None, str 
             None,
             f"Not shown: these are not valid questions ({reasons}). Fix them or ask in prose.",
         )
+
+
+def unexplained(questions: Sequence[Question], *, said: str, delegated: bool) -> str | None:
+    """Why questions are not shown yet, or None: a reply that asks after an agent has answered,
+    or that offers a reserved choice (a data steward, the way on without consent), says first
+    what was found and why it asks. Without that the researcher would see the bare question
+    and never the agents' results."""
+    if said or not (delegated or any(q.question_key in RESERVED_KEYS for q in questions)):
+        return None
+    return (
+        "Not shown: first write your reply, saying what the agents found and, when you offer "
+        "a data steward, why. Then call ask_questions again in the same message."
+    )
 
 
 def name_of(call: ToolCall, *, offered: bool) -> tuple[str | None, ToolResult]:

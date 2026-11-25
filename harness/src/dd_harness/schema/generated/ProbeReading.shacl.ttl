@@ -1,12 +1,14 @@
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
 @prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix doubles: <https://w3id.org/data-director/harness/doubles/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 doubles:ProbeReading a sh:NodeShape ;
-    rdfs:comment "What a checking double reads in a project: an agent's own input class that asks the conductor for the attached documents, the decided facts, the chosen repository and the metadata record by their slots (docs/specs/projects.md, invariant 6)." ;
+    rdfs:comment "What a checking double reads in a project: an agent's own input class that asks the conductor for the attached documents, the decided facts, the chosen repository, the metadata record, the approved plan and the inventory by their slots (docs/specs/projects.md, invariant 6)." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:class <https://w3id.org/data-director/ChosenRepository> ;
@@ -15,6 +17,12 @@ doubles:ProbeReading a sh:NodeShape ;
             sh:nodeKind sh:BlankNodeOrIRI ;
             sh:order 4 ;
             sh:path <https://w3id.org/data-director/project_repository> ],
+        [ sh:class <https://w3id.org/data-director/ApprovedPlan> ;
+            sh:description "The version of the project's data management plan (a dmp document) a person approved last. In a project the conductor fills it and a caller leaves it out. Absent when no version has been approved." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 7 ;
+            sh:path <https://w3id.org/data-director/project_plan_approved> ],
         [ sh:class <https://w3id.org/data-director/ProjectFact> ;
             sh:description "The facts a person in the project decided (ProjectFact), the last decision on each subject, filled by the conductor and never by the caller. Absent when the run is in no project, or nobody in its project decided any. A drafter treats each as supplied." ;
             sh:nodeKind sh:BlankNodeOrIRI ;
@@ -44,6 +52,12 @@ doubles:ProbeReading a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 0 ;
             sh:path <https://w3id.org/data-director/schema_class> ],
+        [ sh:class <https://w3id.org/data-director/FileInventory> ;
+            sh:description "The project's file inventory, as the researcher added it last. In a project the conductor fills it and a caller leaves it out. Absent while the project holds no inventory." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 8 ;
+            sh:path <https://w3id.org/data-director/project_file_inventory> ],
         [ sh:datatype xsd:string ;
             sh:description "A title." ;
             sh:maxCount 1 ;
@@ -83,6 +97,57 @@ doubles:ProbeReading a sh:NodeShape ;
             sh:order 3 ;
             sh:path <https://w3id.org/data-director/document_text> ] ;
     sh:targetClass <https://w3id.org/data-director/ApprovedMetadataRecord> .
+
+<https://w3id.org/data-director/ApprovedPlan> a sh:NodeShape ;
+    rdfs:comment "The data management plan written in the project as a person approved it: the version named by the last approval of a dmp document in the project (docs/specs/projects.md). It is the project's own document, not one a researcher attached, so no data_management_plan fact names it." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:description "A short name a person can tell documents apart by, such as README for raw/." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dcterms:title ],
+        [ sh:datatype xsd:string ;
+            sh:description "The media type of document_text, such as text/markdown or application/json." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path dcterms:format ],
+        [ sh:datatype xsd:string ;
+            sh:description "The content of the document, as text; a structured record is serialised." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <https://w3id.org/data-director/document_text> ],
+        [ sh:class <https://w3id.org/data-director/DocumentVersionRef> ;
+            sh:description "The version, by its document and number." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/version_ref> ] ;
+    sh:targetClass <https://w3id.org/data-director/ApprovedPlan> .
+
+<https://w3id.org/data-director/CategoryCount> a sh:NodeShape ;
+    rdfs:comment "One category of a field and how many rows hold it, rounded." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/category_count> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/category_value> ] ;
+    sh:targetClass <https://w3id.org/data-director/CategoryCount> .
 
 <https://w3id.org/data-director/ChosenRepository> a sh:NodeShape ;
     rdfs:comment "The repository a researcher chose to deposit the project's data in, from the shortlist, by the identifier of the registry that lists it: the conductor fills it into a Message, and into the input of an agent that mixes in GivenProjectRepository, so that the agent knows a repository is chosen and which (docs/specs/projects.md). The last choice stands until a researcher chooses again." ;
@@ -162,6 +227,288 @@ doubles:ProbeReading a sh:NodeShape ;
             sh:path dcterms:title ] ;
     sh:targetClass <https://w3id.org/data-director/CurrentVersion> .
 
+<https://w3id.org/data-director/DisclosureCheck> a sh:NodeShape ;
+    rdfs:comment "What the disclosure check of a field's summary values did: the rules, their parameters, the tool and how many values it left out, never which (docs/specs/personal-data.md)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:description "How many of the field's summary values were left out. Never which." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path <https://w3id.org/data-director/check_suppressed> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/check_tool_version> ],
+        [ sh:datatype xsd:integer ;
+            sh:description "The minimum frequency threshold k." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <https://w3id.org/data-director/check_threshold> ],
+        [ sh:datatype xsd:integer ;
+            sh:description "The base counts were rounded to." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path <https://w3id.org/data-director/check_rounding_base> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The rules applied, such as minimum threshold, k-th value range, p-ratio, nk dominance, zeros disclosive and rounding." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <https://w3id.org/data-director/check_rules> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The output checker that applied the rules, such as acro." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/check_tool> ] ;
+    sh:targetClass <https://w3id.org/data-director/DisclosureCheck> .
+
+<https://w3id.org/data-director/FieldSummary> a sh:NodeShape ;
+    rdfs:comment "Summary values of one table field that the inventory command computed where the data live and passed through statistical disclosure control before writing (docs/specs/personal-data.md). A value that failed a rule is absent, never altered to pass; every count is at least the check's threshold and rounded to its base, and a range is never the raw minimum and maximum." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:class <https://w3id.org/data-director/CategoryCount> ;
+            sh:description "The field's categories that at least k rows hold, with their counts. Rarer categories are left out and counted in check_suppressed." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 5 ;
+            sh:path <https://w3id.org/data-director/summary_categories> ],
+        [ sh:class <https://w3id.org/data-director/MissingCodeCount> ;
+            sh:description "Values the field holds that are often used for missing data (-99, -999, 999, 9999, NA, N/A, NaN, null, .), each held by at least k rows, with their counts." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 6 ;
+            sh:path <https://w3id.org/data-director/summary_missing_codes> ],
+        [ sh:datatype xsd:integer ;
+            sh:description "How many rows were read to compute the summaries, rounded." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/summary_rows_read> ],
+        [ sh:datatype xsd:float ;
+            sh:description "The mean of a numeric field's values, missing-value codes left out, written only when the threshold and dominance rules pass." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path <https://w3id.org/data-director/summary_mean> ],
+        [ sh:datatype xsd:integer ;
+            sh:description "How many of the rows read hold no value in the field, rounded." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/summary_null_count> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The lower bound of the field's values: the k-th smallest, so that at least k rows (the check's threshold) lie at or below it. A number or an ISO 8601 date or time, as text." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <https://w3id.org/data-director/summary_range_low> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The upper bound of the field's values, the k-th largest, as summary_range_low." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <https://w3id.org/data-director/summary_range_high> ] ;
+    sh:targetClass <https://w3id.org/data-director/FieldSummary> .
+
+<https://w3id.org/data-director/FileInventory> a sh:NodeShape ;
+    rdfs:comment "The facts about a dataset's files that the project holds in place of the files (docs/specs/projects.md): for each file its path, size, digest and format, and for a table its fields. Made by a command run where the data live; it never contains a file's content. advisor.files reads it." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:class <https://w3id.org/data-director/PersonalDataFinding> ;
+            sh:description "Where a personal-data detector found possible personal data (docs/specs/personal-data.md). Absent, no detector ran, or the inventory was made by a command without one; empty, a detector ran and found nothing, which does not mean the data hold none. In an inventory made of parts, it is every part's findings, and absent if any part's are absent." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 8 ;
+            sh:path <https://w3id.org/data-director/inventory_personal_data> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The version of the command that made the inventory." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <https://w3id.org/data-director/inventory_tool_version> ],
+        [ sh:datatype xsd:string ;
+            sh:description "What the inventory left out or could not do, such as files it skipped." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path <https://w3id.org/data-director/inventory_limitations> ],
+        [ sh:datatype xsd:string ;
+            sh:description "What identified the formats, such as fido 1.6.1 with PRONOM signatures v109, or that only file extensions were used." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path <https://w3id.org/data-director/inventory_identified_with> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The command that made the inventory, such as dd-inventory." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:class <https://w3id.org/data-director/InventoryPart> ;
+            sh:description "The scans the inventory is made of, when it is made of more than one folder. Absent, the inventory is one scan of one folder and its paths are relative to that folder. Present, every file's path begins with one part's folder; inventory_made_at is the latest part's, inventory_tool and inventory_tool_version are those of that part, and inventory_limitations holds any that concern no one part, then every part's limitations, each after \"In <folder>: \"." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 7 ;
+            sh:path <https://w3id.org/data-director/inventory_parts> ],
+        [ sh:class <https://w3id.org/data-director/InventoryFile> ;
+            sh:description "Every file the command read, sorted by path: under the dataset's root folder, or, in an inventory made of parts, under each part's folder." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/inventory_files> ],
+        [ sh:datatype xsd:string ;
+            sh:description "Type designator: the name of the class this object is an instance of. Discriminates the input and payload unions, and lets a consumer name a payload class it does not recognise." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/schema_class> ],
+        [ sh:datatype xsd:dateTime ;
+            sh:description "When the inventory was made." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path prov:generatedAtTime ] ;
+    sh:targetClass <https://w3id.org/data-director/FileInventory> .
+
+<https://w3id.org/data-director/InventoryFile> a sh:NodeShape ;
+    rdfs:comment "One file of a dataset, as the inventory command found it." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:description "How the PRONOM identifiers were arrived at: by the inventory command, or chosen by the researcher where the command found several matches or none." ;
+            sh:in ( "signature" "container" "extension" "none" "researcher" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 5 ;
+            sh:path <https://w3id.org/data-director/file_identified_by> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The file's path relative to the dataset's root folder, with forward slashes; in an inventory made of parts, it begins with its part's folder. Never an absolute path, which would say where the data live." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/file_path> ;
+            sh:pattern "^[^/]" ],
+        [ sh:datatype xsd:string ;
+            sh:description "Every PRONOM unique identifier (PUID) the file matched, such as fmt/95 or x-fmt/18. More than one means the identification is ambiguous; none means the format is unknown." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path <https://w3id.org/data-director/file_pronom_ids> ],
+        [ sh:class <https://w3id.org/data-director/TableField> ;
+            sh:description "For a table, its fields as a Frictionless Table Schema inferred from a sample of rows." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 6 ;
+            sh:path <https://w3id.org/data-director/file_fields> ],
+        [ sh:datatype xsd:integer ;
+            sh:description "The file's size in bytes." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path dcat:byteSize ],
+        [ sh:datatype xsd:string ;
+            sh:description "The SHA-256 digest of the file's bytes, in lowercase hex, by which the file deposited can be shown to be the file described." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <http://spdx.org/rdf/terms#checksumValue> ;
+            sh:pattern "^[0-9a-f]{64}$" ],
+        [ sh:description "What part the file plays in the dataset, as the researcher states it. Unset means not stated, not data." ;
+            sh:in ( "data" "documentation" "code" "other" ) ;
+            sh:maxCount 1 ;
+            sh:order 8 ;
+            sh:path <https://w3id.org/data-director/file_role> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The file's media type (MIME type), when it could be told." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dcat:mediaType ],
+        [ sh:datatype xsd:string ;
+            sh:description "What the file is, in the researcher's words. The inventory command never fills it; a researcher states it beside the facts the command found (docs/specs/projects.md)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path dcterms:description ] ;
+    sh:targetClass <https://w3id.org/data-director/InventoryFile> .
+
+<https://w3id.org/data-director/InventoryPart> a sh:NodeShape ;
+    rdfs:comment "One scan of one folder, mounted at a folder name in an inventory made of several (docs/specs/projects.md). Every file of the inventory lies under exactly one part's folder, and a part is replaced whole when its folder is scanned again." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:dateTime ;
+            sh:description "When the part's folder was scanned." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 4 ;
+            sh:path prov:generatedAtTime ],
+        [ sh:datatype xsd:string ;
+            sh:description "The folder name the part is mounted at, such as instrument or raw/2024: relative, with forward slashes, and no empty, . or .. segment. Every file of the part has a path that begins with it and a slash. No part's folder is another's or lies inside another's." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/part_folder> ;
+            sh:pattern "^[^/]+(/[^/]+)*$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The command that scanned the part's folder, such as dd-inventory." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path prov:wasGeneratedBy ],
+        [ sh:datatype xsd:string ;
+            sh:description "What the scan of the part's folder left out or could not do." ;
+            sh:nodeKind sh:Literal ;
+            sh:order 5 ;
+            sh:path <https://w3id.org/data-director/part_limitations> ],
+        [ sh:class <https://w3id.org/data-director/PersonalDataFinding> ;
+            sh:description "The part's findings, as inventory_personal_data, with paths that begin with the part's folder. Absent, no detector ran on the part." ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 6 ;
+            sh:path <https://w3id.org/data-director/part_personal_data> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The version of the command that scanned the part's folder." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <https://w3id.org/data-director/part_tool_version> ],
+        [ sh:datatype xsd:string ;
+            sh:description "What identified the formats of the part's files, as inventory_identified_with." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <https://w3id.org/data-director/part_identified_with> ] ;
+    sh:targetClass <https://w3id.org/data-director/InventoryPart> .
+
+<https://w3id.org/data-director/MissingCodeCount> a sh:NodeShape ;
+    rdfs:comment "A value that a field may use for missing data, such as -99 or NA, and how many rows hold it, rounded." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/missing_code> ],
+        [ sh:datatype xsd:integer ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/missing_code_count> ] ;
+    sh:targetClass <https://w3id.org/data-director/MissingCodeCount> .
+
 <https://w3id.org/data-director/ProjectDocument> a sh:NodeShape ;
     rdfs:comment "One document a researcher attached to a project, with its text: the conductor fills one per document into a DraftRequest so that a drafter's model may suggest answers from it (docs/specs/projects.md). Its text is the researcher's, untrusted, and given as data." ;
     sh:closed true ;
@@ -224,7 +571,7 @@ doubles:ProbeReading a sh:NodeShape ;
     sh:targetClass <https://w3id.org/data-director/ProjectDocument> .
 
 <https://w3id.org/data-director/ProjectFact> a sh:NodeShape ;
-    rdfs:comment "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, an output a data management plan committed to share, a standard, vocabulary or format the researcher chose for the dataset, or which attached document is the project's data management plan (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because." ;
+    rdfs:comment "One fact about a project that a check agent proposes and a person confirms: a funder, a repository a funder or institution requires, whether a file is deposited, whether a sensitive field or file may be published and at what precision, the licence, an output a data management plan committed to share, a standard, vocabulary or format the researcher chose for the dataset, which attached document is the project's data management plan, or what data the project collects and how, or what the project is for, its field of study and when it runs (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the key a person's decision counts by, so the last decision on a subject stands. An agent's payload carries proposals in proposed_facts; only a person's decision makes one a fact, and the conductor gives the facts a person decided to every drafter and orchestrator in the project as project_decisions, without proposed_because." ;
     sh:closed true ;
     sh:ignoredProperties ( rdf:type ) ;
     sh:property [ sh:datatype xsd:string ;
@@ -246,6 +593,12 @@ doubles:ProbeReading a sh:NodeShape ;
             sh:order 10 ;
             sh:path <https://w3id.org/data-director/fact_check_kind> ],
         [ sh:datatype xsd:string ;
+            sh:description "For a data description fact, the file formats the data are kept in, in the researcher's words." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 27 ;
+            sh:path <https://w3id.org/data-director/data_formats> ],
+        [ sh:datatype xsd:string ;
             sh:description "The key a decision counts by within its kind: the funder's identifier or name, the repository's re3data identifier or name, the file's path, the field or path judged sensitive, licence, or the standard chosen and what it is chosen for. The last decision on a kind and subject stands." ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
@@ -258,6 +611,25 @@ doubles:ProbeReading a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 7 ;
             sh:path <https://w3id.org/data-director/fact_required_by> ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a field of study fact, the project's field, as the researcher names it or a subject classification gives it." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 31 ;
+            sh:path <https://w3id.org/data-director/field_name> ;
+            sh:pattern "\\S" ],
+        [ sh:datatype xsd:string ;
+            sh:description "Why the agent proposes the fact, in a sentence for the person deciding. Kept with the proposal and shown to the person, never given to an agent." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 34 ;
+            sh:path <https://w3id.org/data-director/proposed_because> ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a data description fact, which existing data the project reuses, and how, in the researcher's words." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 29 ;
+            sh:path <https://w3id.org/data-director/data_reused> ],
         [ sh:description "The funder's ROR identifier, as a URL, where it is known." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:IRI ;
@@ -281,11 +653,24 @@ doubles:ProbeReading a sh:NodeShape ;
             sh:nodeKind sh:Literal ;
             sh:order 17 ;
             sh:path <https://w3id.org/data-director/commitment_licence> ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a project summary fact, what the project is for, in a few sentences: its aims and the questions it asks." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 30 ;
+            sh:path <https://w3id.org/data-director/summary_text> ;
+            sh:pattern "\\S" ],
         [ sh:description "Whether the file is to be deposited." ;
             sh:in ( "include" "exclude" "undecided" ) ;
             sh:maxCount 1 ;
             sh:order 9 ;
             sh:path <https://w3id.org/data-director/file_decision> ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a data description fact, how much data the project expects, in the researcher's words." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 28 ;
+            sh:path <https://w3id.org/data-director/data_volume> ],
         [ sh:datatype xsd:string ;
             sh:description "For a sharing commitment, the digest of the attached document's text (its documentation_digest) the quote is from." ;
             sh:maxCount 1 ;
@@ -293,12 +678,6 @@ doubles:ProbeReading a sh:NodeShape ;
             sh:order 19 ;
             sh:path <https://w3id.org/data-director/commitment_document> ;
             sh:pattern "^[0-9a-f]{64}$" ],
-        [ sh:datatype xsd:string ;
-            sh:description "Why the agent proposes the fact, in a sentence for the person deciding. Kept with the proposal and shown to the person, never given to an agent." ;
-            sh:maxCount 1 ;
-            sh:nodeKind sh:Literal ;
-            sh:order 25 ;
-            sh:path <https://w3id.org/data-director/proposed_because> ],
         [ sh:datatype xsd:string ;
             sh:description "The funder's name, as its policy record or the researcher gives it." ;
             sh:maxCount 1 ;
@@ -331,7 +710,7 @@ doubles:ProbeReading a sh:NodeShape ;
             sh:path <https://w3id.org/data-director/standard_target> ;
             sh:pattern "^(dataset|field:\\S.*)$" ],
         [ sh:description "What the fact is about, which says which value slots apply." ;
-            sh:in ( "funder" "required_repository" "file_inclusion" "sensitivity" "licence" "sharing_commitment" "standard" "data_management_plan" ) ;
+            sh:in ( "funder" "required_repository" "file_inclusion" "sensitivity" "licence" "sharing_commitment" "standard" "data_management_plan" "data_description" "project_summary" "field_of_study" "project_period" ) ;
             sh:maxCount 1 ;
             sh:minCount 1 ;
             sh:order 0 ;
@@ -342,11 +721,24 @@ doubles:ProbeReading a sh:NodeShape ;
             sh:order 13 ;
             sh:path <https://w3id.org/data-director/location_precision> ],
         [ sh:datatype xsd:string ;
+            sh:description "For a data description fact, how the data are collected or produced, in the researcher's words." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 26 ;
+            sh:path <https://w3id.org/data-director/data_collection_method> ],
+        [ sh:datatype xsd:string ;
             sh:description "For a sharing commitment, how openly the plan committed to share the output (such as open, embargoed or on request), as the plan says it; absent where it says nothing." ;
             sh:maxCount 1 ;
             sh:nodeKind sh:Literal ;
             sh:order 16 ;
             sh:path <https://w3id.org/data-director/commitment_access> ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a project period fact, when the project ends, as a year, a month or a day; absent where it is not known." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 33 ;
+            sh:path <https://w3id.org/data-director/period_end> ;
+            sh:pattern "^\\d{4}(-\\d{2}(-\\d{2})?)?$" ],
         [ sh:datatype xsd:string ;
             sh:description "For a standard fact, the name of the standard, vocabulary, ontology or format chosen, as its registry record or the researcher gives it." ;
             sh:maxCount 1 ;
@@ -381,8 +773,117 @@ doubles:ProbeReading a sh:NodeShape ;
             sh:in ( "metadata_standard" "controlled_vocabulary" "ontology" "terminology" "data_format" "field_format" ) ;
             sh:maxCount 1 ;
             sh:order 22 ;
-            sh:path <https://w3id.org/data-director/standard_kind> ] ;
+            sh:path <https://w3id.org/data-director/standard_kind> ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a project period fact, when the project starts, as a year, a month or a day." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 32 ;
+            sh:path <https://w3id.org/data-director/period_start> ;
+            sh:pattern "^\\d{4}(-\\d{2}(-\\d{2})?)?$" ],
+        [ sh:datatype xsd:string ;
+            sh:description "For a data description fact, what data the project collects, produces or reuses, and of which types, in the researcher's words." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 25 ;
+            sh:path <https://w3id.org/data-director/data_collected> ] ;
     sh:targetClass <https://w3id.org/data-director/ProjectFact> .
+
+<https://w3id.org/data-director/TableField> a sh:NodeShape ;
+    rdfs:comment "One field of a tabular resource, mirroring a Frictionless Table Schema field descriptor. Frictionless publishes no RDF namespace, so these slots carry see_also rather than a slot_uri (TODO(#20): revisit if Frictionless publishes term IRIs)." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 2 ;
+            sh:path <https://w3id.org/data-director/field_format> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/name> ],
+        [ sh:datatype xsd:string ;
+            sh:description "Frictionless field type (string, number, integer, boolean, date, datetime, time, duration, geopoint, ...)." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/field_type> ],
+        [ sh:datatype xsd:string ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path dcterms:description ],
+        [ sh:class <https://w3id.org/data-director/DisclosureCheck> ;
+            sh:description "The disclosure check the field's summary values passed. Present whenever field_summary is." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 5 ;
+            sh:path <https://w3id.org/data-director/field_disclosure_check> ],
+        [ sh:class <https://w3id.org/data-director/FieldSummary> ;
+            sh:description "The field's summary values (docs/specs/personal-data.md). Absent, no summaries were made: by an older command, in a runtime where they do not run, or with them turned off." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:BlankNodeOrIRI ;
+            sh:order 4 ;
+            sh:path <https://w3id.org/data-director/field_summary> ] ;
+    sh:targetClass <https://w3id.org/data-director/TableField> .
+
+<https://w3id.org/data-director/PersonalDataFinding> a sh:NodeShape ;
+    rdfs:comment "Where the inventory command found what may be personal data, and how sure it is (docs/specs/personal-data.md). It never holds a matched value, any part of one, an offset into a file, a row number or an example: a kind, a place, bands and the detector only. A finding is a prompt for a person, never a decision." ;
+    sh:closed true ;
+    sh:ignoredProperties ( rdf:type ) ;
+    sh:property [ sh:datatype xsd:integer ;
+            sh:description "How much was examined: the sampled, non-empty values of a column, or the characters of a text file. Absent for a name." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 7 ;
+            sh:path <https://w3id.org/data-director/finding_examined> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The detector, its version and its configuration, such as the recognisers that ran, so that a reader knows what was looked for." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 6 ;
+            sh:path <https://w3id.org/data-director/finding_detector> ],
+        [ sh:description "What the detector took the data to be." ;
+            sh:in ( "email address" "phone number" "NHS number" "National Insurance number" "postcode" "passport number" "driving licence number" "bank account number" "payment card number" "IP address" "person name" "direct identifier" "indirect identifier" "special category" "location" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 0 ;
+            sh:path <https://w3id.org/data-director/finding_kind> ],
+        [ sh:description "The share of a column's sampled, non-empty values that matched, as a band so that it cannot be turned back into a count. Present for a column only." ;
+            sh:in ( "under 1%" "1 to 10%" "10 to 50%" "over 50%" ) ;
+            sh:maxCount 1 ;
+            sh:order 4 ;
+            sh:path <https://w3id.org/data-director/finding_proportion> ],
+        [ sh:description "What part of the file was examined." ;
+            sh:in ( "column" "field name" "file name" "text" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 2 ;
+            sh:path <https://w3id.org/data-director/finding_target> ],
+        [ sh:datatype xsd:string ;
+            sh:description "The path of the file the finding concerns, as file_path; or, for a folder's name, the folder's path followed by a slash." ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 1 ;
+            sh:path <https://w3id.org/data-director/finding_file> ;
+            sh:pattern "^[^/]" ],
+        [ sh:datatype xsd:string ;
+            sh:description "The table column the finding concerns, for a column or a field name." ;
+            sh:maxCount 1 ;
+            sh:nodeKind sh:Literal ;
+            sh:order 3 ;
+            sh:path <https://w3id.org/data-director/finding_column> ],
+        [ sh:description "How sure the detector is, as a band of its highest score." ;
+            sh:in ( "low" "medium" "high" ) ;
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:order 5 ;
+            sh:path <https://w3id.org/data-director/finding_confidence> ] ;
+    sh:targetClass <https://w3id.org/data-director/PersonalDataFinding> .
 
 <https://w3id.org/data-director/DocumentVersionRef> a sh:NodeShape ;
     rdfs:comment "One version of a project document: the document the conductor minted an identifier for, and the version's number within it, counted from 1." ;

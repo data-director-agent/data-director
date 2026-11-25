@@ -40,6 +40,7 @@ class ReadingStatus(StrEnum):
 class PolicyRegistry(StrEnum):
     FAIRSHARING = "fairsharing"
     OPEN_POLICY_FINDER = "open_policy_finder"
+    DOAJ = "doaj"
 
 
 class PolicyScope(StrEnum):
@@ -178,3 +179,4 @@ class PolicyChecks(Grounded):
     ambiguous: list[AmbiguousActor] = Field(default_factory=list)
     searched: SearchedSummary | None = None
     limitations: list[str] = Field(default_factory=list)
+    proposed_facts: list[ProjectFact] = Field(default_factory=list)

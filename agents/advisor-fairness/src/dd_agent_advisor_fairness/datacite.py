@@ -1,93 +1,70 @@
-"""A DataCite record in DataCite's JSON form, as the fields the FAIR Assessor checks.
+"""A metadata record, as the fields the FAIR Assessor checks.
 
-The Metadata Librarian drafts a project's metadata record in this form: the attributes of the
-DataCite REST API, with any value the researcher has still to give left null. `fields` reads the
-values that are given and ignores the rest, so a draft with gaps reads as a record with those
-fields absent.
+The Metadata Librarian drafts a project's metadata record, and a published record is given in the
+same form. The record is read with its standard's definition (`dd_metadata_records`), DataCite's
+unless another is named, and the fields are taken from the pivot terms the definition gives its
+properties (docs/specs/metadata-standards.md), so that no property of any standard is named here.
+A value the researcher has still to give is no value, so a draft with gaps reads as a record with
+those fields absent.
 
-This module speaks no Data Director contract and imports nothing from `dd_sdk`, so that it can be
-lifted into a neutral library.
+This module speaks no Data Director contract and imports nothing from `dd_sdk`.
 """
 
 from __future__ import annotations
 
-import json
-from collections.abc import Iterable
-from typing import Any
+from functools import cache
+from typing import Any, Final
+
+from dd_metadata_records import RecordError, Standards, discover
+
+# The standard a record is read in when none is named: the one the Metadata Librarian drafts in
+# and DataCite's REST API returns.
+DATACITE: Final = "http://datacite.org/schema/kernel-4"
+MEDIA_TYPE: Final = "application/json"
+SCHEMA: Final = "http://schema.org/"
 
 
 class NotDataCiteError(ValueError):
-    """The text is not a DataCite record in DataCite's JSON form."""
+    """The text is not a record in the standard and serialisation it is read in."""
 
 
-def fields(text: str) -> dict[str, Any]:
+@cache
+def _standards() -> Standards:
+    return discover()
+
+
+def fields(text: str, conforms_to: str = DATACITE, media_type: str = MEDIA_TYPE) -> dict[str, Any]:
     """The record's identifier, title, description, licence, keywords, creators and their
     identifiers, formats and related identifiers, by the names of `PublishedRecord`'s fields.
     A field the record does not give is absent, or an empty list.
 
-    Raises `NotDataCiteError` for text that is not a JSON object."""
+    Raises `NotDataCiteError` for text that is not a record in a standard and serialisation a
+    registered definition covers."""
+    standard = _standards().covering(conforms_to, media_type)
+    if standard is None:
+        raise NotDataCiteError(f"no registered definition covers {conforms_to} as {media_type}")
     try:
-        record = json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise NotDataCiteError(f"the text is not JSON ({exc.msg})") from exc
-    if not isinstance(record, dict):
-        raise NotDataCiteError("the text is not a JSON object")
-    attributes = record.get("attributes")
-    if isinstance(attributes, dict):  # a DataCite REST API response's `data`
-        record = attributes
-    creators = _objects(record.get("creators"))
+        pivot = standard.read(text, media_type).pivot()
+    except RecordError as exc:
+        raise NotDataCiteError(f"the text {str(exc).removeprefix('it ')}") from None
+    creators = pivot.get(SCHEMA + "creator", ())
+    licences = [
+        given
+        for node in pivot.get(SCHEMA + "license", ())
+        if (given := next(iter(node.part(SCHEMA + "identifier")), node.value))
+    ]
     return {
-        "identifier": _identifier(record),
-        "title": _first(record.get("titles"), "title"),
-        "description": _first(record.get("descriptions"), "description"),
-        "licence": _licence(record.get("rightsList")),
-        "keywords": _values(record.get("subjects"), "subject"),
-        "creators": _values(creators, "name"),
-        "creator_identifiers": [
-            identifier
-            for creator in creators
-            for identifier in _values(creator.get("nameIdentifiers"), "nameIdentifier")
-        ],
-        "formats": [f.strip() for f in _list(record.get("formats")) if _text(f)],
-        "related_identifiers": _values(record.get("relatedIdentifiers"), "relatedIdentifier"),
+        "identifier": _first(pivot.values_of(SCHEMA + "identifier")),
+        "title": _first(pivot.values_of(SCHEMA + "name")),
+        "description": _first(pivot.values_of(SCHEMA + "description")),
+        "licence": _first(licences),
+        "keywords": pivot.values_of(SCHEMA + "keywords") + pivot.values_of(SCHEMA + "about"),
+        "creators": [node.value for node in creators if node.value is not None],
+        "creator_identifiers": [i for node in creators for i in node.part(SCHEMA + "identifier")],
+        "formats": pivot.values_of(SCHEMA + "encodingFormat"),
+        "related_identifiers": pivot.values_of(SCHEMA + "citation"),
     }
 
 
-def _identifier(record: dict[str, Any]) -> str | None:
-    doi = record.get("doi")
-    if _text(doi):
-        return str(doi).strip()
-    for entry in _objects(record.get("identifiers")):
-        if _text(entry.get("identifier")):
-            return str(entry["identifier"]).strip()
-    return None
-
-
-def _licence(rights_list: Any) -> str | None:
-    """The first rights entry's SPDX identifier, else its statement."""
-    for entry in _objects(rights_list):
-        for key in ("rightsIdentifier", "rights"):
-            if _text(entry.get(key)):
-                return str(entry[key]).strip()
-    return None
-
-
-def _first(entries: Any, key: str) -> str | None:
-    found = _values(entries, key)
-    return found[0] if found else None
-
-
-def _values(entries: Any, key: str) -> list[str]:
-    return [str(e[key]).strip() for e in _objects(entries) if _text(e.get(key))]
-
-
-def _objects(value: Any) -> list[dict[str, Any]]:
-    return [item for item in _list(value) if isinstance(item, dict)]
-
-
-def _list(value: Any) -> Iterable[Any]:
-    return value if isinstance(value, list) else ()
-
-
-def _text(value: Any) -> bool:
-    return isinstance(value, str) and bool(value.strip())
+def _first(values: list[str]) -> str | None:
+    return values[0] if values else None

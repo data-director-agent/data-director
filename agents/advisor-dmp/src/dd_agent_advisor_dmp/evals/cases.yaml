@@ -1,4 +1,4 @@
-# The Data Management Plan Checker's evaluation cases (docs/specs/evaluation.md; #962).
+# The Data Management Planner's evaluation cases (docs/specs/evaluation.md; #962).
 #
 # plans: each synthetic plan in data/, with the commitments it labels. A label gives the output as
 # the plan names it, any other names a reader may fairly give it (`aliases`), its repository,

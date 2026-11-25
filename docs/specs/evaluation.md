@@ -26,7 +26,7 @@ alone, so its model's additions and concerns are not yet evaluated (TODO(#415)).
 provisional: they follow
 the Metadata Librarian's guidance in Uzwyshyn, *The Research Data Director* v0.8.2, and no domain
 expert has reviewed them. A labelled corpus of real ORDA records is to replace them, as a second
-dataset for the same task (TODO(#22)). The Data Management Plan Checker's
+dataset for the same task (TODO(#22)). The Data Management Planner's
 (`agents/advisor-dmp/src/dd_agent_advisor_dmp/evals/`) reads three synthetic free-text plans,
 complete, partial and vague, whose commitments are labelled by construction, and compares the
 commitments a researcher confirmed. Reading a plan needs a model, so its committed baseline
@@ -50,8 +50,12 @@ hand-written inventories, and asks whether the categories it suggests from the r
 controlled vocabulary are those a curator would choose. It also asks whether each category cites
 the vocabulary record it came from, and whether every value only the researcher can give is asked
 about and left null. A repository asking for another standard must be told the capability is not
-implemented. The librarian suggests no category yet, so its baseline recalls none (TODO(#703));
-the cases are to be replaced by the ORDA corpus (TODO(#22)).
+implemented. A model suggests categories only from a classification retrieved through the tool
+gateway, so the evaluation's conductor serves the classification server in process and grants it to
+the librarian; a workbench evaluation can be given tool servers in this way. The committed baseline
+is the template suggester's, which suggests no category, so it recalls none; a fake-model test runs
+the whole evaluation through the gateway and shows a curator's category recalled and cited. The
+cases are to be replaced by the ORDA corpus (TODO(#22)).
 
 ## Invariants
 

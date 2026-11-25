@@ -26,18 +26,24 @@ members = [
     "data-director-agent-advisor-repository",
     "data-director-agent-advisor-rights",
     "data-director-agent-advisor-standards",
+    "data-director-agent-advisor-storage",
     "data-director-agent-example-hello",
     "data-director-agent-orchestrator-model",
     "data-director-agent-orchestrator-stub",
     "data-director-app",
     "data-director-deposit-broker",
     "data-director-dmp-template",
+    "data-director-duo",
     "data-director-formats",
     "data-director-harness",
     "data-director-inventory",
+    "data-director-journals",
+    "data-director-mcp-doaj",
     "data-director-mcp-fairsharing",
     "data-director-mcp-pid",
     "data-director-mcp-spdx",
+    "data-director-mcp-subjects",
+    "data-director-metadata-records",
     "data-director-model-broker",
     "data-director-registry-cache",
     "data-director-sdk",
@@ -1165,18 +1171,24 @@ dependencies = [
     { name = "data-director-agent-advisor-repository" },
     { name = "data-director-agent-advisor-rights" },
     { name = "data-director-agent-advisor-standards" },
+    { name = "data-director-agent-advisor-storage" },
     { name = "data-director-agent-example-hello" },
     { name = "data-director-agent-orchestrator-model" },
     { name = "data-director-agent-orchestrator-stub" },
     { name = "data-director-app" },
     { name = "data-director-deposit-broker" },
     { name = "data-director-dmp-template" },
+    { name = "data-director-duo" },
     { name = "data-director-formats" },
     { name = "data-director-harness", extra = ["serve"] },
     { name = "data-director-inventory" },
+    { name = "data-director-journals" },
+    { name = "data-director-mcp-doaj" },
     { name = "data-director-mcp-fairsharing" },
     { name = "data-director-mcp-pid" },
     { name = "data-director-mcp-spdx" },
+    { name = "data-director-mcp-subjects" },
+    { name = "data-director-metadata-records" },
     { name = "data-director-model-broker" },
     { name = "data-director-registry-cache" },
     { name = "data-director-sdk" },
@@ -1238,18 +1250,24 @@ requires-dist = [
     { name = "data-director-agent-advisor-repository", editable = "agents/advisor-repository" },
     { name = "data-director-agent-advisor-rights", editable = "agents/advisor-rights" },
     { name = "data-director-agent-advisor-standards", editable = "agents/advisor-standards" },
+    { name = "data-director-agent-advisor-storage", editable = "agents/advisor-storage" },
     { name = "data-director-agent-example-hello", editable = "agents/example-hello" },
     { name = "data-director-agent-orchestrator-model", editable = "agents/orchestrator-model" },
     { name = "data-director-agent-orchestrator-stub", editable = "agents/orchestrator-stub" },
     { name = "data-director-app", editable = "app" },
     { name = "data-director-deposit-broker", editable = "deposit-broker" },
     { name = "data-director-dmp-template", editable = "dmp-template" },
+    { name = "data-director-duo", editable = "duo" },
     { name = "data-director-formats", editable = "formats" },
     { name = "data-director-harness", extras = ["serve"], editable = "harness" },
     { name = "data-director-inventory", editable = "inventory" },
+    { name = "data-director-journals", editable = "journals" },
+    { name = "data-director-mcp-doaj", editable = "mcp-doaj" },
     { name = "data-director-mcp-fairsharing", editable = "mcp-fairsharing" },
     { name = "data-director-mcp-pid", editable = "mcp-pid" },
     { name = "data-director-mcp-spdx", editable = "mcp-spdx" },
+    { name = "data-director-mcp-subjects", editable = "mcp-subjects" },
+    { name = "data-director-metadata-records", editable = "metadata-records" },
     { name = "data-director-model-broker", editable = "broker" },
     { name = "data-director-registry-cache", editable = "registry-cache" },
     { name = "data-director-sdk", editable = "sdk" },
@@ -1301,6 +1319,7 @@ dependencies = [
     { name = "data-director-sdk" },
     { name = "httpx" },
     { name = "jinja2" },
+    { name = "pyyaml" },
     { name = "starlette" },
     { name = "uvicorn" },
 ]
@@ -1311,6 +1330,7 @@ requires-dist = [
     { name = "data-director-sdk", editable = "sdk" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "jinja2", specifier = ">=3.1.6" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "starlette", specifier = ">=1.8.0" },
     { name = "uvicorn", specifier = ">=0.54.0" },
 ]
@@ -1355,6 +1375,7 @@ version = "0.3.0a1"
 source = { editable = "agents/advisor-documentation" }
 dependencies = [
     { name = "data-director-dmp-template" },
+    { name = "data-director-metadata-records" },
     { name = "data-director-sdk" },
     { name = "data-director-units" },
     { name = "pydantic" },
@@ -1377,6 +1398,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "data-director-dmp-template", editable = "dmp-template" },
+    { name = "data-director-metadata-records", editable = "metadata-records" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "data-director-sdk", extras = ["anthropic", "openai"], marker = "extra == 'model'", editable = "sdk" },
     { name = "data-director-units", editable = "units" },
@@ -1391,9 +1413,10 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-ethics"
-version = "0.1.0a1"
+version = "0.1.0a3"
 source = { editable = "agents/advisor-ethics" }
 dependencies = [
+    { name = "data-director-duo" },
     { name = "data-director-sdk" },
     { name = "pydantic" },
     { name = "pyyaml" },
@@ -1411,6 +1434,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "data-director-duo", editable = "duo" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "data-director-sdk", extras = ["anthropic", "openai"], marker = "extra == 'model'", editable = "sdk" },
     { name = "pydantic", specifier = ">=2.14.1,<3" },
@@ -1426,6 +1450,7 @@ name = "data-director-agent-advisor-fairness"
 version = "0.3.0a1"
 source = { editable = "agents/advisor-fairness" }
 dependencies = [
+    { name = "data-director-metadata-records" },
     { name = "data-director-sdk" },
     { name = "pydantic" },
     { name = "pyyaml" },
@@ -1438,6 +1463,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "data-director-metadata-records", editable = "metadata-records" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "pydantic", specifier = ">=2.14.1,<3" },
     { name = "pyyaml", specifier = ">=6.0" },
@@ -1475,7 +1501,7 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-linking"
-version = "0.2.0a1"
+version = "0.3.0a1"
 source = { editable = "agents/advisor-linking" }
 dependencies = [
     { name = "data-director-sdk" },
@@ -1504,9 +1530,10 @@ dev = [
 
 [[package]]
 name = "data-director-agent-advisor-metadata"
-version = "0.2.0a1"
+version = "0.3.0a0"
 source = { editable = "agents/advisor-metadata" }
 dependencies = [
+    { name = "data-director-metadata-records" },
     { name = "data-director-sdk" },
     { name = "pydantic" },
     { name = "pyyaml" },
@@ -1514,16 +1541,22 @@ dependencies = [
 
 [package.optional-dependencies]
 eval = [
+    { name = "data-director-harness", extra = ["gateway"] },
+    { name = "data-director-mcp-subjects" },
     { name = "data-director-workbench", extra = ["eval"] },
 ]
 
 [package.dev-dependencies]
 dev = [
-    { name = "data-director-harness" },
+    { name = "data-director-harness", extra = ["gateway"] },
+    { name = "data-director-mcp-subjects" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "data-director-harness", extras = ["gateway"], marker = "extra == 'eval'", editable = "harness" },
+    { name = "data-director-mcp-subjects", marker = "extra == 'eval'", editable = "mcp-subjects" },
+    { name = "data-director-metadata-records", editable = "metadata-records" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "data-director-workbench", extras = ["eval"], marker = "extra == 'eval'", editable = "workbench" },
     { name = "pydantic", specifier = ">=2.14.1,<3" },
@@ -1532,13 +1565,18 @@ requires-dist = [
 provides-extras = ["eval"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "data-director-harness", editable = "harness" }]
+dev = [
+    { name = "data-director-harness", extras = ["gateway"], editable = "harness" },
+    { name = "data-director-mcp-subjects", editable = "mcp-subjects" },
+]
 
 [[package]]
 name = "data-director-agent-advisor-policy"
 version = "0.1.0a3"
 source = { editable = "agents/advisor-policy" }
 dependencies = [
+    { name = "data-director-journals" },
+    { name = "data-director-mcp-doaj" },
     { name = "data-director-mcp-pid" },
     { name = "data-director-sdk" },
     { name = "httpx" },
@@ -1559,6 +1597,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "data-director-journals", editable = "journals" },
+    { name = "data-director-mcp-doaj", editable = "mcp-doaj" },
     { name = "data-director-mcp-pid", editable = "mcp-pid" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "data-director-sdk", extras = ["anthropic", "openai"], marker = "extra == 'model'", editable = "sdk" },
@@ -1708,6 +1748,29 @@ dev = [
     { name = "data-director-harness", editable = "harness" },
     { name = "data-director-workbench", editable = "workbench" },
 ]
+
+[[package]]
+name = "data-director-agent-advisor-storage"
+version = "0.1.0a2"
+source = { editable = "agents/advisor-storage" }
+dependencies = [
+    { name = "data-director-sdk" },
+    { name = "pydantic" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "data-director-harness" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "data-director-sdk", editable = "sdk" },
+    { name = "pydantic", specifier = ">=2.14.1,<3" },
+]
+
+[package.metadata.requires-dev]
+dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-example-hello"
@@ -1886,8 +1949,13 @@ requires-dist = [
 
 [[package]]
 name = "data-director-dmp-template"
-version = "0.1.0a0"
+version = "0.1.0a1"
 source = { editable = "dmp-template" }
+
+[[package]]
+name = "data-director-duo"
+version = "0.1.0a0"
+source = { editable = "duo" }
 
 [[package]]
 name = "data-director-formats"
@@ -1901,6 +1969,7 @@ source = { editable = "harness" }
 dependencies = [
     { name = "a2a-sdk", extra = ["http-server"] },
     { name = "ag-ui-protocol" },
+    { name = "data-director-metadata-records" },
     { name = "data-director-sdk" },
     { name = "httpx" },
     { name = "joserfc" },
@@ -1943,6 +2012,7 @@ dev = [
 requires-dist = [
     { name = "a2a-sdk", extras = ["http-server"], specifier = ">=1.2.2,<2" },
     { name = "ag-ui-protocol", specifier = ">=1.0.0,<1.1" },
+    { name = "data-director-metadata-records", editable = "metadata-records" },
     { name = "data-director-sdk", editable = "sdk" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "httpx2", marker = "extra == 'gateway'", specifier = ">=2.13" },
@@ -2013,6 +2083,34 @@ provides-extras = ["pii-ner"]
 dev = [{ name = "data-director-sdk", editable = "sdk" }]
 
 [[package]]
+name = "data-director-journals"
+version = "0.1.0a1"
+source = { editable = "journals" }
+
+[[package]]
+name = "data-director-mcp-doaj"
+version = "0.1.0a0"
+source = { editable = "mcp-doaj" }
+dependencies = [
+    { name = "anyio" },
+    { name = "httpx" },
+    { name = "mcp" },
+    { name = "mcp-types" },
+    { name = "starlette" },
+    { name = "uvicorn" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "anyio", specifier = ">=4" },
+    { name = "httpx", specifier = ">=0.28" },
+    { name = "mcp", specifier = ">=2.3,<2.4" },
+    { name = "mcp-types", specifier = ">=2.3,<2.4" },
+    { name = "starlette", specifier = ">=0.40" },
+    { name = "uvicorn", specifier = ">=0.30" },
+]
+
+[[package]]
 name = "data-director-mcp-fairsharing"
 version = "0.1.0a0"
 source = { editable = "mcp-fairsharing" }
@@ -2051,10 +2149,12 @@ dev = [
 
 [[package]]
 name = "data-director-mcp-pid"
-version = "0.1.0a1"
+version = "0.1.0a2"
 source = { editable = "mcp-pid" }
 dependencies = [
     { name = "anyio" },
+    { name = "data-director-journals" },
+    { name = "data-director-registry-cache" },
     { name = "httpx" },
     { name = "mcp" },
     { name = "mcp-types" },
@@ -2072,6 +2172,8 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "anyio", specifier = ">=4" },
+    { name = "data-director-journals", editable = "journals" },
+    { name = "data-director-registry-cache", editable = "registry-cache" },
     { name = "httpx", specifier = ">=0.28" },
     { name = "mcp", specifier = ">=2.3,<2.4" },
     { name = "mcp-types", specifier = ">=2.3,<2.4" },
@@ -2116,6 +2218,58 @@ dev = [
     { name = "data-director-harness", extras = ["gateway"], editable = "harness" },
     { name = "data-director-sdk", editable = "sdk" },
 ]
+
+[[package]]
+name = "data-director-mcp-subjects"
+version = "0.1.0a0"
+source = { editable = "mcp-subjects" }
+dependencies = [
+    { name = "data-director-subjects" },
+    { name = "mcp" },
+    { name = "mcp-types" },
+    { name = "starlette" },
+    { name = "uvicorn" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "data-director-harness", extra = ["gateway"] },
+    { name = "data-director-sdk" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "data-director-subjects", editable = "subjects" },
+    { name = "mcp", specifier = ">=2.3,<2.4" },
+    { name = "mcp-types", specifier = ">=2.3,<2.4" },
+    { name = "starlette", specifier = ">=0.40" },
+    { name = "uvicorn", specifier = ">=0.30" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "data-director-harness", extras = ["gateway"], editable = "harness" },
+    { name = "data-director-sdk", editable = "sdk" },
+]
+
+[[package]]
+name = "data-director-metadata-records"
+version = "0.1.0a0"
+source = { editable = "metadata-records" }
+dependencies = [
+    { name = "pyyaml" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "lxml" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pyyaml", specifier = ">=6.0" }]
+
+[package.metadata.requires-dev]
+dev = [{ name = "lxml", specifier = ">=6.0" }]
 
 [[package]]
 name = "data-director-model-broker"
@@ -2235,6 +2389,7 @@ dependencies = [
     { name = "data-director-harness" },
     { name = "data-director-sdk" },
     { name = "pydantic" },
+    { name = "pyyaml" },
     { name = "starlette" },
     { name = "uvicorn" },
 ]
@@ -2261,6 +2416,7 @@ requires-dist = [
     { name = "data-director-sdk", editable = "sdk" },
     { name = "inspect-ai", marker = "extra == 'eval'", specifier = ">=0.3.281" },
     { name = "pydantic", specifier = ">=2.14.1,<3" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "starlette", specifier = ">=0.40" },
     { name = "uvicorn", specifier = ">=0.30" },
 ]

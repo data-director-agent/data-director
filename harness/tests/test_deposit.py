@@ -41,6 +41,7 @@ from dd_harness.deposit import (
     validate,
 )
 from dd_harness.deposit_review import REVIEW_CHECKS
+from dd_harness.metadata_standards import UnreadRecordError, read_record
 from dd_harness.projects import (
     APPROVED,
     PACKAGE_BUILT,
@@ -365,6 +366,30 @@ def test_a_record_that_is_not_datacite_json_is_a_violation(
     assert violation.message.startswith("The approved metadata record is not a DataCite record")
 
 
+def test_a_record_in_a_standard_no_definition_covers_is_refused_before_validation() -> None:
+    """docs/specs/metadata-standards.md, invariant 1."""
+    record = {
+        "conforms_to": "http://purl.org/dc/elements/1.1/",
+        "media_type": "application/json",
+        "document_text": json.dumps(RECORD),
+    }
+    with pytest.raises(UnreadRecordError, match="no registered standard's definition covers"):
+        read_record(record)
+    with pytest.raises(UnreadRecordError, match="no registered standard's definition covers"):
+        read_record({**record, "conforms_to": None})
+
+
+def test_the_choice_names_the_definition_of_its_standard(
+    projects: ProjectStore, chosen: str
+) -> None:
+    """docs/specs/metadata-standards.md, invariant 12."""
+    (event,) = [e for e in projects.events(chosen) if e["event"] == "repository_chosen"]
+    standard = event["standard"]
+    assert standard["ref"].startswith("datacite-4@v")
+    assert len(standard["sha256"]) == 64
+    assert standard["codecs"]["application/json"]
+
+
 def test_a_licence_the_repository_does_not_offer_is_a_violation(
     projects: ProjectStore, runs: RunStore, chosen: str
 ) -> None:
@@ -621,3 +646,87 @@ def test_the_package_command_writes_the_package_or_says_why_not(
     assert built["caused_by"] == "dd-harness project package"
     assert out.strip() == built["digest"]
     assert out_file.read_bytes() == projects.package(chosen, built["digest"])
+
+
+# --- Terms of other vocabularies (docs/specs/metadata-standards.md, invariant 7; #1357) ----------
+
+DCTERMS_PROVENANCE = "http://purl.org/dc/terms/provenance"
+LINEAGE = {
+    "property": "descriptions",
+    "qualifier": {"descriptionType": "Methods"},
+    "term": "dcterms:provenance",
+    "obligation": "required",
+    "form_label": "Lineage",
+}
+
+
+def test_a_field_under_a_dublin_core_term_is_checked_under_its_iri(
+    projects: ProjectStore, runs: RunStore, tmp_path: Path
+) -> None:
+    project_id = projects.create(acted_for=TEST_PRINCIPAL, caused_by="test", title="Soil")
+    choose(projects, project_id, tmp_path, fields=[*override()["fields"], LINEAGE])
+    approve(projects, runs, project_id, DocumentKind.METADATA_RECORD, json.dumps(RECORD))
+    found = [r for r in validate(projects, project_id).violations if r.path == DCTERMS_PROVENANCE]
+    (lineage,) = found
+    assert lineage.component == str(SH.MinCountConstraintComponent)
+    assert lineage.field == "Lineage"
+
+
+def test_the_package_root_has_each_fields_values_under_its_term(
+    projects: ProjectStore, runs: RunStore, tmp_path: Path
+) -> None:
+    """Every field of the merged set describes the root dataset: a schema.org term by its name,
+    another by its IRI, and a contributor as a person."""
+    project_id = projects.create(acted_for=TEST_PRINCIPAL, caused_by="test", title="Soil")
+    projects.add_inventory(
+        project_id, file_inventory(*FILES), acted_for=TEST_PRINCIPAL, caused_by="test"
+    )
+    contributors = {"property": "contributors", "term": "schema:contributor"}
+    choose(
+        projects,
+        project_id,
+        tmp_path,
+        fields=[
+            *override()["fields"],
+            LINEAGE,
+            {**contributors, "obligation": "recommended"},
+        ],
+    )
+    record = {
+        **RECORD,
+        "contributors": [{"name": "Hughes, Ada"}],
+        "descriptions": [
+            *RECORD["descriptions"],
+            {"description": "Cored by hand, then frozen.", "descriptionType": "Methods"},
+        ],
+    }
+    approve(projects, runs, project_id, DocumentKind.METADATA_RECORD, json.dumps(record))
+    approve(projects, runs, project_id, DocumentKind.README)
+    clear_review(projects, project_id, acted_for=TEST_PRINCIPAL)
+    package = build_package(projects, runs, project_id, acted_for=TEST_PRINCIPAL, caused_by="test")
+
+    crate = json.loads(zipfile.ZipFile(io.BytesIO(package.content)).read("ro-crate-metadata.json"))
+    graph = {entity["@id"]: entity for entity in crate["@graph"]}
+    root = graph["./"]
+    assert root[DCTERMS_PROVENANCE] == "Cored by hand, then frozen."
+    assert graph[root["contributor"]["@id"]]["@type"] == "Person"
+    assert root["description"] == "Cores taken in 2026."
+    # What the root describes whatever the set asks for is still there.
+    assert graph[root["creator"]["@id"]]["@type"] == "Person"
+
+
+def test_a_set_kept_before_terms_were_iris_still_reads(
+    projects: ProjectStore, chosen: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A merged set recorded with `schema_org` fields reads with their `schema:` terms."""
+    stored = projects.requirements(chosen)
+    assert stored is not None
+    legacy = {
+        **stored,
+        "fields": [
+            {**{k: v for k, v in f.items() if k != "term"}, "schema_org": f["term"][7:]}
+            for f in stored["fields"]
+        ],
+    }
+    monkeypatch.setattr(projects, "_latest", lambda *_: legacy)
+    assert projects.requirements(chosen) == stored

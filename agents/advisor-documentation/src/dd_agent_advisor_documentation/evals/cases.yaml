@@ -268,9 +268,34 @@ cases:
       status: succeeded
       not_asked: [Methods, Access and licence]
 
+  # Before the data are collected there is no inventory: the README plans the documentation
+  # (setup.documentation, #1017), asking what the researcher expects to produce and record.
   - id: hallam-no-inventory
     base: hallam-moor
     kind: readme
+    defect: drop-inventory
+    expect:
+      status: succeeded
+      present:
+        - "# Microclimate and soil moisture on a restored upland moor"
+        - the files you expect to produce
+      asked: [Files, Methods, Variables]
+      not_asked: [General information/Title, Description]
+
+  - id: hallam-no-inventory-first
+    base: hallam-moor
+    kind: readme
+    defect: drop-inventory
+    first: true
+    expect:
+      status: succeeded
+      present: ["_This is a plan for the README, before your data are collected._"]
+      asked: [Files, Methods, Variables]
+
+  # A data dictionary is drafted from the inventory's tables, so with none it stops.
+  - id: hallam-dictionary-no-inventory
+    base: hallam-moor
+    kind: data_dictionary
     defect: drop-inventory
     expect:
       status: abstained

@@ -1,0 +1,37 @@
+# A made-up standard for the librarian's tests: drafting in it must need no change to the agent,
+# only a registered definition (docs/specs/metadata-standards.md). Its properties have other names
+# than DataCite's, a plain title, and a creator whose ORCID iD is a plain part. Its second
+# serialisation writes a gap as ":unav".
+standard_id: toy
+version: 1
+title: Toy standard
+name: Toy
+url: https://example.org/toy
+conforms_to:
+  - https://example.org/toy
+serialisations:
+  - media_type: application/json
+    name: JSON
+    codec: json-indent-2
+  - media_type: application/x-toy
+    name: toy text
+    codec: toy-test
+    gap: ":unav"
+properties:
+  title: schema:name
+  creator:
+    value: name
+    term: schema:creator
+    parts:
+      orcid: schema:identifier
+  keyword:
+    value: text
+    term: schema:keywords
+    parts:
+      vocabulary: schema:inDefinedTermSet
+drafting:
+  title:
+    ask: What is the dataset called?
+    suggest: true
+  creator:
+    ask: Who made the dataset?

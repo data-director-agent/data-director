@@ -50,6 +50,7 @@ from workbench.evaluation import (
     case_dataset,
     configuration,
     differences,
+    granting_tools,
     grounding_passed,
     ids_recalled,
     invoke_agent,
@@ -281,6 +282,18 @@ def test_an_agent_built_here_is_built_once_however_many_cases(tmp_path: Path):
     conductor_for = one_conductor(agent, None, "dd-test-")
     assert conductor_for({}) is conductor_for({})
     assert len(built) == 1
+
+
+def test_tool_grants_go_into_a_copy_of_the_default_profile(tmp_path: Path):
+    from dd_harness.policy import load_profile
+    from workbench.config import DEFAULT_PROFILE
+
+    default = load_profile(DEFAULT_PROFILE)
+    copy = granting_tools(DEFAULT_PROFILE, {"example.hello": ["s"]}, tmp_path / "p.yaml")
+    granted = load_profile(copy)
+    assert granted.tool_servers == {"example.hello": ("s",)}
+    assert granted.agents == default.agents
+    assert granted.hosted_models == default.hosted_models
 
 
 def test_a_runs_identity_names_the_services_or_the_local_configuration(

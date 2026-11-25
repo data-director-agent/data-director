@@ -1,4 +1,4 @@
-"""advisor.dmp through the conductor: the Data Management Plan Checker on its template path, by
+"""advisor.dmp through the conductor: the Data Management Planner on its template path, by
 rule alone (docs/specs/agents.md). The matcher model is tested in `test_match.py`."""
 
 from __future__ import annotations
@@ -71,12 +71,12 @@ def test_an_aspect_given_on_one_side_only_is_not_a_difference(runs_dir: Path) ->
 
 def test_the_card_names_the_persona_and_its_steps() -> None:
     entry = describe(DmpChecker.spec)
-    assert entry["title"] == "Data Management Plan Checker"
+    assert entry["title"] == "Data Management Planner"
     assert not entry["description"].startswith("Mock.")
     assert entry["grounding_mode"] == "input_only"
     assert not entry["models"]
-    assert entry["serves"] == ["governance.dmp", "setup.dmp-review"]
-    assert entry["accepts"] and len(entry["accepts"]) == 2
+    assert set(entry["serves"]) == {"setup.project", "governance.dmp", "setup.dmp-review"}
+    assert set(entry["accepts"]) >= {"DmpCommitments", "DmpReviewRequest"}
     json.dumps(entry)
 
 

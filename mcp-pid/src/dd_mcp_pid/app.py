@@ -1,13 +1,14 @@
 """The ASGI application: one MCP server per registry, each at its own path.
 
-`/datacite/mcp`, `/crossref/mcp`, `/orcid/mcp` and `/ror/mcp` each serve one registry's tools over
-MCP's streamable HTTP transport, statelessly and with JSON responses, through the MCP SDK's public
-session manager (which answers both the initialize handshake and the per-request revision). One
-server per registry, rather than one for all, because a client such as the Data Director's tool
-gateway identifies a server's records by one field: `doi`, `orcid` or `id`. `/healthz` answers
+`/datacite/mcp`, `/crossref/mcp`, `/orcid/mcp`, `/ror/mcp`, `/journals/mcp` and `/grants/mcp`
+each serve one registry's tools over MCP's streamable HTTP transport, statelessly and with JSON
+responses, through the MCP SDK's public session manager (which answers both the initialize
+handshake and the per-request revision). One server per registry, rather than one for all, because
+a client such as the Data Director's tool gateway identifies a server's records by one field:
+`doi`, `orcid`, `id` (a ROR id, or a grant's DOI or OpenAIRE page) or `issn_l`. `/healthz` answers
 when the application is up.
 
-Lookups block on the network, so each runs in a worker thread.
+Lookups block on the network or on disk, so each runs in a worker thread.
 """
 
 from __future__ import annotations

@@ -90,5 +90,7 @@ def test_an_unknown_or_repeated_agent_changes_nothing(etc: Path, units: Path) ->
         assert not (etc / "credentials").exists()
 
 
-def test_it_needs_an_agent(etc: Path, units: Path) -> None:
-    assert run(etc, units).returncode == 2
+def test_with_no_agent_named_it_covers_every_deployed_agent(etc: Path, units: Path) -> None:
+    assert run(etc, units).returncode == 0
+    deployed = {path.stem.replace("-", ".", 1) for path in (SCRIPT.parent / "agents").glob("*.env")}
+    assert set(listed(etc)) == deployed

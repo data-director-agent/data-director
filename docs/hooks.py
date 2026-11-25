@@ -44,12 +44,20 @@ BRANCH = "main"
 UNPUBLISHED = (
     # An agent's prompts are its code, read by the model rather than by people.
     "agents/*/src/*/*_prompt.md",
+    # A coding agent's Skill is likewise read by the model that follows it.
+    ".claude/skills/*/SKILL.md",
     # The licence of a third-party data snapshot, which travels with the data.
     "agents/*/data/*",
     # The licence of the pinned PRONOM signatures, which travels with the data.
     "inventory/src/dd_inventory/pronom/*",
     # The licence of the pinned PRONOM records, which travels with the data.
     "formats/src/dd_formats/data/*",
+    # The licence of the pinned GA4GH Data Use Ontology terms, which travels with the data.
+    "duo/src/dd_duo/data/*",
+    # The licences of the XML Schemas a library's tests validate against, which travel with them.
+    "metadata-records/tests/data/xsd/*",
+    # The source and licence of the journal registry built from OpenAlex, which travel with it.
+    "journals/src/dd_journals/data/*",
     # The licence of the pinned SPDX licence list, which travels with the data.
     "mcp-spdx/src/dd_mcp_spdx/data/*",
     # The converter's input; the Blueprint's contents page (docs/blueprint/README.md) carries it.

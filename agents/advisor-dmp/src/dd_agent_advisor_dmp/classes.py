@@ -10,7 +10,8 @@ from typing import Literal
 
 from pydantic import Field
 
-from dd_sdk.contract.facts import ProjectDocument, ProjectFact
+from dd_sdk.contract.drafting import ApprovedPlan
+from dd_sdk.contract.facts import PARTIAL_DATE_PATTERN, ProjectDocument, ProjectFact
 from dd_sdk.contract.models import Derivation, Frozen, Grounded
 
 
@@ -31,11 +32,24 @@ class DmpCommitments(Frozen):
     project_decisions: list[ProjectFact] = Field(default_factory=list)
 
 
-class DmpReviewRequest(Frozen):
-    schema_class: Literal["DmpReviewRequest"] = "DmpReviewRequest"
+class ProjectDescriptionRequest(Frozen):
+    schema_class: Literal["ProjectDescriptionRequest"] = "ProjectDescriptionRequest"
+    research_summary: str | None = None
+    field_of_study: str | None = None
+    period_start: str | None = Field(default=None, pattern=PARTIAL_DATE_PATTERN)
+    period_end: str | None = Field(default=None, pattern=PARTIAL_DATE_PATTERN)
     # Filled by the conductor in a project (`GivenProjectDocuments`, `GivenProjectDecisions`).
     project_documents: list[ProjectDocument] = Field(default_factory=list)
     project_decisions: list[ProjectFact] = Field(default_factory=list)
+
+
+class DmpReviewRequest(Frozen):
+    schema_class: Literal["DmpReviewRequest"] = "DmpReviewRequest"
+    # Filled by the conductor in a project (`GivenProjectDocuments`, `GivenProjectDecisions`,
+    # `GivenProjectPlan`).
+    project_documents: list[ProjectDocument] = Field(default_factory=list)
+    project_decisions: list[ProjectFact] = Field(default_factory=list)
+    project_plan_approved: ApprovedPlan | None = None
 
 
 class SectionFinding(Frozen):
@@ -69,6 +83,7 @@ class DmpDiscrepancies(Grounded):
     discrepancies: list[Discrepancy] = Field(default_factory=list)
     reconciled: list[Reconciliation] = Field(default_factory=list)
     section_findings: list[SectionFinding] = Field(default_factory=list)
+    still_needed: list[str] = Field(default_factory=list)
     dropped: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(default_factory=list)
     # A plan's commitments read from an attached document, for a person to confirm.

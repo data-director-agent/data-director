@@ -108,6 +108,25 @@ describe("IntakeCard", () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
+  it("says why the suggestion passes over an earlier step no agent serves", async () => {
+    const steps = FLOW.phases.flatMap((p) => p.steps);
+    const [skipped, suggested] = [steps[0], steps[1]];
+    if (!skipped || !suggested) throw new Error("the fixtures do not agree");
+    const progress = { ...COMPLETE.progress, suggested: suggested.id, passed_over: [skipped.id] };
+    const { onAnnounce, container } = renderCard({ intake: { ...COMPLETE, progress } });
+    expect(screen.getByText(suggested.label)).toBeInTheDocument();
+    const why = screen.getByText(new RegExp(`${skipped.label}.*cannot help`));
+    expect(why).toBeInTheDocument();
+    expect(onAnnounce).toHaveBeenLastCalledWith(expect.stringContaining(skipped.label));
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it("says nothing was passed over when the suggestion is the first step", () => {
+    const progress = { ...COMPLETE.progress, passed_over: [] };
+    renderCard({ intake: { ...COMPLETE, progress } });
+    expect(screen.queryByText(/cannot help/)).not.toBeInTheDocument();
+  });
+
   it("asked again, walks every question with its answer chosen, recording only a change", async () => {
     const { onAnswer, onClose, onDismiss } = renderCard({ intake: COMPLETE, again: true });
     for (const asked of COMPLETE.questions) {
@@ -167,7 +186,8 @@ describe("IntakeCard", () => {
   it("offers the entry point Data Director worked out, chosen and marked, to confirm", async () => {
     const { container, onAnswer } = renderCard({ intake: BY_MODEL });
     expect(chosenIn(MODEL_ENTRY.question.question_prompt)).toEqual(MODEL_ENTRY.answer_values);
-    expect(screen.getByRole("note")).toBeVisible();
+    const notes = screen.getAllByRole("note");
+    expect(notes.find((n) => /Worked out by Data Director/.test(n.textContent))).toBeVisible();
     expect(await axe(container)).toHaveNoViolations();
 
     await userEvent.click(screen.getByRole("button", { name: "Next" }));

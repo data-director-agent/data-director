@@ -76,6 +76,19 @@ export function useReplyMode(questions: Asking | null, intakeOpen: boolean) {
   return { mode: chosen !== null && open(chosen) ? chosen : first, setMode: setChosen };
 }
 
+/**
+ * Shows the message box once, when the page is drawn again with a message being written, after
+ * the intake has been read so that its opening does not hide the box again.
+ */
+export function useShowDraft(text: string, intakeSettled: boolean, show: (mode: "words") => void) {
+  const shown = useRef(false);
+  useEffect(() => {
+    if (shown.current || !intakeSettled) return;
+    shown.current = true;
+    if (text.trim()) show("words");
+  }, [text, intakeSettled, show]);
+}
+
 const SWAPS: { mode: ReplyMode; label: string; icon: LucideIcon }[] = [
   { mode: "questions", label: "Answer the questions instead", icon: ListChecks },
   { mode: "intake", label: "Answer the setup questions instead", icon: ClipboardList },
@@ -160,8 +173,9 @@ export function ReplyArea({
   return (
     <div className="reply-area">
       {asking !== null && (
-        <div hidden={mode !== "questions"}>
-          {/* Kept while a message is sent, disabled, so a failed send keeps the answers. */}
+        <div hidden={mode !== "questions" || answering}>
+          {/* Kept drawn while a message is sent, but hidden and disabled, so the form does not sit
+              beneath the "working on a reply" line and a failed send keeps the answers. */}
           {steward && asking.questions[0] && isStewardOffer(asking.questions) ? (
             <StewardOfferQuestion
               key={asking.askedBy}

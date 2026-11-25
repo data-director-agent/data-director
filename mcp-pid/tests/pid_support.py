@@ -3,7 +3,11 @@
 The files in `data/` are real answers, recorded on 19 November 2026 from DataCite
 (`/dois/10.15497/rda00157`), Crossref (`/works/10.1038/sdata.2016.18`), ORCID
 (`/v3.0/0000-0002-1825-0097/person`, ORCID's test record for Josiah Carberry) and ROR
-(`/v2/organizations/02b5d8509`).
+(`/v2/organizations/02b5d8509`). The grants were recorded on 23 November 2026: from Crossref, the
+grant `/works/10.35802/100000` and `/works?filter=type:grant,award.number:…` for awards `100000`
+and `NE/X007197/1`; from the OpenAIRE Graph, `/graph/v4/projects?filter=code:…` for the same two
+awards. Award 100000 is a Wellcome grant with a DOI and also a Swiss National Science Foundation
+project; NE/X007197/1 is a UKRI (NERC) grant with no DOI.
 """
 
 from __future__ import annotations
@@ -14,8 +18,14 @@ from pathlib import Path
 
 import httpx
 
+from dd_journals import Journal
+from dd_journals import Registry as JournalIndex
+from dd_mcp_pid.caching import Lookups
 from dd_mcp_pid.dois import Crossref, DataCite
+from dd_mcp_pid.grant_server import GrantSources, grant_registry
+from dd_mcp_pid.grants import CrossrefGrants, OpenAireGraph
 from dd_mcp_pid.http import Http
+from dd_mcp_pid.journals import JournalSource, journal_registry
 from dd_mcp_pid.orcid import Orcid
 from dd_mcp_pid.ror import RorApi, RorIndex
 from dd_mcp_pid.ror_records import from_ror_json
@@ -27,6 +37,9 @@ DATACITE_DOI = "10.15497/rda00157"
 CROSSREF_DOI = "10.1038/sdata.2016.18"
 ORCID_ID = "0000-0002-1825-0097"
 NERC = "https://ror.org/02b5d8509"
+WELLCOME_AWARD = "100000"
+WELLCOME_GRANT_DOI = "10.35802/100000"
+UKRI_AWARD = "NE/X007197/1"
 
 # Path on each API -> recorded answer.
 ANSWERS = {
@@ -35,11 +48,35 @@ ANSWERS = {
     "pub.orcid.org": {f"/v3.0/{ORCID_ID}/person": "orcid-0000-0002-1825-0097.person.json"},
     "api.ror.org": {"/v2/organizations/02b5d8509": "ror-02b5d8509.api.json"},
 }
+# Searches, by host and path, then by the `filter` asked for -> recorded answer.
+SEARCHES = {
+    ("api.crossref.org", "/works"): {
+        f"type:grant,award.number:{WELLCOME_AWARD}": "crossref-grants-award-100000.json",
+        f"type:grant,award.number:{UKRI_AWARD}": "crossref-grants-award-NE-X007197-1.json",
+    },
+    ("api.openaire.eu", "/graph/v4/projects"): {
+        f"code:{WELLCOME_AWARD}": "openaire-projects-code-100000.json",
+        f"code:{UKRI_AWARD}": "openaire-projects-code-NE-X007197-1.json",
+    },
+}
+ANSWERS["api.crossref.org"][f"/works/{WELLCOME_GRANT_DOI}"] = "crossref-10.35802-100000.json"
+EMPTY = {
+    "api.crossref.org": {"message": {"total-results": 0, "items": []}},
+    "api.openaire.eu": {"header": {"numFound": 0}, "results": []},
+}
 
 
 def recorded(request: httpx.Request) -> httpx.Response:
-    """The recorded answer to `request`, or 404 as the registries answer an unknown identifier."""
-    name = ANSWERS.get(request.url.host, {}).get(request.url.path)
+    """The recorded answer to `request`, or 404 as the registries answer an unknown identifier
+    (and an empty list for a search nothing was recorded for)."""
+    url = request.url
+    searches = SEARCHES.get((url.host, url.path))
+    if searches is not None:
+        name = searches.get(url.params.get("filter", ""))
+        if name is None:
+            return httpx.Response(200, json=EMPTY[url.host])
+        return httpx.Response(200, content=(DATA / name).read_bytes())
+    name = ANSWERS.get(url.host, {}).get(url.path)
     if name is None:
         return httpx.Response(404, json={"errors": [{"status": "404", "title": "Not found"}]})
     return httpx.Response(200, content=(DATA / name).read_bytes())
@@ -57,20 +94,81 @@ def built_registry(directory: Path) -> Path:
     return path
 
 
+STOTEN = "0048-9697"
+STOTEN_ONLINE = "1879-1026"
+
+
+def journal(issn_l: str, title: str, works: int, *issns: str, **extra: object) -> Journal:
+    fields: dict[str, object] = {
+        "issn_l": issn_l,
+        "issns": tuple(sorted({issn_l, *issns})),
+        "title": title,
+        "alternate_titles": (),
+        "abbreviated_title": None,
+        "publisher": None,
+        "country": None,
+        "homepage": None,
+        "is_in_doaj": False,
+        "is_oa": False,
+        "openalex_id": f"https://openalex.org/S{issn_l.replace('-', '')}",
+        "works_count": works,
+    }
+    return Journal(**{**fields, **extra})  # type: ignore[arg-type]
+
+
+JOURNALS = [
+    journal(
+        STOTEN, "Science of The Total Environment", 90000, STOTEN_ONLINE, publisher="Elsevier BV"
+    ),
+    journal("0028-0836", "Nature", 400000, "1476-4687", publisher="Springer Nature"),
+    journal("1758-678X", "Nature Climate Change", 5000),
+    journal("2052-4463", "Scientific Data", 3000, alternate_titles=("Sci Data",), is_oa=True),
+]
+
+
+def built_journals(directory: Path) -> Path:
+    """A journal registry of a few journals, indexed as `dd-journals` indexes the real one."""
+    path = directory / "journals.sqlite"
+    JournalIndex.build(JOURNALS, path, "pinned", "OpenAlex test snapshot")
+    return path
+
+
 def registries(
     registry: Path | None = None,
     handler: Callable[[httpx.Request], httpx.Response] = recorded,
+    journals: Path | None = None,
+    lookups: Lookups | None = None,
 ) -> list[Registry]:
-    """All four registries, answering from the recorded files (and `registry`, for ROR)."""
+    """Every registry, answering from the recorded files (`registry` for ROR, and `journals` for
+    the journal registry; a registry not given is not built). `lookups` is the cache they share,
+    a new one in memory by default; offline, ROR's API is not given."""
+    cached = lookups or Lookups()
     return [
-        doi_registry("DataCite", DataCite(http("DataCite", handler))),
-        doi_registry("Crossref", Crossref(http("Crossref", handler))),
-        orcid_registry(Orcid(http("ORCID", handler))),
+        doi_registry("DataCite", DataCite(http("DataCite", handler)), cached),
+        doi_registry("Crossref", Crossref(http("Crossref", handler)), cached),
+        orcid_registry(Orcid(http("ORCID", handler)), cached),
         ror_registry(
             RorSources(
                 index=RorIndex(registry) if registry else None,
-                api=RorApi(http("ROR", handler)),
+                api=None if cached.offline else RorApi(http("ROR", handler)),
                 index_label="ROR dump test",
+                lookups=cached,
             )
         ),
+        journal_registry(JournalSource(journals or Path("/nonexistent/journals.sqlite"))),
+        grant_registry(grants(handler, offline=cached.offline)),
     ]
+
+
+def grants(
+    handler: Callable[[httpx.Request], httpx.Response] = recorded,
+    openaire: Callable[[httpx.Request], httpx.Response] | None = None,
+    *,
+    offline: bool = False,
+) -> GrantSources:
+    """The grant sources, answering from the recorded files (OpenAIRE from `openaire` if given)."""
+    return GrantSources(
+        CrossrefGrants(http("Crossref", handler)),
+        OpenAireGraph(http("OpenAIRE", openaire or handler)),
+        offline=offline,
+    )

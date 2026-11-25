@@ -5,8 +5,9 @@ specialist agents (§9.3, "AI Model Orchestration"). `orchestrator.stub` routes 
 agent lets a model decide. It has the stub's specification, `Message` in, `Reply` out, grounding
 mode `delegation`, with `reply_derivation` `model` and a `chat` span for each model call.
 
-Each run reads the harness's manifest through `ctx.delegate.manifest()` and offers the model one
-tool per class each other agent accepts, so the agents it can route to are the ones the harness
+Each run reads the harness's manifest through `ctx.delegate.manifest()`, and the class schemas of
+the agents in it through `ctx.delegate.schemas_of`, and offers the model one tool per class each
+other agent accepts, so the agents it can route to are the ones the harness
 has registered, never a list of its own. Delegation agents, itself included, are left out:
 delegation is one level deep. A tool call is a delegation through `ctx.delegate`, so the
 conductor runs the child as an ordinary governed invocation and records it on this one.
@@ -54,6 +55,12 @@ no suggested step and tells the model to find out where the researcher is. With 
 the intake, the phase tracker or the model, the prompt tells the model not to ask again, even on
 the first turn, and to suggest the step the note names (invariant 15).
 
+In a project, the model is also offered `propose_data_description` (`describing.py`), which runs
+nothing either: it puts a `data_description` fact, in the researcher's words, on
+`Reply.proposed_facts`, declared model-derived, which the conductor records as a proposal for a
+person to confirm. Once confirmed, every agent in the project is given it, whichever conversation
+it runs in, so that what the researcher said of their data is not lost with this one (#160).
+
 On a conversation's first turn (an empty `Message.history`), once the model has replied, a
 second model, the titler, names the conversation from the researcher's message (`title.py`). The
 title is `Reply.conversation_title`, declared model-derived; no title, or a failed call, leaves it
@@ -63,12 +70,18 @@ out.
 from __future__ import annotations
 
 import json
-import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
 from dd_agent_orchestrator_model import asking
+from dd_agent_orchestrator_model.delegations import AGENT_ID as AGENT_ID
+from dd_agent_orchestrator_model.delegations import Tool, tools_from_manifest, with_schemas
+from dd_agent_orchestrator_model.describing import DESCRIBE_TOOL as DESCRIBE_TOOL
+from dd_agent_orchestrator_model.describing import (
+    DESCRIBE_TOOL_DEFINITION as DESCRIBE_TOOL_DEFINITION,
+)
+from dd_agent_orchestrator_model.describing import described
 from dd_agent_orchestrator_model.notes import inventory_note, progress_note, record_notes
 from dd_agent_orchestrator_model.own_tools import ENTRY_TOOL as ENTRY_TOOL
 from dd_agent_orchestrator_model.own_tools import ENTRY_TOOL_DEFINITION as ENTRY_TOOL_DEFINITION
@@ -78,7 +91,13 @@ from dd_agent_orchestrator_model.own_tools import QUESTIONS_TOOL as QUESTIONS_TO
 from dd_agent_orchestrator_model.own_tools import (
     QUESTIONS_TOOL_DEFINITION as QUESTIONS_TOOL_DEFINITION,
 )
-from dd_agent_orchestrator_model.own_tools import entry_of, name_of, questions_of, tool_result
+from dd_agent_orchestrator_model.own_tools import (
+    entry_of,
+    name_of,
+    questions_of,
+    tool_result,
+    unexplained,
+)
 from dd_agent_orchestrator_model.prompt import SYSTEM_PROMPT
 from dd_agent_orchestrator_model.title import titled
 from dd_sdk.agent import (
@@ -99,6 +118,7 @@ from dd_sdk.contract.models import (
     OpenInput,
     Outcome,
     OutcomeStatus,
+    ProjectFact,
     Question,
     ReasonCode,
     Reply,
@@ -119,7 +139,6 @@ from dd_sdk.model import (
 )
 from dd_sdk.prompts import ModelCallLog
 
-AGENT_ID = "orchestrator.model"
 # Claude Sonnet 5.5, when the provider is Anthropic and `DD_MODEL_ID` is unset (factory.py).
 DEFAULT_MODEL = "claude-sonnet-5-5"
 # Claude's effort when `DD_ORCHESTRATOR_EFFORT` is unset; other providers are sent none.
@@ -128,88 +147,11 @@ DEFAULT_EFFORT = "high"
 MAX_TOKENS = 16000
 DEFAULT_HISTORY_TURNS = 20
 DEFAULT_MAX_DELEGATIONS = 4
-# The API's rule for a tool name.
-TOOL_NAME_UNSAFE = re.compile(r"[^a-zA-Z0-9_-]")
-TOOL_NAME_MAX = 64
-# Keys of a generated class schema that describe the file, not the input.
-SCHEMA_ANNOTATIONS = ("$comment", "$id", "$schema", "title")
 CUT_SHORT = "(This reply was cut short.)"
 
 
 class ModelError(Exception):
     """The model gave no usable turn: the provider failed, or the model declined the request."""
-
-
-@dataclass(frozen=True)
-class Tool:
-    """One tool offered to the model: delegate an input of `schema_class` to `agent_id`."""
-
-    name: str
-    agent_id: str
-    schema_class: str
-    definition: ToolSpec
-
-
-def tools_from_manifest(manifest: list[dict[str, Any]], own_id: str = AGENT_ID) -> list[Tool]:
-    """One tool per input class of each agent the harness lists, except delegation agents."""
-    tools: list[Tool] = []
-    for entry in sorted(manifest, key=lambda e: str(e.get("agent_id"))):
-        agent_id = str(entry.get("agent_id"))
-        if agent_id == own_id or entry.get("grounding_mode") == GroundingMode.DELEGATION.value:
-            continue
-        accepts = [str(name) for name in entry.get("accepts") or []]
-        schemas = entry.get("schemas") or {}
-        for schema_class in accepts:
-            schema = (schemas.get(schema_class) or {}).get("json_schema")
-            if not isinstance(schema, dict):
-                continue
-            base = TOOL_NAME_UNSAFE.sub("_", agent_id)
-            name = base if len(accepts) == 1 else f"{base}__{schema_class}"
-            description = str(entry.get("description") or agent_id)
-            title = str(entry.get("title") or "")
-            if title:
-                # The persona's name, so the reply can name who was asked (docs/specs/agents.md).
-                description = f"The {title}. {description}"
-            steps = [str(s) for s in entry.get("serves") or []]
-            if steps:
-                description += f" Serves step(s) {', '.join(steps)}."
-            tools.append(
-                Tool(
-                    name=name[:TOOL_NAME_MAX],
-                    agent_id=agent_id,
-                    schema_class=schema_class,
-                    definition=ToolSpec(
-                        name=name[:TOOL_NAME_MAX],
-                        description=(
-                            f"Ask the agent {agent_id} (input class {schema_class}). {description}"
-                        ),
-                        input_schema=tool_schema(schema),
-                    ),
-                )
-            )
-    return tools
-
-
-def tool_schema(schema: dict[str, Any]) -> dict[str, Any]:
-    """A class schema as a tool's input schema: without `schema_class`, which the orchestrator
-    fills in, and with the integers the A2A card carried as floats made integers again."""
-    out = {k: _integral(v) for k, v in schema.items() if k not in SCHEMA_ANNOTATIONS}
-    properties = dict(out.get("properties") or {})
-    properties.pop("schema_class", None)
-    out["properties"] = properties
-    out["required"] = [r for r in out.get("required") or [] if r != "schema_class"]
-    return out
-
-
-def _integral(value: Any) -> Any:
-    # protobuf's Struct has only floating-point numbers (docs/specs/app.md).
-    if isinstance(value, float) and value.is_integer():
-        return int(value)
-    if isinstance(value, dict):
-        return {k: _integral(v) for k, v in value.items()}
-    if isinstance(value, list):
-        return [_integral(v) for v in value]
-    return value
 
 
 def conversation(
@@ -247,7 +189,9 @@ def conversation(
 class _Turns:
     """One run's exchange with the model: the conversation, the tools offered, the delegations
     made and attempted, the tokens spent, each call and what it sent (kept by digest with the
-    run, docs/specs/disclosure.md), and what the model's own tools took."""
+    run, docs/specs/disclosure.md), and what the model's own tools took. `said` is the model's
+    latest text since it last delegated: text beside a call to its own tools, such as recording
+    the entry point, is part of the reply, and a preamble to a delegation is not."""
 
     messages: list[ModelMessage]
     definitions: list[ToolSpec]
@@ -262,6 +206,8 @@ class _Turns:
     questions: list[Question] | None = None
     name: str | None = None
     entry_point: int | None = None
+    description: ProjectFact | None = None
+    said: str = ""
 
     def answer_own(self, made: Sequence[ToolCall]) -> tuple[dict[str, ToolResult], list[ToolCall]]:
         """Answer the calls that delegate nothing (unreadable ones, a name, an entry point), and
@@ -291,7 +237,10 @@ class _Turns:
             given_entry, result = entry_of(entering, offered=self.may_enter)
             self.entry_point = given_entry or self.entry_point
             answered[entering.id] = result
-        return answered, [c for c in readable if c.name not in (NAME_TOOL, ENTRY_TOOL)]
+        self.description, proposed = described(readable, self.description)
+        answered.update(proposed)
+        own = (NAME_TOOL, ENTRY_TOOL, DESCRIBE_TOOL)
+        return answered, [c for c in readable if c.name not in own]
 
 
 class ModelOrchestrator:
@@ -314,6 +263,7 @@ class ModelOrchestrator:
             "reply_questions": Derived(Derivation.MODEL),
             "new_project_title": Derived(Derivation.MODEL),
             "new_project_entry": Derived(Derivation.MODEL),
+            "proposed_facts": Derived(Derivation.MODEL),
         },
         settings={asking.FIELDS_OF_STUDY: asking.FIELDS_OF_STUDY_SETTING},
     )
@@ -342,12 +292,13 @@ class ModelOrchestrator:
                 "The harness gave this run no way to delegate (for example, it was started "
                 "from `workbench invoke`), so no agent was asked.",
             )
-        state = self._start(message, ctx.delegate.manifest())
+        state = self._start(message, with_schemas(ctx.delegate.manifest(), ctx.delegate.schemas_of))
         while True:
             turn = self._turn(state, ctx)
             state.input_tokens += turn.usage.input_tokens or 0
             state.output_tokens += turn.usage.output_tokens or 0
             state.messages.append(turn.message)
+            state.said = turn.text.strip() or state.said
             if turn.stop != "tool_use" or not turn.tool_calls:
                 break
             results = self._results(turn, state, ctx)
@@ -366,13 +317,12 @@ class ModelOrchestrator:
         may_name = message.project_title_by_researcher is False
         if may_name:
             definitions.append(NAME_TOOL_DEFINITION)
-        # In a project, the model may record the entry point until the researcher chooses one.
-        may_enter = (
-            message.project_title_by_researcher is not None
-            and message.project_entry_by_researcher is not True
-        )
-        if may_enter:
-            definitions.append(ENTRY_TOOL_DEFINITION)
+        # In a project, the model may propose a data description, and record the entry point
+        # until the researcher chooses one.
+        in_project = message.project_title_by_researcher is not None
+        may_enter = in_project and message.project_entry_by_researcher is not True
+        definitions += [DESCRIBE_TOOL_DEFINITION] if in_project else []
+        definitions += [ENTRY_TOOL_DEFINITION] if may_enter else []
         return _Turns(
             messages=list(conversation(message, self.history_turns, manifest)),
             definitions=definitions,
@@ -388,7 +338,16 @@ class ModelOrchestrator:
         answered, others = state.answer_own(turn.tool_calls)
         state.questions, problem = questions_of(others)
         if state.questions is not None:
-            return None
+            problem = None
+            if state.attempts < self.max_delegations:
+                problem = unexplained(
+                    state.questions, said=state.said, delegated=bool(state.delegated)
+                )
+            if problem is None:
+                return None
+            # Sent back once more, counting against the limit, so that the loop ends.
+            state.questions = None
+            state.attempts += 1
         results = []
         for made in turn.tool_calls:
             if made.id in answered:
@@ -398,6 +357,7 @@ class ModelOrchestrator:
                 results.append(tool_result(made, problem or "", is_error=True))
                 continue
             state.attempts += 1
+            state.said = ""
             results.append(self._call(made, state.tools, state.attempts, ctx, state.delegated))
         return results
 
@@ -474,7 +434,7 @@ class ModelOrchestrator:
         delegated, calls = state.delegated, state.calls
         questions = asking.shown(state.questions, ctx, self.spec)
         input_tokens, output_tokens = state.input_tokens, state.output_tokens
-        text = asking.reply_text(turn.text.strip(), questions)
+        text = asking.reply_text(state.said, questions)
         model_id = turn.model_id
         if turn.stop == "max_tokens":
             text = f"{text}\n\n{CUT_SHORT}" if text else CUT_SHORT
@@ -507,6 +467,7 @@ class ModelOrchestrator:
                 reply_questions=questions,
                 new_project_title=state.name,
                 new_project_entry=state.entry_point,
+                proposed_facts=[state.description] if state.description else None,
                 grounded_on=[input_ref(ctx), *(d.ref for d in delegated)],
             ),
             evidence=[

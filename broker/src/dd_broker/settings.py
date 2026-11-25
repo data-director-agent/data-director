@@ -12,6 +12,9 @@ Secrets, each as `NAME` or `NAME_FILE`:
   pseudonym sealed in each grant. Required.
 - `DD_BROKER_AGENT_CREDENTIALS`: JSON, `{"<agent id>": "<SHA-256 hex of its credential>"}`.
   Required.
+- `DD_BROKER_ADMIN_CREDENTIAL`: the SHA-256 hex digest of the operators' credential, which the
+  admin service presents to read `GET /admin/summary` (`dd_broker.admin`). Optional; without it
+  the route is not served.
 - The deployment's key for each provider it pays for, or a LiteLLM gateway key when
   `DD_BROKER_DEPLOYMENT_BASE_URL` is set: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
   `GEMINI_API_KEY`, and `DD_MODEL_API_KEY` for `openai-compatible`, which the deployment pays for
@@ -40,7 +43,7 @@ from urllib.parse import urlsplit
 from joserfc.jwk import ECKey
 
 from dd_broker import anthropic, chat_completions
-from dd_broker.agents import AgentCredentials
+from dd_broker.agents import AgentCredentials, OperatorCredential
 from dd_broker.grants import subject_key
 from dd_broker.guard import BaseUrlRefused, origin
 from dd_broker.seal import KEY_ENCRYPTION_KEY_BYTES
@@ -53,6 +56,7 @@ AGENT_CREDENTIALS = "DD_BROKER_AGENT_CREDENTIALS"
 HARNESS_JWKS_URL = "DD_BROKER_HARNESS_JWKS_URL"
 HARNESS_JWKS_FILE = "DD_BROKER_HARNESS_JWKS_FILE"
 STORE = "DD_BROKER_STORE"
+ADMIN_CREDENTIAL = "DD_BROKER_ADMIN_CREDENTIAL"
 # The variable each provider's deployment key is read from, by provider.
 DEPLOYMENT_KEYS = {
     anthropic.PROVIDER: "ANTHROPIC_API_KEY",
@@ -79,6 +83,7 @@ class BrokerSettings:
     deployment_base_url: str | None = None
     allowed_base_urls: tuple[str, ...] = ()
     private_base_urls: tuple[str, ...] = ()
+    operator: OperatorCredential | None = field(default=None, repr=False)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> BrokerSettings:
@@ -122,6 +127,7 @@ class BrokerSettings:
             deployment_base_url=deployment_base_url.rstrip("/") if deployment_base_url else None,
             allowed_base_urls=_origins(env, ALLOWED_BASE_URLS),
             private_base_urls=_origins(env, PRIVATE_BASE_URLS),
+            operator=_operator(env),
         )
 
 
@@ -130,6 +136,16 @@ def _secret(env: Mapping[str, str], name: str) -> str:
         return api_key(env, name)
     except ConfigError as exc:
         raise SettingsError(str(exc)) from None
+
+
+def _operator(env: Mapping[str, str]) -> OperatorCredential | None:
+    """The operators' credential digest, if the deployment set one."""
+    if not (_text(env, ADMIN_CREDENTIAL) or _text(env, f"{ADMIN_CREDENTIAL}_FILE")):
+        return None
+    try:
+        return OperatorCredential.from_digest(_secret(env, ADMIN_CREDENTIAL))
+    except ValueError as exc:
+        raise SettingsError(f"{ADMIN_CREDENTIAL}: {exc}") from None
 
 
 def _text(env: Mapping[str, str], name: str) -> str:

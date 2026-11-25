@@ -9,9 +9,10 @@ from typing import Any
 
 from test_metadata_agent import draft, sample
 
-from dd_agent_advisor_metadata.agent import load_form
+from dd_agent_advisor_metadata.form import load_form
 from dd_agent_advisor_metadata.location import entry_path
 from dd_agent_advisor_metadata.questions import gaps, question_id
+from dd_metadata_records.standards import DATACITE_4
 from dd_sdk.contract.facts import FactKind, ProjectFact, StandardKind
 from dd_sdk.contract.models import Document, DraftAnswer, OutcomeStatus
 
@@ -78,7 +79,7 @@ def test_an_answer_to_a_question_not_asked_or_left_blank_is_not_placed(runs_dir:
 
 
 def test_the_rule_table_marks_only_what_a_model_may_suggest() -> None:
-    form = load_form()
+    form = load_form(DATACITE_4)
     suggestable = {prop for prop, entry in form.items() if entry.suggest}
     # Who made it, when, under what rights and with whose money only the researcher can say.
     for prop in ("creators", "contributors", "dates", "rightsList", "fundingReferences"):

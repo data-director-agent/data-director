@@ -12,7 +12,7 @@ description: >-
   schema_class (docs/specs/contract.md); every payload mixes in Grounded so the grounding linter can check it
   without knowing its class (docs/specs/grounding.md). Formats here are fixed; see docs/specs/ for why.
   Generated artefacts live in schema/generated/ and are never hand-edited.
-version: 0.26.0
+version: 0.28.0
 license: MIT
 
 prefixes:
@@ -327,6 +327,32 @@ classes:
       guidance:
         description: The pages the deployment checked the facts it vouches for against.
 
+  InstitutionStorage:
+    description: >-
+      One storage service the deployment's profile names as its institution's, for keeping data
+      while a project runs (the profile's institution_storage, docs/specs/policy-and-identity.md).
+      It holds only what the deployment vouches for: the conductor fills it into the input of an
+      agent that mixes in GivenInstitutionStorage.
+    slots:
+      - storage_id
+      - profile_ref
+      - storage_name
+      - storage_description
+      - storage_kind
+      - approved_for_sensitive
+      - allows_external_collaborators
+      - allowance_gb
+      - charges_for_storage
+      - storage_backup
+      - guidance
+    slot_usage:
+      storage_id:
+        required: true
+      storage_name:
+        required: true
+      guidance:
+        description: The pages the deployment checked the facts it vouches for against.
+
   DocumentationSummary:
     description: >-
       What one document a researcher attached to a project is, without its text: the conductor
@@ -547,7 +573,7 @@ classes:
     slots:
       - property
       - qualifier
-      - schema_org
+      - term
       - obligation
       - form_label
       - supplied_on
@@ -672,7 +698,11 @@ classes:
       as one of this draft's (shared_field), which a drafter may offer as a suggestion but never
       place. With revise, the drafter is asked to revise the current version as a person asked,
       in their words, and the conductor gives the current version the change they asked for
-      (revision_request).
+      (revision_request). The conductor fills institution_storage from the deployment's profile
+      (GivenInstitutionStorage), in a project or not: a Data Management Plan's storage question may
+      offer those services as a suggestion, never place them.
+    mixins:
+      - GivenInstitutionStorage
     slots:
       - schema_class
       - document_kind
@@ -717,6 +747,18 @@ classes:
       - conforms_to
       - document_text
 
+  ApprovedPlan:
+    description: >-
+      The data management plan written in the project as a person approved it: the version named
+      by the last approval of a dmp document in the project (docs/specs/projects.md). It is the
+      project's own document, not one a researcher attached, so no data_management_plan fact
+      names it.
+    slots:
+      - version_ref
+      - document_title
+      - media_type
+      - document_text
+
   DraftAnswer:
     description: >-
       A person's answer to one question a version of the document asked (DocumentQuestion). The
@@ -751,7 +793,9 @@ classes:
       repository a funder or institution requires, whether a file is deposited, whether a
       sensitive field or file may be published and at what precision, the licence, an output a
       data management plan committed to share, a standard, vocabulary or format the researcher
-      chose for the dataset, or which attached document is the project's data management plan (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the
+      chose for the dataset, which attached document is the project's data management plan, or
+      what data the project collects and how, or what the project is for, its field of study and
+      when it runs (docs/specs/projects.md). fact_kind says which of the value slots apply; fact_subject is the
       key a person's decision counts by, so the last decision on a subject stands. An agent's
       payload carries proposals in proposed_facts; only a person's decision makes one a fact, and
       the conductor gives the facts a person decided to every drafter and orchestrator in the
@@ -782,6 +826,15 @@ classes:
       - standard_kind
       - standard_target
       - plan_document
+      - data_collected
+      - data_collection_method
+      - data_formats
+      - data_volume
+      - data_reused
+      - summary_text
+      - field_name
+      - period_start
+      - period_end
       - proposed_because
     rules:
       - description: A funder fact names the funder.
@@ -866,6 +919,52 @@ classes:
               required: true
             fact_subject:
               equals_string: project
+      - description: >-
+          A data description fact says what data the project collects or produces. Its subject is
+          the project, so a project has one current description.
+        preconditions:
+          slot_conditions:
+            fact_kind:
+              equals_string: data_description
+        postconditions:
+          slot_conditions:
+            data_collected:
+              required: true
+            fact_subject:
+              equals_string: project
+      - description: A project summary says what the project is for and is about the project.
+        preconditions:
+          slot_conditions:
+            fact_kind:
+              equals_string: project_summary
+        postconditions:
+          slot_conditions:
+            summary_text:
+              required: true
+            fact_subject:
+              equals_string: project
+      - description: A field of study fact names the field and is about the project.
+        preconditions:
+          slot_conditions:
+            fact_kind:
+              equals_string: field_of_study
+        postconditions:
+          slot_conditions:
+            field_name:
+              required: true
+            fact_subject:
+              equals_string: project
+      - description: A project period fact says when the project starts and is about the project.
+        preconditions:
+          slot_conditions:
+            fact_kind:
+              equals_string: project_period
+        postconditions:
+          slot_conditions:
+            period_start:
+              required: true
+            fact_subject:
+              equals_string: project
 
   GivenProjectDocuments:
     mixin: true
@@ -909,6 +1008,27 @@ classes:
       - project_metadata_draft
       - project_metadata_approved
 
+  GivenProjectInventory:
+    mixin: true
+    description: >-
+      Mixed into an agent's own input class when the agent reads the project's file inventory:
+      its files, the tables' fields and what the inventory command's personal data detector
+      found. In a project the conductor fills project_file_inventory by this name and never needs
+      to know the input class (docs/specs/projects.md, invariant 6); outside one, the caller sends
+      it.
+    slots:
+      - project_file_inventory
+
+  GivenProjectPlan:
+    mixin: true
+    description: >-
+      Mixed into an agent's own input class when the agent reads the data management plan written
+      in the project, as a person approved it last. In a project the conductor fills
+      project_plan_approved by this name and never needs to know the input class
+      (docs/specs/projects.md, invariant 6); outside one, the caller sends it.
+    slots:
+      - project_plan_approved
+
   GivenInstitutionRepositories:
     mixin: true
     description: >-
@@ -918,6 +1038,16 @@ classes:
       needs to know the input class; whatever a caller sent there is replaced.
     slots:
       - institution_repositories
+
+  GivenInstitutionStorage:
+    mixin: true
+    description: >-
+      Mixed into an agent's own input class when the agent reads the storage services the
+      deployment's profile names as its institution's. The conductor fills institution_storage by
+      this name from the profile, in a project or not, and never needs to know the input class;
+      whatever a caller sent there is replaced.
+    slots:
+      - institution_storage
 
   ProposesFacts:
     mixin: true
@@ -978,9 +1108,12 @@ classes:
   Reply:
     description: >-
       The payload of a conversational agent: the text of its reply. An orchestrator's reply is
-      grounded on its input and on the envelopes of the invocations it delegated to.
+      grounded on its input and on the envelopes of the invocations it delegated to. An
+      orchestrator may propose a data description fact from what the researcher said, for a
+      person to confirm (docs/specs/orchestration.md).
     mixins:
       - Grounded
+      - ProposesFacts
     slots:
       - schema_class
       - reply_text
@@ -1049,10 +1182,14 @@ classes:
       (suggestion_derivation); a suggestion is never placed in the document, and becomes supplied
       only when a person records it as their answer. A question that asks for a value every kind
       of document gives the same way names it in shared_field; a suggestion copied from a person's
-      own answer or decision elsewhere in the project says where, in suggested_from.
+      own answer or decision elsewhere in the project says where, in suggested_from. A question
+      whose answer is a list of values, such as the values that mean a value is missing, says so in
+      answer_kind, and may add a line of help in question_help.
     slots:
       - question_id
       - question_prompt
+      - question_help
+      - answer_kind
       - gap_section
       - gap_part
       - gap_file
@@ -1820,6 +1957,11 @@ slots:
   suggestion_derivation:
     description: How suggested_answer came about. Present exactly when suggested_answer is.
     range: Derivation
+  answer_kind:
+    description: >-
+      How a drafter's question is answered, so that a front end can show the fitting input. Absent
+      means text.
+    range: AnswerKind
   shared_field:
     description: >-
       The value a question asks for, or an answer gives, when every kind of document gives it the
@@ -1828,10 +1970,13 @@ slots:
     range: SharedField
   suggested_from:
     description: >-
-      Where a suggestion copied from the person's own words came from: the kind of document whose
-      question they answered, or `decision` for a fact people in the project decided. Present
-      exactly when suggestion_derivation is `answer`.
-    pattern: "^(metadata_record|readme|data_dictionary|dmp|other|decision)$"
+      Where a suggestion not made by a model came from: for one copied from the person's own
+      words (suggestion_derivation `answer`), the kind of document whose question they answered,
+      or `decision` for a fact people in the project decided; for one a drafter composed by rule
+      from what the deployment's profile vouches for (suggestion_derivation `template`),
+      `institution`; for one made of the project's people by rule (derivation `answer`), `researchers`.
+      Present exactly then.
+    pattern: "^(metadata_record|readme|data_dictionary|dmp|other|decision|institution|researchers)$"
   answered_in:
     description: The kind of document whose question the answer was recorded to.
     range: DocumentKind
@@ -1920,6 +2065,19 @@ slots:
       conductor fills it and a caller leaves it out. Absent when no version has been approved.
     range: ApprovedMetadataRecord
     inlined: true
+  project_file_inventory:
+    description: >-
+      The project's file inventory, as the researcher added it last. In a project the conductor
+      fills it and a caller leaves it out. Absent while the project holds no inventory.
+    range: FileInventory
+    inlined: true
+  project_plan_approved:
+    description: >-
+      The version of the project's data management plan (a dmp document) a person approved last.
+      In a project the conductor fills it and a caller leaves it out. Absent when no version has
+      been approved.
+    range: ApprovedPlan
+    inlined: true
   chosen_repository_name:
     description: The chosen repository's name, as the pinned re3data export gives it.
     required: true
@@ -1970,6 +2128,47 @@ slots:
       Whether the repository charges a fee to deposit. Unlike re3data, a deployment may say it
       charges none.
     range: boolean
+  institution_storage:
+    description: >-
+      The storage services the deployment's profile names as its institution's, filled by the
+      conductor from the profile and never by the caller. Absent when the profile names none.
+    range: InstitutionStorage
+    multivalued: true
+    inlined_as_list: true
+  storage_id:
+    description: >-
+      The deployment's own label for a storage service, such as research-filestore: lower case
+      letters, digits and hyphens.
+    pattern: "^[a-z0-9][a-z0-9-]*$"
+  storage_name:
+    description: The storage service's name, as the institution gives it to researchers.
+  storage_description:
+    description: What the service is for, in a sentence or two a researcher can read.
+  storage_kind:
+    description: What kind of storage service it is.
+    range: StorageKind
+  approved_for_sensitive:
+    description: >-
+      Whether the institution approves the service for personal or otherwise sensitive data.
+      Unknown when not given, which is never taken as approval.
+    range: boolean
+  allows_external_collaborators:
+    description: Whether people outside the institution can be given access to data held there.
+    range: boolean
+  allowance_gb:
+    # A float, and no minimum_value: an agent cites the entry as evidence, and A2A's protobuf
+    # Struct carries every number as a double, so an integer would not hash the same on both
+    # sides of the wire; a bound would break the card's schema digest (#333). The profile's
+    # loader refuses a negative allowance.
+    description: How many gigabytes a project may hold there without charge, where there is a limit.
+    range: float
+  charges_for_storage:
+    description: Whether the institution charges a project for storage there.
+    range: boolean
+  storage_backup:
+    description: >-
+      What the service does to keep copies, as the institution states it, such as nightly
+      snapshots replicated to a second site.
   proposed_facts:
     description: >-
       Facts the agent proposes for a person to confirm. A proposal is never a fact until a person
@@ -2058,6 +2257,44 @@ slots:
       For a data management plan fact, the digest of the attached document's text (its
       documentation_digest) that is the project's plan.
     pattern: "^[0-9a-f]{64}$"
+  data_collected:
+    description: >-
+      For a data description fact, what data the project collects, produces or reuses, and of
+      which types, in the researcher's words.
+  data_collection_method:
+    description: >-
+      For a data description fact, how the data are collected or produced, in the researcher's
+      words.
+  data_formats:
+    description: >-
+      For a data description fact, the file formats the data are kept in, in the researcher's
+      words.
+  data_volume:
+    description: >-
+      For a data description fact, how much data the project expects, in the researcher's words.
+  data_reused:
+    description: >-
+      For a data description fact, which existing data the project reuses, and how, in the
+      researcher's words.
+  summary_text:
+    description: >-
+      For a project summary fact, what the project is for, in a few sentences: its aims and the
+      questions it asks.
+    pattern: "\\S"
+  field_name:
+    description: >-
+      For a field of study fact, the project's field, as the researcher names it or a subject
+      classification gives it.
+    pattern: "\\S"
+  period_start:
+    description: >-
+      For a project period fact, when the project starts, as a year, a month or a day.
+    pattern: "^\\d{4}(-\\d{2}(-\\d{2})?)?$"
+  period_end:
+    description: >-
+      For a project period fact, when the project ends, as a year, a month or a day; absent where
+      it is not known.
+    pattern: "^\\d{4}(-\\d{2}(-\\d{2})?)?$"
   standard_name:
     description: >-
       For a standard fact, the name of the standard, vocabulary, ontology or format chosen, as its
@@ -2401,9 +2638,15 @@ slots:
       Values that narrow the property, such as a subjectScheme. Part of what identifies a field
       when an override is merged with its standard's set.
     range: Any
-  schema_org:
-    description: The schema.org term the property maps to, by which the record is read as RDF.
+  term:
+    description: >-
+      The term of an existing vocabulary the property maps to, by which the record is read as RDF:
+      a CURIE with a registered prefix (schema, dcterms, dcat or prov), such as dcterms:provenance,
+      or the full IRI of a term in one of those vocabularies (docs/specs/metadata-standards.md,
+      invariant 7). A set kept before terms were IRIs names a schema.org local name in schema_org,
+      which reads as schema:<name>.
     required: true
+    pattern: "^((schema|dcterms|dcat|prov):[A-Za-z][A-Za-z0-9_-]*|(http://schema\\.org/|http://purl\\.org/dc/terms/|http://www\\.w3\\.org/ns/dcat#|http://www\\.w3\\.org/ns/prov#)[A-Za-z][A-Za-z0-9_-]*)$"
   obligation:
     range: Obligation
     required: true
@@ -2632,6 +2875,18 @@ slots:
 
 enums:
 
+  StorageKind:
+    description: The kinds of storage a deployment may name as its institution's.
+    permissible_values:
+      institutional_filestore:
+        description: Networked file storage the institution runs for research data.
+      institutional_cloud:
+        description: Cloud storage the institution provides under its own agreement.
+      managed_cloud:
+        description: A commercial cloud service the institution has approved but does not run.
+      secure_environment:
+        description: A trusted research environment or safe haven for sensitive data.
+
   PersonalDataKind:
     description: >-
       What a personal-data finding took the data to be (docs/specs/personal-data.md). The first
@@ -2817,6 +3072,18 @@ enums:
           Copied, as given, from a person's own answer to another document's question, or from a
           fact people in the project decided: offered for them to confirm, never placed.
 
+  AnswerKind:
+    description: >-
+      How a drafter's question about a gap is answered (docs/specs/drafting.md). The answer is
+      always one string, as a person's answer is recorded.
+    permissible_values:
+      text:
+        description: In the researcher's own words, over one or several lines.
+      list:
+        description: >-
+          A list of values, each written exactly as it appears in the data, recorded as a JSON
+          array of strings, such as ["-99","NA"].
+
   SharedField:
     description: >-
       A value every kind of project document gives the same way, so that an answer given for one
@@ -2878,6 +3145,19 @@ enums:
         description: >-
           Which attached document is the project's data management plan. Its subject is always
           "project", so a project has at most one current plan (docs/specs/projects.md, #1447).
+      data_description:
+        description: >-
+          What data the project collects, produces or reuses, how, in which formats and in what
+          volume, in the researcher's words, for a project whose data may not exist yet. Its
+          subject is always "project" (docs/specs/projects.md, #160).
+      project_summary:
+        description: >-
+          What the project is for: its aims and questions, in a few sentences. Its subject is
+          always "project" (docs/specs/projects.md).
+      field_of_study:
+        description: The project's field of study. Its subject is always "project".
+      project_period:
+        description: When the project starts and ends. Its subject is always "project".
 
   FileDecision:
     description: Whether a file of the inventory is to be deposited.

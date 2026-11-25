@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Literal, Protocol
 
 from dd_sdk.contract.models import Principal
@@ -22,6 +23,16 @@ class NewEscalation:
     note: str
     scope_shared: Sequence[str] = ()
     support: bool = False
+
+
+@dataclass(frozen=True)
+class MoveAsked:
+    """A move asked for on an escalation: its name, the note it carries, and the target a move
+    that names one names: the colleague for `reassign`, a team's id for `transfer`."""
+
+    move: str
+    note: str | None = None
+    to: str | Principal | None = None
 
 
 class ProjectEscalations(Protocol):
@@ -46,12 +57,24 @@ class ProjectEscalations(Protocol):
         self,
         project_id: str,
         escalation_id: str,
-        move: str,
+        move: str | MoveAsked,
         *,
         side: Literal["researcher", "steward"],
-        note: str | None = None,
         acted_for: Principal,
         caused_by: str,
     ) -> dict[str, Any]:
-        """Make a move on an escalation, for the researcher's or the steward's side."""
+        """Make a move on an escalation, for the researcher's or the steward's side: a move's
+        name alone, or with its note and target."""
+        ...
+
+    def reroute_escalation(
+        self,
+        project_id: str,
+        escalation_id: str,
+        *,
+        routed_before: datetime,
+        acted_for: Principal,
+        caused_by: str,
+    ) -> dict[str, Any] | None:
+        """Send an `open` escalation last routed before `routed_before` to its team again."""
         ...

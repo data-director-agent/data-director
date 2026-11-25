@@ -14,7 +14,8 @@ from dd_sdk.contract.questions import SharedField
 
 README = Path(__file__).with_name("readme.yaml")
 # The project facts a section may be drafted from (readme.yaml explains each; `drafted.py` the
-# decided facts a Data Management Plan also draws on: funders, repository, licence, sensitivity).
+# decided facts a Data Management Plan also draws on: funders, repository, licence, sensitivity
+# and the data description, in full or so far).
 SOURCES = frozenset(
     {
         "files",
@@ -28,6 +29,9 @@ SOURCES = frozenset(
         "repository",
         "licence",
         "sensitivity",
+        "data_description",
+        "data_description_so_far",
+        "project",
     }
 )
 # A section's `suggest` value for "only from the documents the researcher attached".
@@ -69,6 +73,8 @@ class Section(NamedTuple):
     suggest: bool | Literal["documents"] = False
     # The value its question asks for that every kind of document gives the same way.
     shares: SharedField | None = None
+    # What it asks before the data are collected, when it asks something else then (readme.yaml).
+    plan_ask: str | None = None
 
     def suggestable(self, *, has_documents: bool) -> bool:
         """Whether a model may suggest an answer to this section's question, in a draft that
@@ -132,11 +138,29 @@ def sections_from(table: Sequence[Mapping[str, Any]], path: Path | str) -> list[
                 parts,
                 suggest,
                 _shares(path, entry["heading"], entry),
+                _plan_ask(path, entry["heading"], entry, parts),
             )
         )
     if not sections:
         raise ValueError(f"{path}: no sections")
     return sections
+
+
+def _plan_ask(
+    path: Path | str, heading: str, entry: Mapping[str, Any], parts: tuple[Part, ...]
+) -> str | None:
+    plan_ask = entry.get("plan_ask")
+    if plan_ask is None:
+        return None
+    if parts:
+        raise ValueError(f"{path}: section {heading!r} has parts, so it has no plan_ask")
+    return " ".join(str(plan_ask).split())
+
+
+def before_collection(sections: Sequence[Section]) -> list[Section]:
+    """The sections as asked before the data are collected: each with a `plan_ask` asks it in
+    place of its `ask`, under the same question (#1017)."""
+    return [s._replace(ask=s.plan_ask) if s.plan_ask else s for s in sections]
 
 
 def _part(path: Path | str, heading: str, entry: Mapping[str, Any]) -> Part:

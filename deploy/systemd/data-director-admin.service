@@ -5,8 +5,9 @@
 #   ssh -N -L 8200:127.0.0.1:8200 you@<name>
 #
 # It reads the app's stores, the agents' cards, /etc/data-director, the releases, each unit's state
-# and journal, and what `data-director doctor --json` reports run as this user. It writes nothing:
-# ProtectSystem=strict with no ReadWritePaths leaves every store read-only to it.
+# and journal, and what `data-director doctor --json` reports run as this user. It writes nothing
+# but a case for debugging it is sending, in its PrivateTmp: ProtectSystem=strict with no
+# ReadWritePaths leaves every store read-only to it.
 #
 # It does not wait for the agents, unlike the app: it is most needed when something is down.
 [Unit]
@@ -39,6 +40,8 @@ Environment="DD_ADMIN_DOCTOR=/opt/data-director/current/.venv/bin/python /opt/da
 # DD_ADMIN_LITELLM_URL there and a drop-in that loads the gateway's read-only key, which only an
 # operator who runs the gateway adds (deploy/llm-gateway/README.md):
 #   LoadCredential=litellm-key:/etc/data-director/credentials/admin/litellm-key
+# For the Monitoring page, DD_ADMIN_GRAFANA_URL, DD_ADMIN_PROMETHEUS_URL and
+# DD_ADMIN_ALERTMANAGER_URL, each an http(s) address (docs/guide/operations/admin.md).
 EnvironmentFile=-/etc/data-director/admin.env
 ExecStart=/opt/data-director/current/.venv/bin/dd-admin serve --host 127.0.0.1 --port 8200
 Restart=on-failure
@@ -47,7 +50,7 @@ TimeoutStartSec=30
 TimeoutStopSec=30
 SyslogIdentifier=data-director-admin
 
-# Hardening: it reads, and writes nowhere.
+# Hardening: it reads, and writes only its private /tmp.
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes

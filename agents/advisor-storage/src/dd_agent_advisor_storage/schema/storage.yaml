@@ -1,0 +1,138 @@
+# The input and payload classes of advisor.storage, owned by this package (docs/specs/contract.md).
+# It imports the core contract as `data_director`. After an edit, run
+# `uv run dd-gen-schema agents/advisor-storage/src/dd_agent_advisor_storage/schema/storage.yaml`
+# to regenerate generated/, and keep ../classes.py in step; ClassSchema.of refuses a model that
+# has drifted. These classes are an alpha's (docs/specs/agents.md), not a settled format.
+id: https://w3id.org/data-director/agents/storage
+name: dd_agent_advisor_storage
+title: advisor.storage classes
+description: >-
+  What a researcher says about the data a project will hold while it runs, and the Storage
+  Adviser's reply: which of the institution's storage services suit it, with any concerns, and
+  the questions a storage and backup plan answers.
+version: 0.1.0
+license: MIT
+
+prefixes:
+  storage: https://w3id.org/data-director/agents/storage/
+  linkml: https://w3id.org/linkml/
+default_prefix: storage
+default_range: string
+
+imports:
+  - linkml:types
+  - data_director
+
+classes:
+
+  StorageNeeds:
+    description: >-
+      What the researcher says about the data the project will hold while it runs: about how
+      much, whether it involves personal data, and whether people outside the institution need
+      access. The conductor fills institution_storage from the deployment's profile
+      (GivenInstitutionStorage) and, in a project, project_file_inventory with the project's
+      inventory, whose files' total size stands in for an expected size not given (#1540).
+    mixins:
+      - GivenInstitutionStorage
+      - GivenProjectInventory
+    slots:
+      - schema_class
+      - expected_volume_gb
+      - involves_personal_data
+      - external_collaborators
+
+  StorageAdvice:
+    description: >-
+      The payload of advisor.storage: the institution's storage services that may hold the data,
+      in the order the rules put them, each with what it offers and any concern; the services
+      left out, and why; and the questions a storage and backup plan answers. It is advisory:
+      the researcher chooses, and no service is booked.
+    mixins:
+      - Grounded
+    slots:
+      - schema_class
+      - storage_options
+      - excluded_storage
+      - plan_questions
+      - summary
+      - summary_derivation
+      - limitations
+
+  StorageOption:
+    description: >-
+      One of the institution's storage services that may hold the data, grounded on what the
+      profile vouches for about it.
+    mixins:
+      - Grounded
+    slots:
+      - storage_id
+      - offers
+      - concerns
+
+  ExcludedStorage:
+    description: >-
+      One of the institution's storage services the rules leave out for this data, and why,
+      grounded on what the profile vouches for about it.
+    mixins:
+      - Grounded
+    slots:
+      - storage_id
+      - excluded_because
+
+slots:
+
+  expected_volume_gb:
+    # No minimum_value: a card's schemas cross A2A as a protobuf Struct, which turns the bound
+    # into a double and breaks the schema's digest.
+    description: About how many gigabytes the project expects to hold, where the researcher knows.
+    range: integer
+  involves_personal_data:
+    description: Whether the data involve personal or otherwise sensitive data, as the researcher says.
+    range: PersonalDataAnswer
+  external_collaborators:
+    description: Whether people outside the institution need access to the data while it runs.
+    range: boolean
+  storage_options:
+    description: The services that may hold the data, the most suitable first.
+    range: StorageOption
+    multivalued: true
+    inlined_as_list: true
+  excluded_storage:
+    description: The services left out for this data, each with why.
+    range: ExcludedStorage
+    multivalued: true
+    inlined_as_list: true
+  offers:
+    description: What the service offers that bears on this data, in plain words.
+    multivalued: true
+  concerns:
+    description: What the researcher should check before choosing the service.
+    multivalued: true
+  excluded_because:
+    description: Why the rules leave the service out for this data.
+    required: true
+  plan_questions:
+    description: >-
+      The questions a storage and backup plan answers for this data, for the researcher to
+      settle with the people who run the service.
+    multivalued: true
+  summary:
+    description: >-
+      A short summary of the advice in plain language, for the researcher. It restates the
+      advice and changes none of it.
+  summary_derivation:
+    description: >-
+      How the summary came about: template, the rules' own summary, or model, where a model wrote
+      it from the advice.
+    range: Derivation
+  limitations:
+    description: What the adviser does not do.
+    multivalued: true
+
+enums:
+
+  PersonalDataAnswer:
+    permissible_values:
+      "yes":
+      "no":
+      unknown:
