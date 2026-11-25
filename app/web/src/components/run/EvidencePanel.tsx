@@ -8,9 +8,12 @@
 
 import "./EvidencePanel.css";
 
-import { evidenceAnchor, evidenceCredit, evidenceKey } from "@data-director/agent-view";
+import { evidenceAnchor, evidenceKey } from "@data-director/agent-view";
+
+import { Link } from "../../route";
 
 import { fieldName } from "../../manifest/wording";
+import { creditFor, useSourceCredits } from "../../sources/credits";
 import type { CheckReport, Checks, EvidenceItem } from "../../run/types";
 
 /** Shown in a record's own line, so not repeated among its other facts. */
@@ -55,6 +58,7 @@ export function EvidencePanel({
   idPrefix: string;
 }) {
   const headingId = `${idPrefix}-evidence-heading`;
+  const sources = useSourceCredits();
   return (
     <section className="evidence" aria-labelledby={headingId}>
       <h4 id={headingId}>Evidence ({evidence.length})</h4>
@@ -71,7 +75,7 @@ export function EvidencePanel({
             const name = typeof content.name === "string" ? content.name : item.source_id;
             const description =
               typeof content.description === "string" ? content.description : null;
-            const credit = evidenceCredit(item);
+            const credit = creditFor(item, sources);
             return (
               <li key={evidenceKey(item)} id={evidenceAnchor(idPrefix, i)} tabIndex={-1}>
                 <p className="evidence-name">
@@ -84,8 +88,9 @@ export function EvidencePanel({
                   {item.retrieved_at && <> · retrieved {item.retrieved_at}</>}
                 </p>
                 {credit && (
-                  <p className="evidence-meta evidence-credit">
-                    Contains data from <a href={credit.href}>{credit.text}</a>
+                  <p className="evidence-credit">
+                    Source: <Link to={`/sources#source-${credit.id}`}>{credit.name}</Link>, licence{" "}
+                    <a href={credit.licence_url}>{credit.licence}</a>
                   </p>
                 )}
                 <dl className="evidence-facts">

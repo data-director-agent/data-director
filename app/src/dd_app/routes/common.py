@@ -19,6 +19,7 @@ from starlette.responses import Response
 
 from dd_app import feedback
 from dd_app.config import EXAMPLES_DIR
+from dd_app.credits import DEFAULT_CREDITS
 from dd_app.deployment_view import DeploymentView
 from dd_app.folder_scan import FolderRoots
 from dd_app.github_auth import TokenSource
@@ -90,6 +91,7 @@ class Deps:
     # repository account (docs/specs/deposit.md); None where they may not.
     deposit_broker_path: str | None = None
     examples_dir: Path = EXAMPLES_DIR
+    credits_file: Path = DEFAULT_CREDITS
     # The worker threads the listing routes may hold, so that turns always have some (#1258).
     listing: ListingLimiter = field(default_factory=ListingLimiter)
     started: float = field(default_factory=time.monotonic)

@@ -16,6 +16,7 @@ import { ProjectPage } from "./components/project/ProjectPage";
 import { ProjectPanelPage } from "./components/project/ProjectPanelPage";
 import { ProjectsPage } from "./components/project/ProjectsPage";
 import { SettingsPage } from "./components/settings/SettingsPage";
+import { SourcesPage } from "./components/sources/SourcesPage";
 import { PageHeader } from "./components/frame/PageHeader";
 import { Account } from "./components/session/Account";
 import { NoticesMenu } from "./components/session/Notices";
@@ -37,6 +38,7 @@ import {
   checkSignedIn,
   useSessionApi,
 } from "./session/api";
+import { type SourceCredit, SourceCreditsContext, fetchSources } from "./sources/credits";
 import { serverAnswered } from "./status";
 
 // The person's projects: `/projects`; a project's documents: `/projects/{project_id}`
@@ -87,6 +89,7 @@ function navCurrent(path: string): string {
     "/settings",
     "/sign-in",
     "/signed-out",
+    "/sources",
     "/steward",
   ];
   if (path === "/steward/projects") return "/steward";
@@ -151,6 +154,8 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
   const sessionApi = useSessionApi();
   const [session, setSession] = useState<Load<Session>>({ state: "loading" });
   const [state, setState] = useState<Load<Directory>>({ state: "loading" });
+  // The credit each source asks for, open to all; without it an evidence item is shown unnamed.
+  const [sources, setSources] = useState<readonly SourceCredit[]>([]);
   const location = useLocation();
   const [path = "/", query] = location.split("?");
   const onAgents = path === "/agents";
@@ -183,6 +188,12 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
     return () => window.removeEventListener(SIGNED_OUT, signedOut);
   }, []);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchSources(controller.signal).then(setSources, () => undefined);
+    return () => controller.abort();
+  }, []);
+
   const updateSession = useCallback((value: Session) => setSession({ state: "loaded", value }), []);
 
   const known = session.state === "loaded" ? session.value : null;
@@ -205,6 +216,8 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
   // eslint-disable-next-line complexity -- recorded debt: split it, do not add to it (docs/architecture-review.md)
   const content = () => {
     if (path === "/signed-out") return <SignedOutPage issuer={known?.issuer ?? null} />;
+    // Credit is owed to anyone who reads a result, signed in or not.
+    if (path === "/sources") return <SourcesPage />;
     if (session.state === "loading") return <p role="status" className="page-loading">Loading…</p>;
     if (session.state === "failed") {
       return (
@@ -262,6 +275,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
       notices={hearsNotices(known) && <NoticesMenu />}
       steward={isSteward(known)}
     >
+      <SourceCreditsContext.Provider value={sources}>
       {known?.signsIn && known.principal && (
         <SessionTimeout session={known} onChange={updateSession} />
       )}
@@ -280,6 +294,7 @@ export function App({ load = fetchDirectory }: { load?: typeof fetchDirectory })
       ) : (
         <ErrorBoundary resetKey={location}>{content()}</ErrorBoundary>
       )}
+      </SourceCreditsContext.Provider>
     </Frame>
   );
 }

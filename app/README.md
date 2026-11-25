@@ -342,6 +342,11 @@ layers, not selector specificity, decides which rule wins.
   Lucide has no brand marks, so the ORCID iD icon and GitHub's mark (Octicons, MIT) are inline SVGs
   in `web/src/components/ui/BrandIcon.tsx`, beside the ORCID sign-in and iD and beside links to
   GitHub; their licences are in `brand-icons.LICENCE` there.
+- **Typeface.** The shell's typeface is Inter by Rasmus Andersson, from `@fontsource-variable/inter`,
+  under the [SIL Open Font License 1.1](https://openfontlicense.org/). The font files are
+  bundled in the built shell. The licence permits that, and asks that the font keep its copyright
+  and licence notice when it is redistributed; the package carries them, and the app credits the
+  font on its Sources and licences page.
 - **Controls.** Buttons come from the shell's kit, `web/src/components/ui/Button.tsx`: React
   Aria's `Button` and `ToggleButton` in four variants (`primary` for the one action a view exists
   for, `secondary` by default, `quiet` beside the content it acts on, `danger` to remove what the

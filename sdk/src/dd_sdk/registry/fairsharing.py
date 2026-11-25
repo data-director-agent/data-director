@@ -36,6 +36,7 @@ from urllib.parse import urlencode
 import httpx
 
 from dd_registry_cache import Cache, Entry, Fresh, Missing, NotModified
+from dd_sdk.registry import pinned
 from dd_sdk.registry.caching import Ttls, cache_from_env, memory_cache, ttls_from_env
 from dd_sdk.registry.provenance import Fetched
 from dd_sdk.registry.retrieve import RegistryUnavailable
@@ -47,6 +48,7 @@ RECORD = f"{API_BASE}/fairsharing_records/{{id}}"
 PUBLIC_RECORD = "https://fairsharing.org/{id}"
 TIMEOUT_S = 20.0
 JSON = {"Accept": "application/json"}
+DISTRIBUTION = "data-director-sdk"
 # A token this close to its expiry is renewed before it is sent.
 RENEW_BEFORE_S = 60.0
 
@@ -81,8 +83,11 @@ class FairsharingClient:
         ttls: Ttls | None = None,
         now: Callable[[], float] = time.time,
     ) -> None:
+        # Named, as every other registry the project asks is told who is asking (never a person).
         self._client = client or httpx.Client(
-            timeout=TIMEOUT_S, follow_redirects=follow_redirects, headers=JSON
+            timeout=TIMEOUT_S,
+            follow_redirects=follow_redirects,
+            headers={**JSON, "User-Agent": pinned.user_agent(DISTRIBUTION, DISTRIBUTION)},
         )
         self._login = login or os.environ.get("FAIRSHARING_LOGIN")
         self._password = password or os.environ.get("FAIRSHARING_PASSWORD")
