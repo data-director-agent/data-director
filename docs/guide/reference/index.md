@@ -13,3 +13,5 @@ These documents are kept with the code they govern and published here from where
 - Each package's readme and documents, under Packages, starting with the
   [harness](../../../harness/README.md).
 - [Blueprint](../../blueprint/README.md) (RDA, CC BY 4.0; one page per chapter)
+- [Sources and licences](sources-and-licences.md), and [Acknowledgements](acknowledgements.md)
+  for the people, registries and open projects Data Director builds on.

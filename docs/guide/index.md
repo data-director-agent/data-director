@@ -91,3 +91,10 @@ Related work:
 
 The software is archived on Zenodo, and is cited as
 [doi:10.5281/zenodo.23735878](https://doi.org/10.5281/zenodo.23735878).
+
+## Acknowledgements
+
+Data Director implements the RDA's Data Director Agentic AI Blueprint and reads registries such as
+re3data and FAIRsharing that other people curate. [Acknowledgements](reference/acknowledgements.md)
+thanks them, and [Sources and licences](reference/sources-and-licences.md) lists each credit and
+licence.

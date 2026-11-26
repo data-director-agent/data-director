@@ -160,6 +160,7 @@ nav:
       - Repository: /README.md
       - Notice: /NOTICE.md
       - Sources and licences: reference/sources-and-licences.md
+      - Acknowledgements: reference/acknowledgements.md
       - UI best practices: /docs/ui/best-practices.md
       - Steward escalation flows: /docs/ui/steward-escalation-flows.md
       - FAIR feedback: /docs/ui/fair-feedback.md
