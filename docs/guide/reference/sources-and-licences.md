@@ -1,7 +1,7 @@
 # Sources and licences
 
 Data Director's code is under the MIT licence. The data, registries and services its agents read
-belong to their publishers. Each stays under its own licence and terms, and the app credits it as
+belong to their publishers (see also [Acknowledgements](acknowledgements.md)). Each stays under its own licence and terms, and the app credits it as
 its publisher asks.
 
 ## Where the credit is shown
