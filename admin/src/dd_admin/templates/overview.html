@@ -33,6 +33,13 @@
       <span class="tile-value small">Not configured</span>
     {% endif %}
   </a>
+  {% if host.known %}
+  <div class="tile {{ host.level }}">
+    <span class="tile-label">Host memory</span>
+    <span class="tile-value">{{ host.memory_available_mb if host.memory_available_mb is not none else "?" }}<span class="of"> MB free</span></span>
+    <span class="tile-sub">{% if host.swap_used_percent is not none %}swap {{ host.swap_used_percent }}% · {% endif %}{% if host.load_1m is not none %}load {{ "%.1f" | format(host.load_1m) }}{% if host.cpus %} on {{ host.cpus }} CPU{{ "s" if host.cpus != 1 }}{% endif %}{% endif %}{% if host.memory_stall_percent is not none %} · stalled {{ "%.0f" | format(host.memory_stall_percent) }}%{% endif %}</span>
+  </div>
+  {% endif %}
   {% if gateway_state.configured %}
   <a class="tile {{ 'good' if gateway_state.answered and gateway_state.ready else 'bad' }}" href="/gateway">
     <span class="tile-label">LLM gateway</span>

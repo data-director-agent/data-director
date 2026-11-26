@@ -47,6 +47,14 @@ done
 
 step() { echo; echo "==> $*"; }
 
+# The stack needs about 4.2 GB of memory with the agents running, and a build needs more beside it
+# (README.md, "Sizing"; #1616). Warn, do not stop: a small VM can be used for a trial.
+MIN_MEMORY_MB="${DD_INSTALL_MIN_MEMORY_MB:-7000}"
+total_mb="$(awk '/^MemTotal:/ { print int($2 / 1024) }' "${DD_INSTALL_MEMINFO:-/proc/meminfo}")"
+if [[ "$MIN_MEMORY_MB" -gt 0 && -n "$total_mb" && "$total_mb" -lt "$MIN_MEMORY_MB" ]]; then
+  echo "warning: this VM has $total_mb MB of memory; at least $MIN_MEMORY_MB MB is advised for people to use it while it builds (deploy/README.md, \"Sizing\"). Set DD_INSTALL_MIN_MEMORY_MB=0 to silence this." >&2
+fi
+
 step "Packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -q

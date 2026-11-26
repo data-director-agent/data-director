@@ -20,6 +20,10 @@ EnvironmentFile=/opt/data-director/current/deploy/agents/%i.env
 EnvironmentFile=-/etc/data-director/agents.env
 EnvironmentFile=-/etc/data-director/agents/%i.env
 ExecStart=/opt/data-director/current/.venv/bin/dd-%i serve --host 127.0.0.1 --port ${PORT}
+# An agent measured 60 to 110 MB each (deploy/README.md, "Sizing"); sixteen run. One that leaks is
+# killed and restarted alone, not left to push the others into swap (#1616).
+MemoryHigh=256M
+MemoryMax=384M
 Restart=on-failure
 RestartSec=5
 # Exit status 2 is a configuration error (dd_sdk.serve): restarting would only fail again.

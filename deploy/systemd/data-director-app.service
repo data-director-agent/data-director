@@ -34,6 +34,10 @@ Environment=DD_OIDC_CLIENT_SECRET_FILE=orcid-client-secret
 EnvironmentFile=/etc/data-director/app.env
 ExecStartPre=/opt/data-director/current/deploy/wait-for-ports.sh 60 $DD_WAIT_PORTS
 ExecStart=/opt/data-director/current/.venv/bin/data-director
+# Measured about 600 MB on the workshop VM (deploy/README.md, "Sizing"). Past MemoryHigh the kernel
+# slows the app; past MemoryMax it is killed and restarted, instead of the whole VM swapping (#1616).
+MemoryHigh=1G
+MemoryMax=1500M
 Restart=on-failure
 RestartSec=5
 TimeoutStartSec=90
