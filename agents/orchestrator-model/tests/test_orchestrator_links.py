@@ -57,6 +57,45 @@ def test_the_addresses_in_text_are_found_without_sentence_punctuation() -> None:
     assert links.addresses_in(f"See ({POLICY}), or {POLICY}/.") == {POLICY}
 
 
+def test_a_label_that_is_an_unshown_address_is_not_left_to_autolink() -> None:
+    made_up = "https://funder.example/made-up"
+    assert links.checked(f"[{made_up}]({made_up})", SEEN) == f"`{made_up}`"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "[policy](<https://funder.example/made-up>)",
+        "[policy](HTTPS://funder.example/made-up)",
+        "[policy](https://funder.example/made-up 'the policy')",
+        "[policy][1]\n\n[1]: https://funder.example/made-up\n",
+        "![policy](https://funder.example/made-up.png)",
+    ],
+)
+def test_other_forms_of_link_to_an_unshown_address_are_made_plain(text: str) -> None:
+    checked = links.checked(text, SEEN)
+    assert "made-up" not in checked
+    assert checked.strip() == "policy"
+
+
+def test_a_www_address_never_shown_becomes_inline_code() -> None:
+    assert links.checked("See www.funder.example/x.", SEEN) == "See `www.funder.example/x`."
+
+
+def test_an_address_with_parentheses_is_kept_when_shown() -> None:
+    wiki = "https://en.wikipedia.org/wiki/FAIR_(data)"
+    text = f"See [FAIR]({wiki}) and {wiki}."
+    assert links.checked(text, {wiki}) == text
+    assert links.addresses_in(f"({wiki})") == {wiki}
+
+
+def test_an_address_after_a_newline_in_a_payload_is_shown(runs_dir: Path) -> None:
+    envelope = _envelope(runs_dir)
+    assert envelope.payload is not None
+    payload = envelope.payload.model_copy(update={"reply_text": f"See {POLICY}\nMore"})
+    assert links.shown_addresses([envelope.model_copy(update={"payload": payload})]) == SEEN
+
+
 def _envelope(runs_dir: Path) -> Envelope:
     model = ScriptedModel([say("Which dataset do you mean?")])
     envelope: Envelope = invoke(conductor(runs_dir, model))
@@ -81,15 +120,17 @@ def test_a_result_lists_the_web_addresses_of_its_sources_and_not_other_uris(
         update={
             "evidence": [
                 item("policy", POLICY, {"title": "Funder data policy"}),
+                item("wiki", "https://en.wikipedia.org/wiki/FAIR_(data)"),
                 item("snapshot", "/data/snapshot.jsonl"),
                 item("unaddressed", None),
             ]
         }
     )
     assert links.cited_sources(cited) == [
-        {"source_id": "policy", "url": POLICY, "title": "Funder data policy"}
+        {"source_id": "policy", "url": POLICY, "title": "Funder data policy"},
+        {"source_id": "wiki", "url": "https://en.wikipedia.org/wiki/FAIR_(data)"},
     ]
-    assert links.shown_addresses([cited]) == SEEN
+    assert links.shown_addresses([cited]) == SEEN | {"https://en.wikipedia.org/wiki/FAIR_(data)"}
 
 
 def test_the_model_is_sent_each_results_sources_beside_its_payload(runs_dir: Path) -> None:
