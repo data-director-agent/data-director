@@ -74,7 +74,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from dd_agent_orchestrator_model import asking
+from dd_agent_orchestrator_model import asking, links
 from dd_agent_orchestrator_model.delegations import AGENT_ID as AGENT_ID
 from dd_agent_orchestrator_model.delegations import Tool, tools_from_manifest, with_schemas
 from dd_agent_orchestrator_model.describing import DESCRIBE_TOOL as DESCRIBE_TOOL
@@ -419,6 +419,7 @@ class ModelOrchestrator:
             "status": envelope.outcome.status.value,
             "reason_code": envelope.outcome.reason_code,
             "statement": envelope.outcome.statement,
+            "cited_sources": links.cited_sources(envelope),
             "payload": (
                 envelope.payload.model_dump(mode="json", exclude_none=True)
                 if envelope.payload is not None
@@ -435,6 +436,14 @@ class ModelOrchestrator:
         questions = asking.shown(state.questions, ctx, self.spec)
         input_tokens, output_tokens = state.input_tokens, state.output_tokens
         text = asking.reply_text(state.said, questions)
+        text = links.checked(
+            text,
+            links.shown_addresses(
+                (d.envelope for d in delegated),
+                message.message_text,
+                *(t.turn_text for t in message.history),
+            ),
+        )
         model_id = turn.model_id
         if turn.stop == "max_tokens":
             text = f"{text}\n\n{CUT_SHORT}" if text else CUT_SHORT
