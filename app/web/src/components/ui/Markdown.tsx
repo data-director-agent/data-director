@@ -5,7 +5,8 @@
  * data dictionaries as tables. HTML comments, such as a drafter's `<!-- dd:gap … -->` markers, are not
  * shown; other raw HTML is shown as text, not rendered. Only the rendering drops comments: the
  * document's text keeps them. A table scrolls on its own rather than widening the page (reflow at
- * 320 CSS pixels).
+ * 320 CSS pixels). A link to another site opens in a new tab, so that a reader can check a cited
+ * source without leaving the conversation.
  */
 
 import ReactMarkdown, { type Components } from "react-markdown";
@@ -50,12 +51,30 @@ function remarkDropComments() {
 
 const PLUGINS = [remarkGfm, remarkDropComments];
 
+const EXTERNAL = /^https?:\/\//i;
+
 const COMPONENTS: Components = {
   table: ({ children }) => (
     <div className="table-scroll">
       <table className="data-table">{children}</table>
     </div>
   ),
+  // A link to another site, such as the policy or record an agent cited, opens in a new tab so
+  // that the conversation stays where it is, and says so in its name for a screen reader. A link
+  // within the app or a `mailto:` is left as written.
+  a: ({ href, title, children }) => {
+    const named = title ? { title } : {};
+    return href && EXTERNAL.test(href) ? (
+      <a {...named} href={href} target="_blank" rel="noreferrer">
+        {children}
+        <span className="visually-hidden"> (opens in a new tab)</span>
+      </a>
+    ) : (
+      <a {...named} {...(href ? { href } : {})}>
+        {children}
+      </a>
+    );
+  },
 };
 
 export function Markdown({ children }: { children: string }) {

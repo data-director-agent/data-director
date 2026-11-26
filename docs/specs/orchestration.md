@@ -400,6 +400,13 @@ deferred by the Blueprint to v2.0 (Appendix G, comment 1).
 - The orchestrator promises the harness: a reply that cites only its input and the delegations the
   conductor recorded ([Evidence and grounding](grounding.md)), checked against the conductor's
   record, not against the `delegate` spans the agent reports.
+- A reply may link a source so that a researcher can check it. Each delegated result goes to the
+  model with the web addresses of the sources its evidence cites (`cited_sources`, from
+  `source_uri`, `http` and `https` only), and the prompt asks for a link only by one of them. The
+  model writes the reply, so the orchestrator keeps a link only when its address appears in an
+  agent's result, the researcher's message or an earlier turn, and shows any other as plain text;
+  an address the model made up never reads as a citation. The app opens a link to another site in
+  a new tab. (`agents/orchestrator-model/tests/test_orchestrator_links.py`)
 - The harness's A2A routes in the app accept a callback under a live grant and nothing else
   ([Transport and tracing](transport.md)).
 - An external source such as a registry, a PID service or an MCP server is reached by an agent the
