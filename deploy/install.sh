@@ -213,6 +213,24 @@ if [[ "$gateway" == true ]]; then
   step "LiteLLM gateway, on the VM's loopback only, port 4000"
   # deploy/llm-gateway/scripts/systemd.sh says how it runs and where its settings are.
   apt-get install -y -q docker.io docker-compose-v2
+  # Docker's default pools (172.17.0.0/16, then 172.18.0.0/16 and on) overlap University Wi-Fi
+  # ranges, and a route to one there stops its clients reaching the VM. Set pools outside them, but
+  # only on a host with no daemon.json of its own: a file someone wrote is left as it is.
+  docker_daemon=/etc/docker/daemon.json
+  if [[ ! -e "$docker_daemon" ]]; then
+    install -d -m 0755 /etc/docker
+    cat >"$docker_daemon" <<'JSON'
+{
+  "bip": "10.200.0.1/24",
+  "default-address-pools": [{ "base": "10.201.0.0/16", "size": 24 }]
+}
+JSON
+    echo "created $docker_daemon (Docker's networks now use 10.200.0.0/24 and 10.201.0.0/16)"
+    # Docker reads it at start. Nothing but the gateway runs in Docker here, and it restarts below.
+    systemctl restart docker.service
+  else
+    echo "$docker_daemon exists: set \"bip\" and \"default-address-pools\" in it to ranges no campus network uses"
+  fi
   systemctl enable --now docker.service
   # Docker runs what compose.yaml says as root, so the unit runs root's copy from this clone.
   lib_gateway=/usr/local/lib/data-director/llm-gateway
