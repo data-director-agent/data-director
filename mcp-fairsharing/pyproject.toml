@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-mcp-fairsharing"
-version = "0.1.0-alpha.0"
+version = "0.1.0-alpha.1"
 description = "A read-only MCP server for FAIRsharing: look up a record by identifier, and search the registry with an account"
 readme = "README.md"
 requires-python = ">=3.14"

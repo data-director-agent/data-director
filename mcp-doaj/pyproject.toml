@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-mcp-doaj"
-version = "0.1.0-alpha.0"
+version = "0.1.0-alpha.1"
 description = "A read-only client and MCP server for the Directory of Open Access Journals: a journal's open access terms by ISSN or title"
 readme = "README.md"
 requires-python = ">=3.14"

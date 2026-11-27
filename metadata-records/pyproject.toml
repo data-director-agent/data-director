@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-metadata-records"
-version = "0.1.0-alpha.0"
+version = "0.1.0-alpha.1"
 description = "Metadata records in any standard: codecs, standards' definitions and a pivot of existing terms"
 readme = "README.md"
 requires-python = ">=3.14"

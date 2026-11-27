@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.2.0-alpha.7](https://github.com/data-director-agent/data-director/compare/workbench-v0.2.0-alpha.6...workbench-v0.2.0-alpha.7) (2026-11-27)
+
+
+### Features
+
+* **advisor-files:** Describe each format from its PRONOM record ([#1476](https://github.com/data-director-agent/data-director/issues/1476)) ([7eaae22](https://github.com/data-director-agent/data-director/commit/7eaae227b261b91e2da9de5166648c285787982c))
+* **advisor-metadata:** Evaluate drafting and report schema mapping as not implemented ([#1489](https://github.com/data-director-agent/data-director/issues/1489)) ([502f0b1](https://github.com/data-director-agent/data-director/commit/502f0b12059e75a50b6e5870ae6683d9e1c80434))
+* **agents:** Ask about storage and open formats before data collection ([#1500](https://github.com/data-director-agent/data-director/issues/1500)) ([bb24cab](https://github.com/data-director-agent/data-director/commit/bb24cabe77633125ce03ae3031b1d8ae46ec74d0))
+* **agents:** Write and review a Data Management Plan ([#1459](https://github.com/data-director-agent/data-director/issues/1459)) ([6a19c80](https://github.com/data-director-agent/data-director/commit/6a19c8047d5c5cda41e45914b9743f792c23bc4b))
+* **app:** Credit external sources and show their licences ([#1613](https://github.com/data-director-agent/data-director/issues/1613)) ([63a9d73](https://github.com/data-director-agent/data-director/commit/63a9d73ba59f7fb72e90772f6e6dd8ea096bdee6))
+* **fairness:** Give constructive FAIR feedback on the project's draft metadata ([#1410](https://github.com/data-director-agent/data-director/issues/1410)) ([1577521](https://github.com/data-director-agent/data-director/commit/15775211a54493f1274804cf87d92013e88a5a84))
+* **harness:** Let a deployment block ORCID iDs and end their sessions ([#1543](https://github.com/data-director-agent/data-director/issues/1543)) ([bc74825](https://github.com/data-director-agent/data-director/commit/bc74825e721060410826eadbd0ab49b4ff6d1b7a))
+* **harness:** Let data stewards step into a project under policy, and pause it ([#1483](https://github.com/data-director-agent/data-director/issues/1483)) ([01c89be](https://github.com/data-director-agent/data-director/commit/01c89bea1b5dcbb2c574c52fa87b19dc1c9d9627))
+* **harness:** Name data steward teams and administrators in the profile ([#1477](https://github.com/data-director-agent/data-director/issues/1477)) ([33f4306](https://github.com/data-director-agent/data-director/commit/33f43060d97e17858dbf6ccf7d360281d5972927))
+* **harness:** Record steward access and role changes in the security log ([#1542](https://github.com/data-director-agent/data-director/issues/1542)) ([d428be3](https://github.com/data-director-agent/data-director/commit/d428be3963c72eb9cb5b883edfbd59db0e9b499f))
+* **harness:** Tell steward teams and researchers when an escalation moves ([#1518](https://github.com/data-director-agent/data-director/issues/1518)) ([0fbc259](https://github.com/data-director-agent/data-director/commit/0fbc259b5ab8e172bcc812b42b1a52860016dcc2))
+* **inventory:** Write table fields' summary values under disclosure control ([#1354](https://github.com/data-director-agent/data-director/issues/1354)) ([99b600c](https://github.com/data-director-agent/data-director/commit/99b600ceeeb5d3cac00ac7aa563b98fbb361a9c7))
+* **mcp-spdx:** Add the SPDX licence server and a Rights Adviser evaluation ([#1480](https://github.com/data-director-agent/data-director/issues/1480)) ([6fbcc6d](https://github.com/data-director-agent/data-director/commit/6fbcc6d592952aa9ad9582b82650204d31c76607))
+* Offer repositories re3data does not list, from DataCite and the profile ([#1342](https://github.com/data-director-agent/data-director/issues/1342)) ([#1382](https://github.com/data-director-agent/data-director/issues/1382)) ([10d0188](https://github.com/data-director-agent/data-director/commit/10d01881a6afceec51461bd1a67699d279cf6cc3))
+* **orchestrator:** Suggest fields of study when asking for the discipline ([#1412](https://github.com/data-director-agent/data-director/issues/1412)) ([bf982f1](https://github.com/data-director-agent/data-director/commit/bf982f1eda2e6c245e5244f4e68ee5350ed59068))
+* **sdk:** Name a requirement field's term as a CURIE or IRI ([#1569](https://github.com/data-director-agent/data-director/issues/1569)) ([db76313](https://github.com/data-director-agent/data-director/commit/db76313216c385ac9b15fc3b7e1b90b6b2ea63ed))
+* **sdk:** Offer an answer given for one document as a suggestion in another ([#1426](https://github.com/data-director-agent/data-director/issues/1426)) ([e617ebb](https://github.com/data-director-agent/data-director/commit/e617ebbfa9881b732633d60162cf3ea649e44246))
+
+
+### Bug Fixes
+
+* **deploy:** Stop the workbench restarting in a loop on a configuration error ([#1617](https://github.com/data-director-agent/data-director/issues/1617)) ([0155607](https://github.com/data-director-agent/data-director/commit/0155607e416a546254af43978c8a065680df8649))
+
+
+### Documentation
+
+* **advisor-policy:** Document Open Policy Finder licence and credit Jisc ([#1612](https://github.com/data-director-agent/data-director/issues/1612)) ([e095139](https://github.com/data-director-agent/data-director/commit/e095139fa0cc6d95094a6687ffa69f25503e5eb4))
+
 ## [0.2.0-alpha.6](https://github.com/data-director-agent/data-director/compare/workbench-v0.2.0-alpha.5...workbench-v0.2.0-alpha.6) (2026-11-21)
 
 

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.1-alpha.4](https://github.com/data-director-agent/data-director/compare/agent-example-hello-v0.1.1-alpha.3...agent-example-hello-v0.1.1-alpha.4) (2026-11-27)
+
+
+### Features
+
+* **app:** Credit external sources and show their licences ([#1613](https://github.com/data-director-agent/data-director/issues/1613)) ([63a9d73](https://github.com/data-director-agent/data-director/commit/63a9d73ba59f7fb72e90772f6e6dd8ea096bdee6))
+* Offer repositories re3data does not list, from DataCite and the profile ([#1342](https://github.com/data-director-agent/data-director/issues/1342)) ([#1382](https://github.com/data-director-agent/data-director/issues/1382)) ([10d0188](https://github.com/data-director-agent/data-director/commit/10d01881a6afceec51461bd1a67699d279cf6cc3))
+* **sdk:** Offer an answer given for one document as a suggestion in another ([#1426](https://github.com/data-director-agent/data-director/issues/1426)) ([e617ebb](https://github.com/data-director-agent/data-director/commit/e617ebbfa9881b732633d60162cf3ea649e44246))
+
+
+### Documentation
+
+* **agents:** Bring the agents' documentation up to date with their code ([#1446](https://github.com/data-director-agent/data-director/issues/1446)) ([b42df27](https://github.com/data-director-agent/data-director/commit/b42df279c5d5946e528578c012ad17c3baeffa9a))
+
 ## [0.1.1-alpha.3](https://github.com/data-director-agent/data-director/compare/agent-example-hello-v0.1.1-alpha.2...agent-example-hello-v0.1.1-alpha.3) (2026-11-21)
 
 

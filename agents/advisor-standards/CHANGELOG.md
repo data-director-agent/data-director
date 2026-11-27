@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.1.1-alpha.5](https://github.com/data-director-agent/data-director/compare/agent-advisor-standards-v0.1.1-alpha.4...agent-advisor-standards-v0.1.1-alpha.5) (2026-11-27)
+
+
+### Features
+
+* **advisor-documentation:** Revise a README from a researcher's request ([#1473](https://github.com/data-director-agent/data-director/issues/1473)) ([60459fe](https://github.com/data-director-agent/data-director/commit/60459fe879e9975793ce8fec8e1132a90234ea05))
+* **advisor-standards:** Read the decided field of study and data description ([#1535](https://github.com/data-director-agent/data-director/issues/1535)) ([717ad97](https://github.com/data-director-agent/data-director/commit/717ad977b7b788479886d8c36221be551c098144))
+* **agents:** Ask about storage and open formats before data collection ([#1500](https://github.com/data-director-agent/data-director/issues/1500)) ([bb24cab](https://github.com/data-director-agent/data-director/commit/bb24cabe77633125ce03ae3031b1d8ae46ec74d0))
+* **agents:** Give the Ethics, Standards and Storage advisers the project's inventory ([#1544](https://github.com/data-director-agent/data-director/issues/1544)) ([b88a2c6](https://github.com/data-director-agent/data-director/commit/b88a2c6c85aec636c3ebbd6491cdabe85923b5d0))
+* **app:** Credit external sources and show their licences ([#1613](https://github.com/data-director-agent/data-director/issues/1613)) ([63a9d73](https://github.com/data-director-agent/data-director/commit/63a9d73ba59f7fb72e90772f6e6dd8ea096bdee6))
+* **flow:** Open Phase 1 by describing the project ([#1523](https://github.com/data-director-agent/data-director/issues/1523)) ([212001a](https://github.com/data-director-agent/data-director/commit/212001abe3b9808da061c0aefd0d75457af538a5))
+* **inventory:** Write table fields' summary values under disclosure control ([#1354](https://github.com/data-director-agent/data-director/issues/1354)) ([99b600c](https://github.com/data-director-agent/data-director/commit/99b600ceeeb5d3cac00ac7aa563b98fbb361a9c7))
+* Offer repositories re3data does not list, from DataCite and the profile ([#1342](https://github.com/data-director-agent/data-director/issues/1342)) ([#1382](https://github.com/data-director-agent/data-director/issues/1382)) ([10d0188](https://github.com/data-director-agent/data-director/commit/10d01881a6afceec51461bd1a67699d279cf6cc3))
+* **sdk:** Cache registry lookups locally with ETag revalidation ([#1472](https://github.com/data-director-agent/data-director/issues/1472)) ([50c9007](https://github.com/data-director-agent/data-director/commit/50c900759af779844dc599c2054953beaac001f5))
+* **sdk:** Offer an answer given for one document as a suggestion in another ([#1426](https://github.com/data-director-agent/data-director/issues/1426)) ([e617ebb](https://github.com/data-director-agent/data-director/commit/e617ebbfa9881b732633d60162cf3ea649e44246))
+* **sdk:** Recognise a Data Management Plan as a project fact ([#1451](https://github.com/data-director-agent/data-director/issues/1451)) ([cddfd03](https://github.com/data-director-agent/data-director/commit/cddfd036083791197ea7b27576a546db38592c1e))
+* **sdk:** Record a confirmed data description for every agent to draft from ([#1507](https://github.com/data-director-agent/data-director/issues/1507)) ([f415aa8](https://github.com/data-director-agent/data-director/commit/f415aa86c509d4ec4f291c4575051a7be85a929e))
+* **sdk:** Record the standards, vocabularies and formats a researcher chooses ([#1401](https://github.com/data-director-agent/data-director/issues/1401)) ([ded7f79](https://github.com/data-director-agent/data-director/commit/ded7f79adcdc6f4e86dff51283611f3ba4619a23))
+
+
+### Documentation
+
+* **agents:** Bring the agents' documentation up to date with their code ([#1446](https://github.com/data-director-agent/data-director/issues/1446)) ([b42df27](https://github.com/data-director-agent/data-director/commit/b42df279c5d5946e528578c012ad17c3baeffa9a))
+
 ## [0.1.1-alpha.4](https://github.com/data-director-agent/data-director/compare/agent-advisor-standards-v0.1.1-alpha.3...agent-advisor-standards-v0.1.1-alpha.4) (2026-11-21)
 
 

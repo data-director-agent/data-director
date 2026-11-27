@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-mcp-subjects"
-version = "0.1.0-alpha.0"
+version = "0.1.0-alpha.1"
 description = "A read-only MCP server for subject classifications (ANZSRC Fields of Research, OECD Fields of R&D): list a scheme's fields and look one up by its code"
 readme = "README.md"
 requires-python = ">=3.14"

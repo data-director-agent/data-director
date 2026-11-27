@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.0-alpha.6](https://github.com/data-director-agent/data-director/compare/inventory-v0.1.0-alpha.5...inventory-v0.1.0-alpha.6) (2026-11-27)
+
+
+### Features
+
+* **inventory:** Identify formats against PRONOM v125 ([#1430](https://github.com/data-director-agent/data-director/issues/1430)) ([58d2d16](https://github.com/data-director-agent/data-director/commit/58d2d1656bf75811bb65b28a4299e9213775047e))
+* **inventory:** Pin PRONOM v125 signatures for format identification ([#1433](https://github.com/data-director-agent/data-director/issues/1433)) ([3379998](https://github.com/data-director-agent/data-director/commit/3379998a38851370e41b50c60b279cb071f03ee2))
+* **inventory:** Write table fields' summary values under disclosure control ([#1354](https://github.com/data-director-agent/data-director/issues/1354)) ([99b600c](https://github.com/data-director-agent/data-director/commit/99b600ceeeb5d3cac00ac7aa563b98fbb361a9c7))
+
+
+### Documentation
+
+* **specs:** Register the agents' external sources ([#1408](https://github.com/data-director-agent/data-director/issues/1408)) ([d76e185](https://github.com/data-director-agent/data-director/commit/d76e1855f95f6cc3b813754ef9fb9ce077115866))
+
 ## [0.1.0-alpha.5](https://github.com/data-director-agent/data-director/compare/inventory-v0.1.0-alpha.4...inventory-v0.1.0-alpha.5) (2026-11-21)
 
 

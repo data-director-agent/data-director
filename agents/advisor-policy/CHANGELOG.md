@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.1.0-alpha.4](https://github.com/data-director-agent/data-director/compare/agent-advisor-policy-v0.1.0-alpha.3...agent-advisor-policy-v0.1.0-alpha.4) (2026-11-27)
+
+
+### Features
+
+* **advisor-policy:** Propose funder facts with ROR and Crossref Funder IDs ([#1516](https://github.com/data-director-agent/data-director/issues/1516)) ([f58084d](https://github.com/data-director-agent/data-director/commit/f58084d89974dadf639e74d3001c67d05b6e101e))
+* **advisor-policy:** Read an attached policy or award letter as evidence ([#1414](https://github.com/data-director-agent/data-director/issues/1414)) ([11a0e36](https://github.com/data-director-agent/data-director/commit/11a0e367e388386f95a8562f8b0455beb99613f4))
+* **advisor-policy:** Read DOAJ for an open access journal's terms, with no API key ([#1524](https://github.com/data-director-agent/data-director/issues/1524)) ([f045665](https://github.com/data-director-agent/data-director/commit/f045665691364eeb0bff685385cb23e305d63a23))
+* **app:** Credit external sources and show their licences ([#1613](https://github.com/data-director-agent/data-director/issues/1613)) ([63a9d73](https://github.com/data-director-agent/data-director/commit/63a9d73ba59f7fb72e90772f6e6dd8ea096bdee6))
+* **flow:** Check requirements before the Data Management Plan in Phase 1 ([#1538](https://github.com/data-director-agent/data-director/issues/1538)) ([ac934e8](https://github.com/data-director-agent/data-director/commit/ac934e8bcde5b61cc41d58df215ddda128816e96))
+* **flow:** Open Phase 1 by describing the project ([#1523](https://github.com/data-director-agent/data-director/issues/1523)) ([212001a](https://github.com/data-director-agent/data-director/commit/212001abe3b9808da061c0aefd0d75457af538a5))
+* **journals:** Add dd-journals, journal look-up by ISSN from a pinned OpenAlex snapshot ([#1521](https://github.com/data-director-agent/data-director/issues/1521)) ([8267a0e](https://github.com/data-director-agent/data-director/commit/8267a0ef15245020e4b5a4306e2ee9e711ded4f9))
+* **mcp-pid:** Look journals up by ISSN or title, on a SQLite index ([#1531](https://github.com/data-director-agent/data-director/issues/1531)) ([3739e1b](https://github.com/data-director-agent/data-director/commit/3739e1b9a0345991f8961b16e5c34c2bcd66a1d5))
+* **mcp-pid:** Send an operators' contact address to Crossref and DataCite ([#1467](https://github.com/data-director-agent/data-director/issues/1467)) ([8515bc4](https://github.com/data-director-agent/data-director/commit/8515bc433b14daf20dc13c93315fab4fa8a0ba96))
+* Offer repositories re3data does not list, from DataCite and the profile ([#1342](https://github.com/data-director-agent/data-director/issues/1342)) ([#1382](https://github.com/data-director-agent/data-director/issues/1382)) ([10d0188](https://github.com/data-director-agent/data-director/commit/10d01881a6afceec51461bd1a67699d279cf6cc3))
+* **sdk:** Cache registry lookups locally with ETag revalidation ([#1472](https://github.com/data-director-agent/data-director/issues/1472)) ([50c9007](https://github.com/data-director-agent/data-director/commit/50c900759af779844dc599c2054953beaac001f5))
+* **sdk:** Offer an answer given for one document as a suggestion in another ([#1426](https://github.com/data-director-agent/data-director/issues/1426)) ([e617ebb](https://github.com/data-director-agent/data-director/commit/e617ebbfa9881b732633d60162cf3ea649e44246))
+* **sdk:** Recognise a Data Management Plan as a project fact ([#1451](https://github.com/data-director-agent/data-director/issues/1451)) ([cddfd03](https://github.com/data-director-agent/data-director/commit/cddfd036083791197ea7b27576a546db38592c1e))
+* **sdk:** Record a confirmed data description for every agent to draft from ([#1507](https://github.com/data-director-agent/data-director/issues/1507)) ([f415aa8](https://github.com/data-director-agent/data-director/commit/f415aa86c509d4ec4f291c4575051a7be85a929e))
+* **sdk:** Record the standards, vocabularies and formats a researcher chooses ([#1401](https://github.com/data-director-agent/data-director/issues/1401)) ([ded7f79](https://github.com/data-director-agent/data-director/commit/ded7f79adcdc6f4e86dff51283611f3ba4619a23))
+
+
+### Bug Fixes
+
+* **agents:** Search Open Policy Finder with its documented filter operators ([#1464](https://github.com/data-director-agent/data-director/issues/1464)) ([3fc443c](https://github.com/data-director-agent/data-director/commit/3fc443c2320787b20bda825dbffb09c74a51e919))
+
+
+### Documentation
+
+* **advisor-policy:** Document Open Policy Finder licence and credit Jisc ([#1612](https://github.com/data-director-agent/data-director/issues/1612)) ([e095139](https://github.com/data-director-agent/data-director/commit/e095139fa0cc6d95094a6687ffa69f25503e5eb4))
+* **agents:** Bring the agents' documentation up to date with their code ([#1446](https://github.com/data-director-agent/data-director/issues/1446)) ([b42df27](https://github.com/data-director-agent/data-director/commit/b42df279c5d5946e528578c012ad17c3baeffa9a))
+* **agents:** Correct the Open Policy Finder licence in the policy adviser README ([#1466](https://github.com/data-director-agent/data-director/issues/1466)) ([5de3ce7](https://github.com/data-director-agent/data-director/commit/5de3ce7c3e445c20e2f1e37425410902d8166ede))
+* **specs:** Register the agents' external sources ([#1408](https://github.com/data-director-agent/data-director/issues/1408)) ([d76e185](https://github.com/data-director-agent/data-director/commit/d76e1855f95f6cc3b813754ef9fb9ce077115866))
+
 ## [0.1.0-alpha.3](https://github.com/data-director-agent/data-director/compare/agent-advisor-policy-v0.1.0-alpha.2...agent-advisor-policy-v0.1.0-alpha.3) (2026-11-21)
 
 

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-subjects"
-version = "0.1.0-alpha.0"
+version = "0.1.0-alpha.1"
 description = "Subject classifications (OECD Fields of R&D, ANZSRC Fields of Research) to suggest a field of study from"
 readme = "README.md"
 requires-python = ">=3.14"

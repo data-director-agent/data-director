@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-registry-cache"
-version = "0.1.0-alpha.0"
+version = "0.1.0-alpha.1"
 description = "A local cache in front of a slowly changing registry: its own time to live, ETag revalidation and an expired copy when the registry is down"
 readme = "README.md"
 requires-python = ">=3.14"

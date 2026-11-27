@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "data-director-units"
-version = "0.1.0-alpha.0"
+version = "0.1.0-alpha.1"
 description = "Turns a unit written by a person (\"micrometres\", \"°C\", \"mg per litre\") into a UCUM code, by rule"
 readme = "README.md"
 requires-python = ">=3.14"
