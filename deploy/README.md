@@ -324,6 +324,11 @@ It checks:
 - that each agent that calls a model has its key;
 - the sign-in settings and the ORCID secret, and that no key sits in a file every agent reads;
 - the profile, orchestrator and unreachable agents the app reports on `/api/about`;
+- that no Docker network or bridge interface has a subnet that overlaps a range campus networks use
+  (172.16.0.0/12 and 192.168.0.0/16, or `campus_ranges` in `deployment.yaml`): it names the
+  network and its subnet, and the fix, which is `bip` and `default-address-pools` in
+  `/etc/docker/daemon.json` (and `DD_GATEWAY_SUBNET` for the gateway). A bridge whose link is down,
+  such as an unused `docker0`, is a note, not a problem;
 - the NGINX site;
 - the stores and their backups: that the backup timer is active, that the last backup succeeded
   and the newest is under two days old, that the file systems holding `/var/lib/data-director`

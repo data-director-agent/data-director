@@ -9,6 +9,7 @@
     administrators: [https://orcid.org/0000-0002-1825-0097]       # optional: copied likewise
     stewardship: {teams: [...]}                                     # optional: copied likewise
     pid_resolver: true       # optional, development only: run the PID resolver (mcp-pid)
+    campus_ranges: [172.18.0.0/16]   # optional: the ranges `doctor` keeps Docker's networks out of
 
 Each problem is reported against the file as the operator knows it, naming the key and what it
 takes.
@@ -16,6 +17,7 @@ takes.
 
 from __future__ import annotations
 
+import ipaddress
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -38,6 +40,7 @@ KEYS = {
     "stewardship",
     "access",
     "pid_resolver",
+    "campus_ranges",
 }
 # An absolute https URL with a host and no spaces. The app checks the same rule when it reads
 # the setting (dd_app.privacy), as app.env can be edited by hand.
@@ -61,6 +64,9 @@ class Deployment:
     # those listed, its stewards and its administrators (ddtool.deployment.profile).
     access: dict[str, Any] | None = None
     pid_resolver: bool = False
+    # The address ranges the institution's networks use, which `doctor` checks Docker's networks
+    # against; None means the private blocks Docker's default pools fall in.
+    campus_ranges: list[str] | None = None
 
     @property
     def orchestrator_agent(self) -> str:
@@ -159,6 +165,7 @@ def _options(data: dict[str, Any], label: str) -> dict[str, Any]:
     if not isinstance(pid_resolver, bool):
         raise DevError(f"{label}: pid_resolver is true or false")
     return {
+        "campus_ranges": campus_ranges(data, label),
         "privacy_notice": privacy_notice.strip() if privacy_notice else None,
         "model_accounts": model_accounts,
         "institution_repositories": repositories,
@@ -168,6 +175,21 @@ def _options(data: dict[str, Any], label: str) -> dict[str, Any]:
         "access": access,
         "pid_resolver": pid_resolver,
     }
+
+
+def campus_ranges(data: dict[str, Any], label: str) -> list[str] | None:
+    """`campus_ranges`, a list of IPv4 networks in CIDR form, or None if the key is absent."""
+    value = data.get("campus_ranges")
+    if value is None:
+        return None
+    try:
+        if not isinstance(value, list):
+            raise ValueError(value)
+        return [str(ipaddress.IPv4Network(str(item), strict=False)) for item in value]
+    except ValueError as exc:
+        raise DevError(
+            f"{label}: campus_ranges is a list of IPv4 networks in CIDR form, such as 172.18.0.0/16"
+        ) from exc
 
 
 def _entries(
