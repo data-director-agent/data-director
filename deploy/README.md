@@ -303,6 +303,33 @@ answer. The nightly backup holds the gateway's settings and secrets, with the re
 `/etc/data-director`, and, while the gateway runs, its database: the keys it issued, their
 budgets and its spend ([Backups](#backups)).
 
+## Sizing
+
+Measured on the development VM (3.8 GiB RAM, 2 vCPUs, 2 GiB swap) during a workshop of about two
+dozen people on 24 November 2026 ([#1616](https://github.com/data-director-agent/data-director/issues/1616)):
+
+| What | Memory |
+|---|---|
+| The app | about 600 MB |
+| The LiteLLM gateway (if used) | about 700 MB |
+| Each agent (16 of them) | 60 to 110 MB, about 1.4 GB together |
+| The stack's working set | about 4.2 GB (2.4 GB resident, 1.8 GB in swap) |
+| A release build | up to 1.5 GB (the deploy unit's `MemoryMax`) |
+
+That VM was too small: swap use rose from 8% to 83% in a week as services were added, and under
+load the host reached a load average of about 70 with some 10,000 major page faults a second.
+
+- **Advised: 8 GiB of RAM and 2 vCPUs**, the 4.2 GB working set plus a 1.5 GB build, the operating
+  system, nginx and room for growth. `install.sh` warns below 7000 MB
+  (`DD_INSTALL_MIN_MEMORY_MB`; `0` silences it).
+- On less, leave the gateway and unused agents out of the deployment, deploy outside working hours
+  (see "Holding deployments back"), and watch the admin overview's *Host memory* tile: it turns
+  amber below 600 MB available, or half the swap used.
+- The units cap what they use: each agent `MemoryHigh=256M`, `MemoryMax=384M`; the app
+  `MemoryHigh=1G`, `MemoryMax=1500M`. A service past its maximum is killed and restarted alone.
+  The brokers, the admin service and the gateway have no cap yet, as nothing has been measured for
+  them.
+
 ## Day to day
 
 Merging to `main` is the deployment. Within about five minutes of "CI passed" turning green on
@@ -382,7 +409,7 @@ afterwards, see [The app shows an old commit](#the-app-shows-an-old-commit).
 
 A build (`uv sync`, two `npm ci` runs, two front-end builds) beside the live stack can push a
 small VM into swap: on 24 November 2026 a build that takes about two minutes on an idle VM took
-twenty with a workshop running, and the restart that followed started every service at once
+twenty with a workshop running (see [Sizing](#sizing)), and the restart that followed started every service at once
 ([#1616](https://github.com/data-director-agent/data-director/issues/1616)). So:
 
 - The deploy unit runs at the lowest CPU and disk priority, with a memory budget: slowed past

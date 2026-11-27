@@ -13,6 +13,7 @@ from dd_admin import (
     broker,
     escalation_queue,
     gateway,
+    host,
     monitoring,
     operations,
     policy_view,
@@ -55,6 +56,8 @@ class Admin:
         self.broker = Cached(lambda: broker.read_broker(self.settings, self.system), ttl_s=60)
         # What the monitoring services say they are alerting on, a little fresher than the rest.
         self.monitoring = Cached(lambda: monitoring.read(self.settings, self.system), ttl_s=30)
+        # Memory, swap and load change by the second but are cheap to read.
+        self.host = Cached(lambda: host.read(self.system), ttl_s=15)
         self.about = Cached(
             lambda: self.system.get_json(self.settings.app_url.rstrip("/") + "/api/about"),
             ttl_s=30,

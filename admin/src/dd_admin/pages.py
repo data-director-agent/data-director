@@ -111,6 +111,7 @@ class Pages:
             doctor=admin.doctor.get(fresh=_fresh(request)),
             agents=admin.agents.get(fresh=_fresh(request)),
             about=admin.about.get(fresh=_fresh(request)),
+            host=admin.host.get(fresh=_fresh(request)),
             peak=max([n for _, n in found.per_day] + [1]),
             gateway=spent,
             budget=admin.budget(spent),

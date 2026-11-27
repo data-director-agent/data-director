@@ -34,7 +34,7 @@ elsewhere it would need a sign-in, which it does not have (#154).
 
 | Page | Shows | Read from |
 |---|---|---|
-| Overview | Health, the running commit, agents up, people active, runs and projects over 7 and 30 days, runs per day, outcomes, the latest runs | All of the below |
+| Overview | Health, the running commit, agents up, host memory, swap and load (amber below 600 MB available or at half the swap), people active, runs and projects over 7 and 30 days, runs per day, outcomes, the latest runs | All of the below |
 | Operations | Each problem `data-director doctor` finds, with its fix; its notes and what it skipped; the releases on disk, which is live and which failed to start; each unit's state, restarts and last 100 journal lines | `data-director doctor --json`, run as the service's user; `/opt/data-director`; `systemctl show`; `journalctl` |
 | Agents | Each agent in `agents.yaml`: whether its card answers, its unit, version, action class and models; the card in full | Each agent's `/.well-known/agent-card.json` |
 | People | Everyone a run acted for or who created a project: their runs, conversations and projects, and when they were first and last seen | The run and project stores |
