@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
 resolution-markers = [
     "python_full_version >= '3.15' and sys_platform == 'win32'",
@@ -1312,7 +1312,7 @@ mutation = [{ name = "mutmut", specifier = ">=3.8.1" }]
 
 [[package]]
 name = "data-director-admin"
-version = "0.1.0a1"
+version = "0.1.0a2"
 source = { editable = "admin" }
 dependencies = [
     { name = "data-director-harness" },
@@ -1572,7 +1572,7 @@ dev = [
 
 [[package]]
 name = "data-director-agent-advisor-policy"
-version = "0.1.0a3"
+version = "0.1.0a4"
 source = { editable = "agents/advisor-policy" }
 dependencies = [
     { name = "data-director-journals" },
@@ -1614,7 +1614,7 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-quality"
-version = "0.1.1a2"
+version = "0.1.1a3"
 source = { editable = "agents/advisor-quality" }
 dependencies = [
     { name = "data-director-sdk" },
@@ -1639,7 +1639,7 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-repository"
-version = "0.1.0a3"
+version = "0.1.0a4"
 source = { editable = "agents/advisor-repository" }
 dependencies = [
     { name = "data-director-sdk" },
@@ -1711,7 +1711,7 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-advisor-standards"
-version = "0.1.1a4"
+version = "0.1.1a5"
 source = { editable = "agents/advisor-standards" }
 dependencies = [
     { name = "data-director-sdk" },
@@ -1774,7 +1774,7 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-example-hello"
-version = "0.1.1a3"
+version = "0.1.1a4"
 source = { editable = "agents/example-hello" }
 dependencies = [
     { name = "data-director-sdk" },
@@ -1793,7 +1793,7 @@ dev = [{ name = "data-director-harness", editable = "harness" }]
 
 [[package]]
 name = "data-director-agent-orchestrator-model"
-version = "0.1.1a5"
+version = "0.1.1a6"
 source = { editable = "agents/orchestrator-model" }
 dependencies = [
     { name = "data-director-sdk", extra = ["anthropic", "openai"] },
@@ -1828,7 +1828,7 @@ dev = [
 
 [[package]]
 name = "data-director-agent-orchestrator-stub"
-version = "0.1.1a4"
+version = "0.1.1a5"
 source = { editable = "agents/orchestrator-stub" }
 dependencies = [
     { name = "data-director-sdk" },
@@ -1867,7 +1867,7 @@ dev = [
 
 [[package]]
 name = "data-director-app"
-version = "0.3.0a9"
+version = "0.3.0a10"
 source = { editable = "app" }
 dependencies = [
     { name = "anyio" },
@@ -1928,7 +1928,7 @@ dev = [
 
 [[package]]
 name = "data-director-deposit-broker"
-version = "0.1.0a1"
+version = "0.1.0a2"
 source = { editable = "deposit-broker" }
 dependencies = [
     { name = "cryptography" },
@@ -1966,7 +1966,7 @@ source = { editable = "formats" }
 
 [[package]]
 name = "data-director-harness"
-version = "0.2.0a5"
+version = "0.2.0a6"
 source = { editable = "harness" }
 dependencies = [
     { name = "a2a-sdk", extra = ["http-server"] },
@@ -2048,7 +2048,7 @@ dev = [
 
 [[package]]
 name = "data-director-inventory"
-version = "0.1.0a5"
+version = "0.1.0a6"
 source = { editable = "inventory" }
 dependencies = [
     { name = "acro" },
@@ -2091,7 +2091,7 @@ source = { editable = "journals" }
 
 [[package]]
 name = "data-director-mcp-doaj"
-version = "0.1.0a0"
+version = "0.1.0a1"
 source = { editable = "mcp-doaj" }
 dependencies = [
     { name = "anyio" },
@@ -2114,7 +2114,7 @@ requires-dist = [
 
 [[package]]
 name = "data-director-mcp-fairsharing"
-version = "0.1.0a0"
+version = "0.1.0a1"
 source = { editable = "mcp-fairsharing" }
 dependencies = [
     { name = "anyio" },
@@ -2192,7 +2192,7 @@ dev = [
 
 [[package]]
 name = "data-director-mcp-spdx"
-version = "0.1.0a0"
+version = "0.1.0a1"
 source = { editable = "mcp-spdx" }
 dependencies = [
     { name = "mcp" },
@@ -2223,7 +2223,7 @@ dev = [
 
 [[package]]
 name = "data-director-mcp-subjects"
-version = "0.1.0a0"
+version = "0.1.0a1"
 source = { editable = "mcp-subjects" }
 dependencies = [
     { name = "data-director-subjects" },
@@ -2256,7 +2256,7 @@ dev = [
 
 [[package]]
 name = "data-director-metadata-records"
-version = "0.1.0a0"
+version = "0.1.0a1"
 source = { editable = "metadata-records" }
 dependencies = [
     { name = "pyyaml" },
@@ -2275,7 +2275,7 @@ dev = [{ name = "lxml", specifier = ">=6.0" }]
 
 [[package]]
 name = "data-director-model-broker"
-version = "0.1.0a1"
+version = "0.1.0a2"
 source = { editable = "broker" }
 dependencies = [
     { name = "cryptography" },
@@ -2310,12 +2310,12 @@ dev = [
 
 [[package]]
 name = "data-director-registry-cache"
-version = "0.1.0a0"
+version = "0.1.0a1"
 source = { editable = "registry-cache" }
 
 [[package]]
 name = "data-director-sdk"
-version = "0.2.0a5"
+version = "0.2.0a6"
 source = { editable = "sdk" }
 dependencies = [
     { name = "a2a-sdk", extra = ["http-server"] },
@@ -2369,12 +2369,12 @@ provides-extras = ["anthropic", "openai", "tools", "brokers"]
 
 [[package]]
 name = "data-director-subjects"
-version = "0.1.0a0"
+version = "0.1.0a1"
 source = { editable = "subjects" }
 
 [[package]]
 name = "data-director-units"
-version = "0.1.0a0"
+version = "0.1.0a1"
 source = { editable = "units" }
 dependencies = [
     { name = "ucumvert" },
@@ -2385,7 +2385,7 @@ requires-dist = [{ name = "ucumvert", specifier = ">=0.3.3,<0.4" }]
 
 [[package]]
 name = "data-director-workbench"
-version = "0.2.0a6"
+version = "0.2.0a7"
 source = { editable = "workbench" }
 dependencies = [
     { name = "data-director-harness" },
