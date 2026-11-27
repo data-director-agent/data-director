@@ -155,6 +155,7 @@ nav:
       - reference/index.md
       - Architecture: /docs/architecture.md
       - Architecture review: /docs/architecture-review.md
+      - Agentic engineering review: /docs/agentic-engineering-review.md
       - Contract: /docs/contract.md
       - Glossary: /docs/glossary.md
       - Repository: /README.md
