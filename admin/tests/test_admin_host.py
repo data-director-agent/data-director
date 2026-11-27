@@ -55,3 +55,27 @@ def test_a_quiet_machine_is_good() -> None:
         cpus=2,
     )
     assert found.level == "good"
+
+
+def test_swap_and_load_levels_follow_their_thresholds() -> None:
+    swapping = host.HostPressure(memory_available_mb=2000, swap_total_mb=1000, swap_used_mb=600)
+    assert swapping.level == "warn"
+    assert host.HostPressure(swap_total_mb=1000, swap_used_mb=900).level == "bad"
+    busy = host.HostPressure(load_1m=3.0, cpus=2)
+    assert busy.level == "warn"
+    assert host.HostPressure(memory_available_mb=500).level == "warn"
+
+
+def test_no_swap_or_cpu_count_leaves_those_figures_unknown() -> None:
+    found = host.HostPressure(swap_total_mb=0, swap_used_mb=0, load_1m=1.0)
+    assert found.swap_used_percent is None
+    assert found.load_per_cpu is None
+
+
+def test_a_garbled_proc_file_is_ignored() -> None:
+    assert host.stall_percent(None) is None
+    assert host.stall_percent("some avg10=1 avg60=x") is None
+    assert host.stall_percent("full avg60=3.0") is None
+    assert host.meminfo_kb("junk\nMemTotal: many kB") == {}
+    found = host.read(Proc({"loadavg": "a b c"}), cpus=1)
+    assert found.load_1m is None
