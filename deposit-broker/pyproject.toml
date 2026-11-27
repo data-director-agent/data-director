@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "data-director-deposit-broker"
 # Alpha: holds people's own repository tokens and makes draft deposits for them; off unless the
 # deployment sets it up and the profile offers a transport (docs/specs/deposit.md).
-version = "0.1.0-alpha.1"
+version = "0.1.0-alpha.2"
 description = "Data Director deposit broker: holds people's own repository tokens, sealed, and creates draft deposits for a harness that presents a deposit grant"
 readme = "README.md"
 requires-python = ">=3.14"

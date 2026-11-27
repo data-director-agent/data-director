@@ -1,5 +1,66 @@
 # Changelog
 
+## [0.2.0-alpha.6](https://github.com/data-director-agent/data-director/compare/harness-v0.2.0-alpha.5...harness-v0.2.0-alpha.6) (2026-11-27)
+
+
+### Features
+
+* **advisor-documentation:** Plan a dataset's documentation before data are collected ([#1498](https://github.com/data-director-agent/data-director/issues/1498)) ([8a85a60](https://github.com/data-director-agent/data-director/commit/8a85a60094b4507367bf5b59fed9fa7510170a33))
+* **advisor-documentation:** Revise a README from a researcher's request ([#1473](https://github.com/data-director-agent/data-director/issues/1473)) ([60459fe](https://github.com/data-director-agent/data-director/commit/60459fe879e9975793ce8fec8e1132a90234ea05))
+* **agents:** Ask about storage and open formats before data collection ([#1500](https://github.com/data-director-agent/data-director/issues/1500)) ([bb24cab](https://github.com/data-director-agent/data-director/commit/bb24cabe77633125ce03ae3031b1d8ae46ec74d0))
+* **agents:** Give the Ethics, Standards and Storage advisers the project's inventory ([#1544](https://github.com/data-director-agent/data-director/issues/1544)) ([b88a2c6](https://github.com/data-director-agent/data-director/commit/b88a2c6c85aec636c3ebbd6491cdabe85923b5d0))
+* **agents:** Write and review a Data Management Plan ([#1459](https://github.com/data-director-agent/data-director/issues/1459)) ([6a19c80](https://github.com/data-director-agent/data-director/commit/6a19c8047d5c5cda41e45914b9743f792c23bc4b))
+* **app:** Add a funder viewer to Project Facts ([#1555](https://github.com/data-director-agent/data-director/issues/1555)) ([dc6cdc4](https://github.com/data-director-agent/data-director/commit/dc6cdc46707e66d96b8a01d7d0c7cc562f07fc2c))
+* **app:** Credit external sources and show their licences ([#1613](https://github.com/data-director-agent/data-director/issues/1613)) ([63a9d73](https://github.com/data-director-agent/data-director/commit/63a9d73ba59f7fb72e90772f6e6dd8ea096bdee6))
+* **app:** Give data stewards a list of the projects they may see ([#1532](https://github.com/data-director-agent/data-director/issues/1532)) ([71935a3](https://github.com/data-director-agent/data-director/commit/71935a30bdf85e759622409df10210242fec19a7))
+* **app:** Give data stewards a queue of requests and the screens to act in a project ([#1495](https://github.com/data-director-agent/data-director/issues/1495)) ([267be3f](https://github.com/data-director-agent/data-director/commit/267be3faa16448deeb4dadbf52305e6e1b5d7975))
+* **app:** Merge Researchers and Members into one People tab ([#1411](https://github.com/data-director-agent/data-director/issues/1411)) ([7898b90](https://github.com/data-director-agent/data-director/commit/7898b900fce7f45b7e5a53eafcffec2bde3749bc))
+* **app:** Show attached documents as readable documents in the Documents tab ([#1452](https://github.com/data-director-agent/data-director/issues/1452)) ([01aa91a](https://github.com/data-director-agent/data-director/commit/01aa91aedf78e0e279d54a9984d1a6e7095b4b9b))
+* **fairness:** Give constructive FAIR feedback on the project's draft metadata ([#1410](https://github.com/data-director-agent/data-director/issues/1410)) ([1577521](https://github.com/data-director-agent/data-director/commit/15775211a54493f1274804cf87d92013e88a5a84))
+* **flow:** Open Phase 1 by describing the project ([#1523](https://github.com/data-director-agent/data-director/issues/1523)) ([212001a](https://github.com/data-director-agent/data-director/commit/212001abe3b9808da061c0aefd0d75457af538a5))
+* **harness:** Build a project's PROV-O graph from its whole log ([#1484](https://github.com/data-director-agent/data-director/issues/1484)) ([31de5d4](https://github.com/data-director-agent/data-director/commit/31de5d4bb415dc23916c74be2a03b4af7c200f99))
+* **harness:** Choose a metadata standard when a repository declares several or none ([#1604](https://github.com/data-director-agent/data-director/issues/1604)) ([a9c0dc9](https://github.com/data-director-agent/data-director/commit/a9c0dc9326ba81fc64482b21f9526c406f7f5655))
+* **harness:** Convert an approved metadata record to another standard ([#1611](https://github.com/data-director-agent/data-director/issues/1611)) ([889ec29](https://github.com/data-director-agent/data-director/commit/889ec2988da2e319c72e963208188dcc5e95aa0b))
+* **harness:** Export and verify a run, conversation or project as a case ([#1582](https://github.com/data-director-agent/data-director/issues/1582)) ([b2763ac](https://github.com/data-director-agent/data-director/commit/b2763acba92ee9a340d50297c6aecb04c6586705))
+* **harness:** Keep a run's stages and the output its checks withheld ([#1578](https://github.com/data-director-agent/data-director/issues/1578)) ([28b1aef](https://github.com/data-director-agent/data-director/commit/28b1aefbaa919764d280cd84938a0283d2cd9f50))
+* **harness:** Let a deployment block ORCID iDs and end their sessions ([#1543](https://github.com/data-director-agent/data-director/issues/1543)) ([bc74825](https://github.com/data-director-agent/data-director/commit/bc74825e721060410826eadbd0ab49b4ff6d1b7a))
+* **harness:** Let data stewards step into a project under policy, and pause it ([#1483](https://github.com/data-director-agent/data-director/issues/1483)) ([01c89be](https://github.com/data-director-agent/data-director/commit/01c89bea1b5dcbb2c574c52fa87b19dc1c9d9627))
+* **harness:** Name content, add journal lines and download a case from the admin service ([#1587](https://github.com/data-director-agent/data-director/issues/1587)) ([98a93a2](https://github.com/data-director-agent/data-director/commit/98a93a2a41c644b9c9eabf54a91df0c356edd2a9))
+* **harness:** Name data steward teams and administrators in the profile ([#1477](https://github.com/data-director-agent/data-director/issues/1477)) ([33f4306](https://github.com/data-director-agent/data-director/commit/33f43060d97e17858dbf6ccf7d360281d5972927))
+* **harness:** Name each missing field and where to supply it before packaging ([#1422](https://github.com/data-director-agent/data-director/issues/1422)) ([6530edf](https://github.com/data-director-agent/data-director/commit/6530edf22a00c1aea859458de6ab5a123a286ee7))
+* **harness:** Reassign and transfer escalations between stewards and teams ([#1539](https://github.com/data-director-agent/data-director/issues/1539)) ([4f69a9e](https://github.com/data-director-agent/data-director/commit/4f69a9e79ec9052cbcffebb54d8dfbd1884037fa))
+* **harness:** Record escalations to a data steward in the project's log ([#1479](https://github.com/data-director-agent/data-director/issues/1479)) ([4eda88f](https://github.com/data-director-agent/data-director/commit/4eda88fcd222fa66f3703d227c445409dcefd4d3))
+* **harness:** Record steward access and role changes in the security log ([#1542](https://github.com/data-director-agent/data-director/issues/1542)) ([d428be3](https://github.com/data-director-agent/data-director/commit/d428be3963c72eb9cb5b883edfbd59db0e9b499f))
+* **harness:** Reopen the plan review once a plan written here is approved ([#1513](https://github.com/data-director-agent/data-director/issues/1513)) ([134dc22](https://github.com/data-director-agent/data-director/commit/134dc2263c1bb0129afc5c73302098d179100fde))
+* **harness:** Tell steward teams and researchers when an escalation moves ([#1518](https://github.com/data-director-agent/data-director/issues/1518)) ([0fbc259](https://github.com/data-director-agent/data-director/commit/0fbc259b5ab8e172bcc812b42b1a52860016dcc2))
+* **inventory:** Identify formats against PRONOM v125 ([#1430](https://github.com/data-director-agent/data-director/issues/1430)) ([58d2d16](https://github.com/data-director-agent/data-director/commit/58d2d1656bf75811bb65b28a4299e9213775047e))
+* Let several researchers share a project, added by ORCID iD ([#389](https://github.com/data-director-agent/data-director/issues/389), [#391](https://github.com/data-director-agent/data-director/issues/391)) ([#1373](https://github.com/data-director-agent/data-director/issues/1373)) ([eef4ac8](https://github.com/data-director-agent/data-director/commit/eef4ac89a29b6a6ed08058752d6f557de7598c17))
+* **mcp-spdx:** Add the SPDX licence server and a Rights Adviser evaluation ([#1480](https://github.com/data-director-agent/data-director/issues/1480)) ([6fbcc6d](https://github.com/data-director-agent/data-director/commit/6fbcc6d592952aa9ad9582b82650204d31c76607))
+* **metadata-records:** Dublin Core as a second metadata standard, with an XML codec ([#1599](https://github.com/data-director-agent/data-director/issues/1599)) ([242ccdb](https://github.com/data-director-agent/data-director/commit/242ccdb593333050f1b6065779b904e34062e243))
+* **metadata-records:** Put DataCite behind a metadata standard and codec interface ([#1591](https://github.com/data-director-agent/data-director/issues/1591)) ([47f3173](https://github.com/data-director-agent/data-director/commit/47f3173fbc6b46aab98444c541a22343c4777bb3))
+* Offer repositories re3data does not list, from DataCite and the profile ([#1342](https://github.com/data-director-agent/data-director/issues/1342)) ([#1382](https://github.com/data-director-agent/data-director/issues/1382)) ([10d0188](https://github.com/data-director-agent/data-director/commit/10d01881a6afceec51461bd1a67699d279cf6cc3))
+* **sdk:** Name a requirement field's term as a CURIE or IRI ([#1569](https://github.com/data-director-agent/data-director/issues/1569)) ([db76313](https://github.com/data-director-agent/data-director/commit/db76313216c385ac9b15fc3b7e1b90b6b2ea63ed))
+* **sdk:** Offer an answer given for one document as a suggestion in another ([#1426](https://github.com/data-director-agent/data-director/issues/1426)) ([e617ebb](https://github.com/data-director-agent/data-director/commit/e617ebbfa9881b732633d60162cf3ea649e44246))
+* **sdk:** Recognise a Data Management Plan as a project fact ([#1451](https://github.com/data-director-agent/data-director/issues/1451)) ([cddfd03](https://github.com/data-director-agent/data-director/commit/cddfd036083791197ea7b27576a546db38592c1e))
+* **sdk:** Record a confirmed data description for every agent to draft from ([#1507](https://github.com/data-director-agent/data-director/issues/1507)) ([f415aa8](https://github.com/data-director-agent/data-director/commit/f415aa86c509d4ec4f291c4575051a7be85a929e))
+* **sdk:** Record the standards, vocabularies and formats a researcher chooses ([#1401](https://github.com/data-director-agent/data-director/issues/1401)) ([ded7f79](https://github.com/data-director-agent/data-director/commit/ded7f79adcdc6f4e86dff51283611f3ba4619a23))
+
+
+### Bug Fixes
+
+* **flow:** Suggest a first step that an agent serves ([#1381](https://github.com/data-director-agent/data-director/issues/1381)) ([8cf0468](https://github.com/data-director-agent/data-director/commit/8cf04685be0e9cc6d9efcf486cea74340d1a1f87))
+* **harness:** Drop secret-bearing attributes from spans imported from agents ([#1575](https://github.com/data-director-agent/data-director/issues/1575)) ([aabac0e](https://github.com/data-director-agent/data-director/commit/aabac0e1b810dfd0d9e4d306632ac9cbd53d55f5))
+* **harness:** Ignore marks of steps the flow has retired ([#1527](https://github.com/data-director-agent/data-director/issues/1527)) ([23b2f11](https://github.com/data-director-agent/data-director/commit/23b2f11485434fe1a81f4002d4dd587a534adebf))
+* **harness:** Keep people signed in across restarts and let operators pause deployments ([#1336](https://github.com/data-director-agent/data-director/issues/1336)) ([b36cb35](https://github.com/data-director-agent/data-director/commit/b36cb35638136f28fd0567b6e8fa0486613ae1cd))
+* **orchestrator:** Tell the model the researcher's answers to the setup questions ([#1376](https://github.com/data-director-agent/data-director/issues/1376)) ([cc1d069](https://github.com/data-director-agent/data-director/commit/cc1d069e5c0c0d87d92643e0b6f256a21dd6e2b4))
+* **sdk:** Retire flow ids instead of deleting them, so old project logs still read ([#1533](https://github.com/data-director-agent/data-director/issues/1533)) ([d153a10](https://github.com/data-director-agent/data-director/commit/d153a104a2670ab3512aece0e2605cd5647648fc))
+
+
+### Performance Improvements
+
+* **harness:** Serve the agent card pre-serialised and revalidate it on the client ([#1425](https://github.com/data-director-agent/data-director/issues/1425)) ([f191ede](https://github.com/data-director-agent/data-director/commit/f191edeb9a617b8c5f44c356121c15d0151a44b9))
+* **harness:** Take each agent's JSON Schemas off the harness card ([#1592](https://github.com/data-director-agent/data-director/issues/1592)) ([0f49bd4](https://github.com/data-director-agent/data-director/commit/0f49bd49a2d6029f8d0d9feee64e99119821f547))
+
 ## [0.2.0-alpha.5](https://github.com/data-director-agent/data-director/compare/harness-v0.2.0-alpha.4...harness-v0.2.0-alpha.5) (2026-11-21)
 
 

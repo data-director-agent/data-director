@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.1.1-alpha.5](https://github.com/data-director-agent/data-director/compare/agent-orchestrator-stub-v0.1.1-alpha.4...agent-orchestrator-stub-v0.1.1-alpha.5) (2026-11-27)
+
+
+### Features
+
+* **advisor-documentation:** Plan a dataset's documentation before data are collected ([#1498](https://github.com/data-director-agent/data-director/issues/1498)) ([8a85a60](https://github.com/data-director-agent/data-director/commit/8a85a60094b4507367bf5b59fed9fa7510170a33))
+* **agents:** Ask about storage and open formats before data collection ([#1500](https://github.com/data-director-agent/data-director/issues/1500)) ([bb24cab](https://github.com/data-director-agent/data-director/commit/bb24cabe77633125ce03ae3031b1d8ae46ec74d0))
+* **agents:** Write and review a Data Management Plan ([#1459](https://github.com/data-director-agent/data-director/issues/1459)) ([6a19c80](https://github.com/data-director-agent/data-director/commit/6a19c8047d5c5cda41e45914b9743f792c23bc4b))
+* **app:** Credit external sources and show their licences ([#1613](https://github.com/data-director-agent/data-director/issues/1613)) ([63a9d73](https://github.com/data-director-agent/data-director/commit/63a9d73ba59f7fb72e90772f6e6dd8ea096bdee6))
+* **flow:** Open Phase 1 by describing the project ([#1523](https://github.com/data-director-agent/data-director/issues/1523)) ([212001a](https://github.com/data-director-agent/data-director/commit/212001abe3b9808da061c0aefd0d75457af538a5))
+
+
+### Bug Fixes
+
+* **orchestrator:** Keep requirement codes out of the conversation ([#1385](https://github.com/data-director-agent/data-director/issues/1385)) ([9fbed0e](https://github.com/data-director-agent/data-director/commit/9fbed0e117ec7d3e50e4da14a8149f33b7b6d77b))
+
+
+### Documentation
+
+* **agents:** Bring the agents' documentation up to date with their code ([#1446](https://github.com/data-director-agent/data-director/issues/1446)) ([b42df27](https://github.com/data-director-agent/data-director/commit/b42df279c5d5946e528578c012ad17c3baeffa9a))
+
 ## [0.1.1-alpha.4](https://github.com/data-director-agent/data-director/compare/agent-orchestrator-stub-v0.1.1-alpha.3...agent-orchestrator-stub-v0.1.1-alpha.4) (2026-11-21)
 
 

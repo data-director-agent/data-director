@@ -1,5 +1,49 @@
 # Changelog
 
+## [0.1.1-alpha.6](https://github.com/data-director-agent/data-director/compare/agent-orchestrator-model-v0.1.1-alpha.5...agent-orchestrator-model-v0.1.1-alpha.6) (2026-11-27)
+
+
+### Features
+
+* **advisor-standards:** Read the decided field of study and data description ([#1535](https://github.com/data-director-agent/data-director/issues/1535)) ([717ad97](https://github.com/data-director-agent/data-director/commit/717ad977b7b788479886d8c36221be551c098144))
+* **agents:** Give the Ethics, Standards and Storage advisers the project's inventory ([#1544](https://github.com/data-director-agent/data-director/issues/1544)) ([b88a2c6](https://github.com/data-director-agent/data-director/commit/b88a2c6c85aec636c3ebbd6491cdabe85923b5d0))
+* **agents:** Write and review a Data Management Plan ([#1459](https://github.com/data-director-agent/data-director/issues/1459)) ([6a19c80](https://github.com/data-director-agent/data-director/commit/6a19c8047d5c5cda41e45914b9743f792c23bc4b))
+* **app:** Ask a data steward from a project and from a referred run ([#1486](https://github.com/data-director-agent/data-director/issues/1486)) ([fed7905](https://github.com/data-director-agent/data-director/commit/fed7905462c84d7b483c325eab462dcb5ff3d6b7))
+* **app:** Credit external sources and show their licences ([#1613](https://github.com/data-director-agent/data-director/issues/1613)) ([63a9d73](https://github.com/data-director-agent/data-director/commit/63a9d73ba59f7fb72e90772f6e6dd8ea096bdee6))
+* **app:** one Questions section, suggestions to accept in bulk, and "Talk this through" ([#1372](https://github.com/data-director-agent/data-director/issues/1372)) ([fc1f4a3](https://github.com/data-director-agent/data-director/commit/fc1f4a39805149f0f27f422d3373432c971b95a4))
+* **dmp:** Treat every Data Management Plan step as in scope ([#1494](https://github.com/data-director-agent/data-director/issues/1494)) ([a9c7ae7](https://github.com/data-director-agent/data-director/commit/a9c7ae796f1cbbbe6ef777fab9ff87805bd4b1a9))
+* **flow:** Open Phase 1 by describing the project ([#1523](https://github.com/data-director-agent/data-director/issues/1523)) ([212001a](https://github.com/data-director-agent/data-director/commit/212001abe3b9808da061c0aefd0d75457af538a5))
+* **harness:** Reopen the plan review once a plan written here is approved ([#1513](https://github.com/data-director-agent/data-director/issues/1513)) ([134dc22](https://github.com/data-director-agent/data-director/commit/134dc2263c1bb0129afc5c73302098d179100fde))
+* Offer repositories re3data does not list, from DataCite and the profile ([#1342](https://github.com/data-director-agent/data-director/issues/1342)) ([#1382](https://github.com/data-director-agent/data-director/issues/1382)) ([10d0188](https://github.com/data-director-agent/data-director/commit/10d01881a6afceec51461bd1a67699d279cf6cc3))
+* **orchestrator:** Link cited sources in replies ([#1631](https://github.com/data-director-agent/data-director/issues/1631)) ([ecc1c6c](https://github.com/data-director-agent/data-director/commit/ecc1c6c20a4104fc639b60e7aa17b6ed0451d320))
+* **orchestrator:** Suggest fields of study when asking for the discipline ([#1412](https://github.com/data-director-agent/data-director/issues/1412)) ([bf982f1](https://github.com/data-director-agent/data-director/commit/bf982f1eda2e6c245e5244f4e68ee5350ed59068))
+* **sdk:** Follow Figures 1, 2 and 4 more closely in the process flow ([#1399](https://github.com/data-director-agent/data-director/issues/1399)) ([34e9a7f](https://github.com/data-director-agent/data-director/commit/34e9a7f2a5531117341048acf2481f98fb72d7da))
+* **sdk:** Recognise a Data Management Plan as a project fact ([#1451](https://github.com/data-director-agent/data-director/issues/1451)) ([cddfd03](https://github.com/data-director-agent/data-director/commit/cddfd036083791197ea7b27576a546db38592c1e))
+* **sdk:** Record a confirmed data description for every agent to draft from ([#1507](https://github.com/data-director-agent/data-director/issues/1507)) ([f415aa8](https://github.com/data-director-agent/data-director/commit/f415aa86c509d4ec4f291c4575051a7be85a929e))
+* **sdk:** Record the standards, vocabularies and formats a researcher chooses ([#1401](https://github.com/data-director-agent/data-director/issues/1401)) ([ded7f79](https://github.com/data-director-agent/data-director/commit/ded7f79adcdc6f4e86dff51283611f3ba4619a23))
+
+
+### Bug Fixes
+
+* **advisor-repository:** Take the kinds of data from the project's inventory ([#1568](https://github.com/data-director-agent/data-director/issues/1568)) ([a10fdcd](https://github.com/data-director-agent/data-director/commit/a10fdcd65c317af309aca13bef70e1a8b10e7e78))
+* **app:** Never cut an answer short, and show saved answers on the card ([#1420](https://github.com/data-director-agent/data-director/issues/1420)) ([53c75d8](https://github.com/data-director-agent/data-director/commit/53c75d8a4a50dc8ca4c7a867202279f04399ad40))
+* **flow:** Suggest a first step that an agent serves ([#1381](https://github.com/data-director-agent/data-director/issues/1381)) ([8cf0468](https://github.com/data-director-agent/data-director/commit/8cf04685be0e9cc6d9efcf486cea74340d1a1f87))
+* **orchestrator-model:** Show the data steward offer as a form whatever the model sends ([#1520](https://github.com/data-director-agent/data-director/issues/1520)) ([29adece](https://github.com/data-director-agent/data-director/commit/29adece2b969e4e8a7e8aa70e9544fafc49824c9))
+* **orchestrator:** Keep requirement codes out of the conversation ([#1385](https://github.com/data-director-agent/data-director/issues/1385)) ([9fbed0e](https://github.com/data-director-agent/data-director/commit/9fbed0e117ec7d3e50e4da14a8149f33b7b6d77b))
+* **orchestrator:** Pass on an agent's advice instead of a bare list to pick from ([#1394](https://github.com/data-director-agent/data-director/issues/1394)) ([9165e7b](https://github.com/data-director-agent/data-director/commit/9165e7b1c0d2349a561e030e823abe66e56e30dd))
+* **orchestrator:** Report what agents found before offering a data steward ([#1574](https://github.com/data-director-agent/data-director/issues/1574)) ([5561096](https://github.com/data-director-agent/data-director/commit/5561096c49bc9962e893df1d7651d00a4171004a))
+* **orchestrator:** Tell the model the researcher's answers to the setup questions ([#1376](https://github.com/data-director-agent/data-director/issues/1376)) ([cc1d069](https://github.com/data-director-agent/data-director/commit/cc1d069e5c0c0d87d92643e0b6f256a21dd6e2b4))
+
+
+### Performance Improvements
+
+* **harness:** Take each agent's JSON Schemas off the harness card ([#1592](https://github.com/data-director-agent/data-director/issues/1592)) ([0f49bd4](https://github.com/data-director-agent/data-director/commit/0f49bd49a2d6029f8d0d9feee64e99119821f547))
+
+
+### Documentation
+
+* **agents:** Bring the agents' documentation up to date with their code ([#1446](https://github.com/data-director-agent/data-director/issues/1446)) ([b42df27](https://github.com/data-director-agent/data-director/commit/b42df279c5d5946e528578c012ad17c3baeffa9a))
+
 ## [0.1.1-alpha.5](https://github.com/data-director-agent/data-director/compare/agent-orchestrator-model-v0.1.1-alpha.4...agent-orchestrator-model-v0.1.1-alpha.5) (2026-11-21)
 
 
