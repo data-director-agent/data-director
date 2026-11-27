@@ -76,6 +76,7 @@ def test_a_garbled_proc_file_is_ignored() -> None:
     assert host.stall_percent(None) is None
     assert host.stall_percent("some avg10=1 avg60=x") is None
     assert host.stall_percent("full avg60=3.0") is None
+    assert host.stall_percent("some avg10=1.00 total=1") is None
     assert host.meminfo_kb("junk\nMemTotal: many kB") == {}
     found = host.read(Proc({"loadavg": "a b c"}), cpus=1)
     assert found.load_1m is None
