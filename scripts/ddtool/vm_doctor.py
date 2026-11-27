@@ -30,6 +30,7 @@ from ddtool.vm import (
     systemctl_show,
     wanted_agents,
 )
+from ddtool.vm_network import NetworkChecks
 from ddtool.vm_report import journal, short
 from ddtool.vm_settings import SettingsChecks
 
@@ -57,7 +58,7 @@ STORE_SETTINGS = (
 )
 
 
-class Doctor(SettingsChecks):
+class Doctor(NetworkChecks, SettingsChecks):
     """Every check of a VM, in the order `check` runs them."""
 
     # --- The release ---------------------------------------------------------------------------
@@ -418,6 +419,7 @@ class Doctor(SettingsChecks):
         self.agents(agents)
         self.broker()
         self.gateway()
+        self.networks()
         self.secrets(agents)
         self.settings(release)
         self.live(live)

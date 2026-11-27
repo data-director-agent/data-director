@@ -26,6 +26,12 @@ disabled: []
 # server, and `apply` refuses it on a VM.
 # pid_resolver: true
 
+# The address ranges your institution's networks use, such as its Wi-Fi. On a VM, `doctor` reports a
+# Docker network or bridge whose subnet overlaps one, since the VM would route replies for those
+# clients to it. Left out, it checks 172.16.0.0/12 and 192.168.0.0/16, where Docker's default pools
+# fall. List your own ranges to narrow it, or to add 10.0.0.0/8 (deploy/README.md).
+# campus_ranges: [172.18.0.0/16, 10.0.0.0/8]
+
 # Your institution's own data repositories, offered to its researchers and suggested first on a
 # project's page, copied into the profile as written. Name each by its identifier in the registry
 # that lists it: its re3data identifier (r3d followed by nine digits), or, for one re3data does not

@@ -104,9 +104,36 @@ class FakeVm(System):
         }
     )
     answering: set[int] = field(default_factory=lambda: {8101, 8106})
+    # Docker's networks as `docker network inspect` shows them, and the bridge interfaces as
+    # `ip -json address` shows them: a healthy VM's are outside the campus ranges. `docker` is
+    # what `docker network ls` answers (127: Docker is not installed).
+    docker_networks: list[dict[str, Any]] = field(
+        default_factory=lambda: [
+            {
+                "Name": "data-director-llm-gateway_default",
+                "IPAM": {"Config": [{"Subnet": "10.201.0.0/24"}]},
+            }
+        ]
+    )
+    bridges: list[dict[str, Any]] = field(
+        default_factory=lambda: [
+            {
+                "ifname": "br-1",
+                "operstate": "UP",
+                "addr_info": [{"local": "10.201.0.1", "prefixlen": 24}],
+            }
+        ]
+    )
+    docker: int = 0
 
     def run(self, *cmd: str) -> Done:
         match cmd:
+            case ("docker", "network", "ls", "-q"):
+                return Done(self.docker, "abc\n" if self.docker == 0 else "")
+            case ("docker", "network", "inspect", *_):
+                return Done(0, json.dumps(self.docker_networks))
+            case ("ip", "-json", "-4", "address", "show", "type", "bridge"):
+                return Done(0, json.dumps(self.bridges))
             case ("env", *rest) if rest[-3:-1] == ["storage", "status"]:
                 self.calls.append(cmd)
                 return self.schema
@@ -215,6 +242,109 @@ def test_a_healthy_vm_is_all_good(vm: Vm, capsys: pytest.CaptureFixture[str]) ->
     assert "All good." in out
     assert says(out, "note", "orchestrator-model")
     assert says(out, "note", "orchestrator.stub")
+
+
+def network(name: str, subnet: str) -> dict[str, Any]:
+    return {"Name": name, "IPAM": {"Config": [{"Subnet": subnet}]}}
+
+
+def bridge(ifname: str, address: str, state: str = "UP") -> dict[str, Any]:
+    local, _, length = address.partition("/")
+    return {
+        "ifname": ifname,
+        "operstate": state,
+        "addr_info": [{"local": local, "prefixlen": int(length)}],
+    }
+
+
+def test_a_docker_network_in_a_campus_range_is_a_problem_with_its_fix(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    system = FakeVm(
+        docker_networks=[network("monitoring_default", "172.18.0.0/16")],
+        bridges=[bridge("br-2", "172.18.0.1/16")],
+    )
+    status, out = check(system, vm, capsys)
+    assert status == 1, out
+    assert says(out, "problem", "monitoring_default", "172.18.0.0/16", "172.16.0.0/12")
+    assert says(out, "fix", "bip", "default-address-pools", "daemon.json")
+    assert not says(out, "fix", "DD_GATEWAY_SUBNET")
+
+
+def test_the_gateway_network_in_a_campus_range_names_its_own_setting(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    system = FakeVm(
+        docker_networks=[network("data-director-llm-gateway_default", "192.168.16.0/20")],
+        bridges=[bridge("br-3", "192.168.16.1/20")],
+    )
+    status, out = check(system, vm, capsys)
+    assert status == 1, out
+    assert says(out, "fix", "DD_GATEWAY_SUBNET", "default-address-pools")
+
+
+def test_a_bridge_whose_link_is_down_is_a_note_not_a_problem(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    system = FakeVm(
+        docker_networks=[network("bridge", "172.17.0.0/16")],
+        bridges=[bridge("docker0", "172.17.0.1/16", "DOWN")],
+    )
+    status, out = check(system, vm, capsys)
+    assert status == 0, out
+    assert says(out, "note", "bridge", "172.17.0.0/16", "down")
+
+
+def test_a_bridge_docker_does_not_list_is_found_by_its_interface(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    system = FakeVm(docker_networks=[], bridges=[bridge("br-old", "172.19.0.1/16")])
+    status, out = check(system, vm, capsys)
+    assert status == 1, out
+    assert says(out, "problem", "br-old", "172.19.0.0/16")
+
+
+def test_deployment_campus_ranges_replace_the_defaults(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (vm.etc / "deployment.yaml").write_text(
+        "name: test\norchestrator: stub\ncampus_ranges: [10.0.0.0/8]\n"
+    )
+    system = FakeVm(
+        docker_networks=[network("a", "172.18.0.0/16"), network("b", "10.5.0.0/24")],
+        bridges=[bridge("br-a", "172.18.0.1/16"), bridge("br-b", "10.5.0.1/24")],
+    )
+    _status, out = check(system, vm, capsys)
+    assert says(out, "problem", "b", "10.5.0.0/24", "10.0.0.0/8")
+    assert not says(out, "problem", "172.18.0.0/16")
+
+
+def test_a_vm_without_docker_reports_no_network(vm: Vm, capsys: pytest.CaptureFixture[str]) -> None:
+    system = FakeVm(docker=127, bridges=[])
+    status, out = check(system, vm, capsys)
+    assert status == 0, out
+    assert not says(out, "skipped", "Docker")
+
+
+def test_a_refusing_docker_is_skipped(vm: Vm, capsys: pytest.CaptureFixture[str]) -> None:
+    status, out = check(FakeVm(docker=1, root=False), vm, capsys)
+    assert "Docker networks" in out
+    assert status in (0, 1)
+
+
+def test_a_network_problem_is_in_the_json_report(
+    vm: Vm, capsys: pytest.CaptureFixture[str]
+) -> None:
+    system = FakeVm(
+        docker_networks=[network("monitoring_default", "172.18.0.0/16")],
+        bridges=[bridge("br-2", "172.18.0.1/16")],
+    )
+    Doctor(system, vm).run(as_json=True)
+    report = json.loads(capsys.readouterr().out)
+    assert any(
+        "monitoring_default" in p["text"] and "default-address-pools" in (p["fix"] or "")
+        for p in report["problems"]
+    )
 
 
 def link_python(vm: Vm, home: Path, mode: int) -> None:
