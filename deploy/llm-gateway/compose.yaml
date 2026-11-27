@@ -7,7 +7,7 @@
 
 services:
   litellm:
-    image: ghcr.io/berriai/litellm:1.110.2@sha256:ef798594ca3db8d81bad2e1439f536f49b71fe095ee9f20416f5e149b4e22035   # read release notes before bumping
+    image: ghcr.io/berriai/litellm:1.111.0@sha256:ce00096d012719d58c52cecfa373f7c6256dd1b0ff08f6fa607e10e9628f1f46   # read release notes before bumping
     # By hand, the settings and secrets are in .env. On a VM, data-director-llm-gateway.service
     # passes them in its environment instead, from root's files (deploy/README.md), so .env is
     # optional and the ones the gateway needs are named here.
@@ -76,7 +76,7 @@ services:
     restart: unless-stopped
 
   alertmanager:
-    image: prom/alertmanager:v0.28.1@sha256:27c475db5fb156cab31d5c18a4251ac7ed567746a2483ff264516437a39b15ba
+    image: prom/alertmanager:v0.35.0@sha256:e638797febd034838eca8b98cdbd46f951e9bf7f178777aa8669167406a9946c
     profiles: ["monitoring"]
     volumes:
       - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
