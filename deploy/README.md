@@ -272,6 +272,14 @@ deployment-paid calls through the gateway: it sets `DD_BROKER_DEPLOYMENT_BASE_UR
 `model-broker.env` and writes the broker's drop-in `llm-gateway.conf`. A person's own account
 never goes through the gateway.
 
+Docker's default address pools overlap a University's Wi-Fi ranges (its first project network is
+172.18.0.0/16), and a route to one on the VM stops those clients connecting. So `install.sh` writes
+`/etc/docker/daemon.json` with pools in 10.200.0.0/24 and 10.201.0.0/16 when no such file exists,
+and the compose file pins the gateway's network to `10.201.0.0/24`. Set `DD_GATEWAY_SUBNET` in
+`llm-gateway.env` to use another block. On a VM that already has a `daemon.json`, set `bip` and
+`default-address-pools` in it yourself. `install.sh` run again moves a gateway that is on
+the old network, keeping its database.
+
 Give the gateway a provider key, which restarts it:
 
 ```bash

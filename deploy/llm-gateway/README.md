@@ -85,6 +85,15 @@ gateway under systemd with its secrets in `/etc/data-director/credentials/llm-ga
 the model broker a key for it ([deploy/README.md](../README.md#the-litellm-gateway)). The steps
 below are for running it by hand, or for pointing agents at it.
 
+The gateway's Docker network has a fixed subnet, `10.201.0.0/24` unless `DD_GATEWAY_SUBNET` says
+otherwise (in `/etc/data-director/llm-gateway.env` on a VM, or `.env` by hand). Docker's own
+default would be 172.18.0.0/16 on a host that already has `docker0`, which is a University's
+Wi-Fi range: the host would route replies for those clients to the Docker bridge and they could
+not connect. Choose a block that no campus network uses. `install.sh` also sets Docker's default
+address pools in `/etc/docker/daemon.json`, if that file does not exist. A changed subnet takes
+effect when the gateway is started again, which recreates the network and keeps the database's
+volume.
+
 ## Model names
 
 A client's `model` must match a `model_name` in `config.yaml`, or the gateway refuses the call. The

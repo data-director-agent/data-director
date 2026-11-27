@@ -94,6 +94,15 @@ services:
     depends_on: [prometheus]
     restart: unless-stopped
 
+# Docker would take the next free block of its default pool for this network, which is
+# 172.18.0.0/16 on a host that already has docker0, and that is a University's Wi-Fi range. The
+# subnet is pinned instead, outside the ranges campus networks use (README, "On the VM").
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: ${DD_GATEWAY_SUBNET:-10.201.0.0/24}
+
 volumes:
   pgdata:
   promdata:
